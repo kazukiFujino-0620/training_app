@@ -1,0 +1,52 @@
+<!-- <!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><title>新規登録画面</title></head>
+<body>
+    <h2>新規登録画面</h2>
+    <form th:action="@{/signup}" method="post">
+        ユーザー名: <input type="username" name="username"><br>
+        メールアドレス: <input type="email" name="email"><br>
+        パスワード: <input type="password" name="password"><br>
+        パスワード（確認用）: <input type="password" name="password_confirm"><br>
+        <button type="submit">登録</button>
+    </form>
+    <hr>
+    <div>
+        <button type="button">Googleで登録</button> </div>
+    
+    <br>
+    <a th:href="@{/login}">戻る</a>
+</body>
+</html> -->
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><title>新規登録画面</title></head>
+<body>
+    <h2>新規登録画面</h2>
+	<form th:action="@{/signup}" th:object="${signupForm}" method="post">
+		<div>
+	        ユーザー名: <input type="text" th:field="*{username}">
+    	    <p th:if="${#fields.hasErrors('username')}" th:errors="*{username}" style="color: red;"></p><br>
+		</div>
+		<div>
+       		メールアドレス: <input type="text" th:field="*{email}">
+        	<p th:if="${#fields.hasErrors('email')}" th:errors="*{email}" style="color: red;"></p><br>
+     	</div>
+		<div>
+	        パスワード: <input type="text" th:field="*{password}">
+    	    <p th:if="${#fields.hasErrors('password')}" th:errors="*{password}" style="color: red;"></p><br>
+		</div>
+		<div>
+        	パスワード（確認用）:<input type="password" th:field="*{password_confirm}">
+        	<p th:if="${#fields.hasErrors('password_confirm')}" th:errors="*{password_confirm}" style="color: red;"></p><br>
+        </div>
+        <button type="submit">登録</button>
+    </form>
+    <hr>
+    <div>
+        <button type="button">Googleで登録</button> </div>
+    
+    <br>
+    <a th:href="@{/login}">戻る</a>
+</body>
+</html>
