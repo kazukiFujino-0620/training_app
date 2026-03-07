@@ -3,9 +3,16 @@
 <head><title>ログイン</title></head>
 <body>
     <h2>ログイン</h2>
+    <div th:if="${param.logout}" style="color: blue; margin-bottom: 10px;">
+	    ログアウトしました。
+	</div>
+
+	<div th:if="${param.error}" style="color: red; margin-bottom: 10px;">
+	    メールアドレスまたはパスワードが正しくありません。
+	</div>
     <form th:action="@{/login}" method="post">
-        メールアドレス: <input type="email" name="username"><br>
-        パスワード: <input type="password" name="password"><br>
+		メールアドレス: <input type="email" name="username"><br>
+		パスワード: <input type="password" name="password"><br>
         <button type="submit">ログイン</button>
     </form>
     
