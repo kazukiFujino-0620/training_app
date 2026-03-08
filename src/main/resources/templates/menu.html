@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>メインメニュー</title>
+    <style>
+        /* モーダルの背景 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        /* モーダルの中身 */
+        .modal-content {
+            background: white;
+            width: 450px;
+            margin: 100px auto;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; }
+        
+        /* カレンダーのセル設定 */
+        .calendar-cell { 
+            cursor: pointer; 
+            transition: background 0.2s; 
+            border: 1px solid #ddd; 
+            height: 80px; 
+            vertical-align: top; 
+            padding: 5px; 
+        }
+        .calendar-cell:hover { background-color: #f0f8ff !important; }
+        .today-highlight { background-color: #e3f2fd; font-weight: bold; border: 2px solid #2196F3 !important; }
+        .other-month { color: #ccc; }
+
+        /* セット入力用のテーブル簡易スタイル */
+        #setTable { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        #setTable th, #setTable td { padding: 5px; text-align: center; border-bottom: 1px solid #eee; }
+        #setTable input { width: 60px; padding: 5px; text-align: right; }
+    </style>
+</head>
+<body>
+
+    <div th:replace="~{common :: headerFragment}"></div>
+
+    <main style="display: flex; gap: 20px; padding: 20px; min-height: 600px;">
+        
+        <div style="flex: 0 0 calc(50% - 10px); border: 1px solid #ccc; padding: 10px; background-color: #fff; border-radius: 8px;">
+            <div class="calendar-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <a th:href="@{/menu(date=${prevMonth})}" 
+					   style="text-decoration: none; padding: 5px 10px; border: 1px solid #ccc; background: #f0f0f0; color: black; border-radius: 4px;">
+					   ◀
+					</a>
+					<span th:text="${targetMonth.year} + '年' + ${targetMonth.monthValue} + '月'"></span>
+             		<a th:href="@{/menu(date=${nextMonth})}" 
+					   style="text-decoration: none; padding: 5px 10px; border: 1px solid #ccc; background: #f0f0f0; color: black; border-radius: 4px;">
+					   ▶
+					</a>
+                </div>
+            
+                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                    <thead>
+                        <tr style="background: #f0f0f0;">
+                            <th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th style="color:blue;">土</th><th style="color:red;">日</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="i : ${#numbers.sequence(0, 5)}">
+                            <td th:each="j : ${#numbers.sequence(0, 6)}" 
+                                th:with="day=${dateList[i * 7 + j]}"
+                                class="calendar-cell"
+                                th:classappend="${day == today} ? 'today-highlight' : ''"
+                                th:onclick="selectDate([[${day}]])">
+                                
+                                <span th:text="${day.dayOfMonth}"
+                                      th:class="${day.month != targetMonth.month} ? 'other-month' : ''">1</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="flex: 0 0 calc(50% - 10px); border: 1px solid #ccc; padding: 20px; background-color: #fcfcfc; border-radius: 8px;">
+            <h3 style="text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                <span th:text="${selectedDate != null ? selectedDate : today}">2026-03-07</span> のサマリー
+            </h3>
+
+			<div th:if="${not #lists.isEmpty(trainingList)}" style="margin-top: 20px;">
+                <div th:each="item : ${trainingList}" style="border: 1px solid #ddd; margin-bottom:10px; padding:15px; border-radius:10px; background: white; display: flex; justify-content: space-between; align-items: center;">
+                    
+                    <div style="flex-grow: 1;">
+                        <strong th:text="${item.menu}">種目名</strong> 
+                        <span style="color: #666; font-size: 0.9em;" th:text="'(' + ${item.partName} + ')'">(部位)</span>
+                        
+                        <div th:each="detail : ${item.details}" style="margin-top: 5px; font-size: 0.9em; color: #444; display: flex; align-items: center;">
+                            <span th:text="${detail.setNumber}">1</span>セット目: 
+                            <span th:text="${detail.weight}">0</span> kg × 
+                            <span th:text="${detail.reps}">0</span> 回
+                            
+                            <span th:if="${detail.isCompleted}" style="color: #4CAF50; margin-left: 8px; font-weight: bold;">✓</span>
+                            <span th:if="${!detail.isCompleted}" style="color: #ccc; margin-left: 8px;">○</span>
+                        </div>
+                    </div>
+
+                    <div style="min-width: 60px; text-align: center; display: flex; justify-content: center;">
+                        <div th:if="${item.isAllCompleted}"
+                             style="width: 34px; height: 34px; background-color: #4CAF50; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            ✓
+                        </div>
+                        <div th:if="${!item.isAllCompleted}"
+                             style="width: 34px; height: 34px; background-color: #fff; color: #ccc; border: 2px solid #ddd; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                            ✓
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px; min-width: 80px; margin-left: 10px;">
+                        <button type="button" th:onclick="openModal([[${selectedDate}]], [[${item.id}]])" 
+                                style="cursor:pointer; padding: 6px; background: #eee; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85em;">編集</button>
+                        <form th:action="@{/menu/delete}" method="post" onsubmit="return confirm('本当に削除しますか？');" style="margin: 0;">
+                            <input type="hidden" name="id" th:value="${item.id}">
+                            <button type="submit" style="color: white; background-color: #f44336; border: none; padding: 6px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 0.85em;">
+                                削除
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <button th:onclick="openModal([[${selectedDate != null ? selectedDate : today}]])" 
+                        style="width:100%; padding:12px; margin-top:10px; cursor:pointer; background: #fff; border: 2px dashed #ccc; border-radius: 10px; color: #666;">
+                    ＋ 他の種目を追加登録
+                </button>
+                <div th:if="${!isDailyCompleted}" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; text-align: center;">
+	            	<form th:action="@{/start/training}" method="get">
+	                	<input type="hidden" name="date" th:value="${selectedDate != null ? selectedDate : today}">
+	                	<button type="submit" 
+	                    style="width: 100%; padding: 15px; cursor: pointer; background: #607D8B; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1em; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;">
+	                    	トレーニングを開始する
+	                	</button>
+	            	</form>
+	        	</div>
+                <div th:if="${isDailyCompleted}" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; text-align: center;">
+	            	<p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">
+	                	本日のトレーニング全体の統計やメモを確認する
+	            	</p>
+	            	<form th:action="@{/detail}" method="get">
+	                	<input type="hidden" name="date" th:value="${selectedDate != null ? selectedDate : today}">
+	                	<button type="submit" 
+	                    style="width: 100%; padding: 15px; cursor: pointer; background: #607D8B; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1em; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;">
+	                    	本日のトレーニング詳細を表示
+	                	</button>
+	            	</form>
+	        	</div>
+            </div>
+
+            <div th:if="${#lists.isEmpty(trainingList)}" style="margin-top: 80px; text-align: center; color: #999;">
+                <p>この日のトレーニング記録はありません。</p>
+                <button th:onclick="openModal([[${selectedDate != null ? selectedDate : today}]])" 
+                        style="margin-top: 10px; padding: 10px 20px; cursor:pointer; background: #2196F3; color: white; border: none; border-radius: 5px;">
+                    記録を付ける
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <div id="trainingModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modalTitle">トレーニング登録</h3>
+            <p id="displayDate" style="color: #666; font-weight: bold;"></p>
+            
+            <form th:action="@{/menu/save}" method="post" onsubmit="reindexSets()">
+                <input type="hidden" id="trainingId" name="id">
+                <input type="hidden" id="modalDate" name="trainingDate">
+                
+                <div class="form-group">
+                    <label>部位</label>
+                    <select name="partCode" id="modalPart" required onchange="updateItems(this.value)">
+                        <option value="">部位を選択してください</option>
+                        <option th:each="p : ${partList}" th:value="${p.partCode}" th:text="${p.partName}"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>種目名</label>
+                    <select name="menu" id="modalMenu" required disabled>
+                        <option value="">部位を先に選択してください</option>
+                    </select>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <label style="font-weight: bold;">セット詳細</label>
+                    <table id="setTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">セット</th>
+                                <th>重量(kg)</th>
+                                <th>回数(reps)</th>
+                                <th style="width: 40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="setList">
+                            </tbody>
+                    </table>
+                    <button type="button" onclick="addSetRow()" style="width: 100%; padding: 5px; cursor: pointer;">＋ セットを追加</button>
+                </div>
+                
+                <div style="display:flex; justify-content: space-between; margin-top:30px;">
+                    <button type="button" onclick="closeModal()" style="padding: 10px 20px; border: 1px solid #ccc; background: #fff; border-radius: 5px; cursor: pointer;">キャンセル</button>
+                    <button type="submit" style="background:#4CAF50; color:white; border:none; padding: 10px 30px; border-radius: 5px; cursor:pointer;">保存する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function selectDate(date) {
+            window.location.href = "/menu?date=" + date;
+        }
+
+        let setIndex = 0;
+
+        function openModal(date, id = null) {
+            document.getElementById('trainingModal').style.display = 'block';
+            document.getElementById('modalDate').value = date;
+            document.getElementById('displayDate').innerText = "実施日: " + date;
+            
+            document.getElementById('setList').innerHTML = '';
+            setIndex = 0;
+            
+            if (id) {
+                document.getElementById('modalTitle').innerText = "トレーニング編集";
+                document.getElementById('trainingId').value = id;
+                // ※本来はここでAjaxで既存データを取得してセットする
+            } else {
+                document.getElementById('modalTitle').innerText = "トレーニング登録";
+                document.getElementById('trainingId').value = "";
+                addSetRow(); // 新規の時は最初の一行を出す
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('trainingModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('trainingModal');
+            if (event.target == modal) closeModal();
+        }
+
+        function updateItems(partCode) {
+            const menuSelect = document.getElementById('modalMenu');
+            if (!partCode) {
+                menuSelect.innerHTML = '<option value="">部位を先に選択してください</option>';
+                menuSelect.disabled = true;
+                return;
+            }
+
+            fetch('/api/training-items?partCode=' + partCode)
+                .then(response => response.json())
+                .then(items => {
+                    menuSelect.innerHTML = '<option value="">種目を選択してください</option>';
+                    items.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.itemName;
+                        option.textContent = item.itemName;
+                        menuSelect.appendChild(option);
+                    });
+                    menuSelect.disabled = false;
+                })
+                .catch(error => console.error('Error:', error));
+        }
+        
+        function addSetRow() {
+            const tbody = document.getElementById('setList');
+            const row = `
+                <tr>
+                    <td>${setIndex + 1}</td>
+                    <td><input type="number" name="details[${setIndex}].weight" step="0.1" required></td>
+                    <td><input type="number" name="details[${setIndex}].reps" required></td>
+                    <td><button type="button" onclick="this.closest('tr').remove(); reindexSets();" style="color:red; border:none; background:none; cursor:pointer;">✕</button></td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', row);
+            setIndex++;
+        }
+
+        function reindexSets() {
+            const rows = document.querySelectorAll('#setList tr');
+            rows.forEach((row, index) => {
+                row.cells[0].innerText = index + 1; // 表示上のセット番号
+                const weightInput = row.querySelector('input[name*=".weight"]');
+                const repsInput = row.querySelector('input[name*=".reps"]');
+                if(weightInput) weightInput.name = `details[${index}].weight`;
+                if(repsInput) repsInput.name = `details[${index}].reps`;
+            });
+            setIndex = rows.length;
+        }
+    </script>
+</body>
+</html>

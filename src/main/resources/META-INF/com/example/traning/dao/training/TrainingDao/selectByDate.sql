@@ -1,0 +1,1 @@
+select * from trainings where user_id = /* userId */1 and training_date = /* date */'2026-03-07'

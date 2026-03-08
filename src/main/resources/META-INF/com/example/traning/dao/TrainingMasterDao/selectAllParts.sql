@@ -1,0 +1,1 @@
+SELECT * FROM training_part_master ORDER BY display_order

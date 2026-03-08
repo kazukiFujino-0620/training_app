@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<div th:fragment="headerFragment">
+    <header style="border-bottom: 2px dotted #333; padding: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+            <div style="border: 1px solid #000; padding: 10px; display: inline-block; font-weight: bold;">ロゴ</div>
+            <div style="margin-top: 5px; font-size: 1.8em;">トレーニング管理</div>
+        </div>
+
+        <div style="text-align: right;">
+            <div style="font-size: 0.9em; margin-bottom: 5px;">
+                <span id="current-clock">yyyy/mm/dd hh:mm:ss</span><br>
+                ユーザー名: <span th:text="${#authentication.name}">ユーザー名</span>
+            </div>
+            
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" style="padding: 5px 20px; cursor: pointer;">ログアウト</button>
+            </form>
+        </div>
+    </header>
+
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.getFullYear() + '/' + 
+                String(now.getMonth() + 1).padStart(2, '0') + '/' + 
+                String(now.getDate()).padStart(2, '0') + ' ' + 
+                String(now.getHours()).padStart(2, '0') + ':' + 
+                String(now.getMinutes()).padStart(2, '0') + ':' + 
+                String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('current-clock').textContent = timeString;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+</div>
+
+</html>
