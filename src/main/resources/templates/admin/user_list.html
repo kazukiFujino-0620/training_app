@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>ユーザー管理 - トレーニング管理</title>
+    <!-- 既存のCSSを流用、または必要に応じて追加 -->
+    <link rel="stylesheet" th:href="@{/css/training_modal.css}" type="text/css">
+    <style>
+        .admin-container { padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .user-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .user-table th, .user-table td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        .user-table th { background-color: #f8f9fa; font-weight: bold; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; }
+        .badge-admin { background: #ffebee; color: #c62828; } /* 管理者は赤系 */
+        .badge-user { background: #e3f2fd; color: #1565c0; }  /* 一般は青系 */
+        .status-active { color: #2e7d32; }
+        .status-disabled { color: #d32f2f; }
+        .btn-edit { background: #607D8B; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-back { display: inline-block; margin-bottom: 20px; text-decoration: none; color: #666; }
+    </style>
+</head>
+<body>
+
+    <div th:replace="~{common :: headerFragment}"></div>
+
+    <div class="admin-container">
+        <a th:href="@{/menu}" class="btn-back">◀ メインメニューに戻る</a>
+        
+        <h2>ユーザー権限・ステータス管理</h2>
+
+        <table class="user-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>メールアドレス</th>
+                    <th>権限</th>
+                    <th>ステータス</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- ユーザーリストのループ処理 -->
+                <tr th:each="user : ${userList}">
+                    <td th:text="${user.userId}">1</td>
+                    <td th:text="${user.email}">admin@example.com</td>
+                    <td>
+                        <span th:if="${user.role == 'ROLE_ADMIN'}" class="badge badge-admin">管理者</span>
+                        <span th:if="${user.role == 'ROLE_USER'}" class="badge badge-user">一般ユーザー</span>
+                    </td>
+                    <td>
+                        <span th:if="${user.enabled}" class="status-active">● 有効</span>
+                        <span th:if="${!user.enabled}" class="status-disabled">● 退会済</span>
+                    </td>
+                    <td>
+                        <button class="btn-edit" th:onclick="|location.href='@{/admin/user/edit/{id}(id=${user.userId})}'|">
+                            編集
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

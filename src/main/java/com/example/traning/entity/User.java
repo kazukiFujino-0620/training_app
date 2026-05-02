@@ -9,8 +9,13 @@ import org.seasar.doma.GenerationType;
 import org.seasar.doma.Id;
 import org.seasar.doma.Table;
 
+import lombok.Builder;
+import lombok.Data;
+
 @Entity(immutable = true)
 @Table(name = "users")
+@Data
+@Builder(toBuilder = true)
 public class User {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>ユーザー編集</title>
+</head>
+<body>
+    <h2>ユーザー編集</h2>
+    <form th:action="@{/admin/user/update}" th:object="${user}" method="post">
+        <input type="hidden" th:field="*{userId}">
+        <input type="hidden" th:field="*{password}">
+        <input type="hidden" th:field="*{createDatetime}">
+
+        <div>
+            <label>ユーザー名:</label>
+            <input type="text" th:field="*{userName}">
+        </div>
+        <div>
+            <label>メールアドレス:</label>
+            <input type="email" th:field="*{email}">
+        </div>
+        <div>
+            <label>権限:</label>
+            <select th:field="*{role}">
+                <option value="USER">ユーザー</option>
+                <option value="ADMIN">管理者</option>
+            </select>
+        </div>
+        <div>
+            <label>ステータス:</label>
+            <select th:field="*{enabled}">
+                <option value="1">有効</option>
+                <option value="0">退会済み</option>
+            </select>
+        </div>
+
+        <button type="submit">更新する</button>
+        <a th:href="@{/admin/user_list}">キャンセル</a>
+    </form>
+</body>
+</html>
