@@ -22,7 +22,10 @@ public class SignupServiceTransaction {
 	public boolean execute(SignupForm signupForm) {
 		try {
 			User user = new User(null, // userId (自動採番)
-					signupForm.getEmail(), signupForm.getPassword(), signupForm.getUsername(), "ROLE_USER", true,
+					signupForm.getEmail(),
+					signupForm.getPassword(),
+					signupForm.getUsername(),
+					"ROLE_USER", true,
 					LocalDateTime.now(), LocalDateTime.now());
 
 			userDao.insert(user);

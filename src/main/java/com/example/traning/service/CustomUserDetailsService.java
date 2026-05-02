@@ -24,11 +24,14 @@ public class CustomUserDetailsService implements UserDetailsService {
 				.orElseThrow(() -> new UsernameNotFoundException("ユーザーが見つかりませんでした: " + email));
 
 		System.out.println("認証開始: user=" + user.getEmail() + ", pass=" + user.getPassword());
+		String roleName = user.getRole().replace("ROLE_", "");
 
 		boolean isMatch = new BCryptPasswordEncoder().matches("password", user.getPassword());
 		System.out.println("パスワード一致テスト結果: " + isMatch);
 
 		return org.springframework.security.core.userdetails.User.withUsername(user.getEmail())
-				.password(user.getPassword()).roles("USER").build();
+				.password(user.getPassword())
+				.roles(roleName) // これでDBの値に応じた権限が付与されます
+				.build();
 	}
 }

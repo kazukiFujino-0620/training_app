@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <title>メインメニュー</title> 
@@ -191,6 +191,24 @@
             </form>
         </div>
     </div>
+
+
+    <div sec:authorize="hasRole('ADMIN')" style="margin-top: 20px; padding: 15px; background-color: #fff3e0; border: 1px solid #ff9800; border-radius: 8px; text-align: center;">
+        <p style="color: #e65100; font-weight: bold; margin-bottom: 10px;">管理者メニュー</p>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <a th:href="@{/admin/all-users-training}" 
+            style="display: block; padding: 10px; background: #ff9800; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            全ユーザのトレーニング確認
+            </a>
+            <!-- ★新規追加：ユーザー管理ボタン -->
+            <a th:href="@{/admin/users}" 
+            style="display: block; padding: 10px; background: #fff; color: #ff9800; border: 2px solid #ff9800; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            ユーザー権限・ステータス管理
+            </a>
+        </div>
+    </div>
+
+
 	<script th:src="@{/js/training-modal.js}"></script>
 </body>
 </html>
