@@ -1,0 +1,39 @@
+@charset "utf-8";
+/* モーダルの背景 */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+/* モーダルの中身 */
+.modal-content {
+    background: white;
+    width: 450px;
+    margin: 100px auto;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+.form-group input, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; }
+
+/* カレンダーのセル設定 */
+.calendar-cell { 
+    cursor: pointer; 
+    transition: background 0.2s; 
+    border: 1px solid #ddd; 
+    height: 80px; 
+    vertical-align: top; 
+    padding: 5px; 
+}
+.calendar-cell:hover { background-color: #f0f8ff !important; }
+.today-highlight { background-color: #e3f2fd; font-weight: bold; border: 2px solid #2196F3 !important; }
+.other-month { color: #ccc; }
+
+/* セット入力用のテーブル簡易スタイル */
+    #setTable { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    #setTable th, #setTable td { padding: 5px; text-align: center; border-bottom: 1px solid #eee; }
+    #setTable input { width: 60px; padding: 5px; text-align: right; }

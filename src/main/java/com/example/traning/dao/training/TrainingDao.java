@@ -22,6 +22,9 @@ public interface TrainingDao {
 	@Select
 	Training selectById(Long id);
 
+	@Select
+	Long selectIdByUsername(String username);
+
 	@Insert
 	int insert(Training training);
 

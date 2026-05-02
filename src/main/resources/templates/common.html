@@ -2,7 +2,10 @@
 <html xmlns:th="http://www.thymeleaf.org" 
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
-<div th:fragment="headerFragment">
+<th:block th:fragment="headerFragment">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    
     <header style="border-bottom: 2px dotted #333; padding: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
         <div>
             <div style="border: 1px solid #000; padding: 10px; display: inline-block; font-weight: bold;">ロゴ</div>
@@ -20,7 +23,7 @@
             </form>
         </div>
     </header>
-
+    
     <script>
         function updateClock() {
             const now = new Date();

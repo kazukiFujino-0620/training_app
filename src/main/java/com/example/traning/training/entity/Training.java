@@ -7,21 +7,20 @@ import java.util.List;
 
 import org.seasar.doma.Column;
 import org.seasar.doma.Entity;
-import org.seasar.doma.GeneratedValue;
-import org.seasar.doma.GenerationType;
-import org.seasar.doma.Id;
 import org.seasar.doma.Table;
-import org.seasar.doma.Transient;
 
 import lombok.Data;
 
 @Entity(immutable = false) // DomaのEntity
+@jakarta.persistence.Entity
+@jakarta.persistence.Table(name = "trainings")
 @Table(name = "trainings")
 @Data // Getter/Setterの自動生成
 public class Training {
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-
+	@org.seasar.doma.Id // Doma用
+	@jakarta.persistence.Id // ★JPA用
+	@org.seasar.doma.GeneratedValue(strategy = org.seasar.doma.GenerationType.IDENTITY) // Doma用
+	@jakarta.persistence.GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY) // JPA用
 	private Long id;
 
 	@Column(name = "is_all_completed")
@@ -38,15 +37,22 @@ public class Training {
 
 	private String menu;
 
+	private String memo;
+
+	@Column(name = "duration")
+	private String duration;
+
 	@Column(name = "create_datetime")
 	private LocalDateTime createDatetime = LocalDateTime.now();
 	@Column(name = "updated_datetime")
 	private LocalDateTime updatedDatetime = LocalDateTime.now();
 
 	// Domaの自動処理からは外すが、画面からリストとして受け取る用
-	@Transient
+	@org.seasar.doma.Transient
+	@jakarta.persistence.Transient
 	private List<TrainingDetail> details = new ArrayList<>();
-
-	@Transient
+	@org.seasar.doma.Transient
+	@jakarta.persistence.Transient
 	private String partName;
+
 }

@@ -8,11 +8,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -40,9 +43,12 @@ public class MenuController {
 	private TrainingService trainingService;
 
 	@GetMapping("/menu")
-	public String menu(@RequestParam(name = "date", required = false) String dateStr, Model model) {
+	public String menu(@RequestParam(name = "date", required = false) String dateStr, Model model,
+			Principal principal) {
 		LocalDate today = LocalDate.now();
 
+		Long userId = trainingService.getUserIdByName(principal.getName());
+		System.out.println("ログインユーザーのIDは: " + userId);
 		// 1. 選択された日付（パラメータがなければ今日）を決定
 		LocalDate selectedDate = (dateStr != null) ? LocalDate.parse(dateStr) : today;
 
@@ -58,7 +64,7 @@ public class MenuController {
 		}
 
 		// 3. DBからその日のトレーニングリストを取得 (ユーザーIDは一旦1L固定)
-		List<Training> trainingList = trainingDao.selectByDate(1L, selectedDate);
+		List<Training> trainingList = trainingDao.selectByDate(userId, selectedDate);
 
 		List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
 
@@ -70,9 +76,31 @@ public class MenuController {
 			t.setPartName(trainingMasterDao.selectNameByCode(t.getPartCode()));
 		}
 
-		boolean isDailyCompleted = !trainingList.isEmpty() && trainingList.stream().allMatch(Training::isAllCompleted);
+		// カレンダーの各日が完了しているかどうかのマップを作成
+		List<String> dayStatusList = new ArrayList<>();
+		for (LocalDate date : dateList) {
+			List<Training> dailyTrainings = trainingDao.selectByDate(userId, date);
+			if (dailyTrainings.isEmpty()) {
+				dayStatusList.add("NONE");
+			} else {
+				boolean allDone = dailyTrainings.stream().allMatch(t -> {
+					return t.isAllCompleted();
+				});
 
-		// 4. Modelへ値をセット
+				if (allDone) {
+					dayStatusList.add("COMPLETED");
+				} else {
+					dayStatusList.add("IN_PROGRESS");
+				}
+			}
+		}
+
+		// 4.トレーニング実施状況を確認
+		boolean isDailyCompleted = !trainingList.isEmpty() && trainingList.stream().allMatch(Training::isAllCompleted);
+		long totalCount = trainingList.size();
+		long completedCount = trainingList.stream().filter(Training::isAllCompleted).count();
+
+		// 5. Modelへ値をセット
 		model.addAttribute("targetMonth", yearMonth);
 		model.addAttribute("dateList", dateList);
 		model.addAttribute("today", today);
@@ -81,7 +109,10 @@ public class MenuController {
 		model.addAttribute("prevMonth", yearMonth.minusMonths(1).atDay(1)); // 前月の1日
 		model.addAttribute("nextMonth", yearMonth.plusMonths(1).atDay(1)); // 次月の1日
 		model.addAttribute("partList", partList);
-		model.addAttribute("isDailyCompleted", isDailyCompleted);
+		model.addAttribute("totalCount", totalCount);
+		model.addAttribute("completedCount", completedCount);
+		model.addAttribute("isDailyCompleted", totalCount > 0 && totalCount == completedCount);
+		model.addAttribute("dayStatusList", dayStatusList);
 
 		return "menu";
 	}
@@ -90,7 +121,8 @@ public class MenuController {
 	public String save(@ModelAttribute Training training, Principal principal) {
 		// 1. ログインユーザーのIDをセット（本来はService等で取得）
 		// ※今回は簡易的にログイン名をLongに変換するか、固定値を振る想定
-		training.setUserId(1L);
+		Long userId = trainingService.getUserIdByName(principal.getName());
+		training.setUserId(userId);
 
 		// 2. IDの有無で新規登録か更新かを判断
 		if (training.getId() == null) {
@@ -115,5 +147,62 @@ public class MenuController {
 	@ResponseBody // これを付けると、ListがそのままJSON形式でJavaScriptに渡ります
 	public List<TrainingItemMaster> getItems(@RequestParam String partCode) {
 		return trainingMasterDao.selectItemsByPart(partCode);
+	}
+
+	@GetMapping("/start/training")
+	public String startTraining(@RequestParam("date") String dateStr, Model model, Principal principal) {
+		LocalDate selectedDate = LocalDate.parse(dateStr);
+		Long userId = trainingService.getUserIdByName(principal.getName());
+		List<Training> trainingList = trainingService.getFullTrainingData(userId, LocalDate.parse(dateStr));
+		List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
+
+		model.addAttribute("selectedDate", selectedDate);
+		model.addAttribute("trainingList", trainingList);
+		model.addAttribute("partList", partList);
+
+		return "training/start_training";
+	}
+
+	@PostMapping("/api/training/save")
+	@ResponseBody
+	public Long apiSaveTraining(@RequestBody Training training, Principal princilal) {
+		// ユーザーIDをセット
+		training.setUserId(trainingService.getUserIdByName(princilal.getName()));
+
+		// 日付時間をセット
+		if (training.getCreateDatetime() == null) {
+			training.setCreateDatetime(LocalDateTime.now());
+		}
+		training.setUpdatedDatetime(LocalDateTime.now());
+
+		// Serviceクラスを呼び出す
+		trainingService.save(training, princilal);
+
+		return training.getId();
+	}
+
+	@PostMapping("/api/training/finish")
+	@ResponseBody
+	public ResponseEntity<String> finishTrainig(@RequestBody List<Training> trainingList) {
+		try {
+			for (Training t : trainingList) {
+				if (t.getDetails() == null || t.getDetails().isEmpty()) {
+					return ResponseEntity.badRequest().body("セットデータがからの種目があります。");
+				}
+			}
+			trainingService.saveAll(trainingList);
+
+			return ResponseEntity.ok("保存に成功しました");
+		} catch (Exception e) {
+			return ResponseEntity.internalServerError().body("登録に失敗しました。" + e.getMessage());
+		}
+
+	}
+
+	@PostMapping("/api/training/delete/{id}")
+	@ResponseBody
+	public ResponseEntity<Void> deleteTraining(@PathVariable Long id) {
+		trainingService.deleteById(id);
+		return ResponseEntity.ok().build();
 	}
 }
