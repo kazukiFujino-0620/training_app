@@ -23,7 +23,6 @@ public class MasterUpdateTask {
 
     @Scheduled(cron = "${batch.master.update.cron}")
     public void executeMasterUpdate() {
-        logger.info("★バッチが正常に認識されています！★");
         logger.info("--- 夜間マスタ更新バッチ 開始 ---");
 
         File file = new File(filePath);
