@@ -1,6 +1,7 @@
 package com.example.traning.smarttrainer.task;
 
 import java.io.File;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,14 +10,20 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.example.traning.dao.TrainingMasterDao;
+import com.example.traning.entity.TrainingMaster;
+import com.example.traning.smarttrainer.service.MasterUpdateService;
+
 @Component
 public class MasterUpdateTask {
 
     private static final Logger logger = LoggerFactory.getLogger(MasterUpdateTask.class);
 
-    // 追加：Serviceをインジェクション
     @Autowired
-    private com.example.traning.smarttrainer.service.MasterUpdateService masterUpdateService;
+    private MasterUpdateService masterUpdateService;
+
+    @Autowired
+    private TrainingMasterDao trainingMasterDao;
 
     @Value("${batch.master.update.file-path}")
     private String filePath;
@@ -32,12 +39,16 @@ public class MasterUpdateTask {
             return;
         }
 
+        logger.info("マスタ情報取得します");
+        List<TrainingMaster> trainingMasterList = trainingMasterDao.selectAll();
+
+        if (trainingMasterList.isEmpty()) {
+            logger.warn("マスタ情報が見つかりません。");
+        }
         try {
             logger.info("ファイルを正常に検知しました。処理を開始します。");
 
-            // --- ここを書き換え ---
-            // 自前での読み込みループを消して、Serviceに丸投げする
-            masterUpdateService.importCsv(file);
+            masterUpdateService.importCsv(file, trainingMasterList);
             // --------------------
 
         } catch (Exception e) {
