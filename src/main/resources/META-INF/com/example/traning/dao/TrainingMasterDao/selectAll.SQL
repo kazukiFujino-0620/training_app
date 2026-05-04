@@ -1,4 +1,4 @@
 SELECT
 	*
 FROM
-	training_master
+	training_item_master

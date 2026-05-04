@@ -24,4 +24,7 @@ public interface TrainingMasterDao {
 
 	@Select
 	String selectNameByCode(String partCode);
+
+	@Select
+	List<TrainingMaster> selectAll();
 }
