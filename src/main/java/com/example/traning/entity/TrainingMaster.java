@@ -24,4 +24,6 @@ public class TrainingMaster {
 	private String partName;
 	@Column(name = "display_order")
 	private Integer displayOrder;
+	@Column(name = "item_name")
+	public String itemName;
 }

@@ -14,12 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.traning.dao.TrainingMasterDao;
-import com.example.traning.dao.training.TrainingDao;
-import com.example.traning.dao.training.TrainingDetailDao;
-import com.example.traning.entity.User;
 import com.example.traning.repository.TrainingRepository;
-import com.example.traning.training.entity.Training;
-import com.example.traning.training.entity.TrainingDetail;
+import com.example.traning.training.Training;
+import com.example.traning.training.TrainingDetail;
+import com.example.traning.training.dao.TrainingDao;
+import com.example.traning.training.dao.TrainingDetailDao;
+import com.example.traning.user.User;
 
 @Service
 public class TrainingService {
@@ -34,22 +34,13 @@ public class TrainingService {
 	@Autowired
 	private TrainingRepository trainingRepository;
 
-	// private final TrainingRepository trainingRepository;
-
-	// public TrainingService(TrainingRepository trainingRepository) {
-	// this.trainingRepository = trainingRepository;
-	// }
-
 	public void save(Training training, Principal principal) {
-		// 1. 入力値チェック (バリデーション)
 		if (training.getMenu() == null || training.getMenu().isEmpty()) {
 			throw new IllegalArgumentException("種目を選択してください");
 		}
 		if (training.getDetails() == null || training.getDetails().isEmpty()) {
 			throw new IllegalArgumentException("セット内容を入力してください");
 		}
-
-		// 2. トランザクション処理の呼び出し
 		transaction.execute(training, principal);
 	}
 
@@ -89,21 +80,15 @@ public class TrainingService {
 				currentDbData.setDuration(training.getDuration());
 
 				if (training.getDetails() != null && !training.getDetails().isEmpty()) {
-					// Java 8のStreamを使うと1行で書けます
-					// 「すべてのセットのisCompletedがtrueであること」を判定
 					boolean allDone = training.getDetails().stream().allMatch(detail -> detail.isCompleted());
-
 					currentDbData.setAllCompleted(allDone);
 				} else {
-					// セットが一つもない場合は未完了とする（またはお好みで）
 					currentDbData.setAllCompleted(false);
 				}
-				// --------------------------------------
 
 				trainingDao.update(currentDbData);
 			}
 
-			// 子データ（Details）の入れ替え処理はそのまま
 			trainingDetailDao.deleteByTrainingId(training.getId());
 			if (training.getDetails() != null) {
 				for (TrainingDetail detail : training.getDetails()) {
@@ -116,12 +101,9 @@ public class TrainingService {
 	}
 
 	public Long getUserIdByName(String username) {
-		// DBからusernameをキーにIDを検索して返す処理
-		// まだDaoがない場合は、暫定的に 1L を返すようにしてコンパイルを通すことも可能です
 		Long userId = trainingDao.selectIdByUsername(username);
-
 		if (userId == null) {
-			return 1L; // 見つからない場合のセーフティ
+			return 1L;
 		}
 		return userId;
 	}
@@ -130,16 +112,18 @@ public class TrainingService {
 		return trainingDetailDao.selectByDate(date);
 	}
 
+	public List<TrainingDetail> findByUserIdAndDate(Long userId, String date) {
+		return trainingDetailDao.selectByUserIdAndDate(userId, date);
+	}
+
 	public User getUserByName(Long userId) {
 		return trainingDao.selectByUserName(userId);
-
 	}
 
 	public Map<String, Object> makeChartDataCustom(Long userId, String startStr, String endStr) {
 		LocalDate start = LocalDate.parse(startStr);
 		LocalDate end = LocalDate.parse(endStr);
 
-		// 指定された期間の全日付ラベル(yyyy-MM-dd)を生成
 		List<String> labels = new ArrayList<>();
 		for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
 			labels.add(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
@@ -147,8 +131,6 @@ public class TrainingService {
 
 		Map<String, Object> chartData = new HashMap<>();
 		chartData.put("labels", labels);
-
-		// 各部位のデータを取得（ゼロ埋め処理込み）
 		chartData.put("chest", getSafeVolumeData(userId, "CHEST", labels, startStr, endStr));
 		chartData.put("back", getSafeVolumeData(userId, "BACK", labels, startStr, endStr));
 		chartData.put("arms", getSafeVolumeData(userId, "ARM", labels, startStr, endStr));
@@ -158,13 +140,10 @@ public class TrainingService {
 		return chartData;
 	}
 
-	// 2. 部位ごとのボリュームデータを取得し、存在しない日付を 0.0 で埋める
 	private List<Double> getSafeVolumeData(Long userId, String partCode, List<String> labels, String startStr,
 			String endStr) {
-		// DBから期間内のデータリストを取得
 		List<TrainingDao.VolumeResult> list = trainingDao.selectVolumeList(userId, partCode, startStr, endStr);
 
-		// リストをMapに変換（日付をキーにして検索しやすくする）
 		Map<String, Double> dbData = list.stream()
 				.collect(java.util.stream.Collectors.toMap(
 						res -> res.trainingDate,
@@ -172,9 +151,7 @@ public class TrainingService {
 						(v1, v2) -> v1));
 
 		List<Double> result = new ArrayList<>();
-		// Java側で生成した labels (yyyy-MM-dd) に基づいてデータを詰める
 		for (String label : labels) {
-			// DB側の日付フォーマット(yyyy-MM-dd)と完全一致すればその値を、なければ 0.0
 			result.add(dbData.getOrDefault(label, 0.0));
 		}
 		return result;

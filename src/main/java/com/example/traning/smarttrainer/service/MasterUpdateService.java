@@ -15,16 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.traning.dao.TrainingMasterDao;
-import com.example.traning.dao.training.TrainingDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
 
 @Service
 public class MasterUpdateService {
     private static final Logger logger = LoggerFactory.getLogger(MasterUpdateService.class);
-
-    @Autowired
-    private TrainingDao trainingDao;
 
     @Autowired
     private TrainingMasterDao trainingMasterDao;
@@ -102,7 +98,7 @@ public class MasterUpdateService {
 
         // 5. リストが空でなければDBへ保存（UPSERT）
         if (!itemList.isEmpty()) {
-            trainingDao.batchUpsert(itemList);
+            trainingMasterDao.batchUpsert(itemList);
             logger.info("{} 件のマスタデータを更新・登録しました。", itemList.size());
         } else {
             logger.warn("取り込むデータがありませんでした。");
