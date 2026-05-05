@@ -3,16 +3,21 @@ package com.example.traning.training.service;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.traning.dao.TrainingMasterDao;
-import com.example.traning.dao.UserDao;
 import com.example.traning.dao.training.TrainingDao;
 import com.example.traning.dao.training.TrainingDetailDao;
+import com.example.traning.entity.User;
+import com.example.traning.repository.TrainingRepository;
 import com.example.traning.training.entity.Training;
 import com.example.traning.training.entity.TrainingDetail;
 
@@ -27,13 +32,13 @@ public class TrainingService {
 	@Autowired
 	private TrainingMasterDao trainingMasterDao;
 	@Autowired
-	private UserDao userIdDao;
+	private TrainingRepository trainingRepository;
 
-//	private final TrainingRepository trainingRepository;
+	// private final TrainingRepository trainingRepository;
 
-//	public TrainingService(TrainingRepository trainingRepository) {
-//		this.trainingRepository = trainingRepository;
-//	}
+	// public TrainingService(TrainingRepository trainingRepository) {
+	// this.trainingRepository = trainingRepository;
+	// }
 
 	public void save(Training training, Principal principal) {
 		// 1. 入力値チェック (バリデーション)
@@ -119,5 +124,59 @@ public class TrainingService {
 			return 1L; // 見つからない場合のセーフティ
 		}
 		return userId;
+	}
+
+	public List<TrainingDetail> findByDate(String date) {
+		return trainingDetailDao.selectByDate(date);
+	}
+
+	public User getUserByName(Long userId) {
+		return trainingDao.selectByUserName(userId);
+
+	}
+
+	public Map<String, Object> makeChartDataCustom(Long userId, String startStr, String endStr) {
+		LocalDate start = LocalDate.parse(startStr);
+		LocalDate end = LocalDate.parse(endStr);
+
+		// 指定された期間の全日付ラベル(yyyy-MM-dd)を生成
+		List<String> labels = new ArrayList<>();
+		for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+			labels.add(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+		}
+
+		Map<String, Object> chartData = new HashMap<>();
+		chartData.put("labels", labels);
+
+		// 各部位のデータを取得（ゼロ埋め処理込み）
+		chartData.put("chest", getSafeVolumeData(userId, "CHEST", labels, startStr, endStr));
+		chartData.put("back", getSafeVolumeData(userId, "BACK", labels, startStr, endStr));
+		chartData.put("arms", getSafeVolumeData(userId, "ARM", labels, startStr, endStr));
+		chartData.put("shoulders", getSafeVolumeData(userId, "SHOULDER", labels, startStr, endStr));
+		chartData.put("legs", getSafeVolumeData(userId, "LEG", labels, startStr, endStr));
+
+		return chartData;
+	}
+
+	// 2. 部位ごとのボリュームデータを取得し、存在しない日付を 0.0 で埋める
+	private List<Double> getSafeVolumeData(Long userId, String partCode, List<String> labels, String startStr,
+			String endStr) {
+		// DBから期間内のデータリストを取得
+		List<TrainingDao.VolumeResult> list = trainingDao.selectVolumeList(userId, partCode, startStr, endStr);
+
+		// リストをMapに変換（日付をキーにして検索しやすくする）
+		Map<String, Double> dbData = list.stream()
+				.collect(java.util.stream.Collectors.toMap(
+						res -> res.trainingDate,
+						res -> res.totalVolume,
+						(v1, v2) -> v1));
+
+		List<Double> result = new ArrayList<>();
+		// Java側で生成した labels (yyyy-MM-dd) に基づいてデータを詰める
+		for (String label : labels) {
+			// DB側の日付フォーマット(yyyy-MM-dd)と完全一致すればその値を、なければ 0.0
+			result.add(dbData.getOrDefault(label, 0.0));
+		}
+		return result;
 	}
 }

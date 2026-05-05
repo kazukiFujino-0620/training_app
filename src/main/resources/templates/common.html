@@ -15,7 +15,7 @@
         <div style="text-align: right;">
             <div style="font-size: 0.9em; margin-bottom: 5px;">
                 <span id="current-clock">yyyy/mm/dd hh:mm:ss</span><br>
-                ユーザー名: <span th:text="${#authentication.name}">ユーザー名</span>
+                ユーザー名: <span th:text="${loginUser != null ? loginUser.userName : 'ゲスト'}">ユーザー名</span>
             </div>
             
             <form th:action="@{/logout}" method="post">

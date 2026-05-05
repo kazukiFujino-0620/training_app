@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.seasar.doma.BatchInsert;
+import org.seasar.doma.Column;
 import org.seasar.doma.Dao;
 import org.seasar.doma.Delete;
 import org.seasar.doma.Insert;
@@ -12,6 +13,7 @@ import org.seasar.doma.Update;
 import org.seasar.doma.boot.ConfigAutowireable;
 
 import com.example.traning.entity.TrainingItemMaster;
+import com.example.traning.entity.User;
 import com.example.traning.training.entity.Training;
 
 @Dao
@@ -38,4 +40,22 @@ public interface TrainingDao {
 
 	@BatchInsert
 	int[] batchUpsert(List<TrainingItemMaster> entities);
+
+	@Select
+	List<Training> selectByUserIdAndDateRange(Integer userId, LocalDate startDate, LocalDate endDate);
+
+	@Select
+	User selectByUserName(Long userId);
+
+	@Select
+	List<VolumeResult> selectVolumeList(Long userId, String partCode, String startDate, String endDate);
+
+	@org.seasar.doma.Entity
+	public static class VolumeResult {
+		@Column(name = "training_date")
+		public String trainingDate;
+
+		@Column(name = "total_volume")
+		public Double totalVolume;
+	}
 }

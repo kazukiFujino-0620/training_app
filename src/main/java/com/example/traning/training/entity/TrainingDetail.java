@@ -36,4 +36,10 @@ public class TrainingDetail {
 	private LocalDateTime createDatetime = LocalDateTime.now();
 	@Column(name = "updated_datetime")
 	private LocalDateTime updatedDatetime = LocalDateTime.now();
+
+	@Column(name = "menu")
+	private String menu;
+
+	@Column(name = "is_all_completed")
+	private boolean isAllCompleted;
 }

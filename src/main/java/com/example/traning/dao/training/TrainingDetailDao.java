@@ -26,4 +26,7 @@ public interface TrainingDetailDao {
 
 	@Select
 	List<TrainingDetail> selectByTrainingId(Long trainingId);
+
+	@Select
+	List<TrainingDetail> selectByDate(String date);
 }

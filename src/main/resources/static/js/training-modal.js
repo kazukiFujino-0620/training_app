@@ -1,6 +1,42 @@
+let myChart;
+
 // 1. カレンダー・共通
 function selectDate(date) {
-    window.location.href = "/menu?date=" + date;
+    // window.location.href = "/menu?date=" + date;
+    // タイトルを選択した日付に更新
+    const titleElement = document.getElementById('selected-date-title');
+    titleElement.innerText = date + " のトレーニング詳細";
+
+    // リストを一旦クリア
+    const listElement = document.getElementById('training-list');
+    listElement.innerHTML = '<li>読み込み中...</li>';
+
+    // サーバーにその日のデータをリクエスト
+    // ※URLは作成するAPIに合わせて調整してください
+    fetch('/admin/api/training-details?date=' + date)
+        .then(response => response.json())
+        .then(data => {
+            listElement.innerHTML = ''; // クリア
+            
+            if (data.length === 0) {
+                listElement.innerHTML = '<li>この日の記録はありません</li>';
+                return;
+            }
+
+            // 取得したデータをリストに追加
+            data.forEach(item => {
+                const li = document.createElement('li');
+                li.style.padding = "8px";
+                li.style.borderBottom = "1px solid #eee";
+                // 例: 「ベンチプレス: 80kg x 10回」
+                li.innerText = `${item.menuName}: ${item.weight}kg x ${item.reps}回 (${item.sets}セット)`;
+                listElement.appendChild(li);
+            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            listElement.innerHTML = '<li style="color: red;">データの取得に失敗しました</li>';
+        });
 }
 
 // 2. タイマー関連
@@ -459,3 +495,78 @@ async function deleteTrainingCard(btn) {
 
 let trainingStartTime = null;
 
+// 初期表示
+document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date();
+    const lastWeek = new Date();
+    lastWeek.setDate(today.getDate() - 6);
+
+    // input要素に初期値をセット (yyyy-mm-dd形式)
+    document.getElementById('startDate').value = lastWeek.toISOString().split('T')[0];
+    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+
+    searchByPeriod(); // 初回実行
+});
+
+async function searchByPeriod() {
+    const userId = document.getElementById('userIdForGraph').value;
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    if (!startDate || !endDate) return;
+
+    try {
+        const response = await fetch(`/admin/api/training-volume/${userId}?startDate=${startDate}&endDate=${endDate}`);
+        const data = await response.json();
+        renderChart(data); // ここで renderChart を呼び出す
+    } catch (e) {
+        console.error("検索に失敗しました", e);
+    }
+}
+
+function renderChart(data) {
+    const canvas = document.getElementById('volumeChart');
+    if (!canvas) {
+        console.error("ID: volumeChart のキャンバスが見つかりません");
+        return;
+    }
+    const ctx = canvas.getContext('2d');
+
+    // 古いグラフが残っていれば破棄する
+    if (myChart) {
+        myChart.destroy();
+    }
+
+    // 新しいグラフを作成
+    myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [
+                { label: '胸', data: data.chest, borderColor: '#ff6384', tension: 0.3, fill: false },
+                { label: '背中', data: data.back, borderColor: '#36a2eb', tension: 0.3, fill: false },
+                { label: '腕', data: data.arms, borderColor: '#ffce56', tension: 0.3, fill: false },
+                { label: '肩', data: data.shoulders, borderColor: '#9966ff', tension: 0.3, fill: false },
+                { label: '脚', data: data.legs, borderColor: '#4bc0c0', tension: 0.3, fill: false }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    ticks: {
+                        autoSkip: true,
+                        maxTicksLimit: 10,
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: '合計重量 (kg)' }
+                }
+            }
+        }
+    });
+}
