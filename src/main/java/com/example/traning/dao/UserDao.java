@@ -29,4 +29,7 @@ public interface UserDao {
 
 	@Select
 	User selectById(Integer userId);
+
+	@Select
+	List<User> selectByName(String userName);
 }

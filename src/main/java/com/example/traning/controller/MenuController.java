@@ -24,6 +24,7 @@ import com.example.traning.dao.training.TrainingDao;
 import com.example.traning.dao.training.TrainingDetailDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
+import com.example.traning.entity.User;
 import com.example.traning.training.entity.Training;
 import com.example.traning.training.service.TrainingService;
 
@@ -51,6 +52,7 @@ public class MenuController {
 		System.out.println("ログインユーザーのIDは: " + userId);
 		// 1. 選択された日付（パラメータがなければ今日）を決定
 		LocalDate selectedDate = (dateStr != null) ? LocalDate.parse(dateStr) : today;
+		User userEntity = trainingService.getUserByName(userId);
 
 		// 2. カレンダー生成ロジック
 		YearMonth yearMonth = YearMonth.from(selectedDate); // 選択された日付の月を表示
@@ -101,6 +103,7 @@ public class MenuController {
 		long completedCount = trainingList.stream().filter(Training::isAllCompleted).count();
 
 		// 5. Modelへ値をセット
+		model.addAttribute("loginUser", userEntity);
 		model.addAttribute("targetMonth", yearMonth);
 		model.addAttribute("dateList", dateList);
 		model.addAttribute("today", today);

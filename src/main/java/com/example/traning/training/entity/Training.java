@@ -35,8 +35,10 @@ public class Training {
 	@Column(name = "part_code")
 	private String partCode;
 
+	@Column(name = "menu")
 	private String menu;
 
+	@Column(name = "memo")
 	private String memo;
 
 	@Column(name = "duration")
@@ -55,4 +57,17 @@ public class Training {
 	@jakarta.persistence.Transient
 	private String partName;
 
+	@Column(name = "training_id")
+	private Long trainingId;
+
+	@Column(name = "set_number")
+	private Integer setNumber;
+	private Double weight;
+	@Column(name = "reps")
+	private Integer reps;
+	@Column(name = "count")
+	private Integer count;
+
+	@Column(name = "is_completed")
+	private boolean isCompleted;
 }

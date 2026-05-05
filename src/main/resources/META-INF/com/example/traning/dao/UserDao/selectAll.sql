@@ -2,6 +2,7 @@ select
   id,
   email,
   password,
+  user_name,
   role,
   enabled
 from

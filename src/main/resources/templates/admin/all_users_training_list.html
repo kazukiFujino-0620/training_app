@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>全ユーザー・トレーニング確認</title>
+    <!-- 既存のCSSを適用 -->
+    <link rel="stylesheet" th:href="@{/css/training_modal.css}" type="text/css">
+    <style>
+        .search-container { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 5px; }
+        .user-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .user-table th, .user-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .user-table th { background-color: #eee; }
+        .status-active { color: green; font-weight: bold; }
+        .status-disabled { color: red; }
+    </style>
+</head>
+<body>
+    <div th:replace="~{common :: headerFragment}"></div>
+
+    <div style="padding: 20px;">
+        <h2>全ユーザーのトレーニング確認</h2>
+
+        <!-- 検索フォーム -->
+        <div class="search-container">
+            <form th:action="@{/admin/all-users-training}" method="get">
+                <label>ユーザー名検索：</label>
+                <input type="text" name="userName" th:value="${userName}" placeholder="名前を入力...">
+                <button type="submit">検索</button>
+                <a th:href="@{/admin/all-users-training}">クリア</a>
+            </form>
+        </div>
+
+        <table class="user-table">
+            <thead>
+                <tr>
+                    <th>ユーザー名</th>
+                    <th>ステータス</th>
+                    <th>アクション</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="user : ${userList}">
+                    <td th:text="${user.userName}">ユーザー名</td>
+                    <td>
+                        <span th:if="${user.enabled}" class="status-active">● 有効</span>
+                        <span th:if="${!user.enabled}" class="status-disabled">● 退会済</span>
+                    </td>
+                    <td>
+                        <!-- 別タブで各ユーザーのトレーニング詳細へ -->
+                        <a th:href="@{/admin/user/training-detail/{id}(id=${user.userId})}" target="_blank">
+                            トレーニング履歴を見る
+                        </a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

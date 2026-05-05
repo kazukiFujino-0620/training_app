@@ -20,8 +20,8 @@ public class TrainingMaster {
 
 	@Column(name = "part_code")
 	private String partCode;
-	@Column(name = "item_Name")
-	private String itemName;
+	@Column(name = "part_Name")
+	private String partName;
 	@Column(name = "display_order")
 	private Integer displayOrder;
 }

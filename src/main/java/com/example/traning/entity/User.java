@@ -9,13 +9,15 @@ import org.seasar.doma.GenerationType;
 import org.seasar.doma.Id;
 import org.seasar.doma.Table;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Value;
 
 @Entity(immutable = true)
 @Table(name = "users")
-@Data
+@Value // @Dataの不変版。全フィールドがprivate finalになり、全引数コンストラクタも生成されます
 @Builder(toBuilder = true)
+@AllArgsConstructor // Domaが確実に全引数コンストラクタを見つけられるようにします
 public class User {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,58 +29,14 @@ public class User {
 
 	@Column(name = "user_Name")
 	public final String userName;
+
 	public final String role;
-	public final boolean enabled;
+
+	public final Boolean enabled;
 
 	@Column(name = "create_Datetime")
 	public final LocalDateTime createDatetime;
 
 	@Column(name = "update_Datetime")
 	public final LocalDateTime updatedDatetime;
-
-	// 手動でコンストラクタを作成（引数の数はフィールドと同じ8個にする）
-	public User(Integer userId, String email, String password, String userName, String role, boolean enabled,
-			LocalDateTime createDatetime, LocalDateTime updatedDatetime) {
-		this.userId = userId;
-		this.email = email;
-		this.password = password;
-		this.userName = userName;
-		this.role = role;
-		this.enabled = enabled;
-		this.createDatetime = createDatetime;
-		this.updatedDatetime = updatedDatetime;
-	}
-
-	// Getter（ImmutableなのでGetterだけでOK）
-	public Integer getUserId() {
-		return userId;
-	}
-
-	public String getEmail() {
-		return email;
-	}
-
-	public String getPassword() {
-		return password;
-	}
-
-	public String getUserName() {
-		return userName;
-	}
-
-	public String getRole() {
-		return role;
-	}
-
-	public boolean isEnabled() {
-		return enabled;
-	}
-
-	public LocalDateTime getCreateDatetime() {
-		return createDatetime;
-	}
-
-	public LocalDateTime getUpdatedDatetime() {
-		return updatedDatetime;
-	}
 }
