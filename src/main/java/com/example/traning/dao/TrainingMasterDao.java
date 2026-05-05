@@ -2,6 +2,7 @@ package com.example.traning.dao;
 
 import java.util.List;
 
+import org.seasar.doma.BatchInsert;
 import org.seasar.doma.Dao;
 import org.seasar.doma.Insert;
 import org.seasar.doma.Select;
@@ -24,6 +25,9 @@ public interface TrainingMasterDao {
 
 	@Select
 	String selectNameByCode(String partCode);
+
+	@BatchInsert
+	int[] batchUpsert(List<TrainingItemMaster> entities);
 
 	@Select
 	List<TrainingMaster> selectAll();

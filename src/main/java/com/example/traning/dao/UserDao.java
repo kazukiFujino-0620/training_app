@@ -10,7 +10,7 @@ import org.seasar.doma.Update;
 import org.seasar.doma.boot.ConfigAutowireable;
 import org.seasar.doma.jdbc.Result;
 
-import com.example.traning.entity.User;
+import com.example.traning.user.User;
 
 @Dao
 @ConfigAutowireable

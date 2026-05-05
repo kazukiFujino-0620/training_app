@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.example.traning.training.entity.Training;
+import com.example.traning.training.Training;
 
 public interface TrainingRepository extends JpaRepository<Training, Long> {
 	// userオブジェクトの中の id を使って検索する

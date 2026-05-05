@@ -2,18 +2,25 @@ let myChart;
 
 // 1. カレンダー・共通
 function selectDate(date) {
-    // window.location.href = "/menu?date=" + date;
-    // タイトルを選択した日付に更新
     const titleElement = document.getElementById('selected-date-title');
-    titleElement.innerText = date + " のトレーニング詳細";
-
-    // リストを一旦クリア
     const listElement = document.getElementById('training-list');
+
+    // メニュー画面は詳細パネルを持たないため、日付クリック時は画面遷移する。
+    if (!titleElement || !listElement) {
+        window.location.href = "/menu?date=" + encodeURIComponent(date);
+        return;
+    }
+
+    titleElement.innerText = date + " のトレーニング詳細";
     listElement.innerHTML = '<li>読み込み中...</li>';
 
+    const userId = document.getElementById('userIdForGraph')?.value;
+    const query = userId
+        ? `/admin/api/training-details?userId=${encodeURIComponent(userId)}&date=${encodeURIComponent(date)}`
+        : `/admin/api/training-details?date=${encodeURIComponent(date)}`;
+
     // サーバーにその日のデータをリクエスト
-    // ※URLは作成するAPIに合わせて調整してください
-    fetch('/admin/api/training-details?date=' + date)
+    fetch(query)
         .then(response => response.json())
         .then(data => {
             listElement.innerHTML = ''; // クリア
@@ -28,8 +35,11 @@ function selectDate(date) {
                 const li = document.createElement('li');
                 li.style.padding = "8px";
                 li.style.borderBottom = "1px solid #eee";
-                // 例: 「ベンチプレス: 80kg x 10回」
-                li.innerText = `${item.menuName}: ${item.weight}kg x ${item.reps}回 (${item.sets}セット)`;
+                const menuName = item.menuName || item.menu || `種目ID:${item.trainingId ?? '-'}`;
+                const weight = item.weight ?? '-';
+                const reps = item.reps ?? '-';
+                const sets = item.sets ?? item.setNumber ?? '-';
+                li.innerText = `${menuName}: ${weight}kg x ${reps}回 (${sets}セット)`;
                 listElement.appendChild(li);
             });
         })
@@ -501,19 +511,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastWeek = new Date();
     lastWeek.setDate(today.getDate() - 6);
 
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+
+    // グラフUIがない画面（menu/start_training等）では何もしない
+    if (!startDateInput || !endDateInput) {
+        return;
+    }
+
     // input要素に初期値をセット (yyyy-mm-dd形式)
-    document.getElementById('startDate').value = lastWeek.toISOString().split('T')[0];
-    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+    startDateInput.value = lastWeek.toISOString().split('T')[0];
+    endDateInput.value = today.toISOString().split('T')[0];
 
     searchByPeriod(); // 初回実行
 });
 
 async function searchByPeriod() {
-    const userId = document.getElementById('userIdForGraph').value;
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
+    const userId = document.getElementById('userIdForGraph')?.value;
+    const startDate = document.getElementById('startDate')?.value;
+    const endDate = document.getElementById('endDate')?.value;
 
-    if (!startDate || !endDate) return;
+    if (!userId || !startDate || !endDate) return;
 
     try {
         const response = await fetch(`/admin/api/training-volume/${userId}?startDate=${startDate}&endDate=${endDate}`);

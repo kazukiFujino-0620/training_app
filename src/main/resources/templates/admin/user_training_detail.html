@@ -104,26 +104,4 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script th:src="@{/js/training-modal.js}"></script>
 </body>
-<script th:inline="javascript">
-    function selectDate(date) {
-        // ThymeleafからuserIdを受け取る（URLから取得しているidを利用）
-        const userId = [[${userId}]]; 
-        
-        document.getElementById('selected-date-title').innerText = date + " の詳細";
-        
-        // URLに userId も追加する
-        fetch(`/admin/api/training-details?userId=${userId}&date=${date}`)
-            .then(res => res.json())
-            .then(data => {
-                const list = document.getElementById('training-list');
-                if (data.length === 0) {
-                    list.innerHTML = '<li>記録がありません</li>';
-                } else {
-                    list.innerHTML = data.map(item => 
-                        `<li>${item.menu}: ${item.weight}kg x ${item.reps}回</li>`
-                    ).join('');
-                }
-            });
-    }
-</script>
 </html>
