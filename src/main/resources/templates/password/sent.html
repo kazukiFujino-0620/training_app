@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>メール送信完了</title>
+</head>
+<body>
+    <h2>メールを送信しました</h2>
+    <p>
+        入力されたメールアドレス宛に、パスワード再設定用URLを送信しました。<br>
+        <strong>30分以内</strong>にパスワードの更新を完了させてください。
+    </p>
+    <p>※メールが届かない場合は、アドレスに間違いがないか、迷惑メールフォルダを確認してください。</p>
+    <br>
+    <a th:href="@{/login}">ログイン画面へ</a>
+</body>
+</html>
