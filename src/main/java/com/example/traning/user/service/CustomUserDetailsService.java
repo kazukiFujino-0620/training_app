@@ -10,7 +10,10 @@ import org.springframework.stereotype.Service;
 import com.example.traning.dao.UserDao;
 import com.example.traning.user.User;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class CustomUserDetailsService implements UserDetailsService {
 
 	@Autowired
@@ -21,6 +24,14 @@ public class CustomUserDetailsService implements UserDetailsService {
 		User user = userDao.selectByEmail(email)
 				.orElseThrow(() -> new UsernameNotFoundException("ユーザーが見つかりませんでした: " + email));
 
+		if (Boolean.compare(user.getEnabled(), false) == 0) {
+			String msg = "このメールアドレスは退会済みです: " + email +
+					" 再度登録する場合は、管理者に連絡ください。";
+
+			// 1. ログに出力
+			log.error(msg);
+			throw new UsernameNotFoundException(msg);
+		}
 		System.out.println("認証開始: user=" + user.getEmail() + ", pass=" + user.getPassword());
 		String roleName = user.getRole().replace("ROLE_", "");
 
