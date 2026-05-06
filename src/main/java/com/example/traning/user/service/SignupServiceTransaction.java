@@ -21,8 +21,15 @@ public class SignupServiceTransaction {
 	@Transactional(rollbackFor = Exception.class)
 	public boolean execute(SignupForm signupForm) {
 		try {
-			User user = new User(null, signupForm.getEmail(), signupForm.getPassword(), signupForm.getUsername(), "ROLE_USER",
-					true, LocalDateTime.now(), LocalDateTime.now());
+			User user = new User();
+			user.setEmail(signupForm.getEmail());
+			user.setPassword(signupForm.getPassword());
+			user.setUserName(signupForm.getUsername());
+			user.setRole("ROLE_USER");
+			user.setEnabled(true);
+			user.setGoogleId(signupForm.getGoogleId() != null ? signupForm.getGoogleId() : null);
+			user.setCreateDatetime(LocalDateTime.now());
+			user.setUpdatedDatetime(LocalDateTime.now());
 
 			userDao.insert(user);
 			return true;
