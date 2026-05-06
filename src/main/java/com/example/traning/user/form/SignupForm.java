@@ -26,4 +26,6 @@ public class SignupForm {
 	@NotBlank
 	@Size(min = 8)
 	private String password_confirm;
+
+	private String googleId;
 }
