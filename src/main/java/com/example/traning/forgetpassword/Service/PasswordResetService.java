@@ -1,4 +1,4 @@
-package com.example.traning.forgetpassword.Service;
+package com.example.traning.forgetpassword.service;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -10,8 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.traning.common.MailService;
 import com.example.traning.dao.UserDao;
-import com.example.traning.forgetpassword.Dao.PasswordResetTokenDao;
-import com.example.traning.forgetpassword.Entity.PasswordResetToken;
+import com.example.traning.forgetpassword.dao.PasswordResetTokenDao;
+import com.example.traning.forgetpassword.entity.PasswordResetToken;
 import com.example.traning.user.User;
 
 @Service

@@ -1,4 +1,4 @@
-package com.example.traning.forgetpassword.Dao;
+package com.example.traning.forgetpassword.dao;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -9,7 +9,7 @@ import org.seasar.doma.Insert;
 import org.seasar.doma.Select;
 import org.seasar.doma.boot.ConfigAutowireable;
 
-import com.example.traning.forgetpassword.Entity.PasswordResetToken;
+import com.example.traning.forgetpassword.entity.PasswordResetToken;
 
 @Dao
 @ConfigAutowireable
