@@ -11,13 +11,13 @@ import org.seasar.doma.Table;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Value;
+import lombok.Data;
 
 @Entity(immutable = true)
 @Table(name = "users")
-@Value
 @Builder(toBuilder = true)
 @AllArgsConstructor
+@Data
 public class User {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,6 +25,8 @@ public class User {
 	public final Integer userId;
 
 	public final String email;
+
+	@Column(name = "password")
 	public final String password;
 
 	@Column(name = "user_Name")
