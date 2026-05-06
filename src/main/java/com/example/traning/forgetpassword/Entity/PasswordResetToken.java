@@ -1,4 +1,4 @@
-package com.example.traning.forgetpassword.Entity;
+package com.example.traning.forgetpassword.entity;
 
 import java.math.BigInteger;
 import java.time.LocalDateTime;
