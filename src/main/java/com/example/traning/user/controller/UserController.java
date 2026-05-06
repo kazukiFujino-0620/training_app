@@ -56,14 +56,4 @@ public class UserController {
 		}
 		return "redirect:/login";
 	}
-
-	@GetMapping("/password/forget")
-	public String forgetpassword() {
-		return "auth/forget_password";
-	}
-
-	@GetMapping("/password/reset")
-	public String resetpassword() {
-		return "auth/reset_password";
-	}
 }
