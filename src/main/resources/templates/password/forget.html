@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>パスワード再設定</title>
+</head>
+<body>
+    <h2>パスワード再設定</h2>
+    
+    <!-- エラーメッセージの表示エリア -->
+    <div th:if="${errorMessage}" style="color: red; margin-bottom: 10px;">
+        <p th:text="${errorMessage}"></p>
+    </div>
+
+    <p>ご登録済みのメールアドレスを入力してください。<br>再設定用のURLをお送りします。</p>
+    
+    <form th:action="@{/password/forget}" method="post">
+        <div>
+            <label>メールアドレス：</label>
+            <input type="email" name="email" required placeholder="example@test.com">
+        </div>
+        <button type="submit">送信</button>
+    </form>
+    <br>
+    <a th:href="@{/login}">ログイン画面に戻る</a>
+</body>
+</html>
