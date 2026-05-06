@@ -12,32 +12,38 @@ import org.seasar.doma.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity(immutable = true)
 @Table(name = "users")
 @Builder(toBuilder = true)
+@NoArgsConstructor
 @AllArgsConstructor
 @Data
 public class User {
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "id")
-	public final Integer userId;
+	public Integer userId;
 
-	public final String email;
+	public String email;
 
 	@Column(name = "password")
-	public final String password;
+	public String password;
 
 	@Column(name = "user_Name")
-	public final String userName;
+	public String userName;
 
-	public final String role;
-	public final Boolean enabled;
+	public String role;
+	public Boolean enabled;
+
+	@Column(name = "google_Id")
+	public String googleId;
 
 	@Column(name = "create_Datetime")
-	public final LocalDateTime createDatetime;
+	public LocalDateTime createDatetime;
 
 	@Column(name = "update_Datetime")
-	public final LocalDateTime updatedDatetime;
+	public LocalDateTime updatedDatetime;
 }

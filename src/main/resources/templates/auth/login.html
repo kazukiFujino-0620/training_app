@@ -16,9 +16,14 @@
         <button type="submit">ログイン</button>
     </form>
     
-    <hr><div>
+    <hr>
+
+    <div>
         <p>他のアカウントでログイン</p><br>
-        <button type="button" onclick = "alert(後ほど)">Googleでログイン</button>
+        <a th:href="@{/oauth2/authorization/google}" class="btn btn-outline-dark">
+            Googleでログイン
+        </a>
+        <button type="button" onclick = "alert('後ほど')">LINEでログイン</button>
     </div>
     <a th:href="@{/signup}">新規登録はこちら...</a>
     <a th:href="@{/password/forget}">パスワードを忘れた方はこちら...</a>
