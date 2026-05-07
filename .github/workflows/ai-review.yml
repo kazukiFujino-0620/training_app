@@ -1,0 +1,26 @@
+name: Copilot AI Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copilot Review
+        uses: github/copilot-review-action@v1
+        with:
+          # ここにレビューの「こだわり」を書けます
+          instructions: |
+            Java/Spring Bootのベストプラクティスに従っているか確認してください。
+            特にSQLインジェクションや、認証・認可の不備など、
+            ジム導入に向けたセキュリティ上の問題を指摘してください。
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
