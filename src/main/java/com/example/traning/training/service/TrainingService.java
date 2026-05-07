@@ -9,12 +9,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.traning.dao.TrainingMasterDao;
-import com.example.traning.repository.TrainingRepository;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -23,16 +21,18 @@ import com.example.traning.user.User;
 
 @Service
 public class TrainingService {
-	@Autowired
-	private TrainingServiceTransaction transaction;
-	@Autowired
-	private TrainingDao trainingDao;
-	@Autowired
-	private TrainingDetailDao trainingDetailDao;
-	@Autowired
-	private TrainingMasterDao trainingMasterDao;
-	@Autowired
-	private TrainingRepository trainingRepository;
+	private final TrainingServiceTransaction transaction;
+	private final TrainingDao trainingDao;
+	private final TrainingDetailDao trainingDetailDao;
+	private final TrainingMasterDao trainingMasterDao;
+
+	public TrainingService(TrainingServiceTransaction transaction, TrainingDao trainingDao,
+			TrainingDetailDao trainingDetailDao, TrainingMasterDao trainingMasterDao) {
+		this.transaction = transaction;
+		this.trainingDao = trainingDao;
+		this.trainingDetailDao = trainingDetailDao;
+		this.trainingMasterDao = trainingMasterDao;
+	}
 
 	public void save(Training training, Principal principal) {
 		if (training.getMenu() == null || training.getMenu().isEmpty()) {
@@ -63,10 +63,6 @@ public class TrainingService {
 		}
 
 		return trainingList;
-	}
-
-	public void deleteById(Long id) {
-		this.deleteTraining(id);
 	}
 
 	@Transactional
