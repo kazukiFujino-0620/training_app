@@ -2,7 +2,6 @@ package com.example.traning.user.service;
 
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -19,11 +18,13 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
-    @Autowired
-    private UserDao userDao; // 既存のユーザーチェック用Dao
+    private final UserDao userDao;
+    private final SignupServiceTransaction signupTransaction;
 
-    @Autowired
-    private SignupServiceTransaction signupTransaction;
+    public CustomOAuth2UserService(UserDao userDao, SignupServiceTransaction signupTransaction) {
+        this.userDao = userDao;
+        this.signupTransaction = signupTransaction;
+    }
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {

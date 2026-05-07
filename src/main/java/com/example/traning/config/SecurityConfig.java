@@ -1,6 +1,5 @@
 package com.example.traning.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,21 +14,33 @@ import com.example.traning.user.service.CustomOAuth2UserService;
 @EnableWebSecurity
 public class SecurityConfig {
 
-	@Autowired
-	private CustomOAuth2UserService customOAuth2UserService;
+	private static final String PUBLIC_PATHS = "/signup";
+	private static final String LOGIN_PATH = "/login";
+	private static final String PASSWORD_PATH = "/password/**";
+	private static final String CSS_PATH = "/css/**";
+	private static final String JS_PATH = "/js/**";
+	private static final String IMAGES_PATH = "/images/**";
+	private static final String ADMIN_PATH = "/admin/**";
+	private static final String USER_PATH = "/user/**";
+
+	private final CustomOAuth2UserService customOAuth2UserService;
+
+	public SecurityConfig(CustomOAuth2UserService customOAuth2UserService) {
+		this.customOAuth2UserService = customOAuth2UserService;
+	}
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http.authorizeHttpRequests(auth -> auth
 				// 公開ページと静的リソース
-				.requestMatchers("/signup", "/login", "/password/**", "/css/**", "/js/**", "/images/**").permitAll()
+				.requestMatchers(PUBLIC_PATHS, LOGIN_PATH, PASSWORD_PATH, CSS_PATH, JS_PATH, IMAGES_PATH).permitAll()
 				// 権限が必要なページ
-				.requestMatchers("/admin/**").hasRole("ADMIN")
-				.requestMatchers("/user/**").hasAnyRole("USER", "ADMIN")
+				.requestMatchers(ADMIN_PATH).hasRole("ADMIN")
+				.requestMatchers(USER_PATH).hasAnyRole("USER", "ADMIN")
 				.anyRequest().authenticated())
 				// Googleログインの設定
 				.oauth2Login(oauth2 -> oauth2
-						.loginPage("/login")
+						.loginPage(LOGIN_PATH)
 						.userInfoEndpoint(userInfo -> userInfo
 								.userService(customOAuth2UserService))
 						.defaultSuccessUrl("/menu", true)
@@ -47,7 +58,7 @@ public class SecurityConfig {
 						.permitAll())
 				.logout(logout -> logout
 						.logoutUrl("/logout")
-						.logoutSuccessUrl("/login?logout")
+						.logoutSuccessUrl(LOGIN_PATH + "?logout")
 						.invalidateHttpSession(true)
 						.deleteCookies("JSESSIONID")
 						.permitAll());
