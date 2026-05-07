@@ -2,7 +2,6 @@ package com.example.traning.smarttrainer.task;
 
 import java.time.LocalDateTime;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -14,8 +13,11 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class TokenCleanupTask {
 
-    @Autowired
-    private PasswordResetTokenDao tokenDao;
+    private final PasswordResetTokenDao tokenDao;
+
+    public TokenCleanupTask(PasswordResetTokenDao tokenDao) {
+        this.tokenDao = tokenDao;
+    }
 
     // 1時間ごとに実行
     @Scheduled(cron = "${batch.master.tokenCleanup.cron}")

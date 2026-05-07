@@ -7,7 +7,6 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -28,20 +27,24 @@ import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.service.TrainingService;
 import com.example.traning.user.User;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Controller
+@Slf4j
 public class MenuController {
 
-	@Autowired
-	private TrainingDao trainingDao;
+	private final TrainingDao trainingDao;
+	private final TrainingDetailDao trainingDetailDao;
+	private final TrainingMasterDao trainingMasterDao;
+	private final TrainingService trainingService;
 
-	@Autowired
-	private TrainingDetailDao trainingDetailDao;
-
-	@Autowired
-	private TrainingMasterDao trainingMasterDao;
-
-	@Autowired
-	private TrainingService trainingService;
+	public MenuController(TrainingDao trainingDao, TrainingDetailDao trainingDetailDao,
+			TrainingMasterDao trainingMasterDao, TrainingService trainingService) {
+		this.trainingDao = trainingDao;
+		this.trainingDetailDao = trainingDetailDao;
+		this.trainingMasterDao = trainingMasterDao;
+		this.trainingService = trainingService;
+	}
 
 	@GetMapping("/menu")
 	public String menu(@RequestParam(name = "date", required = false) String dateStr, Model model,
@@ -49,7 +52,7 @@ public class MenuController {
 		LocalDate today = LocalDate.now();
 
 		Long userId = trainingService.getUserIdByName(principal.getName());
-		System.out.println("ログインユーザーのIDは: " + userId);
+		log.debug("ログインユーザーのIDは: {}", userId);
 		// 1. 選択された日付（パラメータがなければ今日）を決定
 		LocalDate selectedDate = (dateStr != null) ? LocalDate.parse(dateStr) : today;
 		User userEntity = trainingService.getUserByName(userId);
@@ -58,7 +61,7 @@ public class MenuController {
 		YearMonth yearMonth = YearMonth.from(selectedDate); // 選択された日付の月を表示
 		LocalDate firstDay = yearMonth.atDay(1);
 		int firstDayValue = firstDay.getDayOfWeek().getValue();
-		LocalDate calendarStart = firstDay.minusDays(firstDayValue - 1);
+		LocalDate calendarStart = firstDay.minusDays((long) firstDayValue - 1);
 
 		List<LocalDate> dateList = new ArrayList<>();
 		for (int i = 0; i < 42; i++) {
@@ -85,9 +88,7 @@ public class MenuController {
 			if (dailyTrainings.isEmpty()) {
 				dayStatusList.add("NONE");
 			} else {
-				boolean allDone = dailyTrainings.stream().allMatch(t -> {
-					return t.isAllCompleted();
-				});
+				boolean allDone = dailyTrainings.stream().allMatch(Training::isAllCompleted);
 
 				if (allDone) {
 					dayStatusList.add("COMPLETED");
@@ -98,7 +99,6 @@ public class MenuController {
 		}
 
 		// 4.トレーニング実施状況を確認
-		boolean isDailyCompleted = !trainingList.isEmpty() && trainingList.stream().allMatch(Training::isAllCompleted);
 		long totalCount = trainingList.size();
 		long completedCount = trainingList.stream().filter(Training::isAllCompleted).count();
 
@@ -141,7 +141,7 @@ public class MenuController {
 
 	@PostMapping("/delete")
 	public String delete(@RequestParam("id") Long id) {
-		System.out.println("削除リクエストが来ました！ ID: " + id);
+		log.info("削除リクエストが来ました！ ID: {}", id);
 		trainingService.deleteTraining(id);
 		return "redirect:/menu";
 	}
@@ -205,7 +205,7 @@ public class MenuController {
 	@PostMapping("/api/training/delete/{id}")
 	@ResponseBody
 	public ResponseEntity<Void> deleteTraining(@PathVariable Long id) {
-		trainingService.deleteById(id);
+		trainingService.deleteTraining(id);
 		return ResponseEntity.ok().build();
 	}
 }

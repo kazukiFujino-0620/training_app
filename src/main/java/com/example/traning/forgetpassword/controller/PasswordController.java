@@ -1,6 +1,5 @@
 package com.example.traning.forgetpassword.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -21,8 +20,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PasswordController {
 
-    @Autowired
-    private PasswordResetService passwordResetService;
+    private final PasswordResetService passwordResetService;
+
+    public PasswordController(PasswordResetService passwordResetService) {
+        this.passwordResetService = passwordResetService;
+    }
 
     // 入力画面を表示
     @GetMapping("/forget")
