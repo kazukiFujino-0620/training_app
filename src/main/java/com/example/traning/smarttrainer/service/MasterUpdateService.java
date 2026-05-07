@@ -10,7 +10,6 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,8 +21,11 @@ import com.example.traning.entity.TrainingMaster;
 public class MasterUpdateService {
     private static final Logger logger = LoggerFactory.getLogger(MasterUpdateService.class);
 
-    @Autowired
-    private TrainingMasterDao trainingMasterDao;
+    private final TrainingMasterDao trainingMasterDao;
+
+    public MasterUpdateService(TrainingMasterDao trainingMasterDao) {
+        this.trainingMasterDao = trainingMasterDao;
+    }
 
     @Transactional
     public void importCsv(File file, List<TrainingMaster> existingParts) throws Exception {

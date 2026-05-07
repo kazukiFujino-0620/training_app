@@ -2,7 +2,6 @@ package com.example.traning.training.service;
 
 import java.security.Principal;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,10 +12,13 @@ import com.example.traning.training.dao.TrainingDetailDao;
 
 @Service
 public class TrainingServiceTransaction {
-	@Autowired
-	private TrainingDao trainingDao;
-	@Autowired
-	private TrainingDetailDao trainingDetailDao;
+	private final TrainingDao trainingDao;
+	private final TrainingDetailDao trainingDetailDao;
+
+	public TrainingServiceTransaction(TrainingDao trainingDao, TrainingDetailDao trainingDetailDao) {
+		this.trainingDao = trainingDao;
+		this.trainingDetailDao = trainingDetailDao;
+	}
 
 	@Transactional
 	public void execute(Training training, Principal principal) {
