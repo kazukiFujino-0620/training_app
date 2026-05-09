@@ -20,7 +20,7 @@ jobs:
           distribution: "temurin"
           cache: "maven"
 
-      # 2. Mavenビルド (JASYPTのパスワードを環境変数として渡す)
+      # 2. Mavenビルド
       - name: Build with Maven
         run: mvn clean package -PGCP -DskipTests
         env:
