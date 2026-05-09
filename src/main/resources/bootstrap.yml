@@ -1,0 +1,10 @@
+spring:
+  config:
+    import: optional:file:.env
+
+jasypt:
+  encryptor:
+    password: ${JASYPT_ENCRYPTOR_PASSWORD:local-dev-password}
+    algorithm: PBEWithHmacSHA512AndAES_256
+    key-obtention-iterations: 1000
+    provider-name: SunJCE
