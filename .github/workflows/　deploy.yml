@@ -1,0 +1,50 @@
+name: CI/CD for TrainingApp
+
+on:
+  push:
+    branches: [master] # masterにpushされた時のみ実行
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 1. Javaのセットアップ
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: "maven"
+
+      # 2. Mavenビルド (JASYPTのパスワードを環境変数として渡す)
+      - name: Build with Maven
+        run: mvn clean package -PGCP -DskipTests
+        env:
+          JASYPT_ENCRYPTOR_PASSWORD: ${{ secrets.JASYPT_PASSWORD }}
+
+      # 3. JARファイルをサーバーに転送 (SCP)
+      - name: Copy JAR to GCP VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_SSH_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          source: "target/TraningApp-*.jar"
+          target: "/opt/trainingapp/"
+          strip_components: 1
+
+      # 4. サーバー上のアプリを再起動 (SSH経由でsystemdを操作)
+      - name: Restart Application Service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_SSH_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
+            sudo cp /opt/trainingapp/TraningApp-*.jar /opt/trainingapp/trainingapp.jar
+            sudo systemctl restart trainingapp
+            sudo systemctl status trainingapp
