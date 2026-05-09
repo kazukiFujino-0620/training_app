@@ -33,7 +33,7 @@ jobs:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_SSH_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
-          source: "target/trainingapp-*.jar"
+          source: "target/TraningApp-*.jar"
           target: "/opt/trainingapp/"
           strip_components: 1
 
@@ -45,6 +45,6 @@ jobs:
           username: ${{ secrets.GCP_SSH_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
           script: |
-            sudo cp /opt/trainingapp/trainingapp-*.jar /opt/trainingapp/trainingapp.jar
+            sudo cp /opt/trainingapp/TraningApp-*.jar /opt/trainingapp/trainingapp.jar
             sudo systemctl restart trainingapp
             sudo systemctl status trainingapp
