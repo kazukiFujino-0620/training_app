@@ -37,7 +37,7 @@ jobs:
           target: "/opt/trainingapp/"
           strip_components: 1
 
-      # 4. サーバー上のアプリを再起動 (SSH経由でsystemdを操作)
+      # 4. サーバー上のアプリを再起動
       - name: Restart Application Service
         uses: appleboy/ssh-action@v1.0.3
         with:
