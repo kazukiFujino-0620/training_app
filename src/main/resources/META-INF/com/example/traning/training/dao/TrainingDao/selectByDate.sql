@@ -14,6 +14,6 @@ FROM
 WHERE
   user_id = /* userId */1
 AND
-  training_date = /* date */'2026-03-07'
+  training_date BETWEEN /* startDate */'2026-05-01' AND /* endDate */'2026-05-31'
 ORDER BY
   id ASC
