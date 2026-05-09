@@ -19,7 +19,7 @@ import com.example.traning.user.User;
 public interface TrainingDao {
 
 	@Select
-	List<Training> selectByDate(Long userId, LocalDate date);
+	List<Training> selectByDate(Long userId, LocalDate startDate, LocalDate endDate);
 
 	@Select
 	Training selectById(Long id);

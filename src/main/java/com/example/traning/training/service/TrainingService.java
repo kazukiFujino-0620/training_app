@@ -55,7 +55,7 @@ public class TrainingService {
 	}
 
 	public List<Training> getFullTrainingData(Long userId, LocalDate date) {
-		List<Training> trainingList = trainingDao.selectByDate(userId, date);
+		List<Training> trainingList = trainingDao.selectByDate(userId, date, date);
 
 		for (Training t : trainingList) {
 			t.setDetails(trainingDetailDao.selectByTrainingId(t.getId()));
