@@ -5,7 +5,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -53,64 +56,68 @@ public class MenuController {
 
 		Long userId = trainingService.getUserIdByName(principal.getName());
 		log.debug("ログインユーザーのIDは: {}", userId);
-		// 1. 選択された日付（パラメータがなければ今日）を決定
+
+		// 1. 日付の決定
 		LocalDate selectedDate = (dateStr != null) ? LocalDate.parse(dateStr) : today;
 		User userEntity = trainingService.getUserByName(userId);
 
-		// 2. カレンダー生成ロジック
-		YearMonth yearMonth = YearMonth.from(selectedDate); // 選択された日付の月を表示
+		// 2. カレンダーの期間（42日分）を計算
+		YearMonth yearMonth = YearMonth.from(selectedDate);
 		LocalDate firstDay = yearMonth.atDay(1);
 		int firstDayValue = firstDay.getDayOfWeek().getValue();
+		// 月曜始まりの場合の調整
 		LocalDate calendarStart = firstDay.minusDays((long) firstDayValue - 1);
+		LocalDate calendarEnd = calendarStart.plusDays(41);
 
 		List<LocalDate> dateList = new ArrayList<>();
 		for (int i = 0; i < 42; i++) {
 			dateList.add(calendarStart.plusDays(i));
 		}
 
-		// 3. DBからその日のトレーニングリストを取得 (ユーザーIDは一旦1L固定)
-		List<Training> trainingList = trainingDao.selectByDate(userId, selectedDate);
+		// 3. 【一括取得】カレンダー期間内のデータを1回のSQLで取得
+		// ※Daoに新設する selectByPeriod メソッドを使用
+		List<Training> allTrainings = trainingDao.selectByDate(userId, calendarStart, calendarEnd);
 
+		// 4. 【効率化】取得したデータを日付ごとにMapへ分類（Java側で処理）
+		Map<LocalDate, List<Training>> trainingMap = allTrainings.stream()
+				.collect(Collectors.groupingBy(Training::getTrainingDate));
+
+		// 5. 表示する日のデータ（trainingList）をMapから取得
+		List<Training> trainingList = trainingMap.getOrDefault(selectedDate, new ArrayList<>());
+
+		// マスターデータの一括取得
 		List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
 
+		// 選択された日のトレーニング詳細をセット（ここも本来は一括取得が理想ですが、まずは1日分のみに限定）
 		for (Training t : trainingList) {
-			// 各トレーニングIDに紐づく詳細をセットする
 			t.setDetails(trainingDetailDao.selectByTrainingId(t.getId()));
-
-			// 部位コードから日本語名を取得してセット
 			t.setPartName(trainingMasterDao.selectNameByCode(t.getPartCode()));
 		}
 
-		// カレンダーの各日が完了しているかどうかのマップを作成
+		// 6. カレンダーのステータス判定（SQL発行はゼロ！）
 		List<String> dayStatusList = new ArrayList<>();
 		for (LocalDate date : dateList) {
-			List<Training> dailyTrainings = trainingDao.selectByDate(userId, date);
+			List<Training> dailyTrainings = trainingMap.getOrDefault(date, Collections.emptyList());
 			if (dailyTrainings.isEmpty()) {
 				dayStatusList.add("NONE");
 			} else {
 				boolean allDone = dailyTrainings.stream().allMatch(Training::isAllCompleted);
-
-				if (allDone) {
-					dayStatusList.add("COMPLETED");
-				} else {
-					dayStatusList.add("IN_PROGRESS");
-				}
+				dayStatusList.add(allDone ? "COMPLETED" : "IN_PROGRESS");
 			}
 		}
 
-		// 4.トレーニング実施状況を確認
+		// 7. 集計とModelセット
 		long totalCount = trainingList.size();
 		long completedCount = trainingList.stream().filter(Training::isAllCompleted).count();
 
-		// 5. Modelへ値をセット
 		model.addAttribute("loginUser", userEntity);
 		model.addAttribute("targetMonth", yearMonth);
 		model.addAttribute("dateList", dateList);
 		model.addAttribute("today", today);
-		model.addAttribute("selectedDate", selectedDate); // 表示中の日付
-		model.addAttribute("trainingList", trainingList); // その日のデータ
-		model.addAttribute("prevMonth", yearMonth.minusMonths(1).atDay(1)); // 前月の1日
-		model.addAttribute("nextMonth", yearMonth.plusMonths(1).atDay(1)); // 次月の1日
+		model.addAttribute("selectedDate", selectedDate);
+		model.addAttribute("trainingList", trainingList);
+		model.addAttribute("prevMonth", yearMonth.minusMonths(1).atDay(1));
+		model.addAttribute("nextMonth", yearMonth.plusMonths(1).atDay(1));
 		model.addAttribute("partList", partList);
 		model.addAttribute("totalCount", totalCount);
 		model.addAttribute("completedCount", completedCount);
