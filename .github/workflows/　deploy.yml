@@ -2,7 +2,7 @@ name: CI/CD for TrainingApp
 
 on:
   push:
-    branches: [master] # masterにpushされた時のみ実行
+    branches: [master]
 
 jobs:
   build-and-deploy:
