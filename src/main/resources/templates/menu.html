@@ -36,7 +36,7 @@
 						    <td th:each="j : ${#numbers.sequence(0, 6)}" 
 						        th:with="index=${i * 7 + j}, day=${dateList[index]}, isDone=${dayStatusList[index]}"
 						        class="calendar-cell"
-						        th:classappend="${day == today} ? 'today-highlight' : ''"></td>
+						        th:classappend="${day == today} ? 'today-highlight' : ''">
 						        <a th:href="@{/menu(date=${day})}" 
 						           style="text-decoration: none; color: inherit; display: block; width: 100%; height: 100%;"
 						           th:if="${day != null}">
