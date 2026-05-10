@@ -28,6 +28,9 @@ public class Training {
 	@Column(name = "is_all_completed")
 	private boolean isAllCompleted;
 
+	@Column(name = "is_completed")
+	private Boolean isCompleted = false;
+
 	@Column(name = "user_id")
 	private Long userId;
 
@@ -57,4 +60,13 @@ public class Training {
 	@org.seasar.doma.Transient
 	@jakarta.persistence.Transient
 	private String partName;
+
+	// 手動セッターメソッド（Lombokの問題回避）
+	public void setIsAllCompleted(boolean isAllCompleted) {
+		this.isAllCompleted = isAllCompleted;
+	}
+
+	public boolean isAllCompleted() {
+		return this.isAllCompleted;
+	}
 }
