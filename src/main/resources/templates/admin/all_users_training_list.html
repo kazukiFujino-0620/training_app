@@ -1,59 +1,163 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ja" xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}" 
+      th:attr="data-theme=${theme}">
 <head>
     <meta charset="UTF-8">
-    <title>全ユーザー・トレーニング確認</title>
-    <!-- 既存のCSSを適用 -->
-    <link rel="stylesheet" th:href="@{/css/training_modal.css}" type="text/css">
-    <style>
-        .search-container { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 5px; }
-        .user-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .user-table th, .user-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        .user-table th { background-color: #eee; }
-        .status-active { color: green; font-weight: bold; }
-        .status-disabled { color: red; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全ユーザー・トレーニング確認 - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <div th:replace="~{common :: headerFragment}"></div>
-
-    <div style="padding: 20px;">
-        <h2>全ユーザーのトレーニング確認</h2>
-
-        <!-- 検索フォーム -->
-        <div class="search-container">
-            <form th:action="@{/admin/all-users-training}" method="get">
-                <label>ユーザー名検索：</label>
-                <input type="text" name="userName" th:value="${userName}" placeholder="名前を入力...">
-                <button type="submit">検索</button>
-                <a th:href="@{/admin/all-users-training}">クリア</a>
-            </form>
-        </div>
-
-        <table class="user-table">
-            <thead>
-                <tr>
-                    <th>ユーザー名</th>
-                    <th>ステータス</th>
-                    <th>アクション</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr th:each="user : ${userList}">
-                    <td th:text="${user.userName}">ユーザー名</td>
-                    <td>
-                        <span th:if="${user.enabled}" class="status-active">● 有効</span>
-                        <span th:if="${!user.enabled}" class="status-disabled">● 退会済</span>
-                    </td>
-                    <td>
-                        <!-- 別タブで各ユーザーのトレーニング詳細へ -->
-                        <a th:href="@{/admin/user/training-detail/{id}(id=${user.userId})}" target="_blank">
-                            トレーニング履歴を見る
+<body class="bg-secondary">
+    <!-- Header -->
+    <header th:replace="~{common :: headerFragment}"></header>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="content-wrapper">
+            <!-- Page Header -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold text-primary">全ユーザー・トレーニング確認</h1>
+                        <p class="text-muted mt-2">全ユーザーのトレーニング状況を確認・管理</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Form -->
+            <div class="card mb-6">
+                <div class="card-header">
+                    <h2 class="text-xl font-semibold">ユーザー検索</h2>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/admin/all-users-training}" method="get" class="flex gap-4">
+                        <div class="flex-1">
+                            <input type="text" 
+                                   name="userName" 
+                                   th:value="${userName}" 
+                                   placeholder="ユーザー名で検索"
+                                   class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                            </svg>
+                            検索
+                        </button>
+                        <a th:href="@{/admin/all-users-training}" class="btn btn-outline">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                <path d="M3 3v5h5"/>
+                            </svg>
+                            クリア
                         </a>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Users Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="text-xl font-semibold">ユーザー一覧</h2>
+                    <span class="text-sm text-muted" th:text="${userList.size() + '件のユーザー'}">0件のユーザー</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>ユーザー名</th>
+                                    <th>メールアドレス</th>
+                                    <th>権限</th>
+                                    <th>ステータス</th>
+                                    <th>登録日</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="user : ${userList}">
+                                    <td th:text="${user.userId}">1</td>
+                                    <td th:text="${user.userName}">ユーザー名</td>
+                                    <td th:text="${user.email}">email@example.com</td>
+                                    <td>
+                                        <span th:if="${user.role == 'ADMIN'}" 
+                                              class="badge badge-danger">
+                                            管理者
+                                        </span>
+                                        <span th:if="${user.role == 'USER'}" 
+                                              class="badge badge-primary">
+                                            一般
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span th:if="${user.enabled == true}" 
+                                              class="badge badge-success">
+                                            有効
+                                        </span>
+                                        <span th:if="${user.enabled == false}" 
+                                              class="badge badge-secondary">
+                                            無効
+                                        </span>
+                                    </td>
+                                    <td th:text="${#temporals.format(user.createDatetime, 'yyyy/MM/dd')}">2024/01/01</td>
+                                    <td>
+                                        <a th:href="@{/admin/user/training-detail/{id}(id=${user.userId})}" 
+                                           target="_blank"
+                                           class="btn btn-primary btn-sm">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1">
+                                                <path d="M9 11H3v2h6v-2zm0-4H3v2h6V7zm0 8H3v2h6v-2zm12-8h-6v2h6V7zm0 4h-6v2h6v-2zm0 4h-6v2h6v-2z"/>
+                                            </svg>
+                                            トレーニング詳細
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div th:if="${#lists.isEmpty(userList)}" class="text-center py-12">
+                        <div class="text-muted mb-4">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mx-auto mb-4">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                            </svg>
+                            <p class="text-lg">ユーザーが見つかりませんでした。</p>
+                        </div>
+                        <a th:href="@{/admin/all-users-training}" class="btn btn-outline">
+                            検索条件をクリア
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Back Button -->
+            <div class="mt-6">
+                <a th:href="@{/menu}" class="btn btn-outline">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                    メニューに戻る
+                </a>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer th:replace="~{common :: footerFragment}"></footer>
+    
+    <!-- JavaScript -->
+    <script th:src="@{/js/theme.js}"></script>
+    <script th:src="@{/js/admin-all-users-training-list.js}"></script>
 </body>
 </html>

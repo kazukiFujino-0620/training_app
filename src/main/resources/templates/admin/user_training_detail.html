@@ -1,107 +1,189 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html lang="ja" xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}" 
+      th:attr="data-theme=${theme}">
 <head>
     <meta charset="UTF-8">
-    <title>トレーニング詳細</title> 
-	<link rel="stylesheet" th:href="@{/css/training_modal.css}" type="text/css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>トレーニング詳細 - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-
-    <div th:replace="~{common :: headerFragment}"></div>
-
-    <main style="display: flex; flex-direction: column; gap: 20px; padding: 20px;">
-        
-        <!-- 上段：カレンダーと詳細表示の横並びエリア -->
-        <div style="display: flex; gap: 20px; min-height: 500px;">
-            
-            <!-- カレンダー（左側） -->
-            <div style="flex: 1; border: 1px solid #ccc; padding: 15px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <div class="calendar-container">
-                    <!-- 月切り替えヘッダー -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <a th:href="@{/admin/user/training-detail/{id}(id=${userId}, date=${prevMonth})}" style="text-decoration: none; color: #ff9800; font-weight: bold;">◀ 前月</a>
-                        <span style="font-size: 1.2em; font-weight: bold;" th:text="${targetMonth.year} + '年' + ${targetMonth.monthValue} + '月'"></span>
-                        <a th:href="@{/admin/user/training-detail/{id}(id=${userId}, date=${nextMonth})}" style="text-decoration: none; color: #ff9800; font-weight: bold;">次月 ▶</a>
+<body class="bg-secondary">
+    <!-- Header -->
+    <header th:replace="~{common :: headerFragment}"></header>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="content-wrapper">
+            <!-- Page Header -->
+            <div class="mb-6">
+                <div class="flex items-center gap-4">
+                    <a th:href="@{/admin/all-users-training}" class="btn btn-outline">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                            <polyline points="15 18 9 12 15 6"/>
+                        </svg>
+                        一覧に戻る
+                    </a>
+                    <div>
+                        <h1 class="text-3xl font-bold text-primary" th:text="${user.userName} + 'さんのトレーニング詳細'">ユーザーのトレーニング詳細</h1>
+                        <p class="text-muted mt-2">トレーニング履歴と進捗管理</p>
                     </div>
-
-                    <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                        <thead>
-                            <tr style="background-color: #f8f9fa;">
-                                <th style="color: red; padding: 10px; border: 1px solid #eee;">日</th>
-                                <th style="padding: 10px; border: 1px solid #eee;">月</th>
-                                <th style="padding: 10px; border: 1px solid #eee;">火</th>
-                                <th style="padding: 10px; border: 1px solid #eee;">水</th>
-                                <th style="padding: 10px; border: 1px solid #eee;">木</th>
-                                <th style="padding: 10px; border: 1px solid #eee;">金</th>
-                                <th style="color: blue; padding: 10px; border: 1px solid #eee;">土</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr th:each="i : ${#numbers.sequence(0, 5)}">
-                                <td th:each="j : ${#numbers.sequence(0, 6)}" 
-                                    th:with="index=${i * 7 + j}, currDate=${dateList[index]}"
-                                    class="calendar-cell"
-                                    th:data-date="${currDate}"
-                                    onclick="event.preventDefault(); selectDate(this.getAttribute('data-date'))"
-                                    style="height: 60px; border: 1px solid #eee; vertical-align: top; padding: 5px; cursor: pointer; position: relative;"
-                                    th:styleappend="${currDate.monthValue != targetMonth.monthValue} ? 'background-color: #f9f9f9; color: #ccc;' : ''">
-                                    
-                                    <span th:text="${currDate.dayOfMonth}"></span>
-                                    
-                                    <div style="text-align: center; margin-top: 5px;">
-                                        <!-- 計算済みの index を使って status リストから取得 -->
-                                        <th:block th:if="${status != null and status.size() > index}" th:with="dailyStatus=${status[index]}">
-                                            <span th:if="${dailyStatus == 'COMPLETED'}" title="完了">✅</span>
-                                            <span th:if="${dailyStatus == 'IN_PROGRESS'}" title="実施中">🔥</span>
-                                        </th:block>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>
-
-            <!-- 選択日の詳細表示（右側） -->
-            <div style="flex: 1; border: 1px solid #ccc; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 id="selected-date-title" style="margin-top: 0; border-bottom: 2px solid #ff9800; padding-bottom: 10px;">
-                    日付を選択してください
-                </h3>
-                <div id="details-container" style="margin-top: 15px;">
-                    <p style="color: #666;">カレンダーの日付をクリックすると、その日のトレーニング詳細が表示されます。</p>
-                    <!-- ここにJSで動的にトレーニング内容（ベンチプレス等）を挿入する -->
-                    <ul id="training-list" style="list-style: none; padding: 0;">
-                        <!-- 例: <li>ベンチプレス: 80kg x 10回 (3セット)</li> -->
-                    </ul>
+            
+            <!-- Calendar and Details Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Calendar Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-xl font-semibold">トレーニングカレンダー</h2>
+                            <div class="flex items-center gap-4">
+                                <a th:href="@{/admin/user/training-detail/{id}(id=${userId}, date=${prevMonth})}" class="btn btn-sm btn-outline">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1">
+                                        <polyline points="15 18 9 12 15 6"/>
+                                    </svg>
+                                    前月
+                                </a>
+                                <span class="text-lg font-medium" th:text="${targetMonth.year} + '年' + ${targetMonth.monthValue} + '月'">2026年5月</span>
+                                <a th:href="@{/admin/user/training-detail/{id}(id=${userId}, date=${nextMonth})}" class="btn btn-sm btn-outline">
+                                    次月
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline ml-1">
+                                        <polyline points="9 18 15 12 9 6"/>
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="calendar-container">
+                            <table class="table table-fixed">
+                                <thead>
+                                    <tr>
+                                        <th class="text-danger">日</th>
+                                        <th>月</th>
+                                        <th>火</th>
+                                        <th>水</th>
+                                        <th>木</th>
+                                        <th class="text-primary">金</th>
+                                        <th class="text-primary">土</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="i : ${#numbers.sequence(0, 5)}">
+                                        <td th:each="j : ${#numbers.sequence(0, 6)}" 
+                                            th:with="index=${i * 7 + j}, day=${dateList[index]}, dayStatus=${status[index]}"
+                                            class="calendar-cell cursor-pointer hover:bg-tertiary transition-colors"
+                                            th:classappend="${day == today} ? 'bg-primary bg-opacity-20 font-bold' : ''"
+                                            th:onclick="loadTrainingDetails([[${#temporals.format(day, 'yyyy-MM-dd')}]])">
+                                            
+                                            <div class="text-center p-2">
+                                                <span th:text="${day.dayOfMonth}" 
+                                                      th:class="${day.month != targetMonth.month} ? 'text-muted' : ''">1</span>
+                                                
+                                                <div class="mt-1">
+                                                    <div th:if="${dayStatus == 'COMPLETED'}" class="text-success text-xs">✅</div>
+                                                    <div th:if="${dayStatus == 'IN_PROGRESS'}" class="text-warning text-xs">🔥</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Details Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="text-xl font-semibold">トレーニング詳細</h2>
+                        <p class="text-sm text-muted">選択した日のトレーニング内容</p>
+                    </div>
+                    <div class="card-body">
+                        <div id="training-details">
+                            <!-- トレーニング詳細がここに表示される -->
+                            <div class="text-center py-8 text-muted">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mx-auto mb-4">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                    <line x1="16" y1="2" x2="16" y2="6"/>
+                                    <line x1="8" y1="2" x2="8" y2="6"/>
+                                    <line x1="3" y1="10" x2="21" y2="10"/>
+                                </svg>
+                                <p class="text-lg">カレンダーから日付を選択してください</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Weight Progression Chart -->
+            <div class="card mt-6">
+                <div class="card-header">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-semibold">各部位の総重量推移</h2>
+                            <p class="text-sm text-muted">トレーニング量の推移グラフ</p>
+                        </div>
+                        <button type="button" onclick="toggleDateSearch()" class="btn btn-outline btn-sm">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 18 12.46 22 3"/>
+                            </svg>
+                            日付範囲検索
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Date Search Form -->
+                    <div id="dateSearchForm" class="hidden mb-4 p-4 bg-tertiary rounded-lg">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="startDate" class="form-label">開始日</label>
+                                <input type="date" id="startDate" class="form-control">
+                            </div>
+                            <div>
+                                <label for="endDate" class="form-label">終了日</label>
+                                <input type="date" id="endDate" class="form-control">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="button" onclick="searchChartData()" class="btn btn-primary w-full">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                                        <circle cx="11" cy="11" r="8"/>
+                                        <path d="m21 21-4.35-4.35"/>
+                                    </svg>
+                                    検索
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <canvas id="volumeChart" width="400" height="200"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <!-- 下段：重量推移グラフエリア -->
-        <div style="border: 1px solid #ccc; padding: 25px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0;">ボリューム推移</h3>
-                <div id="period-selector" style="display: flex; gap: 10px; align-items: center;">
-                    <input type="hidden" id="userIdForGraph" th:value="${userId}">
-                    
-                    <label for="startDate">From:</label>
-                    <input type="date" id="startDate" class="form-control">
-                    
-                    <label for="endDate">To:</label>
-                    <input type="date" id="endDate" class="form-control">
-                    
-                    <button type="button" class="btn-search" onclick="searchByPeriod()">検索</button>
-                </div>
-            </div>
-            <div style="position: relative; height: 350px; width: 100%;">
-                <canvas id="volumeChart"></canvas>
-            </div>
-        </div>
-
     </main>
-
-    <!-- Chart.js の読み込み（グラフ描画用ライブラリ） -->
+    
+    <!-- Footer -->
+    <footer th:replace="~{common :: footerFragment}"></footer>
+    
+    <!-- JavaScript -->
+    <script th:src="@{/js/theme.js}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script th:src="@{/js/training-modal.js}"></script>
+    <script th:src="@{/js/chart.js}"></script>
+    <script th:src="@{/js/admin-training-detail.js}"></script>
+    <script>
+        // Set userId from server-side
+        window.userId = /*[[${userId}]]*/ 5;
+    </script>
 </body>
 </html>
