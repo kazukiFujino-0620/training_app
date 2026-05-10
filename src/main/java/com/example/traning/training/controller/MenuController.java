@@ -147,11 +147,6 @@ public class MenuController {
 		return "redirect:/menu?date=" + training.getTrainingDate();
 	}
 
-<<<<<<< HEAD
-	@PostMapping("/delete")
-	public String delete(@RequestParam("id") Long id) {
-		log.info("削除リクエストが来ました！ ID: {}", id);
-=======
 	@PostMapping("/menu/delete")
 	public String delete(@RequestParam("id") Long id, Principal principal) {
 		log.info("削除リクエストが来ました！ ID: {}", id);
@@ -159,8 +154,6 @@ public class MenuController {
 		// 削除前に日付を取得してリダイレクト用に保持
 		Training training = trainingService.getTrainingById(id);
 		LocalDate date = training != null ? training.getTrainingDate() : LocalDate.now();
-
->>>>>>> d9df139f62f13c06b2267c824daea1b4b1456ed8
 		trainingService.deleteTraining(id);
 
 		// 削除後、同じ日付のメニュー画面にリダイレクト
@@ -225,10 +218,6 @@ public class MenuController {
 
 	@GetMapping("/api/training/{id}")
 	@ResponseBody
-<<<<<<< HEAD
-	public ResponseEntity<Void> deleteTraining(@PathVariable Long id) {
-		trainingService.deleteTraining(id);
-=======
 	public Training getTraining(@PathVariable Long id) {
 		return trainingService.getTrainingById(id);
 	}
@@ -257,7 +246,6 @@ public class MenuController {
 		}
 
 		trainingService.save(training, principal);
->>>>>>> d9df139f62f13c06b2267c824daea1b4b1456ed8
 		return ResponseEntity.ok().build();
 	}
 
