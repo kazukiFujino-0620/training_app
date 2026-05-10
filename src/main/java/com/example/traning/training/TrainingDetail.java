@@ -45,10 +45,6 @@ public class TrainingDetail {
 	@Column(name = "updated_datetime")
 	private LocalDateTime updatedDatetime = LocalDateTime.now();
 
-	@Column(name = "menu")
-	@jakarta.persistence.Transient
-	private String menu;
-
 	@org.seasar.doma.Transient
 	@ManyToOne
 	@JoinColumn(name = "training_id", insertable = false, updatable = false)
