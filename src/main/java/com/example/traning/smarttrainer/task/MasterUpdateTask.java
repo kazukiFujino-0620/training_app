@@ -24,6 +24,7 @@ public class MasterUpdateTask {
     public MasterUpdateTask(MasterUpdateService masterUpdateService, TrainingMasterDao trainingMasterDao) {
         this.masterUpdateService = masterUpdateService;
         this.trainingMasterDao = trainingMasterDao;
+        logger.info("MasterUpdateTask 初期化完了");
     }
 
     @Value("${batch.master.update.file-path}")
@@ -31,32 +32,36 @@ public class MasterUpdateTask {
 
     @Scheduled(cron = "${batch.master.update.cron}")
     public void executeMasterUpdate() {
-        logger.info("--- 夜間マスタ更新バッチ 開始 ---");
+        logger.info("=== 夜間マスタ更新バッチ 開始 ===");
 
-        File file = new File(filePath);
-
-        if (!file.exists()) {
-            logger.warn("更新用CSVファイルが見つかりません。パス: {}", filePath);
-            return;
-        }
-
-        logger.info("マスタ情報取得します");
-        List<TrainingMaster> trainingMasterList = trainingMasterDao.selectAll();
-
-        if (trainingMasterList.isEmpty()) {
-            logger.warn("マスタ情報が見つかりません。");
-        }
         try {
-            logger.info("ファイルを正常に検知しました。処理を開始します。");
+            File file = new File(filePath);
+            logger.debug("CSVファイルパス確認: {}", filePath);
 
+            if (!file.exists()) {
+                logger.warn("更新用CSVファイルが見つかりません。パス: {}", filePath);
+                return;
+            }
+
+            logger.info("CSVファイルを確認: 存在します - サイズ: {} bytes", file.length());
+
+            logger.info("マスタ情報取得します");
+            List<TrainingMaster> trainingMasterList = trainingMasterDao.selectAll();
+            logger.info("既存マスタ情報取得完了 - 件数: {}", trainingMasterList.size());
+
+            if (trainingMasterList.isEmpty()) {
+                logger.warn("マスタ情報が見つかりません。");
+            }
+
+            logger.info("ファイルを正常に検知しました。処理を開始します。");
             masterUpdateService.importCsv(file, trainingMasterList);
-            // --------------------
+
+            logger.info("=== 夜間マスタ更新バッチ 正常終了 ===");
 
         } catch (Exception e) {
             logger.error("バッチ処理中にエラーが発生しました", e);
+            logger.error("=== 夜間マスタ更新バッチ 異常終了 ===");
         }
-
-        logger.info("--- 夜間マスタ更新バッチ 終了 ---");
     }
 
     // 【テスト用】起動後5秒ごとに実行（動作確認用。確認が終わったら消すかコメントアウト）

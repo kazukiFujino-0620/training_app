@@ -40,6 +40,9 @@ public interface TrainingDao {
 	List<Training> selectByUserIdAndDateRange(Integer userId, LocalDate startDate, LocalDate endDate);
 
 	@Select
+	List<Training> selectByUserIdAndDate(Integer userId, LocalDate date);
+
+	@Select
 	User selectByUserName(Long userId);
 
 	@Select
