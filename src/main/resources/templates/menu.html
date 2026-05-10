@@ -37,7 +37,7 @@
 						        th:with="index=${i * 7 + j}, day=${dateList[index]}, isDone=${dayStatusList[index]}"
 						        class="calendar-cell"
 						        th:classappend="${day == today} ? 'today-highlight' : ''"
-						        th:onclick="selectDate([[${day}]])">
+						        th:onclick="openRegisterPage([[${day}]])">
 						        
 						        <div style="position: relative; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
 						            <span th:text="${day.dayOfMonth}"
@@ -89,7 +89,7 @@
                     </div>
 
                     <div style="display: flex; flex-direction: column; gap: 8px; min-width: 80px; margin-left: 10px;">
-                        <button type="button" th:onclick="openModal([[${selectedDate}]], [[${item.id}]])" 
+                        <button type="button" th:onclick="openEditModal([[${item.id}]], [[${item.menu}]], [[${item.partCode}]], [[${item.trainingDate}]], [[${item.details}]])" 
                                 style="cursor:pointer; padding: 6px; background: #eee; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85em;">編集</button>
                         <form th:action="@{/menu/delete}" method="post" onsubmit="return confirm('本当に削除しますか？');" style="margin: 0;">
                             <input type="hidden" name="id" th:value="${item.id}">
@@ -100,7 +100,7 @@
                     </div>
                 </div>
                 
-                <button th:onclick="openModal([[${selectedDate != null ? selectedDate : today}]])" 
+                <button th:onclick="openRegisterPage([[${selectedDate != null ? selectedDate : today}]])" 
                         style="width:100%; padding:12px; margin-top:10px; cursor:pointer; background: #fff; border: 2px dashed #ccc; border-radius: 10px; color: #666;">
                     ＋ 他の種目を追加登録
                 </button>
@@ -136,7 +136,7 @@
 
             <div th:if="${#lists.isEmpty(trainingList)}" style="margin-top: 80px; text-align: center; color: #999;">
                 <p>この日のトレーニング記録はありません。</p>
-                <button th:onclick="openModal([[${selectedDate != null ? selectedDate : today}]])" 
+                <button th:onclick="openRegisterPage([[${selectedDate != null ? selectedDate : today}]])" 
                         style="margin-top: 10px; padding: 10px 20px; cursor:pointer; background: #2196F3; color: white; border: none; border-radius: 5px;">
                     記録を付ける
                 </button>
@@ -144,54 +144,25 @@
         </div>
     </main>
 
-    <div id="trainingModal" class="modal-overlay">
-        <div class="modal-content">
-            <h3 id="modalTitle">トレーニング登録</h3>
-            <p id="displayDate" style="color: #666; font-weight: bold;"></p>
+    <!-- トレーニング編集モーダル -->
+    <div id="editTrainingModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h3 id="editModalTitle" style="margin-bottom: 20px;">トレーニング編集</h3>
             
-            <form th:action="@{/menu/save}" method="post" onsubmit="reindexSets()">
-                <input type="hidden" id="trainingId" name="id">
-                <input type="hidden" id="modalDate" name="trainingDate">
-                
-                <div class="form-group">
-                    <label>部位</label>
-                    <select name="partCode" id="modalPart" required onchange="updateItems(this.value)">
-                        <option value="">部位を選択してください</option>
-                        <option th:each="p : ${partList}" th:value="${p.partCode}" th:text="${p.partName}"></option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>種目名</label>
-                    <select name="menu" id="modalMenu" required disabled>
-                        <option value="">部位を先に選択してください</option>
-                    </select>
-                </div>
-
-                <div style="margin-top: 20px;">
-                    <label style="font-weight: bold;">セット詳細</label>
-                    <table id="setTable">
-                        <thead>
-                            <tr>
-                                <th style="width: 50px;">セット</th>
-                                <th>重量(kg)</th>
-                                <th>回数(reps)</th>
-                                <th style="width: 40px;"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="setList">
-                            </tbody>
-                    </table>
-                    <button type="button" onclick="addSetRow()" style="width: 100%; padding: 5px; cursor: pointer;">＋ セットを追加</button>
-                </div>
-                
-                <div style="display:flex; justify-content: space-between; margin-top:30px;">
-                    <button type="button" onclick="closeModal()" style="padding: 10px 20px; border: 1px solid #ccc; background: #fff; border-radius: 5px; cursor: pointer;">キャンセル</button>
-                    <button type="submit" style="background:#4CAF50; color:white; border:none; padding: 10px 30px; border-radius: 5px; cursor:pointer;">保存する</button>
-                </div>
-            </form>
+            <div id="editSetsContainer" style="margin-bottom: 20px;">
+                <!-- セット一覧がここに表示される -->
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="closeEditModal()" style="padding: 10px 20px; background: #ccc; border: none; border-radius: 5px; cursor: pointer;">
+                    キャンセル
+                </button>
+                <button type="button" onclick="saveEditModal()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    OK
+                </button>
+            </div>
         </div>
     </div>
-
 
     <div sec:authorize="hasRole('ADMIN')" style="margin-top: 20px; padding: 15px; background-color: #fff3e0; border: 1px solid #ff9800; border-radius: 8px; text-align: center;">
         <p style="color: #e65100; font-weight: bold; margin-bottom: 10px;">管理者メニュー</p>

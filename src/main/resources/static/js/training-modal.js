@@ -49,6 +49,183 @@ function selectDate(date) {
         });
 }
 
+// 別タブで登録ページを開く
+function openRegisterPage(date) {
+    window.open(`/training/register?date=${encodeURIComponent(date)}`, '_blank');
+}
+
+// メニュー画面用編集機能
+let currentEditingTraining = null;
+let originalTrainingData = null;
+
+// 編集モーダルを開く
+function openEditModal(trainingId, menu, partCode, trainingDate, details) {
+    // 画面に表示されているデータを元にトレーニングオブジェクトを作成
+    currentEditingTraining = {
+        id: trainingId,
+        menu: menu,
+        partCode: partCode,
+        trainingDate: trainingDate,
+        details: details.map(detail => ({
+            setNumber: detail.setNumber,
+            weight: detail.weight,
+            reps: detail.reps,
+            isCompleted: detail.isCompleted
+        }))
+    };
+    
+    originalTrainingData = JSON.parse(JSON.stringify(currentEditingTraining));
+    
+    // モーダルタイトルを設定
+    document.getElementById('editModalTitle').textContent = `${menu} - 編集`;
+    
+    // セット一覧を描画
+    renderEditSets();
+    
+    // モーダルを表示
+    document.getElementById('editTrainingModal').style.display = 'flex';
+}
+
+// 編集用セット一覧を描画
+function renderEditSets() {
+    const container = document.getElementById('editSetsContainer');
+    const training = currentEditingTraining;
+    
+    let html = '';
+    
+    // セット一覧
+    training.details.forEach((detail, setIndex) => {
+        html += `
+            <div style="display: flex; align-items: center; gap: 10px; padding: 12px; margin: 8px 0; background: #f9f9f9; border-radius: 8px; border: 1px solid #e0e0e0;">
+                <span style="font-weight: bold; min-width: 30px; color: #666;">${setIndex + 1}</span>
+                <div style="display: flex; gap: 15px; flex-grow: 1; align-items: center;">
+                    <input type="number" id="editWeight-${setIndex}" value="${detail.weight}" step="0.5" onchange="updateEditSet(${setIndex})" style="width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
+                    <label style="color: #666; font-size: 0.9em;">kg</label>
+                    <input type="number" id="editReps-${setIndex}" value="${detail.reps}" onchange="updateEditSet(${setIndex})" style="width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
+                    <label style="color: #666; font-size: 0.9em;">回</label>
+                </div>
+                <button type="button" onclick="removeEditSet(${setIndex})" style="background: none; border: none; color: #f44336; font-size: 1.2em; cursor: pointer; padding: 0;">✕</button>
+            </div>
+        `;
+    });
+    
+    // セット追加ボタン
+    html += `
+        <button type="button" onclick="addEditSet()" style="width: 100%; padding: 12px; margin-top: 15px; background: #e3f2fd; border: 1px solid #2196F3; color: #2196F3; border-radius: 6px; cursor: pointer; font-weight: bold;">
+            + セットを追加
+        </button>
+    `;
+    
+    // 総ボリューム表示
+    const totalVolume = training.details.reduce((sum, detail) => sum + (detail.weight * detail.reps), 0);
+    html += `
+        <div style="background: #f0f8ff; padding: 12px; border-radius: 6px; margin-top: 15px; text-align: right; font-size: 0.95em; color: #333;">
+            総ボリューム: <strong style="color: #ff9800; font-size: 1.1em;">${totalVolume.toFixed(1)} kg</strong>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// 編集セットの更新
+function updateEditSet(setIndex) {
+    const weight = parseFloat(document.getElementById(`editWeight-${setIndex}`).value) || 0;
+    const reps = parseInt(document.getElementById(`editReps-${setIndex}`).value) || 0;
+    
+    currentEditingTraining.details[setIndex].weight = weight;
+    currentEditingTraining.details[setIndex].reps = reps;
+    
+    // ボリューム表示を更新
+    updateEditVolumeDisplay();
+}
+
+// 編集セットの削除
+function removeEditSet(setIndex) {
+    if (currentEditingTraining.details.length > 1) {
+        currentEditingTraining.details.splice(setIndex, 1);
+        // セット番号を更新
+        currentEditingTraining.details.forEach((detail, idx) => {
+            detail.setNumber = idx + 1;
+        });
+        renderEditSets();
+    } else {
+        alert('最後の1セットは削除できません');
+    }
+}
+
+// 編集セットの追加
+function addEditSet() {
+    let lastWeight = 0, lastReps = 0;
+    
+    if (currentEditingTraining.details.length > 0) {
+        const lastSet = currentEditingTraining.details[currentEditingTraining.details.length - 1];
+        lastWeight = lastSet.weight;
+        lastReps = lastSet.reps;
+    }
+    
+    currentEditingTraining.details.push({
+        weight: lastWeight,
+        reps: lastReps,
+        setNumber: currentEditingTraining.details.length + 1,
+        isCompleted: false
+    });
+    
+    renderEditSets();
+}
+
+// 編集ボリューム表示を更新
+function updateEditVolumeDisplay() {
+    const totalVolume = currentEditingTraining.details.reduce((sum, detail) => sum + (detail.weight * detail.reps), 0);
+    
+    const volumeDisplay = document.querySelector('#editSetsContainer strong');
+    if (volumeDisplay) {
+        volumeDisplay.textContent = `${totalVolume.toFixed(1)} kg`;
+    }
+}
+
+// 編集確定
+function saveEditModal() {
+    // CSRFトークンを取得
+    const token = document.querySelector('meta[name="_csrf"]')?.content;
+    const header = document.querySelector('meta[name="_csrf_header"]')?.content;
+    
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    
+    if (token && header) {
+        headers[header] = token;
+    }
+    
+    // 更新データを送信
+    fetch(`/api/training/update/${currentEditingTraining.id}`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(currentEditingTraining)
+    })
+    .then(response => {
+        if (response.ok) {
+            alert('トレーニングを更新しました');
+            closeEditModal();
+            // ページをリロードして反映
+            location.reload();
+        } else {
+            alert('更新に失敗しました');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('更新中にエラーが発生しました');
+    });
+}
+
+// 編集キャンセル
+function closeEditModal() {
+    document.getElementById('editTrainingModal').style.display = 'none';
+    currentEditingTraining = null;
+    originalTrainingData = null;
+}
+
 // 2. タイマー関連
 let totalSeconds = 0;
 let mainTimerInterval;
