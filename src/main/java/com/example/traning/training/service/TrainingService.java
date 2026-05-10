@@ -44,6 +44,10 @@ public class TrainingService {
 		transaction.execute(training, principal);
 	}
 
+	public Training getTrainingById(Long id) {
+		return trainingDao.selectById(id);
+	}
+
 	@Transactional
 	public void deleteTraining(Long id) {
 		trainingDetailDao.deleteByTrainingId(id);
@@ -77,9 +81,9 @@ public class TrainingService {
 
 				if (training.getDetails() != null && !training.getDetails().isEmpty()) {
 					boolean allDone = training.getDetails().stream().allMatch(detail -> detail.isCompleted());
-					currentDbData.setAllCompleted(allDone);
+					currentDbData.setIsAllCompleted(allDone);
 				} else {
-					currentDbData.setAllCompleted(false);
+					currentDbData.setIsAllCompleted(false);
 				}
 
 				trainingDao.update(currentDbData);
