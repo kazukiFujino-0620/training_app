@@ -34,42 +34,9 @@
                 </div>
             </div>
             
-<<<<<<< HEAD
             <!-- Flash Messages -->
             <div th:if="${message != null}" class="alert alert-success fade-in">
                 <span th:text="${message}"></span>
-=======
-                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                    <thead>
-                        <tr style="background: #f0f0f0;">
-                            <th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th style="color:blue;">土</th><th style="color:red;">日</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr th:each="i : ${#numbers.sequence(0, 5)}">
-						    <td th:each="j : ${#numbers.sequence(0, 6)}" 
-						        th:with="index=${i * 7 + j}, day=${dateList[index]}, isDone=${dayStatusList[index]}"
-						        class="calendar-cell"
-						        th:classappend="${day == today} ? 'today-highlight' : ''">
-						        <a th:href="@{/menu(date=${day})}" 
-						           style="text-decoration: none; color: inherit; display: block; width: 100%; height: 100%;"
-						           th:if="${day != null}">
-						        
-						        <div style="position: relative; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-						            <span th:text="${day.dayOfMonth}"
-						                  th:class="${day.month != targetMonth.month} ? 'other-month' : ''">1</span>
-						            
-					            <div th:if="${isDone == 'COMPLETED'}" 
-					                 style="font-size: 0.7em; color: #4CAF50; margin-top: -2px;">✅</div>
-						        <div th:if="${isDone == 'IN_PROGRESS'}" 
-					                 style="font-size: 0.7em; color: #4CAF50; margin-top: -2px;">🔥</div>
-						        </div>
-					        </a>
-						    </td>
-						</tr>
-                    </tbody>
-                </table>
->>>>>>> a92d8d7aeacfdefcf65eaca4b967eb6ec36b4e50
             </div>
             
             <div th:if="${error != null}" class="alert alert-danger fade-in">
