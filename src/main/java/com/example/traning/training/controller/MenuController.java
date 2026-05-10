@@ -25,6 +25,7 @@ import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
 import com.example.traning.training.Training;
+import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.service.TrainingService;
@@ -146,11 +147,18 @@ public class MenuController {
 		return "redirect:/menu?date=" + training.getTrainingDate();
 	}
 
-	@PostMapping("/delete")
-	public String delete(@RequestParam("id") Long id) {
+	@PostMapping("/menu/delete")
+	public String delete(@RequestParam("id") Long id, Principal principal) {
 		log.info("削除リクエストが来ました！ ID: {}", id);
+
+		// 削除前に日付を取得してリダイレクト用に保持
+		Training training = trainingService.getTrainingById(id);
+		LocalDate date = training != null ? training.getTrainingDate() : LocalDate.now();
+
 		trainingService.deleteTraining(id);
-		return "redirect:/menu";
+
+		// 削除後、同じ日付のメニュー画面にリダイレクト
+		return "redirect:/menu?date=" + date;
 	}
 
 	@GetMapping("/api/training-items")
@@ -209,10 +217,138 @@ public class MenuController {
 
 	}
 
+	@GetMapping("/api/training/{id}")
+	@ResponseBody
+	public Training getTraining(@PathVariable Long id) {
+		return trainingService.getTrainingById(id);
+	}
+
+	@PostMapping("/api/training/update/{id}")
+	@ResponseBody
+	public ResponseEntity<Void> updateTraining(@PathVariable Long id, @RequestBody Training training,
+			Principal principal) {
+		// 既存データを取得して必須フィールドを保持
+		Training existingTraining = trainingService.getTrainingById(id);
+		if (existingTraining == null) {
+			return ResponseEntity.notFound().build();
+		}
+
+		// 既存データの必須フィールドを保持
+		training.setId(id);
+		training.setUserId(existingTraining.getUserId());
+		training.setTrainingDate(existingTraining.getTrainingDate());
+		training.setPartCode(existingTraining.getPartCode());
+		training.setCreateDatetime(existingTraining.getCreateDatetime());
+
+		// 現在ログインしているユーザーIDを確認（セキュリティチェック）
+		Long currentUserId = trainingService.getUserIdByName(principal.getName());
+		if (!training.getUserId().equals(currentUserId)) {
+			return ResponseEntity.status(403).build(); // 権限なし
+		}
+
+		trainingService.save(training, principal);
+		return ResponseEntity.ok().build();
+	}
+
 	@PostMapping("/api/training/delete/{id}")
 	@ResponseBody
-	public ResponseEntity<Void> deleteTraining(@PathVariable Long id) {
+	public ResponseEntity<Void> deleteTraining(@PathVariable Long id, Principal principal) {
+		// 既存データを取得してユーザー権限を確認
+		Training existingTraining = trainingService.getTrainingById(id);
+		if (existingTraining == null) {
+			return ResponseEntity.notFound().build();
+		}
+
+		// 現在ログインしているユーザーIDを確認（セキュリティチェック）
+		Long currentUserId = trainingService.getUserIdByName(principal.getName());
+		if (!existingTraining.getUserId().equals(currentUserId)) {
+			return ResponseEntity.status(403).build(); // 権限なし
+		}
+
 		trainingService.deleteTraining(id);
 		return ResponseEntity.ok().build();
+	}
+
+	@GetMapping("/training/register")
+	public String trainingRegister(@RequestParam(name = "date", required = false) String dateStr, Model model,
+			Principal principal) {
+		LocalDate today = LocalDate.now();
+		LocalDate selectedDate = (dateStr != null) ? LocalDate.parse(dateStr) : today;
+		Long userId = trainingService.getUserIdByName(principal.getName());
+
+		List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
+
+		model.addAttribute("selectedDate", selectedDate);
+		model.addAttribute("userId", userId);
+		model.addAttribute("partList", partList);
+
+		return "training/training-register";
+	}
+
+	@GetMapping("/api/training-parts")
+	@ResponseBody
+	public List<TrainingMaster> getTrainingParts() {
+		return trainingMasterDao.selectAllParts();
+	}
+
+	@GetMapping("/api/training-items-grouped")
+	@ResponseBody
+	public Map<String, List<TrainingItemMaster>> getTrainingItemsGrouped() {
+		List<TrainingMaster> parts = trainingMasterDao.selectAllParts();
+		Map<String, List<TrainingItemMaster>> groupedItems = new java.util.HashMap<>();
+
+		for (TrainingMaster part : parts) {
+			List<TrainingItemMaster> items = trainingMasterDao.selectItemsByPart(part.getPartCode());
+			groupedItems.put(part.getPartCode(), items);
+		}
+
+		return groupedItems;
+	}
+
+	@PostMapping("/api/training/register-bulk")
+	@ResponseBody
+	public ResponseEntity<String> registerBulkTraining(
+			@RequestBody Map<String, Object> data,
+			Principal principal) {
+		try {
+			String dateStr = (String) data.get("date");
+			List<Map<String, Object>> trainingsData = (List<Map<String, Object>>) data.get("trainings");
+
+			LocalDate trainingDate = LocalDate.parse(dateStr);
+			Long userId = trainingService.getUserIdByName(principal.getName());
+
+			for (Map<String, Object> trainingMap : trainingsData) {
+				Training training = new Training();
+				training.setUserId(userId);
+				training.setTrainingDate(trainingDate);
+				training.setMenu((String) trainingMap.get("menu"));
+				training.setPartCode((String) trainingMap.get("partCode"));
+				training.setIsCompleted(false);
+				training.setIsAllCompleted(false);
+				training.setCreateDatetime(LocalDateTime.now());
+				training.setUpdatedDatetime(LocalDateTime.now());
+
+				List<Map<String, Object>> detailsData = (List<Map<String, Object>>) trainingMap.get("details");
+				List<TrainingDetail> details = new ArrayList<>();
+
+				for (int i = 0; i < detailsData.size(); i++) {
+					Map<String, Object> detailMap = detailsData.get(i);
+					TrainingDetail detail = new TrainingDetail();
+					detail.setWeight(((Number) detailMap.get("weight")).doubleValue());
+					detail.setReps(((Number) detailMap.get("reps")).intValue());
+					detail.setSetNumber(i + 1);
+					detail.setCompleted((Boolean) detailMap.getOrDefault("isCompleted", false));
+					details.add(detail);
+				}
+
+				training.setDetails(details);
+				trainingService.save(training, principal);
+			}
+
+			return ResponseEntity.ok("保存に成功しました");
+		} catch (Exception e) {
+			log.error("一括登録エラー", e);
+			return ResponseEntity.internalServerError().body("登録に失敗しました: " + e.getMessage());
+		}
 	}
 }
