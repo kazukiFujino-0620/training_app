@@ -1,186 +1,302 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html lang="ja" xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}" 
+      th:attr="data-theme=${theme}">
 <head>
     <meta charset="UTF-8">
-    <title>メインメニュー</title> 
-	<link rel="stylesheet" th:href="@{/css/training_modal.css}" type="text/css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メインメニュー - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="stylesheet" th:href="@{/css/training_modal.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-
-    <div th:replace="~{common :: headerFragment}"></div>
-
-    <main style="display: flex; gap: 20px; padding: 20px; min-height: 600px;">
-        
-        <div style="flex: 0 0 calc(50% - 10px); border: 1px solid #ccc; padding: 10px; background-color: #fff; border-radius: 8px;">
-            <div class="calendar-container">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <a th:href="@{/menu(date=${prevMonth})}" 
-					   style="text-decoration: none; padding: 5px 10px; border: 1px solid #ccc; background: #f0f0f0; color: black; border-radius: 4px;">
-					   ◀
-					</a>
-					<span th:text="${targetMonth.year} + '年' + ${targetMonth.monthValue} + '月'"></span>
-             		<a th:href="@{/menu(date=${nextMonth})}" 
-					   style="text-decoration: none; padding: 5px 10px; border: 1px solid #ccc; background: #f0f0f0; color: black; border-radius: 4px;">
-					   ▶
-					</a>
+<body class="bg-secondary">
+    <!-- Header -->
+    <header th:replace="~{common :: headerFragment}"></header>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="content-wrapper">
+            <!-- Page Header -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold text-primary">トレーニングメニュー</h1>
+                        <p class="text-muted mt-2">今日のトレーニングを記録・管理しましょう</p>
+                    </div>
                 </div>
+            </div>
             
-                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                    <thead>
-                        <tr style="background: #f0f0f0;">
-                            <th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th style="color:blue;">土</th><th style="color:red;">日</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr th:each="i : ${#numbers.sequence(0, 5)}">
-						    <td th:each="j : ${#numbers.sequence(0, 6)}" 
-						        th:with="index=${i * 7 + j}, day=${dateList[index]}, isDone=${dayStatusList[index]}"
-						        class="calendar-cell"
-						        th:classappend="${day == today} ? 'today-highlight' : ''"
-						        th:onclick="openRegisterPage([[${day}]])">
-						        
-						        <div style="position: relative; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-						            <span th:text="${day.dayOfMonth}"
-						                  th:class="${day.month != targetMonth.month} ? 'other-month' : ''">1</span>
-						            
-					            <div th:if="${isDone == 'COMPLETED'}" 
-					                 style="font-size: 0.7em; color: #4CAF50; margin-top: -2px;">✅</div>
-						        <div th:if="${isDone == 'IN_PROGRESS'}" 
-					                 style="font-size: 0.7em; color: #4CAF50; margin-top: -2px;">🔥</div>
-						        </div>
-						    </td>
-						</tr>
-                    </tbody>
-                </table>
+            <!-- Flash Messages -->
+            <div th:if="${message != null}" class="alert alert-success fade-in">
+                <span th:text="${message}"></span>
             </div>
-        </div>
-
-        <div style="flex: 0 0 calc(50% - 10px); border: 1px solid #ccc; padding: 20px; background-color: #fcfcfc; border-radius: 8px;">
-            <h3 style="text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-                <span th:text="${selectedDate != null ? selectedDate : today}">2026-03-07</span> のサマリー
-            </h3>
-
-			<div th:if="${not #lists.isEmpty(trainingList)}" style="margin-top: 20px;">
-                <div th:each="item : ${trainingList}" style="border: 1px solid #ddd; margin-bottom:10px; padding:15px; border-radius:10px; background: white; display: flex; justify-content: space-between; align-items: center;">
-                    
-                    <div style="flex-grow: 1;">
-                        <strong th:text="${item.menu}">種目名</strong> 
-                        <span style="color: #666; font-size: 0.9em;" th:text="'(' + ${item.partName} + ')'">(部位)</span>
-                        
-                        <div th:each="detail : ${item.details}" style="margin-top: 5px; font-size: 0.9em; color: #444; display: flex; align-items: center;">
-                            <span th:text="${detail.setNumber}">1</span>セット目: 
-                            <span th:text="${detail.weight}">0</span> kg × 
-                            <span th:text="${detail.reps}">0</span> 回
-                            
-                            <span th:if="${detail.isCompleted}" style="color: #4CAF50; margin-left: 8px; font-weight: bold;">✓</span>
-                            <span th:if="${!detail.isCompleted}" style="color: #ccc; margin-left: 8px;">○</span>
+            
+            <div th:if="${error != null}" class="alert alert-danger fade-in">
+                <span th:text="${error}"></span>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="flex gap-6">
+                <!-- Calendar Section -->
+                <div class="flex-1 max-w-2xl">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="flex items-center justify-between">
+                                <a th:href="@{/menu(date=${prevMonth})}" class="btn btn-secondary btn-sm">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="15 18 9 12 15 6"/>
+                                    </svg>
+                                    前月
+                                </a>
+                                <h2 class="text-xl font-semibold" th:text="${targetMonth.year} + '年' + ${targetMonth.monthValue} + '月'">2024年3月</h2>
+                                <a th:href="@{/menu(date=${nextMonth})}" class="btn btn-secondary btn-sm">
+                                    次月
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"/>
+                                    </svg>
+                                </a>
+                            </div>
                         </div>
-                    </div>
-
-                    <div style="min-width: 60px; text-align: center; display: flex; justify-content: center;">
-                        <div th:if="${item.isAllCompleted}"
-                             style="width: 34px; height: 34px; background-color: #4CAF50; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                            ✓
+                        <div class="card-body">
+                            <div class="calendar-container">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>月</th>
+                                            <th>火</th>
+                                            <th>水</th>
+                                            <th>木</th>
+                                            <th>金</th>
+                                            <th class="text-primary">土</th>
+                                            <th class="text-danger">日</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr th:each="i : ${#numbers.sequence(0, 5)}">
+                                            <td th:each="j : ${#numbers.sequence(0, 6)}" 
+                                                th:with="index=${i * 7 + j}, day=${dateList[index]}, isDone=${dayStatusList[index]}"
+                                                class="calendar-cell cursor-pointer hover:bg-tertiary transition-colors"
+                                                th:classappend="${day == today} ? 'bg-primary bg-opacity-20 font-bold' : ''"
+                                                th:onclick="selectDate([[${#temporals.format(day, 'yyyy-MM-dd')}]])">
+                                                
+                                                <div class="text-center p-2">
+                                                    <span th:text="${day.dayOfMonth}" 
+                                                          th:class="${day.month != targetMonth.month} ? 'text-muted' : ''">1</span>
+                                                    
+                                                    <div class="mt-1">
+                                                        <div th:if="${isDone == 'COMPLETED'}" class="text-success text-xs">✅</div>
+                                                        <div th:if="${isDone == 'IN_PROGRESS'}" class="text-warning text-xs">🔥</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div th:if="${!item.isAllCompleted}"
-                             style="width: 34px; height: 34px; background-color: #fff; color: #ccc; border: 2px solid #ddd; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
-                            ✓
-                        </div>
-                    </div>
-
-                    <div style="display: flex; flex-direction: column; gap: 8px; min-width: 80px; margin-left: 10px;">
-                        <button type="button" th:onclick="openEditModal([[${item.id}]], [[${item.menu}]], [[${item.partCode}]], [[${item.trainingDate}]], [[${item.details}]])" 
-                                style="cursor:pointer; padding: 6px; background: #eee; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85em;">編集</button>
-                        <form th:action="@{/menu/delete}" method="post" onsubmit="return confirm('本当に削除しますか？');" style="margin: 0;">
-                            <input type="hidden" name="id" th:value="${item.id}">
-                            <button type="submit" style="color: white; background-color: #f44336; border: none; padding: 6px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 0.85em;">
-                                削除
-                            </button>
-                        </form>
                     </div>
                 </div>
-                
-                <button th:onclick="openRegisterPage([[${selectedDate != null ? selectedDate : today}]])" 
-                        style="width:100%; padding:12px; margin-top:10px; cursor:pointer; background: #fff; border: 2px dashed #ccc; border-radius: 10px; color: #666;">
-                    ＋ 他の種目を追加登録
-                </button>
-                <div th:if="${!isDailyCompleted}" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; text-align: center;">
-				    <form th:action="@{/start/training}" method="get">
-				        <input type="hidden" name="date" th:value="${selectedDate != null ? selectedDate : today}">
-				        
-				        <button type="submit" 
-				            th:style="'width: 100%; padding: 15px; cursor: pointer; border: none; border-radius: 8px; font-weight: bold; font-size: 1em; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s; color: white; ' + 
-				                     (${totalCount > 0} ? 'background: #FF9800;' : 'background: #607D8B;')">
-				            
-				            <span th:if="${totalCount == 0}">トレーニングを開始する</span>
-				            <span th:if="${totalCount > 0}">
-				                トレーニングを継続 (残り [[${totalCount - completedCount}]] 種目)
-				            </span>
-				        </button>
-				    </form>
-				</div>
-				
-				<div th:if="${isDailyCompleted}" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; text-align: center;">
-				    <p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">
-				        本日のトレーニングはすべて完了しました！
-				    </p>
-				    <form th:action="@{/detail}" method="get">
-				        <input type="hidden" name="date" th:value="${selectedDate != null ? selectedDate : today}">
-				        <button type="submit" 
-				            style="width: 100%; padding: 15px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1em; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;">
-				            本日のトレーニング詳細を表示
-				        </button>
-				    </form>
-				</div>
-            </div>
 
-            <div th:if="${#lists.isEmpty(trainingList)}" style="margin-top: 80px; text-align: center; color: #999;">
-                <p>この日のトレーニング記録はありません。</p>
-                <button th:onclick="openRegisterPage([[${selectedDate != null ? selectedDate : today}]])" 
-                        style="margin-top: 10px; padding: 10px 20px; cursor:pointer; background: #2196F3; color: white; border: none; border-radius: 5px;">
-                    記録を付ける
-                </button>
+                <!-- Training Summary Section -->
+                <div class="flex-1 max-w-2xl">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="text-xl font-semibold">
+                                <span th:text="${selectedDate != null ? selectedDate : today}">2026-03-07</span> のトレーニングサマリー
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div th:if="${not #lists.isEmpty(trainingList)}">
+                                <div class="space-y-4">
+                                    <div th:each="item : ${trainingList}" class="flex items-center gap-4 p-4 bg-tertiary rounded-lg">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <strong th:text="${item.menu}" class="text-lg">種目名</strong>
+                                                <span class="text-sm text-muted" th:text="'(' + ${item.partName} + ')'">(部位)</span>
+                                            </div>
+                                            
+                                            <div class="space-y-1">
+                                                <div th:each="detail : ${item.details}" class="flex items-center gap-3 text-sm">
+                                                    <span class="font-medium" th:text="${detail.setNumber} + 'セット目:'">1セット目:</span>
+                                                    <span th:text="${detail.weight} + ' kg'">0 kg</span>
+                                                    <span>×</span>
+                                                    <span th:text="${detail.reps} + '回'">0回</span>
+                                                    
+                                                    <span th:if="${detail.isCompleted}" class="text-success font-bold ml-2">✓</span>
+                                                    <span th:if="${!detail.isCompleted}" class="text-muted ml-2">○</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center gap-3">
+                                            <div th:if="${item.isAllCompleted}"
+                                                 class="w-8 h-8 bg-success text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                                ✓
+                                            </div>
+                                            <div th:if="${!item.isAllCompleted}"
+                                                 class="w-8 h-8 bg-card border-2 border-muted rounded-full flex items-center justify-center font-bold text-sm text-muted">
+                                                ✓
+                                            </div>
+                                            
+                                            <div class="flex flex-col gap-2">
+                                                <button type="button" th:onclick="openEditModal([[${item.id}]], [[${item.menu}]], [[${item.partCode}]], [[${item.trainingDate}]], [[${item.details}]])" 
+                                                        class="btn btn-secondary btn-sm">
+                                                    編集
+                                                </button>
+                                                <form th:action="@{/menu/delete}" method="post" onsubmit="return confirm('本当に削除しますか？');" class="m-0">
+                                                    <input type="hidden" name="id" th:value="${item.id}">
+                                                    <button type="submit" class="btn btn-danger btn-sm w-full">
+                                                        削除
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button th:onclick="openRegisterPage([[${selectedDate != null ? selectedDate : today}]])" 
+                                        class="btn btn-outline w-full mt-4">
+                                    ＋ 他の種目を追加登録
+                                </button>
+                                
+                                <div th:if="${!isDailyCompleted}" class="mt-6 pt-6 border-t border-border">
+                                    <form th:action="@{/start/training}" method="get">
+                                        <input type="hidden" name="date" th:value="${selectedDate != null ? selectedDate : today}">
+                                        
+                                        <button type="submit" 
+                                                th:class="'btn w-full py-4 font-bold text-lg transition-all ' + 
+                                                         (${totalCount > 0} ? 'btn-warning' : 'btn-secondary')">
+                                            <span th:if="${totalCount == 0}">トレーニングを開始する</span>
+                                            <span th:if="${totalCount > 0}">
+                                                トレーニングを継続 (残り [[${totalCount - completedCount}]] 種目)
+                                            </span>
+                                        </button>
+                                    </form>
+                                </div>
+                                
+                                <div th:if="${isDailyCompleted}" class="mt-6 pt-6 border-t border-border text-center">
+                                    <p class="text-muted mb-4">本日のトレーニングはすべて完了しました！</p>
+                                    <form th:action="@{/detail}" method="get">
+                                        <input type="hidden" name="date" th:value="${selectedDate != null ? selectedDate : today}">
+                                        <button type="submit" class="btn btn-success w-full py-4 font-bold text-lg">
+                                            本日のトレーニング詳細を表示
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <div th:if="${#lists.isEmpty(trainingList)}" class="text-center py-12">
+                                <div class="text-muted mb-4">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mx-auto mb-4">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                        <line x1="16" y1="13" x2="8" y2="13"/>
+                                        <line x1="16" y1="17" x2="8" y2="17"/>
+                                        <polyline points="10 9 9 9 8 9"/>
+                                    </svg>
+                                    <p class="text-lg">この日のトレーニング記録はありません。</p>
+                                </div>
+                                <button th:onclick="openRegisterPage([[${selectedDate != null ? selectedDate : today}]])" 
+                                        class="btn btn-primary">
+                                    記録を付ける
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Admin Section -->
+            <div sec:authorize="hasRole('ADMIN')" class="mt-8">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                            <strong class="font-bold">管理者メニュー</strong>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <a th:href="@{/admin/all-users-training}" 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               class="btn btn-warning w-full">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                                    <path d="M9 11H3v2h6v-2zm0-4H3v2h6V7zm0 8H3v2h6v-2zm12-8h-6v2h6V7zm0 4h-6v2h6v-2zm0 4h-6v2h6v-2z"/>
+                                </svg>
+                                全ユーザのトレーニング確認
+                            </a>
+                            <a th:href="@{/admin/users}" class="btn btn-outline w-full">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                                ユーザー権限・ステータス管理
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
 
-    <!-- トレーニング編集モーダル -->
-    <div id="editTrainingModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-        <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
-            <h3 id="editModalTitle" style="margin-bottom: 20px;">トレーニング編集</h3>
+    <!-- Footer -->
+    <footer th:replace="~{common :: footerFragment}"></footer>
+
+    <!-- Training Edit Modal -->
+    <div id="editTrainingModal" class="hidden fixed inset-0 bg-modal flex items-center justify-center z-50">
+        <div class="bg-card rounded-xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto m-4">
+            <h3 id="editModalTitle" class="text-xl font-bold mb-6">トレーニング編集</h3>
             
-            <div id="editSetsContainer" style="margin-bottom: 20px;">
+            <div id="editSetsContainer" class="mb-6">
                 <!-- セット一覧がここに表示される -->
             </div>
             
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button type="button" onclick="closeEditModal()" style="padding: 10px 20px; background: #ccc; border: none; border-radius: 5px; cursor: pointer;">
+            <div class="flex gap-3 justify-end">
+                <button type="button" onclick="closeEditModal()" class="btn btn-secondary">
                     キャンセル
                 </button>
-                <button type="button" onclick="saveEditModal()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    OK
+                <button type="button" onclick="saveEditModal()" class="btn btn-success">
+                    保存
                 </button>
             </div>
         </div>
     </div>
 
-    <div sec:authorize="hasRole('ADMIN')" style="margin-top: 20px; padding: 15px; background-color: #fff3e0; border: 1px solid #ff9800; border-radius: 8px; text-align: center;">
-        <p style="color: #e65100; font-weight: bold; margin-bottom: 10px;">管理者メニュー</p>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-            <a th:href="@{/admin/all-users-training}" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style="display: block; padding: 10px; background: #ff9800; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                全ユーザのトレーニング確認
-            </a>
-            <a th:href="@{/admin/users}" 
-            style="display: block; padding: 10px; background: #fff; color: #ff9800; border: 2px solid #ff9800; text-decoration: none; border-radius: 5px; font-weight: bold;">
-            ユーザー権限・ステータス管理
-            </a>
-        </div>
-    </div>
-
-
-	<script th:src="@{/js/training-modal.js}"></script>
+    <!-- JavaScript -->
+    <script th:src="@{/js/theme.js}"></script>
+    <script th:src="@{/js/training-modal.js}"></script>
+    
+    <script>
+        // Load saved theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('training-app-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        });
+        
+        // Select date function to show summary
+        function selectDate(dateString) {
+            // Check if dateString is valid
+            if (!dateString || dateString === 'undefined-undefined-undefined') {
+                console.error('Invalid date string:', dateString);
+                return;
+            }
+            
+            // Redirect to menu with selected date parameter
+            window.location.href = '/menu?date=' + dateString;
+        }
+    </script>
 </body>
 </html>
