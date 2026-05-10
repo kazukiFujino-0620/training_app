@@ -43,13 +43,13 @@
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
-                                    <th>ユーザー名</th>
-                                    <th>メールアドレス</th>
-                                    <th>権限</th>
-                                    <th>ステータス</th>
-                                    <th>登録日</th>
-                                    <th>操作</th>
+                                    <th class="px-4 py-3 text-left">ID</th>
+                                    <th class="px-4 py-3 text-left">ユーザー名</th>
+                                    <th class="px-4 py-3 text-left">メールアドレス</th>
+                                    <th class="px-4 py-3 text-left">権限</th>
+                                    <th class="px-4 py-3 text-left">ステータス</th>
+                                    <th class="px-4 py-3 text-left">登録日</th>
+                                    <th class="px-4 py-3 text-center min-w-[100px]">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -57,7 +57,6 @@
                                     <td th:text="${user.userId}">1</td>
                                     <td th:text="${user.userName}">ユーザー名</td>
                                     <td th:text="${user.email}">email@example.com</td>
-                                    <td>
                                         <span th:if="${user.role == 'ADMIN'}" 
                                               class="badge badge-danger">
                                             管理者
@@ -67,7 +66,7 @@
                                             一般
                                         </span>
                                     </td>
-                                    <td>
+                                    <td class="px-4 py-2">
                                         <span th:if="${user.enabled == true}" 
                                               class="badge badge-success">
                                             有効
@@ -77,8 +76,8 @@
                                             無効
                                         </span>
                                     </td>
-                                    <td th:text="${#temporals.format(user.createDatetime, 'yyyy/MM/dd')}">2024/01/01</td>
-                                    <td>
+                                    <td th:text="${#temporals.format(user.createDatetime, 'yyyy/MM/dd')}" class="px-4 py-2">2024/01/01</td>
+                                    <td class="px-4 py-2 text-center">
                                         <a th:href="@{/admin/user/edit/{id}(id=${user.userId})}" 
                                            class="btn btn-secondary btn-sm">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1">
