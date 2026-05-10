@@ -1,40 +1,123 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ja" xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}" 
+      th:attr="data-theme=${theme}">
 <head>
-    <title>ユーザー編集</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ユーザー編集 - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <h2>ユーザー編集</h2>
-    <form th:action="@{/admin/user/update}" th:object="${user}" method="post">
-        <input type="hidden" th:field="*{userId}">
-        <input type="hidden" th:field="*{password}">
-        <input type="hidden" th:field="*{createDatetime}">
-
-        <div>
-            <label>ユーザー名:</label>
-            <input type="text" th:field="*{userName}">
+<body class="bg-secondary">
+    <!-- Header -->
+    <header th:replace="~{common :: headerFragment}"></header>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="content-wrapper">
+            <!-- Page Header -->
+            <div class="mb-6">
+                <div class="flex items-center gap-4">
+                    <a th:href="@{/admin/users}" class="btn btn-outline">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                            <polyline points="15 18 9 12 15 6"/>
+                        </svg>
+                        一覧に戻る
+                    </a>
+                    <div>
+                        <h1 class="text-3xl font-bold text-primary">ユーザー編集</h1>
+                        <p class="text-muted mt-2">ユーザー情報の権限・ステータス管理</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Edit Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="text-xl font-semibold">ユーザー情報編集</h2>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/admin/user/update}" th:object="${user}" method="post" class="space-y-6">
+                        <!-- Hidden fields -->
+                        <input type="hidden" th:field="*{userId}">
+                        <input type="hidden" th:field="*{password}">
+                        <input type="hidden" th:field="*{createDatetime}">
+                        
+                        <!-- User Name -->
+                        <div class="form-group">
+                            <label for="userName" class="form-label">ユーザー名</label>
+                            <input type="text" 
+                                   id="userName"
+                                   th:field="*{userName}" 
+                                   class="form-control"
+                                   required>
+                        </div>
+                        
+                        <!-- Email -->
+                        <div class="form-group">
+                            <label for="email" class="form-label">メールアドレス</label>
+                            <input type="email" 
+                                   id="email"
+                                   th:field="*{email}" 
+                                   class="form-control"
+                                   required>
+                        </div>
+                        
+                        <!-- Role -->
+                        <div class="form-group">
+                            <label for="role" class="form-label">権限</label>
+                            <select id="role" th:field="*{role}" class="form-control">
+                                <option value="USER">一般ユーザー</option>
+                                <option value="ADMIN">管理者</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Status -->
+                        <div class="form-group">
+                            <label for="enabled" class="form-label">ステータス</label>
+                            <select id="enabled" th:field="*{enabled}" class="form-control">
+                                <option th:value="true">有効</option>
+                                <option th:value="false">無効</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Form Actions -->
+                        <div class="flex gap-4 pt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/>
+                                    <polyline points="7 3 7 8 15 8"/>
+                                </svg>
+                                更新
+                            </button>
+                            <a th:href="@{/admin/users}" class="btn btn-outline">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                                キャンセル
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-        <div>
-            <label>メールアドレス:</label>
-            <input type="email" th:field="*{email}">
-        </div>
-        <div>
-            <label>権限:</label>
-            <select th:field="*{role}">
-                <option value="USER">ユーザー</option>
-                <option value="ADMIN">管理者</option>
-            </select>
-        </div>
-        <div>
-            <label>ステータス:</label>
-            <select th:field="*{enabled}">
-                <option value="1">有効</option>
-                <option value="0">退会済み</option>
-            </select>
-        </div>
-
-        <button type="submit">更新する</button>
-        <a th:href="@{/admin/user_list}">キャンセル</a>
-    </form>
+    </main>
+    
+    <!-- Footer -->
+    <footer th:replace="~{common :: footerFragment}"></footer>
+    
+    <!-- JavaScript -->
+    <script th:src="@{/js/theme.js}"></script>
+    <script th:src="@{/js/admin-user-edit.js}"></script>
 </body>
 </html>

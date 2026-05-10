@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}" 
+      th:attr="data-theme=${theme}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title != null ? title + ' - トレーニング管理システム' : 'トレーニング管理システム'}">トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    
+    <!-- Additional head content -->
+    <th:block th:fragment="head"></th:block>
+</head>
+<body class="bg-secondary">
+    <!-- Header -->
+    <header th:replace="~{common :: headerFragment}"></header>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="flex">
+            <!-- Sidebar (optional) -->
+            <aside th:if="${showSidebar != false}" th:replace="~{common :: sidebarFragment}"></aside>
+            
+            <!-- Page Content -->
+            <div class="flex-1">
+                <div class="content-wrapper">
+                    <!-- Page Header -->
+                    <div th:if="${pageTitle != null}" class="mb-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h1 class="text-3xl font-bold text-primary" th:text="${pageTitle}">ページタイトル</h1>
+                                <p th:if="${pageSubtitle != null}" class="text-muted mt-2" th:text="${pageSubtitle}">ページサブタイトル</p>
+                            </div>
+                            <div th:if="${pageActions != null}" class="flex gap-2">
+                                <th:block th:replace="${pageActions}"></th:block>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Flash Messages -->
+                    <div th:if="${message != null}" class="alert alert-success fade-in">
+                        <span th:text="${message}"></span>
+                    </div>
+                    
+                    <div th:if="${error != null}" class="alert alert-danger fade-in">
+                        <span th:text="${error}"></span>
+                    </div>
+                    
+                    <div th:if="${warning != null}" class="alert alert-warning fade-in">
+                        <span th:text="${warning}"></span>
+                    </div>
+                    
+                    <div th:if="${info != null}" class="alert alert-info fade-in">
+                        <span th:text="${info}"></span>
+                    </div>
+                    
+                    <!-- Main Content Block -->
+                    <th:block th:replace="${content}"></th:block>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer th:replace="~{common :: footerFragment}"></footer>
+    
+    <!-- JavaScript -->
+    <script>
+        // Load saved theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        });
+        
+        // Global AJAX setup for CSRF
+        const csrfToken = document.querySelector('meta[name="_csrf"]');
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]');
+        
+        if (csrfToken && csrfHeader) {
+            // Setup for fetch requests
+            window.fetchWithCSRF = function(url, options = {}) {
+                const defaultOptions = {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        [csrfHeader.getAttribute('content')]: csrfToken.getAttribute('content')
+                    }
+                };
+                
+                return fetch(url, { ...defaultOptions, ...options });
+            };
+        }
+        
+        // Utility functions
+        window.showAlert = function(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} fade-in`;
+            alertDiv.textContent = message;
+            
+            const container = document.querySelector('.content-wrapper');
+            if (container) {
+                container.insertBefore(alertDiv, container.firstChild);
+                
+                // Auto-remove after 5 seconds
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 5000);
+            }
+        };
+        
+        window.showLoading = function(element) {
+            if (element) {
+                element.disabled = true;
+                element.innerHTML = '<div class="spinner"></div> 読み込み中...';
+            }
+        };
+        
+        window.hideLoading = function(element, originalText) {
+            if (element) {
+                element.disabled = false;
+                element.innerHTML = originalText;
+            }
+        };
+        
+        // Confirm dialog
+        window.confirmAction = function(message, callback) {
+            if (confirm(message)) {
+                callback();
+            }
+        };
+        
+        // Format date utility
+        window.formatDate = function(date, format = 'YYYY/MM/DD') {
+            const d = new Date(date);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            const seconds = String(d.getSeconds()).padStart(2, '0');
+            
+            return format
+                .replace('YYYY', year)
+                .replace('MM', month)
+                .replace('DD', day)
+                .replace('HH', hours)
+                .replace('mm', minutes)
+                .replace('ss', seconds);
+        };
+        
+        // Number formatting
+        window.formatNumber = function(num, decimals = 0) {
+            if (isNaN(num)) return '0';
+            return Number(num).toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        };
+        
+        // Auto-resize textareas
+        document.addEventListener('DOMContentLoaded', function() {
+            const textareas = document.querySelectorAll('textarea[data-auto-resize]');
+            textareas.forEach(textarea => {
+                textarea.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = this.scrollHeight + 'px';
+                });
+                // Initial resize
+                textarea.style.height = 'auto';
+                textarea.style.height = textarea.scrollHeight + 'px';
+            });
+        });
+        
+        // Smooth scroll for anchor links
+        document.addEventListener('DOMContentLoaded', function() {
+            const anchorLinks = document.querySelectorAll('a[href^="#"]');
+            anchorLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+    
+    <!-- Additional scripts -->
+    <th:block th:fragment="scripts"></th:block>
+</body>
+</html>
