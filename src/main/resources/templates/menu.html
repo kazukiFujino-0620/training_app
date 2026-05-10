@@ -205,7 +205,7 @@
                                     <p class="text-lg">この日のトレーニング記録はありません。</p>
                                 </div>
                                 <button th:onclick="openRegisterPage([[${selectedDate != null ? selectedDate : today}]])" 
-                                        class="btn btn-primary">
+                                        class="btn btn-primary mt-4">
                                     記録を付ける
                                 </button>
                             </div>
@@ -238,7 +238,7 @@
                                 </svg>
                                 全ユーザのトレーニング確認
                             </a>
-                            <a th:href="@{/admin/users}" class="btn btn-outline w-full">
+                            <a th:href="@{/admin/users}" class="btn btn-outline w-full mt-2">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
                                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                                     <circle cx="12" cy="7" r="4"/>
@@ -264,7 +264,7 @@
                 <!-- セット一覧がここに表示される -->
             </div>
             
-            <div class="flex gap-3 justify-end">
+            <div class="flex gap-4 justify-end">
                 <button type="button" onclick="closeEditModal()" class="btn btn-secondary">
                     キャンセル
                 </button>
