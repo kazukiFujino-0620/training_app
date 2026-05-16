@@ -28,16 +28,20 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+        log.info("OAuth2 login attempt started");
         OAuth2User oAuth2User = super.loadUser(userRequest);
         String email = oAuth2User.getAttribute("email");
         String sub = oAuth2User.getAttribute("sub"); // Googleの固有ID
         String name = oAuth2User.getAttribute("name"); // Googleに登録されている名前
+
+        log.info("OAuth2 user info - email: {}, name: {}, sub: {}", email, name, sub);
 
         Optional<User> userOpt = userDao.selectByEmail(email);
         User user;
 
         if (userOpt.isEmpty()) {
             // --- 新規登録の処理 ---
+            log.info("New user registration via OAuth2 - email: {}", email);
             SignupForm signupForm = new SignupForm();
             signupForm.setEmail(email);
             signupForm.setUsername(name);
@@ -49,6 +53,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             user = userDao.selectByEmail(email)
                     .orElseThrow(() -> new OAuth2AuthenticationException("登録に失敗しました"));
         } else {
+            log.info("Existing user found via OAuth2 - email: {}, enabled: {}", email, userOpt.get().getEnabled());
             if (Boolean.compare(userOpt.get().getEnabled(), false) == 0) {
                 String msg = "このメールアドレスは退会済みです: " + email +
                         " 再度登録する場合は、管理者に連絡ください。";
@@ -60,6 +65,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             // 既に登録済みの場合は、そのままログイン
             user = userOpt.get();
         }
+
+        log.info("Creating CustomUserDetails - userId: {}, role: {}", user.getUserId(), user.getRole());
         return new CustomUserDetails(oAuth2User, user.getUserId(), user.getRole());
     }
 }

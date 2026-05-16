@@ -22,6 +22,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
 	@Override
 	public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+		log.info("Form login attempt - email: {}", email);
 		User user = userDao.selectByEmail(email)
 				.orElseThrow(() -> new UsernameNotFoundException("ユーザーが見つかりませんでした: " + email));
 
@@ -33,12 +34,17 @@ public class CustomUserDetailsService implements UserDetailsService {
 			log.error(msg);
 			throw new UsernameNotFoundException(msg);
 		}
-		log.debug("認証開始: user={}", user.getEmail());
+		log.info("User found for form login - email: {}, role: {}", user.getEmail(), user.getRole());
 		String roleName = user.getRole().replace("ROLE_", "");
 
-		return org.springframework.security.core.userdetails.User.withUsername(user.getEmail())
+		UserDetails userDetails = org.springframework.security.core.userdetails.User.withUsername(user.getEmail())
 				.password(user.getPassword())
 				.roles(roleName)
 				.build();
+
+		log.info("UserDetails created for form login - username: {}, authorities: {}",
+				userDetails.getUsername(), userDetails.getAuthorities());
+
+		return userDetails;
 	}
 }
