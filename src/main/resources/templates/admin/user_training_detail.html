@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-secondary">
+<body class="bg-secondary" th:data-user-id="${userId}">
     <!-- Header -->
     <header th:replace="~{common :: headerFragment}"></header>
     
@@ -182,8 +182,15 @@
     <script th:src="@{/js/chart.js}"></script>
     <script th:src="@{/js/admin-training-detail.js}"></script>
     <script>
-        // Set userId from server-side
-        window.userId = /*[[${userId}]]*/ 5;
+        // Set userId from data attribute
+        const userIdElement = document.querySelector('body[data-user-id]');
+        if (userIdElement && userIdElement.dataset.userId) {
+            window.userId = parseInt(userIdElement.dataset.userId);
+        } else {
+            console.warn('User ID not found in data attribute, using fallback');
+            window.userId = /*[[${userId}]]*/ 5;
+        }
+        console.log('Loaded userId:', window.userId);
     </script>
 </body>
 </html>
