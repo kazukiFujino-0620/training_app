@@ -606,6 +606,42 @@ body {
   border-bottom: none;
 }
 
+/* Calendar Table Styles */
+.calendar-table {
+  table-layout: fixed;
+}
+
+.calendar-table th,
+.calendar-table td {
+  text-align: center;
+  vertical-align: middle;
+  padding: 0.5rem;
+  width: calc(100% / 7);
+}
+
+.calendar-table th {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.calendar-cell {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-md);
+}
+
+.calendar-cell:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.calendar-cell .text-center {
+  min-height: 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
 /* Utility Classes */
 .text-center {
   text-align: center;
