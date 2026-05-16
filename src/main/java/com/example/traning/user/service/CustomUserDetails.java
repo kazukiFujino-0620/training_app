@@ -2,12 +2,16 @@ package com.example.traning.user.service;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class CustomUserDetails implements OAuth2User, UserDetails {
     private final OAuth2User oAuth2User;
     private final Integer userId; // DBの主キー
@@ -22,11 +26,19 @@ public class CustomUserDetails implements OAuth2User, UserDetails {
         // ロールからROLE_プレフィックスを削除して権限を設定
         String roleName = role.replace("ROLE_", "");
         this.authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + roleName));
+
+        log.info("CustomUserDetails created - userId: {}, email: {}, role: {}, authorities: {}",
+                userId, email, role, authorities);
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
+    }
+
+    @Override
+    public Map<String, Object> getAttributes() {
+        return oAuth2User.getAttributes();
     }
 
     @Override
