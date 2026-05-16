@@ -9,7 +9,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Load chart data from server
 function loadChartData() {
-    const userId = window.userId || 5;
+    const userId = window.userId;
+    
+    if (!userId) {
+        console.error('User ID not set');
+        return;
+    }
     
     fetch(`/admin/chart-data?userId=${userId}`)
         .then(response => response.json())
@@ -31,7 +36,13 @@ function toggleDateSearch() {
 
 // Search chart data with date range
 function searchChartData() {
-    const userId = window.userId || 5;
+    const userId = window.userId;
+    
+    if (!userId) {
+        alert('ユーザーIDが設定されていません');
+        return;
+    }
+    
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
     
@@ -64,7 +75,17 @@ function searchChartData() {
         .catch(error => {
             console.error('Error loading chart data:', error);
             alert('データの読み込みに失敗しました');
-        });
+        });;
+    
+    if (!userId) {
+        console.error('User ID not set');
+        detailsContainer.innerHTML = `
+            <div class="text-center py-8 text-danger">
+                <p class="text-lg">エラー: ユーザーIDが設定されていません</p>
+            </div>
+        `;
+        return;
+    }
 }
 
 // Load training details for selected date
