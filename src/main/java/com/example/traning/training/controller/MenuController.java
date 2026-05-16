@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -66,7 +67,6 @@ public class MenuController {
 		YearMonth yearMonth = YearMonth.from(selectedDate);
 		LocalDate firstDay = yearMonth.atDay(1);
 		int firstDayValue = firstDay.getDayOfWeek().getValue();
-		// 月曜始まりの場合の調整
 		LocalDate calendarStart = firstDay.minusDays((long) firstDayValue - 1);
 		LocalDate calendarEnd = calendarStart.plusDays(41);
 
@@ -75,27 +75,25 @@ public class MenuController {
 			dateList.add(calendarStart.plusDays(i));
 		}
 
-		// 3. 【一括取得】カレンダー期間内のデータを1回のSQLで取得
-		// ※Daoに新設する selectByPeriod メソッドを使用
+		// 3. カレンダー期間内のデータを一括取得
 		List<Training> allTrainings = trainingDao.selectByDate(userId, calendarStart, calendarEnd);
 
-		// 4. 【効率化】取得したデータを日付ごとにMapへ分類（Java側で処理）
+		// 4. 日付ごとにMapへ分類
 		Map<LocalDate, List<Training>> trainingMap = allTrainings.stream()
 				.collect(Collectors.groupingBy(Training::getTrainingDate));
 
-		// 5. 表示する日のデータ（trainingList）をMapから取得
+		// 5. 表示する日のデータをMapから取得
 		List<Training> trainingList = trainingMap.getOrDefault(selectedDate, new ArrayList<>());
 
 		// マスターデータの一括取得
 		List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
 
-		// 選択された日のトレーニング詳細をセット（ここも本来は一括取得が理想ですが、まずは1日分のみに限定）
 		for (Training t : trainingList) {
 			t.setDetails(trainingDetailDao.selectByTrainingId(t.getId()));
 			t.setPartName(trainingMasterDao.selectNameByCode(t.getPartCode()));
 		}
 
-		// 6. カレンダーのステータス判定（SQL発行はゼロ！）
+		// 6. カレンダーのステータス判定
 		List<String> dayStatusList = new ArrayList<>();
 		for (LocalDate date : dateList) {
 			List<Training> dailyTrainings = trainingMap.getOrDefault(date, Collections.emptyList());
@@ -130,12 +128,9 @@ public class MenuController {
 
 	@PostMapping("/menu/save")
 	public String save(@ModelAttribute Training training, Principal principal) {
-		// 1. ログインユーザーのIDをセット（本来はService等で取得）
-		// ※今回は簡易的にログイン名をLongに変換するか、固定値を振る想定
 		Long userId = trainingService.getUserIdByName(principal.getName());
 		training.setUserId(userId);
 
-		// 2. IDの有無で新規登録か更新かを判断
 		if (training.getId() == null) {
 			training.setCreateDatetime(LocalDateTime.now());
 		}
@@ -143,7 +138,6 @@ public class MenuController {
 
 		trainingService.save(training, principal);
 
-		// 3. メニュー画面にリダイレクト
 		return "redirect:/menu?date=" + training.getTrainingDate();
 	}
 
@@ -151,17 +145,28 @@ public class MenuController {
 	public String delete(@RequestParam("id") Long id, Principal principal) {
 		log.info("削除リクエストが来ました！ ID: {}", id);
 
-		// 削除前に日付を取得してリダイレクト用に保持
+		// ★ 所有者チェック: 自分のトレーニングでなければ拒否
 		Training training = trainingService.getTrainingById(id);
-		LocalDate date = training != null ? training.getTrainingDate() : LocalDate.now();
+		if (training == null) {
+			log.warn("削除対象が存在しません ID: {}", id);
+			return "redirect:/menu";
+		}
+
+		Long currentUserId = trainingService.getUserIdByName(principal.getName());
+		if (!training.getUserId().equals(currentUserId)) {
+			log.warn("不正な削除リクエスト: ユーザー {} がトレーニング {} を削除しようとしました",
+					currentUserId, id);
+			return "redirect:/menu";
+		}
+
+		LocalDate date = training.getTrainingDate();
 		trainingService.deleteTraining(id);
 
-		// 削除後、同じ日付のメニュー画面にリダイレクト
 		return "redirect:/menu?date=" + date;
 	}
 
 	@GetMapping("/api/training-items")
-	@ResponseBody // これを付けると、ListがそのままJSON形式でJavaScriptに渡ります
+	@ResponseBody
 	public List<TrainingItemMaster> getItems(@RequestParam String partCode) {
 		return trainingMasterDao.selectItemsByPart(partCode);
 	}
@@ -182,18 +187,15 @@ public class MenuController {
 
 	@PostMapping("/api/training/save")
 	@ResponseBody
-	public Long apiSaveTraining(@RequestBody Training training, Principal princilal) {
-		// ユーザーIDをセット
-		training.setUserId(trainingService.getUserIdByName(princilal.getName()));
+	public Long apiSaveTraining(@RequestBody Training training, Principal principal) {
+		training.setUserId(trainingService.getUserIdByName(principal.getName()));
 
-		// 日付時間をセット
 		if (training.getCreateDatetime() == null) {
 			training.setCreateDatetime(LocalDateTime.now());
 		}
 		training.setUpdatedDatetime(LocalDateTime.now());
 
-		// Serviceクラスを呼び出す
-		trainingService.save(training, princilal);
+		trainingService.save(training, principal);
 
 		return training.getId();
 	}
@@ -213,36 +215,50 @@ public class MenuController {
 		} catch (Exception e) {
 			return ResponseEntity.internalServerError().body("登録に失敗しました。" + e.getMessage());
 		}
-
 	}
 
 	@GetMapping("/api/training/{id}")
 	@ResponseBody
-	public Training getTraining(@PathVariable Long id) {
-		return trainingService.getTrainingById(id);
+	public ResponseEntity<Training> getTraining(@PathVariable Long id, Principal principal) {
+		Training training = trainingService.getTrainingById(id);
+
+		// 存在しない場合
+		if (training == null) {
+			log.warn("存在しないトレーニングへのアクセス: ID={}", id);
+			return ResponseEntity.notFound().build();
+		}
+
+		// ★ 所有者チェック: ログインユーザーのデータでなければ 403 を返す
+		Long currentUserId = trainingService.getUserIdByName(principal.getName());
+		if (!training.getUserId().equals(currentUserId)) {
+			log.warn("不正アクセス検知: ユーザー {} がトレーニング {} へアクセスしようとしました",
+					currentUserId, id);
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+		}
+
+		return ResponseEntity.ok(training);
 	}
 
 	@PostMapping("/api/training/update/{id}")
 	@ResponseBody
 	public ResponseEntity<Void> updateTraining(@PathVariable Long id, @RequestBody Training training,
 			Principal principal) {
-		// 既存データを取得して必須フィールドを保持
 		Training existingTraining = trainingService.getTrainingById(id);
 		if (existingTraining == null) {
 			return ResponseEntity.notFound().build();
 		}
 
-		// 既存データの必須フィールドを保持
 		training.setId(id);
 		training.setUserId(existingTraining.getUserId());
 		training.setTrainingDate(existingTraining.getTrainingDate());
 		training.setPartCode(existingTraining.getPartCode());
 		training.setCreateDatetime(existingTraining.getCreateDatetime());
 
-		// 現在ログインしているユーザーIDを確認（セキュリティチェック）
 		Long currentUserId = trainingService.getUserIdByName(principal.getName());
 		if (!training.getUserId().equals(currentUserId)) {
-			return ResponseEntity.status(403).build(); // 権限なし
+			log.warn("不正な更新リクエスト: ユーザー {} がトレーニング {} を更新しようとしました",
+					currentUserId, id);
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 		}
 
 		trainingService.save(training, principal);
@@ -252,16 +268,16 @@ public class MenuController {
 	@PostMapping("/api/training/delete/{id}")
 	@ResponseBody
 	public ResponseEntity<Void> deleteTraining(@PathVariable Long id, Principal principal) {
-		// 既存データを取得してユーザー権限を確認
 		Training existingTraining = trainingService.getTrainingById(id);
 		if (existingTraining == null) {
 			return ResponseEntity.notFound().build();
 		}
 
-		// 現在ログインしているユーザーIDを確認（セキュリティチェック）
 		Long currentUserId = trainingService.getUserIdByName(principal.getName());
 		if (!existingTraining.getUserId().equals(currentUserId)) {
-			return ResponseEntity.status(403).build(); // 権限なし
+			log.warn("不正な削除リクエスト: ユーザー {} がトレーニング {} を削除しようとしました",
+					currentUserId, id);
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 		}
 
 		trainingService.deleteTraining(id);
@@ -311,6 +327,7 @@ public class MenuController {
 			Principal principal) {
 		try {
 			String dateStr = (String) data.get("date");
+			@SuppressWarnings("unchecked")
 			List<Map<String, Object>> trainingsData = (List<Map<String, Object>>) data.get("trainings");
 
 			LocalDate trainingDate = LocalDate.parse(dateStr);
@@ -327,6 +344,7 @@ public class MenuController {
 				training.setCreateDatetime(LocalDateTime.now());
 				training.setUpdatedDatetime(LocalDateTime.now());
 
+				@SuppressWarnings("unchecked")
 				List<Map<String, Object>> detailsData = (List<Map<String, Object>>) trainingMap.get("details");
 				List<TrainingDetail> details = new ArrayList<>();
 

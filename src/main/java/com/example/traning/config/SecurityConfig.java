@@ -2,6 +2,7 @@ package com.example.traning.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -12,6 +13,7 @@ import com.example.traning.user.service.CustomOAuth2UserService;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity // ★ 追加: @PreAuthorize/@PostAuthorize をメソッドレベルで有効化
 public class SecurityConfig {
 
 	private static final String PUBLIC_PATHS = "/signup";
@@ -31,31 +33,63 @@ public class SecurityConfig {
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-		http.authorizeHttpRequests(auth -> auth
-				// 公開ページと静的リソース
-				.requestMatchers(PUBLIC_PATHS, LOGIN_PATH, PASSWORD_PATH, CSS_PATH, JS_PATH, IMAGES_PATH).permitAll()
-				// 権限が必要なページ
-				.requestMatchers(ADMIN_PATH).hasRole("ADMIN")
-				.requestMatchers(USER_PATH).hasAnyRole("USER", "ADMIN")
-				.anyRequest().authenticated())
-				// Googleログインの設定
+		http
+				// ── URL ベースの認可 ─────────────────────────────────────
+				.authorizeHttpRequests(auth -> auth
+						// 公開ページ・静的リソース
+						.requestMatchers(PUBLIC_PATHS, LOGIN_PATH, PASSWORD_PATH,
+								CSS_PATH, JS_PATH, IMAGES_PATH)
+						.permitAll()
+						// 管理者専用
+						.requestMatchers(ADMIN_PATH).hasRole("ADMIN")
+						// 一般ユーザー以上
+						.requestMatchers(USER_PATH).hasAnyRole("USER", "ADMIN")
+						// その他はすべて認証必須
+						.anyRequest().authenticated())
+
+				// ── セキュリティヘッダー ──────────────────────────────────
+				// Spring Boot 3.x (Spring Security 6.x) では xssProtection().enable() は廃止。
+				// X-XSS-Protection ヘッダー自体もモダンブラウザでは非推奨のため、
+				// CSP (Content-Security-Policy) で代替する。
+				.headers(headers -> headers
+						// クリックジャッキング対策: iframe 埋め込みを全面禁止
+						.frameOptions(frame -> frame.deny())
+						// MIME スニッフィング対策
+						.contentTypeOptions(contentType -> {
+						})
+						// CSP: 自ドメイン + 利用中の外部リソースのみ許可
+						// ※ Thymeleaf の inline スタイルを使用している箇所があるため
+						// style-src に 'unsafe-inline' を暫定許可。
+						// 将来的に nonce/hash 方式へ移行することを推奨。
+						.contentSecurityPolicy(csp -> csp.policyDirectives(
+								"default-src 'self'; " +
+										"script-src 'self' https://cdn.jsdelivr.net; " +
+										"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+										"font-src 'self' https://fonts.gstatic.com; " +
+										"img-src 'self' data:; " +
+										"connect-src 'self'; " +
+										"frame-ancestors 'none';")))
+
+				// ── OAuth2 ログイン ───────────────────────────────────────
 				.oauth2Login(oauth2 -> oauth2
 						.loginPage(LOGIN_PATH)
 						.userInfoEndpoint(userInfo -> userInfo
 								.userService(customOAuth2UserService))
 						.defaultSuccessUrl("/menu", true)
-						// ここで失敗時の処理を明示する
 						.failureHandler((request, response, exception) -> {
 							request.getSession().invalidate();
 							response.sendRedirect("/login?error=not_registered");
 						}))
-				// フォームログインの設定
+
+				// ── フォームログイン ──────────────────────────────────────
 				.formLogin(login -> login
 						.loginPage("/login")
 						.usernameParameter("username")
 						.passwordParameter("password")
 						.defaultSuccessUrl("/menu", true)
 						.permitAll())
+
+				// ── ログアウト ────────────────────────────────────────────
 				.logout(logout -> logout
 						.logoutUrl("/logout")
 						.logoutSuccessUrl(LOGIN_PATH + "?logout")
