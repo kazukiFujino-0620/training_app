@@ -1,55 +1,146 @@
-<!-- <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head><title>新規登録画面</title></head>
-<body>
-    <h2>新規登録画面</h2>
-    <form th:action="@{/signup}" method="post">
-        ユーザー名: <input type="username" name="username"><br>
-        メールアドレス: <input type="email" name="email"><br>
-        パスワード: <input type="password" name="password"><br>
-        パスワード（確認用）: <input type="password" name="password_confirm"><br>
-        <button type="submit">登録</button>
-    </form>
-    <hr>
-    <div>
-        <button type="button">Googleで登録</button> </div>
-    
-    <br>
-    <a th:href="@{/login}">戻る</a>
-</body>
-</html> -->
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head><title>新規登録画面</title></head>
-<body>
-    <h2>新規登録画面</h2>
-	<form th:action="@{/signup}" th:object="${signupForm}" method="post">
-		<div>
-	        ユーザー名: <input type="text" th:field="*{username}">
-    	    <p th:if="${#fields.hasErrors('username')}" th:errors="*{username}" style="color: red;"></p><br>
-		</div>
-		<div>
-       		メールアドレス: <input type="text" th:field="*{email}">
-        	<p th:if="${#fields.hasErrors('email')}" th:errors="*{email}" style="color: red;"></p><br>
-     	</div>
-		<div>
-	        パスワード: <input type="text" th:field="*{password}">
-    	    <p th:if="${#fields.hasErrors('password')}" th:errors="*{password}" style="color: red;"></p><br>
-		</div>
-		<div>
-        	パスワード（確認用）:<input type="password" th:field="*{password_confirm}">
-        	<p th:if="${#fields.hasErrors('password_confirm')}" th:errors="*{password_confirm}" style="color: red;"></p><br>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新規登録 - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
+    <!-- CSS -->
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="login-container">
+    <div class="login-background"></div>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle-login">
+        <button class="settings-btn" onclick="toggleTheme()" aria-label="テーマ切り替え">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+            </div>
+            <h1 class="login-title">新規登録</h1>
+            <p class="login-subtitle">トレーニング管理システムにアカウントを作成</p>
         </div>
-        <button type="submit">登録</button>
-    </form>
-    <hr>
-    <div>
-        <a th:href="@{/oauth2/authorization/google}" class="btn btn-outline-dark">
-            Googleで登録
-        </a>
-        <button type="button">Googleで登録</button> </div>
-    
-    <br>
-    <a th:href="@{/login}">戻る</a>
+
+        <!-- Signup Form -->
+        <form th:action="@{/signup}" th:object="${signupForm}" method="post" class="login-form">
+            <div class="form-group">
+                <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input
+                    type="text"
+                    th:field="*{username}"
+                    class="form-control"
+                    placeholder="ユーザー名"
+                    required
+                    autocomplete="username">
+                <p th:if="${#fields.hasErrors('username')}" th:errors="*{username}" class="text-danger text-xs mt-1"></p>
+            </div>
+
+            <div class="form-group">
+                <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <input
+                    type="email"
+                    th:field="*{email}"
+                    class="form-control"
+                    placeholder="メールアドレス"
+                    required
+                    autocomplete="email">
+                <p th:if="${#fields.hasErrors('email')}" th:errors="*{email}" class="text-danger text-xs mt-1"></p>
+            </div>
+
+            <div class="form-group">
+                <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input
+                    type="password"
+                    th:field="*{password}"
+                    class="form-control"
+                    placeholder="パスワード"
+                    required
+                    autocomplete="new-password">
+                <p th:if="${#fields.hasErrors('password')}" th:errors="*{password}" class="text-danger text-xs mt-1"></p>
+            </div>
+
+            <div class="form-group">
+                <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input
+                    type="password"
+                    th:field="*{password_confirm}"
+                    class="form-control"
+                    placeholder="パスワード（確認用）"
+                    required
+                    autocomplete="new-password">
+                <p th:if="${#fields.hasErrors('password_confirm')}" th:errors="*{password_confirm}" class="text-danger text-xs mt-1"></p>
+            </div>
+
+            <button type="submit" class="btn btn-primary login-btn">
+                <span class="btn-text">登録</span>
+                <div class="spinner"></div>
+            </button>
+        </form>
+
+        <!-- Social Signup -->
+        <div class="divider">または</div>
+
+        <div class="social-login">
+            <a th:href="@{/oauth2/authorization/google}" class="social-btn google-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Googleで登録
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <div class="login-footer">
+            <p>すでにアカウントをお持ちですか？</p>
+            <a th:href="@{/login}" class="text-primary">ログイン</a>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script th:src="@{/js/theme.js}"></script>
+
+    <script>
+        // Form submission handling
+        document.querySelector('.login-form').addEventListener('submit', function() {
+            this.classList.add('loading');
+        });
+
+        // Prevent resubmission on page refresh
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
+    </script>
 </body>
 </html>
