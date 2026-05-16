@@ -60,6 +60,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             // 既に登録済みの場合は、そのままログイン
             user = userOpt.get();
         }
-        return new CustomUserDetails(oAuth2User, user.getUserId());
+        return new CustomUserDetails(oAuth2User, user.getUserId(), user.getRole());
     }
 }

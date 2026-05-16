@@ -1,18 +1,74 @@
 package com.example.traning.user.service;
 
-import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
+import java.util.Collection;
+import java.util.Collections;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
-public class CustomUserDetails extends DefaultOAuth2User {
+public class CustomUserDetails implements OAuth2User, UserDetails {
+    private final OAuth2User oAuth2User;
     private final Integer userId; // DBの主キー
+    private final String email;
+    private final Collection<? extends GrantedAuthority> authorities;
 
-    public CustomUserDetails(OAuth2User oAuth2User, Integer userId) {
-        // 第3引数の "email" は、Googleの属性の中で識別子として使うキーです
-        super(oAuth2User.getAuthorities(), oAuth2User.getAttributes(), "email");
+    public CustomUserDetails(OAuth2User oAuth2User, Integer userId, String role) {
+        this.oAuth2User = oAuth2User;
         this.userId = userId;
+        this.email = oAuth2User.getAttribute("email");
+
+        // ロールからROLE_プレフィックスを削除して権限を設定
+        String roleName = role.replace("ROLE_", "");
+        this.authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + roleName));
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return authorities;
+    }
+
+    @Override
+    public String getPassword() {
+        return null; // OAuth2ユーザーはパスワードを持たない
+    }
+
+    @Override
+    public String getUsername() {
+        return email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+
+    @Override
+    public String getName() {
+        return oAuth2User.getAttribute("name");
     }
 
     public Integer getUserId() {
         return userId;
+    }
+
+    public String getEmail() {
+        return email;
     }
 }
