@@ -1,17 +1,75 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>メール送信完了</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メール送信完了 - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
+    <!-- CSS -->
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <h2>メールを送信しました</h2>
-    <p>
-        入力されたメールアドレス宛に、パスワード再設定用URLを送信しました。<br>
-        <strong>30分以内</strong>にパスワードの更新を完了させてください。
-    </p>
-    <p>※メールが届かない場合は、アドレスに間違いがないか、迷惑メールフォルダを確認してください。</p>
-    <br>
-    <a th:href="@{/login}">ログイン画面へ</a>
+<body class="login-container">
+    <div class="login-background"></div>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle-login">
+        <button class="settings-btn" onclick="toggleTheme()" aria-label="テーマ切り替え">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+            </div>
+            <h1 class="login-title">メール送信完了</h1>
+            <p class="login-subtitle">パスワード再設定用URLを送信しました</p>
+        </div>
+
+        <div class="success-message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span>メールを送信しました</span>
+        </div>
+
+        <div class="info-message">
+            <p>
+                入力されたメールアドレス宛に、パスワード再設定用URLを送信しました。<br>
+                <strong>30分以内</strong>にパスワードの更新を完了させてください。
+            </p>
+            <p>※メールが届かない場合は、アドレスに間違いがないか、迷惑メールフォルダを確認してください。</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="login-footer">
+            <p>ログイン画面に戻る</p>
+            <a th:href="@{/login}" class="text-primary">ログイン</a>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script th:src="@{/js/theme.js}"></script>
+
+    <script>
+        // Apply theme immediately to prevent flash
+        (function() {
+            const storedTheme = localStorage.getItem('training-app-theme');
+            if (storedTheme) {
+                document.documentElement.setAttribute('data-theme', storedTheme);
+            }
+        })();
+    </script>
 </body>
 </html>

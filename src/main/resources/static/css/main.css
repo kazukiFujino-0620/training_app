@@ -222,10 +222,100 @@ body {
 .calendar-section {
   flex: 0 0 40%;
   max-width: 40%;
+  margin-bottom: 2rem;
 }
 
 .summary-section {
   flex: 1;
+  margin-bottom: 2rem;
+}
+
+/* Training Summary Item Styles */
+.summary-section .card-body {
+  padding: 1.5rem;
+}
+
+.summary-section .flex.items-center.gap-4.p-4 {
+  padding: 1.25rem;
+  gap: 1.5rem;
+}
+
+.summary-section .flex.items-center.gap-3 {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.summary-section .space-y-4 > div {
+  margin-bottom: 1rem;
+}
+
+.summary-section .space-y-1 > div {
+  margin-bottom: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.summary-section .text-lg {
+  font-size: 1.125rem;
+  letter-spacing: 0.025em;
+  margin-right: 0.5rem;
+}
+
+.summary-section .text-sm {
+  font-size: 0.875rem;
+  letter-spacing: 0.01em;
+}
+
+/* Admin and General Page Layout */
+.card {
+  margin-bottom: 1.5rem;
+}
+
+.card-header {
+  padding: 1.25rem 1.5rem;
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
+}
+
+.table-responsive {
+  margin-bottom: 0;
+}
+
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+
+.mt-6 {
+  margin-top: 1.5rem;
+}
+
+/* Button alignment in tables */
+.table td:last-child {
+  text-align: right;
+}
+
+.table td:last-child .btn {
+  margin-left: 0.5rem;
+}
+
+/* Form spacing */
+.form-control {
+  margin-bottom: 0.5rem;
+}
+
+.flex.gap-4 {
+  gap: 1rem;
+}
+
+.flex.gap-2 {
+  gap: 0.5rem;
 }
 
 .logo {
@@ -650,6 +740,7 @@ body {
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
+  margin-bottom: 0;
 }
 
 .calendar-cell {
@@ -667,7 +758,7 @@ body {
 .calendar-table td {
   text-align: center;
   vertical-align: middle;
-  padding: 0.5rem;
+  padding: 0.75rem 0.5rem;
   width: calc(100% / 7);
 }
 
@@ -688,7 +779,7 @@ body {
 }
 
 .calendar-cell .text-center {
-  min-height: 3rem;
+  min-height: 3.5rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1045,6 +1136,22 @@ body {
   z-index: 1;
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-color);
+  margin: 1rem;
+}
+
+.info-message {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.info-message p {
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
 }
 
 .login-header {
