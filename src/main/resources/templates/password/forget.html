@@ -1,27 +1,95 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ja" xmlns:th="http://www.thymeleaf.org"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
 <head>
     <meta charset="UTF-8">
-    <title>パスワード再設定</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>パスワード再設定 - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
+    <!-- CSS -->
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <h2>パスワード再設定</h2>
-    
-    <!-- エラーメッセージの表示エリア -->
-    <div th:if="${errorMessage}" style="color: red; margin-bottom: 10px;">
-        <p th:text="${errorMessage}"></p>
+<body class="login-container">
+    <div class="login-background"></div>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle-login">
+        <button class="settings-btn" onclick="toggleTheme()" aria-label="テーマ切り替え">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+        </button>
     </div>
 
-    <p>ご登録済みのメールアドレスを入力してください。<br>再設定用のURLをお送りします。</p>
-    
-    <form th:action="@{/password/forget}" method="post">
-        <div>
-            <label>メールアドレス：</label>
-            <input type="email" name="email" required placeholder="example@test.com">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+            </div>
+            <h1 class="login-title">パスワード再設定</h1>
+            <p class="login-subtitle">ご登録済みのメールアドレスを入力してください</p>
         </div>
-        <button type="submit">送信</button>
-    </form>
-    <br>
-    <a th:href="@{/login}">ログイン画面に戻る</a>
+
+        <!-- Error Message -->
+        <div th:if="${errorMessage}" class="error-message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            <span th:text="${errorMessage}"></span>
+        </div>
+
+        <!-- Forget Password Form -->
+        <form th:action="@{/password/forget}" method="post" class="login-form" id="forgetPasswordForm">
+            <div class="form-group">
+                <svg class="form-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <input
+                    type="email"
+                    name="email"
+                    class="form-control"
+                    placeholder="メールアドレス"
+                    required
+                    autocomplete="email">
+            </div>
+
+            <button type="submit" class="btn btn-primary login-btn">
+                <span class="btn-text">送信</span>
+                <div class="spinner"></div>
+            </button>
+        </form>
+
+        <!-- Footer -->
+        <div class="login-footer">
+            <p>ログイン画面に戻る</p>
+            <a th:href="@{/login}" class="text-primary">ログイン</a>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script th:src="@{/js/theme.js}"></script>
+
+    <script>
+        // Form submission handling
+        document.getElementById('forgetPasswordForm').addEventListener('submit', function() {
+            this.classList.add('loading');
+        });
+
+        // Prevent resubmission on page refresh
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
+    </script>
 </body>
 </html>
