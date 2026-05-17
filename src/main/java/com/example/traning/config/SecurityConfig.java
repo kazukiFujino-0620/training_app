@@ -91,11 +91,18 @@ public class SecurityConfig {
 						}))
 
 				// ── フォームログイン ──────────────────────────────────────
+				// ★ ブルートフォース攻撃対策：
+				// 現在：基本的なログイン失敗画面を表示
+				// 今後改善案：
+				// 1. ログイン試行失敗回数をカウント（Redis/DB）
+				// 2. N回失敗後、M分間アカウントロック
+				// 3. または CAPTCHA を導入
 				.formLogin(login -> login
 						.loginPage("/login")
 						.usernameParameter("username")
 						.passwordParameter("password")
 						.defaultSuccessUrl("/menu", true)
+						.failureUrl("/login?error=login_failed")
 						.permitAll())
 
 				// ── ログアウト ────────────────────────────────────────────
@@ -104,7 +111,15 @@ public class SecurityConfig {
 						.logoutSuccessUrl(LOGIN_PATH + "?logout")
 						.invalidateHttpSession(true)
 						.deleteCookies("JSESSIONID")
-						.permitAll());
+						.permitAll())
+
+				// ── Remember-me 機能 ──────────────────────────────────
+				// ユーザーが「ログイン状態を保持」にチェックした場合、2週間自動ログイン
+				.rememberMe(remember -> remember
+						.key("TrainingApp-SecureKey-2025")
+						.tokenValiditySeconds(14 * 24 * 60 * 60) // 2週間
+						.rememberMeParameter("remember-me")
+						.rememberMeCookieName("remember-me-cookie"));
 
 		return http.build();
 	}
