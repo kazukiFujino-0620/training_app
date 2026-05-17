@@ -13,7 +13,7 @@
                 <div class="text-left">
                     <div class="text-sm text-muted">
                         <span id="current-clock" class="font-mono">yyyy/mm/dd hh:mm:ss</span><br>
-                        ユーザー名: <span sec:authentication="name" class="font-medium">ユーザー名</span>
+                        ユーザー名: <span th:text="${loginUser != null ? loginUser.userName : 'ゲスト'}" class="font-medium">ユーザー名</span>
                     </div>
                 </div>
                 
