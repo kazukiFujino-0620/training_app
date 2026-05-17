@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,9 +33,11 @@ import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.service.TrainingService;
 import com.example.traning.user.User;
 
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 @Controller
+@Validated
 @Slf4j
 public class MenuController {
 
@@ -61,7 +64,7 @@ public class MenuController {
 
 		// 1. 日付の決定
 		LocalDate selectedDate = (dateStr != null) ? LocalDate.parse(dateStr) : today;
-		User userEntity = trainingService.getUserByName(userId);
+		User userEntity = trainingService.getUserByName(principal.getName());
 
 		// 2. カレンダーの期間（42日分）を計算
 		YearMonth yearMonth = YearMonth.from(selectedDate);
@@ -188,7 +191,7 @@ public class MenuController {
 
 	@PostMapping("/api/training/save")
 	@ResponseBody
-	public Long apiSaveTraining(@RequestBody Training training, Principal principal) {
+	public Long apiSaveTraining(@Valid @RequestBody Training training, Principal principal) {
 		training.setUserId(trainingService.getUserIdByName(principal.getName()));
 
 		if (training.getCreateDatetime() == null) {
@@ -203,17 +206,42 @@ public class MenuController {
 
 	@PostMapping("/api/training/finish")
 	@ResponseBody
-	public ResponseEntity<String> finishTrainig(@RequestBody List<Training> trainingList) {
+	public ResponseEntity<String> finishTrainig(@Valid @RequestBody List<Training> trainingList, Principal principal) {
 		try {
+			// ★ IDOR 対策: ログインユーザーが所有するトレーニングのみ保存を許可
+			Long currentUserId = trainingService.getUserIdByName(principal.getName());
+
 			for (Training t : trainingList) {
+				// 1. セットデータ確認
 				if (t.getDetails() == null || t.getDetails().isEmpty()) {
-					return ResponseEntity.badRequest().body("セットデータがからの種目があります。");
+					return ResponseEntity.badRequest().body("セットデータが空の種目があります。");
+				}
+
+				// 2. トレーニングが実在するか確認
+				if (t.getId() == null || t.getId() <= 0) {
+					log.warn("不正なトレーニングID: {}", t.getId());
+					return ResponseEntity.badRequest().body("不正なトレーニングIDです。");
+				}
+
+				Training existingTraining = trainingService.getTrainingById(t.getId());
+				if (existingTraining == null) {
+					log.warn("トレーニングが見つかりません: ID={}", t.getId());
+					return ResponseEntity.notFound().build();
+				}
+
+				// 3. 所有者確認: 自分のトレーニングでなければ拒否
+				if (!existingTraining.getUserId().equals(currentUserId)) {
+					log.warn("不正なアクセス検知: ユーザー {} がトレーニング {} を保存しようとしました",
+							currentUserId, t.getId());
+					return ResponseEntity.status(HttpStatus.FORBIDDEN)
+							.body("このトレーニングを変更する権限がありません。");
 				}
 			}
-			trainingService.saveAll(trainingList);
 
+			trainingService.saveAll(trainingList);
 			return ResponseEntity.ok("保存に成功しました");
 		} catch (Exception e) {
+			log.error("トレーニング保存エラー", e);
 			return ResponseEntity.internalServerError().body("登録に失敗しました。" + e.getMessage());
 		}
 	}
@@ -242,7 +270,7 @@ public class MenuController {
 
 	@PostMapping("/api/training/update/{id}")
 	@ResponseBody
-	public ResponseEntity<Void> updateTraining(@PathVariable Long id, @RequestBody Training training,
+	public ResponseEntity<Void> updateTraining(@PathVariable Long id, @Valid @RequestBody Training training,
 			Principal principal) {
 		Training existingTraining = trainingService.getTrainingById(id);
 		if (existingTraining == null) {

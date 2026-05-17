@@ -64,12 +64,13 @@ public class SecurityConfig {
 						.contentTypeOptions(contentType -> {
 						})
 						// CSP: 自ドメイン + 利用中の外部リソースのみ許可
-						// ※ Thymeleaf の inline スタイルを使用している箇所があるため
-						// style-src に 'unsafe-inline' を暫定許可。
-						// 将来的に nonce/hash 方式へ移行することを推奨。
+						// ★ SECURITY: script-src から 'unsafe-inline' を削除
+						// - inline <script> や event handler は禁止
+						// - 将来的に nonce/hash 方式へ移行することを推奨
+						// - 現在: Thymeleaf の inline style を使用（CSS は 'unsafe-inline' で許可）
 						.contentSecurityPolicy(csp -> csp.policyDirectives(
 								"default-src 'self'; " +
-										"script-src 'self' 'unsafe-inline' 'unsafe-hashes' https://cdn.jsdelivr.net; " +
+										"script-src 'self' 'unsafe-hashes' https://cdn.jsdelivr.net; " +
 										"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
 										"font-src 'self' https://fonts.gstatic.com; " +
 										"img-src 'self' data:; " +

@@ -11,6 +11,8 @@ import org.seasar.doma.Table;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.OneToMany;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Entity(immutable = false)
@@ -32,15 +34,19 @@ public class Training {
 	private Boolean isCompleted = false;
 
 	@Column(name = "user_id")
+	@NotNull(message = "ユーザーIDは必須です")
 	private Long userId;
 
 	@Column(name = "training_date")
+	@NotNull(message = "トレーニング日は必須です")
 	private LocalDate trainingDate;
 
 	@Column(name = "part_code")
+	@NotBlank(message = "部位コードは必須です")
 	private String partCode;
 
 	@Column(name = "menu")
+	@NotBlank(message = "メニューは必須です")
 	private String menu;
 
 	@Column(name = "memo")
@@ -56,6 +62,7 @@ public class Training {
 
 	@org.seasar.doma.Transient
 	@OneToMany(mappedBy = "training", cascade = CascadeType.ALL, orphanRemoval = true)
+	@NotNull(message = "セットデータは必須です")
 	private List<TrainingDetail> details = new ArrayList<>();
 	@org.seasar.doma.Transient
 	@jakarta.persistence.Transient
