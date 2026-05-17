@@ -210,19 +210,19 @@ public class TrainingService {
 		}
 	}
 
-	public User getUserByName(Long userId) {
-		logger.debug("ユーザー情報取得開始 - ユーザーID: {}", userId);
+	public User getUserByName(String userName) {
+		logger.debug("ユーザー情報取得開始 - ユーザー名: {}", userName);
 
 		try {
-			User user = trainingDao.selectByUserName(userId);
+			User user = trainingDao.selectByUserName(userName);
 			if (user != null) {
-				logger.debug("ユーザー情報取得完了 - ユーザーID: {}, ユーザー名: {}", userId, user.getUserName());
+				logger.debug("ユーザー情報取得完了 - ユーザー名: {}, ユーザーID: {}", userName, user.getUserId());
 			} else {
-				logger.warn("ユーザー情報が見つかりません - ユーザーID: {}", userId);
+				logger.warn("ユーザー情報が見つかりません - ユーザー名: {}", userName);
 			}
 			return user;
 		} catch (Exception e) {
-			logger.error("ユーザー情報取得中にエラー発生 - ユーザーID: {}", userId, e);
+			logger.error("ユーザー情報取得中にエラー発生 - ユーザー名: {}", userName, e);
 			throw e;
 		}
 	}
