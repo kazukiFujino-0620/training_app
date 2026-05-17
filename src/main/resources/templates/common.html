@@ -9,18 +9,8 @@
     
     <header class="header">
         <div class="header-container container">
-            <div class="flex items-center gap-4">
-                <div class="logo">
-                    <svg width="32" height="32" viewBox="0 0 32 32" fill="currentColor">
-                        <path d="M16 2C8.3 2 2 8.3 2 16s6.3 14 14 14 14-6.3 14-14S23.7 2 16 2zm0 2c6.6 0 12 5.4 12 12s-5.4 12-12 12S4 22.6 4 16 9.4 4 16 4z"/>
-                        <path d="M16 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2s2-.9 2-2v-6c0-1.1-.9-2-2-2z"/>
-                    </svg>
-                    トレーニング管理
-                </div>
-            </div>
-
-            <div class="flex items-center gap-6">
-                <div class="text-right">
+            <div class="header-left">
+                <div class="text-left">
                     <div class="text-sm text-muted">
                         <span id="current-clock" class="font-mono">yyyy/mm/dd hh:mm:ss</span><br>
                         ユーザー名: <span sec:authentication="name" class="font-medium">ユーザー名</span>
@@ -29,7 +19,7 @@
                 
                 <!-- Settings Gear Button -->
                 <div class="relative">
-                    <button class="settings-btn" onclick="toggleSettings()" aria-label="設定">
+                    <button class="settings-btn" data-action="toggle-settings" aria-label="設定">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -40,18 +30,16 @@
                     <div id="settingsDropdown" class="settings-dropdown">
                         <!-- Theme Toggle -->
                         <div class="settings-item">
-                            <div class="theme-toggle">
-                                <span class="theme-toggle-label">テーマ</span>
-                                <div class="theme-switch" onclick="toggleTheme()" th:attr="data-theme=${theme}"></div>
-                            </div>
+                            <span class="theme-toggle-label">テーマ</span>
+                            <div class="theme-switch" data-action="toggle-theme" th:attr="data-theme=${theme}"></div>
                         </div>
                         
                         <!-- Other Settings -->
-                        <div class="settings-item" onclick="showSettings()">
+                        <div class="settings-item" data-action="show-settings">
                             <span>設定</span>
                         </div>
                         
-                        <div class="settings-item" onclick="showHelp()">
+                        <div class="settings-item" data-action="show-help">
                             <span>ヘルプ</span>
                         </div>
                     </div>
@@ -61,117 +49,20 @@
                     <button type="button" class="btn btn-outline btn-sm" id="logoutButton">戻る</button>
                 </form>
             </div>
+
+            <div class="header-right">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="currentColor">
+                        <path d="M16 2C8.3 2 2 8.3 2 16s6.3 14 14 14 14-6.3 14-14S23.7 2 16 2zm0 2c6.6 0 12 5.4 12 12s-5.4 12-12 12S4 22.6 4 16 9.4 4 16 4z"/>
+                        <path d="M16 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2s2-.9 2-2v-6c0-1.1-.9-2-2-2z"/>
+                    </svg>
+                    トレーニング管理
+                </div>
+            </div>
         </div>
     </header>
     
-    <script>
-        // Clock functionality
-        function updateClock() {
-            const now = new Date();
-            const timeString = now.getFullYear() + '/' + 
-                String(now.getMonth() + 1).padStart(2, '0') + '/' + 
-                String(now.getDate()).padStart(2, '0') + ' ' + 
-                String(now.getHours()).padStart(2, '0') + ':' + 
-                String(now.getMinutes()).padStart(2, '0') + ':' + 
-                String(now.getSeconds()).padStart(2, '0');
-            document.getElementById('current-clock').textContent = timeString;
-        }
-        setInterval(updateClock, 1000);
-        
-        // Set logout button text and behavior based on current page
-        document.addEventListener('DOMContentLoaded', function() {
-            const logoutButton = document.getElementById('logoutButton');
-            const logoutForm = document.getElementById('logoutForm');
-            if (logoutButton && logoutForm) {
-                const currentPath = window.location.pathname;
-                if (currentPath === '/menu') {
-                    logoutButton.textContent = 'ログアウト';
-                    logoutButton.onclick = function() {
-                        logoutForm.submit();
-                    };
-                } else {
-                    // Check if opened in new tab
-                    const isNewTab = window.opener || window.history.length <= 1;
-                    if (isNewTab) {
-                        logoutButton.textContent = '閉じる';
-                        logoutButton.onclick = function() {
-                            window.close();
-                            // Fallback if window.close() fails
-                            setTimeout(() => {
-                                window.location.href = '/menu';
-                            }, 100);
-                        };
-                    } else {
-                        logoutButton.textContent = '戻る';
-                        logoutButton.onclick = function() {
-                            window.history.back();
-                        };
-                    }
-                }
-            }
-        });
-        updateClock();
-        
-        // Settings dropdown functionality
-        function toggleSettings() {
-            const dropdown = document.getElementById('settingsDropdown');
-            dropdown.classList.toggle('show');
-        }
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            const settingsBtn = document.querySelector('.settings-btn');
-            const dropdown = document.getElementById('settingsDropdown');
-            
-            if (!settingsBtn.contains(event.target) && !dropdown.contains(event.target)) {
-                dropdown.classList.remove('show');
-            }
-        });
-        
-        // Theme toggle functionality
-        function toggleTheme() {
-            const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            
-            // Update theme switch state
-            const themeSwitch = document.querySelector('.theme-switch');
-            themeSwitch.setAttribute('data-theme', newTheme);
-            
-            // Save theme preference to server
-            fetch('/api/theme', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]').getAttribute('content')
-                },
-                body: JSON.stringify({ theme: newTheme })
-            }).catch(error => console.error('Failed to save theme preference:', error));
-        }
-        
-        // Load saved theme on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-            
-            const themeSwitch = document.querySelector('.theme-switch');
-            if (themeSwitch) {
-                themeSwitch.setAttribute('data-theme', savedTheme);
-            }
-        });
-        
-        // Placeholder functions for other settings
-        function showSettings() {
-            alert('設定画面は準備中です');
-        }
-        
-        function showHelp() {
-            alert('ヘルプ画面は準備中です');
-        }
-    </script>
+    <script th:src="@{/js/common.js}"></script>
 </th:block>
 
 <th:block th:fragment="footerFragment">

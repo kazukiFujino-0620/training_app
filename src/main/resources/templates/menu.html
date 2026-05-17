@@ -28,8 +28,8 @@
     <header th:replace="~{common :: headerFragment}"></header>
 
     <!-- Main Content -->
-    <main class="main-content">
-      <div class="content-wrapper">
+    <main class="menu-page">
+      <div class="menu-main-content">
         <!-- Page Header -->
         <div class="mb-6">
           <div class="flex items-center justify-between">
@@ -53,10 +53,10 @@
           <span th:text="${error}"></span>
         </div>
 
-        <!-- Main Content -->
+        <!-- Calendar and Summary -->
         <div class="flex gap-6">
           <!-- Calendar Section -->
-          <div class="flex-1">
+          <div class="calendar-section">
             <div class="card">
               <div class="card-header">
                 <div class="flex items-center justify-between">
@@ -118,10 +118,10 @@
                       <tr th:each="i : ${#numbers.sequence(0, 5)}">
                         <td
                           th:each="j : ${#numbers.sequence(0, 6)}"
-                          th:with="index=${i * 7 + j}, day=${dateList[index]}, isDone=${dayStatusList[index]}"
+                          th:with="index=${i * 7 + j}, day=${dateList[index]}, isDone=${dayStatusList[index]}, formattedDate=${#temporals.format(day, 'yyyy-MM-dd')}"
                           class="calendar-cell cursor-pointer hover:bg-tertiary transition-colors"
-                          th:classappend="${day == today} ? 'bg-primary bg-opacity-20 font-bold' : ''"
-                          th:onclick="selectDate([[${#temporals.format(day, 'yyyy-MM-dd')}]])"
+                          th:classappend="${selectedDateStr != null && formattedDate == selectedDateStr} ? 'bg-primary bg-opacity-30 font-bold border-2 border-primary' : ''"
+                          th:data-date="${formattedDate}"
                         >
                           <div class="text-center p-3">
                             <span
@@ -155,7 +155,7 @@
           </div>
 
           <!-- Training Summary Section -->
-          <div class="flex-1">
+          <div class="summary-section">
             <div class="card">
               <div class="card-header">
                 <h3 class="text-xl font-semibold">
@@ -229,7 +229,12 @@
                         <div class="flex flex-col gap-2">
                           <button
                             type="button"
-                            th:onclick="openEditModal([[${item.id}]], [[${item.menu}]], [[${item.partCode}]], [[${item.trainingDate}]], [[${item.details}]])"
+                            th:data-action="edit"
+                            th:data-id="${item.id}"
+                            th:data-menu="${item.menu}"
+                            th:data-part-code="${item.partCode}"
+                            th:data-training-date="${item.trainingDate}"
+                            th:data-details="${item.details}"
                             class="btn btn-secondary btn-sm"
                           >
                             編集
@@ -237,7 +242,7 @@
                           <form
                             th:action="@{/menu/delete}"
                             method="post"
-                            onsubmit="return confirm('本当に削除しますか？');"
+                            data-action="delete"
                             class="m-0"
                           >
                             <input
@@ -258,7 +263,8 @@
                   </div>
 
                   <button
-                    th:onclick="openRegisterPage([[${selectedDate != null ? selectedDate : today}]])"
+                    th:data-action="register"
+                    th:data-date="${selectedDate != null ? selectedDate : today}"
                     class="btn btn-outline w-full mt-4"
                   >
                     ＋ 他の種目を追加登録
@@ -341,7 +347,8 @@
                     </p>
                   </div>
                   <button
-                    th:onclick="openRegisterPage([[${selectedDate != null ? selectedDate : today}]])"
+                    th:data-action="register"
+                    th:data-date="${selectedDate != null ? selectedDate : today}"
                     class="btn btn-primary mt-4"
                   >
                     記録を付ける
@@ -444,14 +451,14 @@
         <div class="flex gap-4 justify-end">
           <button
             type="button"
-            onclick="closeEditModal()"
+            data-action="close-modal"
             class="btn btn-secondary"
           >
             キャンセル
           </button>
           <button
             type="button"
-            onclick="saveEditModal()"
+            data-action="save-modal"
             class="btn btn-success"
           >
             保存
@@ -463,26 +470,6 @@
     <!-- JavaScript -->
     <script th:src="@{/js/theme.js}"></script>
     <script th:src="@{/js/training-modal.js}"></script>
-
-    <script>
-      // Load saved theme on page load
-      document.addEventListener("DOMContentLoaded", function () {
-        const savedTheme =
-          localStorage.getItem("training-app-theme") || "light";
-        document.documentElement.setAttribute("data-theme", savedTheme);
-      });
-
-      // Select date function to show summary
-      function selectDate(dateString) {
-        // Check if dateString is valid
-        if (!dateString || dateString === "undefined-undefined-undefined") {
-          console.error("Invalid date string:", dateString);
-          return;
-        }
-
-        // Redirect to menu with selected date parameter
-        window.location.href = "/menu?date=" + dateString;
-      }
-    </script>
+    <script th:src="@{/js/menu.js}"></script>
   </body>
 </html>

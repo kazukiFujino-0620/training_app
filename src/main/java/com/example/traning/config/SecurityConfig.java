@@ -8,6 +8,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 import com.example.traning.user.service.CustomOAuth2UserService;
 
@@ -52,6 +53,11 @@ public class SecurityConfig {
 				// X-XSS-Protection ヘッダー自体もモダンブラウザでは非推奨のため、
 				// CSP (Content-Security-Policy) で代替する。
 				.headers(headers -> headers
+						// HSTS（HTTP Strict-Transport-Security）設定
+						// HTTPS通信を強制し、中間者攻撃を防止
+						.httpStrictTransportSecurity(hsts -> hsts
+								.includeSubDomains(true)
+								.maxAgeInSeconds(31536000)) // 1年間
 						// クリックジャッキング対策: iframe 埋め込みを全面禁止
 						.frameOptions(frame -> frame.deny())
 						// MIME スニッフィング対策
@@ -63,13 +69,16 @@ public class SecurityConfig {
 						// 将来的に nonce/hash 方式へ移行することを推奨。
 						.contentSecurityPolicy(csp -> csp.policyDirectives(
 								"default-src 'self'; " +
-										"script-src 'self' https://cdn.jsdelivr.net; " +
+										"script-src 'self' 'unsafe-inline' 'unsafe-hashes' https://cdn.jsdelivr.net; " +
 										"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
 										"font-src 'self' https://fonts.gstatic.com; " +
 										"img-src 'self' data:; " +
 										"connect-src 'self'; " +
 										"frame-ancestors 'none';")))
 
+				// ── CSRF 保護 ────────────────────────────────────
+				.csrf(csrf -> csrf
+						.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
 				// ── OAuth2 ログイン ───────────────────────────────────────
 				.oauth2Login(oauth2 -> oauth2
 						.loginPage(LOGIN_PATH)

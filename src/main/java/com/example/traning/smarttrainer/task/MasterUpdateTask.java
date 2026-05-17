@@ -35,11 +35,21 @@ public class MasterUpdateTask {
         logger.info("=== 夜間マスタ更新バッチ 開始 ===");
 
         try {
-            File file = new File(filePath);
-            logger.debug("CSVファイルパス確認: {}", filePath);
+            // ファイルパスの検証を試行
+            File file;
+            try {
+                // MasterUpdateService のバリデーションメソッドを使用
+                file = masterUpdateService.validateAndNormalizeFilePath(filePath);
+            } catch (Exception e) {
+                logger.error("ファイルパス検証失敗: {}", e.getMessage());
+                logger.error("=== 夜間マスタ更新バッチ 異常終了 ===");
+                return;
+            }
+
+            logger.debug("CSVファイルパス確認: {}", file.getAbsolutePath());
 
             if (!file.exists()) {
-                logger.warn("更新用CSVファイルが見つかりません。パス: {}", filePath);
+                logger.warn("更新用CSVファイルが見つかりません。パス: {}", file.getAbsolutePath());
                 return;
             }
 
