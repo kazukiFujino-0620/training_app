@@ -12,6 +12,7 @@ import org.seasar.doma.Update;
 import org.seasar.doma.boot.ConfigAutowireable;
 
 import com.example.traning.training.Training;
+import com.example.traning.training.dao.TrainingDao.VolumeResult;
 import com.example.traning.user.User;
 
 @Dao
@@ -43,7 +44,7 @@ public interface TrainingDao {
 	List<Training> selectByUserIdAndDate(Integer userId, LocalDate date);
 
 	@Select
-	User selectByUserName(Long userId);
+	User selectByUserName(String userName);
 
 	@Select
 	List<VolumeResult> selectVolumeList(Long userId, String partCode, String startDate, String endDate);
