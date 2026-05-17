@@ -267,6 +267,15 @@ body {
 .summary-section .space-y-1 > div {
   margin-bottom: 0.5rem;
   padding: 0.25rem 0;
+  text-align: left;
+}
+
+.summary-section .space-y-1 {
+  text-align: left;
+}
+
+.summary-section .flex.items-center.gap-3.text-sm {
+  justify-content: flex-start;
 }
 
 .summary-section .text-lg {
