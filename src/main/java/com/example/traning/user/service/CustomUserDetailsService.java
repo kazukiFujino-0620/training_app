@@ -34,6 +34,14 @@ public class CustomUserDetailsService implements UserDetailsService {
 			log.error(msg);
 			throw new UsernameNotFoundException(msg);
 		}
+
+		// OAuth2ユーザーはパスワードがないため、フォームログインできない
+		if (user.getPassword() == null || user.getPassword().isEmpty()) {
+			String msg = "このユーザーはOAuth2経由で登録されています。LINEまたはGoogleでログインしてください: " + email;
+			log.warn(msg);
+			throw new UsernameNotFoundException(msg);
+		}
+
 		log.info("User found for form login - email: {}, role: {}", user.getEmail(), user.getRole());
 		String roleName = user.getRole().replace("ROLE_", "");
 
