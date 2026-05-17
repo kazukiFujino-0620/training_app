@@ -23,11 +23,15 @@ public class SignupServiceTransaction {
 		try {
 			User user = new User();
 			user.setEmail(signupForm.getEmail());
-			user.setPassword(signupForm.getPassword());
+			// OAuth2経由の場合はパスワードを設定しない
+			if (!signupForm.isOAuth2Signup()) {
+				user.setPassword(signupForm.getPassword());
+			}
 			user.setUserName(signupForm.getUsername());
 			user.setRole("ROLE_USER");
 			user.setEnabled(true);
 			user.setGoogleId(signupForm.getGoogleId() != null ? signupForm.getGoogleId() : null);
+			user.setLineId(signupForm.getLineId() != null ? signupForm.getLineId() : null);
 			user.setCreateDatetime(LocalDateTime.now());
 			user.setUpdatedDatetime(LocalDateTime.now());
 
