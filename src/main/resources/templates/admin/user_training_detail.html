@@ -186,11 +186,11 @@
         const userIdElement = document.querySelector('body[data-user-id]');
         if (userIdElement && userIdElement.dataset.userId) {
             window.userId = parseInt(userIdElement.dataset.userId);
+            console.log('Loaded userId from data attribute:', window.userId);
         } else {
-            console.warn('User ID not found in data attribute, using fallback');
-            window.userId = /*[[${userId}]]*/ 5;
+            console.error('User ID not found in data attribute');
+            window.userId = null;
         }
-        console.log('Loaded userId:', window.userId);
     </script>
 </body>
 </html>

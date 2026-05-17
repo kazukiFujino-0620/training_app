@@ -114,6 +114,7 @@ public class MenuController {
 		model.addAttribute("dateList", dateList);
 		model.addAttribute("today", today);
 		model.addAttribute("selectedDate", selectedDate);
+		model.addAttribute("selectedDateStr", selectedDate.toString()); // Add formatted string for comparison
 		model.addAttribute("trainingList", trainingList);
 		model.addAttribute("prevMonth", yearMonth.minusMonths(1).atDay(1));
 		model.addAttribute("nextMonth", yearMonth.plusMonths(1).atDay(1));
