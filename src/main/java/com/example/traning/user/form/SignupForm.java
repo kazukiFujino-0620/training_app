@@ -17,8 +17,10 @@ public class SignupForm {
 	@Email
 	private String email;
 
+	@NotBlank(message = "パスワードは必須です")
 	private String password;
 
+	@NotBlank(message = "パスワード確認は必須です")
 	private String password_confirm;
 
 	private String googleId;
