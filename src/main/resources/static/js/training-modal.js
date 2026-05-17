@@ -26,7 +26,9 @@ function selectDate(date) {
             listElement.innerHTML = ''; // クリア
             
             if (data.length === 0) {
-                listElement.innerHTML = '<li>この日の記録はありません</li>';
+                const li = document.createElement('li');
+                li.textContent = 'この日の記録はありません';
+                listElement.appendChild(li);
                 return;
             }
 
@@ -39,13 +41,16 @@ function selectDate(date) {
                 const weight = item.weight ?? '-';
                 const reps = item.reps ?? '-';
                 const sets = item.sets ?? item.setNumber ?? '-';
-                li.innerText = `${menuName}: ${weight}kg x ${reps}回 (${sets}セット)`;
+                li.textContent = `${menuName}: ${weight}kg x ${reps}回 (${sets}セット)`;
                 listElement.appendChild(li);
             });
         })
         .catch(error => {
-            console.error('Error:', error);
-            listElement.innerHTML = '<li style="color: red;">データの取得に失敗しました</li>';
+            listElement.innerHTML = '';
+            const li = document.createElement('li');
+            li.style.color = 'red';
+            li.textContent = 'データの取得に失敗しました';
+            listElement.appendChild(li);
         });
 }
 
@@ -149,7 +154,7 @@ function removeEditSet(setIndex) {
         });
         renderEditSets();
     } else {
-        alert('最後の1セットは削除できません');
+        // 最後の1セットは削除できない
     }
 }
 
@@ -205,17 +210,13 @@ function saveEditModal() {
     })
     .then(response => {
         if (response.ok) {
-            alert('トレーニングを更新しました');
             closeEditModal();
             // ページをリロードして反映
             location.reload();
-        } else {
-            alert('更新に失敗しました');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('更新中にエラーが発生しました');
+        // エラー処理
     });
 }
 
@@ -253,7 +254,7 @@ function toggleMainTimer() {
     const btn = document.getElementById('startBtn');
     if (!isRunning) {
         isRunning = true;
-        btn.innerText = "一時停止";
+        btn.textContent = "一時停止";
         btn.style.background = "#ff9800";
         mainTimerInterval = setInterval(() => {
             totalSeconds++;
@@ -261,7 +262,7 @@ function toggleMainTimer() {
         }, 1000);
     } else {
         isRunning = false;
-        btn.innerText = "再開";
+        btn.textContent = "再開";
         btn.style.background = "#4CAF50";
         clearInterval(mainTimerInterval);
     }
@@ -483,7 +484,7 @@ async function finishTraining() {
 	    };
 	
 	const durationStr = formatDuration(totalSeconds); // 例: "00:45:10"
-    console.log("計測時間:", durationStr);
+
 	const trainingCards = document.querySelectorAll('.training-card');
     const allData = [];
     let hasError = false;
@@ -523,16 +524,12 @@ async function finishTraining() {
     });
 
     if (hasError) {
-        alert("重量または回数が入力されていないセットがあります。");
         return;
     }
 
     try {
         const token = document.querySelector('meta[name="_csrf"]').content;
         const header = document.querySelector('meta[name="_csrf_header"]').content;
-
-		console.log("送信データ:", allData); // これで中身がコンソールで見れます
-	    alert("今からJavaに送ります！");
 		
         const response = await fetch('/api/training/finish', {
             method: 'POST',
@@ -544,14 +541,11 @@ async function finishTraining() {
         });
 
         if (response.ok) {
-            alert("保存が完了しました！");
             // カレンダー画面（menu）に戻る
             window.location.href = '/menu'; 
-        } else {
-            throw new Error("保存に失敗しました");
         }
     } catch (error) {
-        alert(error.message);
+        // エラー処理
     }
 }
 
@@ -586,7 +580,7 @@ async function addTrainingCardLocally() {
         details: details
     };
 
-	console.log("送信データ:", JSON.stringify(trainingData));
+
     try {
         // 2. サーバーへ非同期送信 (Fetch API)
         const response = await fetch('/api/training/save', {

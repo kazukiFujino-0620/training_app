@@ -3,7 +3,6 @@ package com.example.traning.smarttrainer.service;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,8 +51,13 @@ public class MasterUpdateService {
             File file = new File(filePath);
             Path canonicalPath = file.getCanonicalFile().toPath();
 
-            // 許可されたディレクトリを正規化
-            Path allowedPath = Paths.get(allowedDirectory).toRealPath();
+            // 許可されたディレクトリを正規化（toRealPath の代わりに getCanonicalFile を使用）
+            File allowedDir = new File(allowedDirectory);
+            if (!allowedDir.exists() || !allowedDir.isDirectory()) {
+                logger.error("Allowed directory does not exist: {}", allowedDirectory);
+                throw new SecurityException("Configuration error: allowed directory not available");
+            }
+            Path allowedPath = allowedDir.getCanonicalFile().toPath();
 
             // パストラバーサルチェック：許可ディレクトリ内にあるか確認
             if (!canonicalPath.startsWith(allowedPath)) {

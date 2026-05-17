@@ -1,7 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja" xmlns:th="http://www.thymeleaf.org"
-      th:with="theme=${session.theme ?: 'light'}"
-      th:attr="data-theme=${theme}">
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -81,6 +79,14 @@
     <script th:src="@{/js/theme.js}"></script>
 
     <script>
+        // Apply theme immediately to prevent flash
+        (function() {
+            const storedTheme = localStorage.getItem('training-app-theme');
+            if (storedTheme) {
+                document.documentElement.setAttribute('data-theme', storedTheme);
+            }
+        })();
+
         // Form submission handling
         document.getElementById('forgetPasswordForm').addEventListener('submit', function() {
             this.classList.add('loading');

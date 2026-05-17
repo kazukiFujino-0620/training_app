@@ -83,6 +83,8 @@ public class AdminController {
 
     @PostMapping("/user/update")
     public String updateUser(@ModelAttribute User user) {
+        // パスワードは hidden フィールドから送信されないため、null のまま
+        // ユーザー編集時はパスワードを更新しない（パスワード変更は別画面で管理）
         User updatedUser = user.toBuilder()
                 .updatedDatetime(LocalDateTime.now())
                 .build();
