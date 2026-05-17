@@ -46,7 +46,7 @@ public class PasswordController {
         } catch (Exception e) {
             log.error("トークン作成中にエラーが発生しました", e);
             model.addAttribute("errorMessage", "ご入力いただいたメールアドレスには送信できませんでした。再度お試しいただくか、管理者へお問い合わせください。");
-            return "auth/forget_password";
+            return "password/forget";
         }
 
         return "redirect:/password/sent";
