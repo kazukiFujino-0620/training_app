@@ -1,6 +1,6 @@
-Select
-    user_Name
-From
+SELECT
+    id AS userId
+FROM
     users
-Where
-    id = /* userId */'1'
+WHERE
+    user_name = /* userName */'placeholder'

@@ -11,6 +11,8 @@ import org.seasar.doma.Table;
 
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Entity
@@ -31,8 +33,16 @@ public class TrainingDetail {
 	private Long trainingId;
 
 	@Column(name = "set_number")
+	@NotNull(message = "セット番号は必須です")
+	@Min(value = 1, message = "セット番号は1以上である必要があります")
 	private Integer setNumber;
+
+	@NotNull(message = "重量は必須です")
+	@Min(value = 0, message = "重量は0以上である必要があります")
 	private Double weight;
+
+	@NotNull(message = "回数は必須です")
+	@Min(value = 1, message = "回数は1以上である必要があります")
 	private Integer reps;
 	@Column(name = "count")
 	private Integer count;
