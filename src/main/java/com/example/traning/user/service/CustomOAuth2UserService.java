@@ -70,22 +70,30 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         if (userOpt.isEmpty()) {
             // --- 新規登録の処理 ---
             log.info("New user registration via OAuth2 - provider: {}, email: {}", registrationId, email);
-            SignupForm signupForm = new SignupForm();
-            signupForm.setEmail(email);
-            signupForm.setUsername(name);
-            signupForm.setPassword("");
-            signupForm.setPassword_confirm("");
+            try {
+                SignupForm signupForm = new SignupForm();
+                signupForm.setEmail(email);
+                signupForm.setUsername(name);
+                // OAuth2経由の場合、仮パスワードが自動生成される
+                signupForm.setPassword("");
+                signupForm.setPassword_confirm("");
 
-            if ("google".equals(registrationId)) {
-                signupForm.setGoogleId(providerId);
-            } else if ("line".equals(registrationId)) {
-                signupForm.setLineId(providerId);
+                if ("google".equals(registrationId)) {
+                    signupForm.setGoogleId(providerId);
+                } else if ("line".equals(registrationId)) {
+                    signupForm.setLineId(providerId);
+                }
+
+                signupTransaction.execute(signupForm);
+                log.info("OAuth2 user registration completed - provider: {}, email: {}", registrationId, email);
+
+                final String emailForLambda = email;
+                user = userDao.selectByEmail(emailForLambda)
+                        .orElseThrow(() -> new OAuth2AuthenticationException("登録後のユーザー検索に失敗しました: " + emailForLambda));
+            } catch (Exception e) {
+                log.error("OAuth2 user registration failed - provider: {}, email: {}", registrationId, email, e);
+                throw new OAuth2AuthenticationException("OAuth2ユーザー登録処理に失敗しました: " + e.getMessage());
             }
-
-            signupTransaction.execute(signupForm);
-
-            user = userDao.selectByEmail(email)
-                    .orElseThrow(() -> new OAuth2AuthenticationException("登録に失敗しました"));
         } else {
             log.info("Existing user found via OAuth2 - email: {}, enabled: {}", email, userOpt.get().getEnabled());
             if (Boolean.compare(userOpt.get().getEnabled(), false) == 0) {
