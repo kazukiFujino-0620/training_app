@@ -41,6 +41,9 @@ public class User {
 	@Column(name = "google_Id")
 	public String googleId;
 
+	@Column(name = "line_Id")
+	public String lineId;
+
 	@Column(name = "create_Datetime")
 	public LocalDateTime createDatetime;
 

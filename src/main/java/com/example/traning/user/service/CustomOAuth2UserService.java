@@ -30,23 +30,57 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         log.info("OAuth2 login attempt started");
         OAuth2User oAuth2User = super.loadUser(userRequest);
-        String email = oAuth2User.getAttribute("email");
-        String sub = oAuth2User.getAttribute("sub"); // Googleの固有ID
-        String name = oAuth2User.getAttribute("name"); // Googleに登録されている名前
 
-        log.info("OAuth2 user info - email: {}, name: {}, sub: {}", email, name, sub);
+        String registrationId = userRequest.getClientRegistration().getRegistrationId();
+        log.info("OAuth2 provider: {}", registrationId);
+
+        String email;
+        String providerId;
+        String name;
+
+        if ("google".equals(registrationId)) {
+            // Google OAuth2
+            email = oAuth2User.getAttribute("email");
+            providerId = oAuth2User.getAttribute("sub"); // Googleの固有ID
+            name = oAuth2User.getAttribute("name"); // Googleに登録されている名前
+        } else if ("line".equals(registrationId)) {
+            // LINE OAuth2
+            providerId = oAuth2User.getAttribute("userId"); // LINEの固有ID
+            name = oAuth2User.getAttribute("displayName"); // LINEの表示名
+            if (name == null || name.isEmpty()) {
+                name = "LINEユーザー";
+            }
+            // LINEではemailが取得できない場合があるため、フォールバック処理
+            email = oAuth2User.getAttribute("email");
+            if (email == null || email.isEmpty()) {
+                // LINEのuserIdをベースにした一時的なメールアドレスを使用
+                email = "line_" + providerId + "@temp.local";
+                log.warn("LINE OAuth2 email not available, using temporary email: {}", email);
+            }
+        } else {
+            throw new OAuth2AuthenticationException("未対応のOAuth2プロバイダー: " + registrationId);
+        }
+
+        log.info("OAuth2 user info - provider: {}, email: {}, name: {}, providerId: {}", registrationId, email, name,
+                providerId);
 
         Optional<User> userOpt = userDao.selectByEmail(email);
         User user;
 
         if (userOpt.isEmpty()) {
             // --- 新規登録の処理 ---
-            log.info("New user registration via OAuth2 - email: {}", email);
+            log.info("New user registration via OAuth2 - provider: {}, email: {}", registrationId, email);
             SignupForm signupForm = new SignupForm();
             signupForm.setEmail(email);
             signupForm.setUsername(name);
             signupForm.setPassword("");
-            signupForm.setGoogleId(sub);
+            signupForm.setPassword_confirm("");
+
+            if ("google".equals(registrationId)) {
+                signupForm.setGoogleId(providerId);
+            } else if ("line".equals(registrationId)) {
+                signupForm.setLineId(providerId);
+            }
 
             signupTransaction.execute(signupForm);
 
