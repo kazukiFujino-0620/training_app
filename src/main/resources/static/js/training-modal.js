@@ -268,6 +268,9 @@ function toggleMainTimer() {
     }
 }
 
+let timeLeft = 0;
+let remaining = 0;
+
 function setIntervalTime(seconds) {
     // 現在動いているタイマーの変数が 'timeLeft' だとしたら
     timeLeft = seconds; 
