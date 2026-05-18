@@ -131,7 +131,7 @@ public class TrainingService {
 					currentDbData.setDuration(training.getDuration());
 
 					if (training.getDetails() != null && !training.getDetails().isEmpty()) {
-						boolean allDone = training.getDetails().stream().allMatch(detail -> detail.isCompleted());
+						boolean allDone = training.getDetails().stream().allMatch(detail -> detail.getIsCompleted());
 						currentDbData.setIsAllCompleted(allDone);
 					} else {
 						currentDbData.setIsAllCompleted(false);
@@ -148,7 +148,7 @@ public class TrainingService {
 					List<TrainingDetail> detailsToInsert = new ArrayList<>();
 					for (TrainingDetail detail : training.getDetails()) {
 						detail.setTrainingId(training.getId());
-						detail.setCompleted(detail.isCompleted());
+						detail.setIsCompleted(detail.getIsCompleted());
 						detailsToInsert.add(detail);
 					}
 					// Batch insert for better performance

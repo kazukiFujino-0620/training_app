@@ -3,4 +3,4 @@ SELECT
 FROM
   users
 WHERE
-  email = /* username */'admin'
+  user_name = /* username */'admin'
