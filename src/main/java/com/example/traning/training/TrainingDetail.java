@@ -9,6 +9,8 @@ import org.seasar.doma.GenerationType;
 import org.seasar.doma.Id;
 import org.seasar.doma.Table;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.validation.constraints.Min;
@@ -48,6 +50,7 @@ public class TrainingDetail {
 	private Integer count;
 
 	@Column(name = "is_completed")
+	@JsonProperty("completed")
 	private boolean isCompleted;
 
 	@Column(name = "create_datetime")
@@ -59,4 +62,12 @@ public class TrainingDetail {
 	@ManyToOne
 	@JoinColumn(name = "training_id", insertable = false, updatable = false)
 	private Training training;
+
+	public void setIsCompleted(boolean completed) {
+		this.isCompleted = completed;
+	}
+
+	public boolean getIsCompleted() {
+		return this.isCompleted;
+	}
 }

@@ -280,7 +280,7 @@
                                 <td><input type="number" class="reps" th:value="${detail.reps}"> 回</td>
                                 <td>
                                     <button class="btn-check" 
-                                            th:classappend="${detail.completed} ? 'completed' : ''" 
+                                            th:classappend="${detail.isCompleted} ? 'completed' : ''" 
                                             onclick="handleCheck(this)">✓</button>
                                 </td>
                                 <td>
