@@ -1,7 +1,7 @@
 package com.example.traning.config;
 
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import java.security.Principal;
+
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -19,9 +19,9 @@ public class GlobalControllerAdvice {
     }
 
     @ModelAttribute
-    public void addUserToModel(Model model, @AuthenticationPrincipal UserDetails userDetails) {
-        if (userDetails != null) {
-            User user = userDao.selectByEmail(userDetails.getUsername())
+    public void addUserToModel(Model model, Principal principal) {
+        if (principal != null) {
+            User user = userDao.selectByEmail(principal.getName())
                     .orElse(null);
             if (user != null) {
                 model.addAttribute("loginUser", user);

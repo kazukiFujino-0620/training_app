@@ -28,6 +28,9 @@ public interface TrainingDao {
 	@Select
 	Long selectIdByUsername(String username);
 
+	@Select
+	Long selectIdByEmail(String email);
+
 	@Insert
 	int insert(Training training);
 
@@ -45,6 +48,9 @@ public interface TrainingDao {
 
 	@Select
 	User selectByUserName(String userName);
+
+	@Select
+	User selectByEmail(String email);
 
 	@Select
 	List<VolumeResult> selectVolumeList(Long userId, String partCode, String startDate, String endDate);

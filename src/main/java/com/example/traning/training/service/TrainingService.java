@@ -184,6 +184,23 @@ public class TrainingService {
 		}
 	}
 
+	public Long getUserIdByEmail(String email) {
+		logger.debug("ユーザーID取得開始（メール） - メール: {}", email);
+
+		try {
+			Long userId = trainingDao.selectIdByEmail(email);
+			if (userId == null) {
+				logger.warn("ユーザーが見つかりません - メール: {}", email);
+				return null;
+			}
+			logger.debug("ユーザーID取得完了（メール） - メール: {}, ID: {}", email, userId);
+			return userId;
+		} catch (Exception e) {
+			logger.error("ユーザーID取得中にエラー発生（メール） - メール: {}", email, e);
+			throw e;
+		}
+	}
+
 	public List<TrainingDetail> findByDate(String date) {
 		logger.debug("日付別トレーニング詳細取得開始 - 日付: {}", date);
 
@@ -223,6 +240,23 @@ public class TrainingService {
 			return user;
 		} catch (Exception e) {
 			logger.error("ユーザー情報取得中にエラー発生 - ユーザー名: {}", userName, e);
+			throw e;
+		}
+	}
+
+	public User getUserByEmail(String email) {
+		logger.debug("ユーザー情報取得開始（メール） - メール: {}", email);
+
+		try {
+			User user = trainingDao.selectByEmail(email);
+			if (user != null) {
+				logger.debug("ユーザー情報取得完了（メール） - メール: {}, ユーザーID: {}", email, user.getUserId());
+			} else {
+				logger.warn("ユーザー情報が見つかりません（メール） - メール: {}", email);
+			}
+			return user;
+		} catch (Exception e) {
+			logger.error("ユーザー情報取得中にエラー発生（メール） - メール: {}", email, e);
 			throw e;
 		}
 	}
