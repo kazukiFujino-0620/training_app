@@ -59,12 +59,12 @@ public class MenuController {
 			Principal principal) {
 		LocalDate today = LocalDate.now();
 
-		Long userId = trainingService.getUserIdByName(principal.getName());
+		Long userId = trainingService.getUserIdByEmail(principal.getName());
 		log.debug("ログインユーザーのIDは: {}", userId);
 
 		// 1. 日付の決定
 		LocalDate selectedDate = (dateStr != null) ? LocalDate.parse(dateStr) : today;
-		User userEntity = trainingService.getUserByName(principal.getName());
+		User userEntity = trainingService.getUserByEmail(principal.getName());
 
 		// 2. カレンダーの期間（42日分）を計算
 		YearMonth yearMonth = YearMonth.from(selectedDate);
