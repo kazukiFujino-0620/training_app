@@ -1,4 +1,30 @@
 let myChart;
+let totalSeconds = 0;
+let timerInterval = null;
+let isTimerRunning = false;
+
+// タイマー用の経過時間をパース
+function parseTimeToSeconds(timeString) {
+    const [h, m, s] = (timeString || '00:00:00').split(':').map(Number);
+    return h * 3600 + m * 60 + s;
+}
+
+// 秒数を HH:MM:SS 形式に変換
+function formatDuration(seconds) {
+    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
+
+// DOMContentLoaded 時にタイマーを初期化
+function initializeTimer() {
+    const initialDurationElem = document.getElementById('initialDuration');
+    if (initialDurationElem) {
+        totalSeconds = parseTimeToSeconds(initialDurationElem.value);
+        document.getElementById('totalTimer').textContent = formatDuration(totalSeconds);
+    }
+}
 
 // 1. カレンダー・共通
 function selectDate(date) {
@@ -104,19 +130,19 @@ function renderEditSets() {
             <div style="display: flex; align-items: center; gap: 10px; padding: 12px; margin: 8px 0; background: #f9f9f9; border-radius: 8px; border: 1px solid #e0e0e0;">
                 <span style="font-weight: bold; min-width: 30px; color: #666;">${setIndex + 1}</span>
                 <div style="display: flex; gap: 15px; flex-grow: 1; align-items: center;">
-                    <input type="number" id="editWeight-${setIndex}" value="${detail.weight}" step="0.5" onchange="updateEditSet(${setIndex})" style="width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
+                    <input type="number" id="editWeight-${setIndex}" value="${detail.weight}" step="0.5" data-index="${setIndex}" data-change="updateEditSet" style="width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
                     <label style="color: #666; font-size: 0.9em;">kg</label>
-                    <input type="number" id="editReps-${setIndex}" value="${detail.reps}" onchange="updateEditSet(${setIndex})" style="width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
+                    <input type="number" id="editReps-${setIndex}" value="${detail.reps}" data-index="${setIndex}" data-change="updateEditSet" style="width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
                     <label style="color: #666; font-size: 0.9em;">回</label>
                 </div>
-                <button type="button" onclick="removeEditSet(${setIndex})" style="background: none; border: none; color: #f44336; font-size: 1.2em; cursor: pointer; padding: 0;">✕</button>
+                <button type="button" data-action="removeEditSet" data-index="${setIndex}" style="background: none; border: none; color: #f44336; font-size: 1.2em; cursor: pointer; padding: 0;">✕</button>
             </div>
         `;
     });
     
     // セット追加ボタン
     html += `
-        <button type="button" onclick="addEditSet()" style="width: 100%; padding: 12px; margin-top: 15px; background: #e3f2fd; border: 1px solid #2196F3; color: #2196F3; border-radius: 6px; cursor: pointer; font-weight: bold;">
+        <button type="button" data-action="addEditSet" style="width: 100%; padding: 12px; margin-top: 15px; background: #e3f2fd; border: 1px solid #2196F3; color: #2196F3; border-radius: 6px; cursor: pointer; font-weight: bold;">
             + セットを追加
         </button>
     `;
@@ -130,6 +156,22 @@ function renderEditSets() {
     `;
     
     container.innerHTML = html;
+
+    // Attach handlers for inputs and buttons inserted via innerHTML (CSP-safe)
+    container.querySelectorAll('input[data-change]').forEach(inp => {
+        const idx = parseInt(inp.dataset.index, 10);
+        if (!isNaN(idx)) {
+            inp.addEventListener('change', () => updateEditSet(idx));
+        }
+    });
+    const addBtn = container.querySelector('button[data-action="addEditSet"]');
+    if (addBtn) addBtn.addEventListener('click', () => addEditSet());
+    container.querySelectorAll('button[data-action="removeEditSet"]').forEach(b => {
+        b.addEventListener('click', (e) => {
+            const idx = parseInt(b.dataset.index, 10);
+            removeEditSet(idx);
+        });
+    });
 }
 
 // 編集セットの更新
@@ -227,20 +269,6 @@ function closeEditModal() {
     originalTrainingData = null;
 }
 
-// 2. タイマー関連
-let totalSeconds = 0;
-let mainTimerInterval;
-let isRunning = false;
-let intervalCountDown;
-
-document.addEventListener('DOMContentLoaded', () => {
-    const initialTimeInput = document.getElementById('initialDuration');
-    if (initialTimeInput && initialTimeInput.value && initialTimeInput.value !== "null") {
-        totalSeconds = timeToSeconds(initialTimeInput.value);
-        updateTimerDisplay(); // 画面表示を "00:00:00" から保存時間に更新
-    }
-});
-
 // "hh:mm:ss" を秒数に変換するヘルパー関数
 function timeToSeconds(timeStr) {
     const parts = timeStr.split(':');
@@ -252,19 +280,38 @@ function timeToSeconds(timeStr) {
 
 function toggleMainTimer() {
     const btn = document.getElementById('startBtn');
-    if (!isRunning) {
-        isRunning = true;
+    if (!isTimerRunning) {
+        isTimerRunning = true;
         btn.textContent = "一時停止";
-        btn.style.background = "#ff9800";
-        mainTimerInterval = setInterval(() => {
+        btn.classList.add('btn-success');
+        btn.classList.remove('btn-warning');
+        timerInterval = setInterval(() => {
             totalSeconds++;
             updateTimerDisplay();
         }, 1000);
     } else {
-        isRunning = false;
+        isTimerRunning = false;
         btn.textContent = "再開";
-        btn.style.background = "#4CAF50";
-        clearInterval(mainTimerInterval);
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-warning');
+        clearInterval(timerInterval);
+    }
+}
+
+// タイマー統計情報を取得
+function getTimerState() {
+    return {
+        totalSeconds: totalSeconds,
+        isRunning: isTimerRunning,
+        durationString: formatDuration(totalSeconds)
+    };
+}
+
+// タイマー表示を更新
+function updateTimerDisplay() {
+    const timerDisplay = document.getElementById('totalTimer');
+    if (timerDisplay) {
+        timerDisplay.textContent = formatDuration(totalSeconds);
     }
 }
 
@@ -295,27 +342,17 @@ function changeInterval(delta) {
     timeSpan.innerText = remaining;
 }
 
-function updateTimerDisplay() {
-    const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-    const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-    const s = String(totalSeconds % 60).padStart(2, '0');
-    const display = document.getElementById('totalTimer');
-    if (display) display.innerText = `${h}:${m}:${s}`;
-}
-
 function handleCheck(btn) {
     btn.classList.toggle('completed');
-	if (btn.classList.contains('completed')) {
-	        const currentTime = document.getElementById('intervalTime').innerText;
-	        seconds = parseInt(currentTime);
-	        
-	        document.getElementById('intervalBanner').style.display = 'block';
-	        
-	        startInterval(seconds); 
-	    } else {
-			if (timerId) clearInterval(timerId);
-	        document.getElementById('intervalBanner').style.display = 'none';
-	    }
+    if (btn.classList.contains('completed')) {
+        const currentTime = document.getElementById('intervalTime')?.innerText || '0';
+        const seconds = parseInt(currentTime, 10) || 0;
+        document.getElementById('intervalBanner').style.display = 'block';
+        startInterval(seconds);
+    } else {
+        if (intervalCountDown) clearInterval(intervalCountDown);
+        document.getElementById('intervalBanner').style.display = 'none';
+    }
 	}
 
 function startInterval(seconds) {
@@ -370,8 +407,8 @@ function addSet(btn) {
             <td><span class="set-num">${nextNum}</span></td>
             <td><input type="number" class="weight" value="${weight}" step="0.5"> kg</td>
             <td><input type="number" class="reps" value="${reps}"> 回</td>
-            <td><button class="btn-check" onclick="handleCheck(this)">✓</button></td>
-            <td><button type="button" onclick="removeSet(this)" style="color:#f44336; border:none; background:none; cursor:pointer;">✕</button></td>
+            <td><button class="btn-check" data-action="handleCheck">✓</button></td>
+            <td><button type="button" data-action="removeSet" style="color:#f44336; border:none; background:none; cursor:pointer;">✕</button></td>
         </tr>
     `;
     tbody.insertAdjacentHTML('beforeend', newRow);
@@ -464,11 +501,18 @@ function addSetRow() {
             <td>${setIndex + 1}</td>
             <td><input type="number" name="details[${setIndex}].weight" step="0.1" required></td>
             <td><input type="number" name="details[${setIndex}].reps" required></td>
-            <td><button type="button" onclick="this.closest('tr').remove(); reindexSets();" style="color:red; border:none; background:none; cursor:pointer;">✕</button></td>
+            <td><button type="button" data-action="removeRow" style="color:red; border:none; background:none; cursor:pointer;">✕</button></td>
         </tr>
     `;
     tbody.insertAdjacentHTML('beforeend', row);
     setIndex++;
+}
+
+function removeRow(btn) {
+    const row = btn.closest('tr');
+    if (!row) return;
+    row.remove();
+    reindexSets();
 }
 
 window.onclick = function(event) {
@@ -479,14 +523,8 @@ window.onclick = function(event) {
 async function finishTraining() {
     if (!confirm("トレーニングを終了して保存しますか？")) return;
 
-	const formatDuration = (seconds) => {
-	        const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
-	        const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
-	        const s = (seconds % 60).toString().padStart(2, '0');
-	        return `${h}:${m}:${s}`;
-	    };
-	
 	const durationStr = formatDuration(totalSeconds); // 例: "00:45:10"
+
 
 	const trainingCards = document.querySelectorAll('.training-card');
     const allData = [];
@@ -518,11 +556,24 @@ async function finishTraining() {
             });
         });
 
+		const trainingDate = card.dataset.trainingDate;
+		const partCode = card.dataset.partCode;
+		const menu = card.dataset.menu;
+		const userId = parseInt(card.dataset.userId, 10);
+
+		if (!trainingDate || !partCode || !menu || isNaN(userId)) {
+		    hasError = true;
+		}
+
 		allData.push({ 
-	            id: id, 
-	            memo: memo, 
+	            id: id,
+	            userId: userId,
+	            trainingDate: trainingDate,
+	            partCode: partCode,
+	            menu: menu,
+	            memo: memo,
 	            duration: durationStr,
-	            details: details 
+	            details: details
 		        });
     });
 
@@ -565,6 +616,7 @@ async function addTrainingCardLocally() {
     const partCode = document.getElementById('modalPart').value;
     const partName = document.getElementById('modalPart').selectedOptions[0].text;
     const trainingDate = document.getElementById('modalDate').value;
+    const currentUserId = parseInt(document.getElementById('currentUserId')?.value, 10) || null;
 
     // 1. フォームからデータを集める
     const details = [];
@@ -577,6 +629,7 @@ async function addTrainingCardLocally() {
     });
 
     const trainingData = {
+        userId: currentUserId,
         menu: menu,
         partCode: partCode,
         trainingDate: trainingDate,
@@ -588,7 +641,7 @@ async function addTrainingCardLocally() {
         // 2. サーバーへ非同期送信 (Fetch API)
         const response = await fetch('/api/training/save', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' ,[header]: token},
+            headers: { 'Content-Type': 'application/json', [header]: token },
             body: JSON.stringify(trainingData)
         });
 
@@ -598,7 +651,7 @@ async function addTrainingCardLocally() {
 
         // 3. 成功したら画面にカードを追加
         // ※ IDを data-training-id にセットしておくことで、後で「削除」や「更新」が可能になります
-        renderNewCard(menu, partName, details, savedId);
+        renderNewCard(menu, partName, partCode, trainingDate, currentUserId, details, savedId);
         
         closeModal();
     } catch (error) {
@@ -607,26 +660,30 @@ async function addTrainingCardLocally() {
 }
 
 // 画面描画部分を切り出し
-function renderNewCard(menu, partName, details, id) {
+function renderNewCard(menu, partName, partCode, trainingDate, userId, details, id) {
     let rowsHtml = details.map(d => `
 		<tr class="set-row">
-	        <td><span class="set-num">${d.setNumber}</span></td>
-	        <td><input type="number" class="weight" value="${d.weight}" step="0.5"> kg</td>
-	        <td><input type="number" class="reps" value="${d.reps}"> 回</td>
-	        <td><button class="btn-check ${d.completed ? 'completed' : ''}" onclick="handleCheck(this)">✓</button></td>
-	        <td><button type="button" onclick="removeSet(this)" style="color:#f44336; border:none; background:none; cursor:pointer;">✕</button></td>
-	    </tr>
+        <td><span class="set-num">${d.setNumber}</span></td>
+        <td><input type="number" class="weight" value="${d.weight}" step="0.5"> kg</td>
+        <td><input type="number" class="reps" value="${d.reps}"> 回</td>
+        <td><button class="btn-check ${(d.isCompleted || d.completed) ? 'completed' : ''}" data-action="handleCheck">✓</button></td>
+        <td><button type="button" data-action="removeSet" style="color:#f44336; border:none; background:none; cursor:pointer;">✕</button></td>
+    </tr>
     `).join('');
 
     const newCard = `
-        <div class="training-card" data-training-id="${id}">
+        <div class="training-card" data-training-id="${id}"
+             data-part-code="${partCode}"
+             data-menu="${menu}"
+             data-training-date="${trainingDate}"
+             data-user-id="${userId}">
             <div class="exercise-title">
                 <h3 style="margin:0;">${menu}</h3>
                 <span style="font-size:0.8em; color:#888;">${partName}</span>
             </div>
             <table class="set-list"><tbody class="set-tbody">${rowsHtml}</tbody></table>
-            <div style="text-align:right; margin-top: 10px;">
-                <button class="btn-add" onclick="addSet(this)">＋ セット追加</button>
+                <div style="text-align:right; margin-top: 10px;">
+                <button class="btn-add" data-action="addSet">＋ セット追加</button>
             </div>
             <textarea class="memo-area" placeholder="メモ" style="width: 100%; margin-top: 10px;"></textarea>
         </div>
@@ -638,6 +695,8 @@ function renderNewCard(menu, partName, details, id) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    initializeTimer();
+    
     const modalForm = document.querySelector('#trainingModal form');
     if (modalForm) {
         modalForm.addEventListener('submit', function(e) {
@@ -649,7 +708,57 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    const logoutForm = document.querySelector('form[action*="logout"]');
+    if (logoutForm) {
+        logoutForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleLogout();
+        });
+    }
 });
+
+function handleLogout() {
+    const hasUnsavedChanges = hasTrainingInProgress();
+    if (hasUnsavedChanges) {
+        if (confirm('トレーニング中です。ログアウトすると進行中のデータが失われます。よろしいですか？')) {
+            rollbackTrainingData();
+            performLogout();
+        }
+    } else {
+        if (confirm('ログアウトしてもよろしいですか？')) {
+            performLogout();
+        }
+    }
+}
+
+function hasTrainingInProgress() {
+    const timer = document.getElementById('totalTimer');
+    const timerValue = timer ? timer.textContent : '00:00:00';
+    return timerValue !== '00:00:00' || document.querySelectorAll('.set-row input').length > 0;
+}
+
+function rollbackTrainingData() {
+    console.log('Rolling back training data...');
+    const modal = document.getElementById('trainingModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function performLogout() {
+    if (window.opener || window.history.length <= 1) {
+        window.close();
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 100);
+    } else {
+        window.location.href = '/menu';
+    }
+}
+
+// 公開 API 用にタイマー機能をグローバルに
+window.getTimerState = getTimerState;
 
 async function deleteTrainingCard(btn) {
     const card = btn.closest('.training-card');
@@ -762,3 +871,21 @@ function renderChart(data) {
         }
     });
 }
+
+// Expose key functions to global scope for inline onclick handlers
+// (Ensures functions are available even if script execution environment differs)
+window.toggleMainTimer = toggleMainTimer;
+window.setIntervalTime = setIntervalTime;
+window.changeInterval = changeInterval;
+window.handleCheck = handleCheck;
+window.startInterval = startInterval;
+window.addSet = addSet;
+window.removeSet = removeSet;
+window.addSetRow = addSetRow;
+window.finishTraining = finishTraining;
+window.deleteTrainingCard = deleteTrainingCard;
+window.addTraining = addTraining;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.addTrainingCardLocally = addTrainingCardLocally;
+window.reindexSets = reindexSets;

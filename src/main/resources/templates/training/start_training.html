@@ -242,31 +242,36 @@
     <!-- Main Content -->
     <main class="main-content" style="padding-top: 4rem;">
         <div class="content-wrapper">
-            <div class="timer-container">
-                <input type="hidden" id="initialDuration" 
-                       th:value="${not #lists.isEmpty(trainingList) ? trainingList[0].duration : '00:00:00'}">
+                <div class="timer-container">
+                <input type="hidden" id="currentUserId" th:value="${currentUserId}">
+                <input type="hidden" id="initialDuration" th:value="${restoredDuration ?: '00:00:00'}">
                 <div class="timer-display" id="totalTimer">00:00:00</div>
-                <button id="startBtn" onclick="toggleMainTimer()" class="btn btn-success">開始</button>
+                <button id="startBtn" data-action="toggleMainTimer" class="btn btn-success">開始</button>
             </div>
 
             <div id="intervalBanner" class="interval-banner">
                 <div>⏳ 残り: <span id="intervalTime">120</span>秒</div>
                 <div class="timer-controls" style="margin-top: 10px;">
-                    <button onclick="changeInterval(-60)">-60s</button>
-                    <button onclick="changeInterval(-30)">-30s</button>
-                    <button onclick="setIntervalTime(30)">30s</button>
-                    <button onclick="setIntervalTime(60)">60s</button>
-                    <button onclick="changeInterval(30)">+30s</button>
-                    <button onclick="changeInterval(60)">+60s</button>
+                    <button data-action="changeInterval" data-delta="-60">-60s</button>
+                    <button data-action="changeInterval" data-delta="-30">-30s</button>
+                    <button data-action="setIntervalTime" data-seconds="30">30s</button>
+                    <button data-action="setIntervalTime" data-seconds="60">60s</button>
+                    <button data-action="changeInterval" data-delta="30">+30s</button>
+                    <button data-action="changeInterval" data-delta="60">+60s</button>
                 </div>
             </div>
 
             <div class="training-container">
-                <div th:each="item : ${trainingList}" class="training-card" th:data-training-id="${item.id}">
+                <div th:each="item : ${trainingList}" class="training-card"
+                     th:data-training-id="${item.id}"
+                     th:data-part-code="${item.partCode}"
+                     th:data-menu="${item.menu}"
+                     th:data-training-date="${item.trainingDate}"
+                     th:data-user-id="${item.userId}">
                     <div class="exercise-title">
                         <h3 th:text="${item.menu}" style="margin:0;">種目名</h3>
                         <span style="font-size:0.9em; color:var(--text-muted);" th:text="${item.partName}">部位</span>
-                        <button type="button" onclick="deleteTrainingCard(this)" 
+                        <button type="button" data-action="deleteTrainingCard" 
                                 class="btn btn-danger btn-sm">
                             ✕
                         </button>
@@ -281,17 +286,17 @@
                                 <td>
                                     <button class="btn-check" 
                                             th:classappend="${detail.isCompleted} ? 'completed' : ''" 
-                                            onclick="handleCheck(this)">✓</button>
+                                            data-action="handleCheck">✓</button>
                                 </td>
                                 <td>
-                                    <button type="button" onclick="removeSet(this)" class="btn btn-danger btn-sm">✕</button>
+                                    <button type="button" data-action="removeSet" class="btn btn-danger btn-sm">✕</button>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
 
                     <div class="text-right mt-3">
-                        <button class="btn btn-secondary" onclick="addSet(this)">＋ セット追加</button>
+                        <button class="btn btn-secondary" data-action="addSet">＋ セット追加</button>
                     </div>
                     
                     <textarea class="memo-area" placeholder="メモ（セットの感想やフォームの注意点）" 
@@ -299,7 +304,7 @@
                               data-auto-resize></textarea>
                 </div>
                 <div class="text-right mt-5">
-                    <button class="btn btn-primary" th:onclick="openModal([[${selectedDate}]])">
+                    <button class="btn btn-primary" data-action="openModal" th:attr="data-date=${selectedDate}">
                         ＋ 種目を追加
                     </button>
                 </div>
@@ -313,13 +318,13 @@
             <h3 id="modalTitle" class="text-xl font-bold mb-4">トレーニング登録</h3>
             <p id="displayDate" class="text-muted font-bold mb-6"></p>
             
-            <form th:action="@{/menu/save}" method="post" onsubmit="reindexSets()">
+            <form th:action="@{/menu/save}" method="post">
                 <input type="hidden" id="trainingId" name="id">
                 <input type="hidden" id="modalDate" name="trainingDate">
                 
                 <div class="form-group">
                     <label class="form-label">部位</label>
-                    <select name="partCode" id="modalPart" class="form-select" required onchange="updateItems(this.value)">
+                    <select name="partCode" id="modalPart" class="form-select" required data-change="updateItems">
                         <option value="">部位を選択してください</option>
                         <option th:each="p : ${partList}" th:value="${p.partCode}" th:text="${p.partName}"></option>
                     </select>
@@ -346,11 +351,11 @@
                         <tbody id="setList">
                         </tbody>
                     </table>
-                    <button type="button" onclick="addSetRow()" class="btn btn-outline w-full mt-2">＋ セットを追加</button>
+                    <button type="button" data-action="addSetRow" class="btn btn-outline w-full mt-2">＋ セットを追加</button>
                 </div>
                 
                 <div class="flex justify-between mt-8">
-                    <button type="button" onclick="closeModal()" class="btn btn-secondary">キャンセル</button>
+                    <button type="button" data-action="closeModal" class="btn btn-secondary">キャンセル</button>
                     <button type="submit" class="btn btn-success">保存する</button>
                 </div>
             </form>
@@ -359,75 +364,13 @@
 
     <!-- Footer Navigation -->
     <div class="footer-nav">
-        <button class="btn-finish" onclick="finishTraining()">トレーニング終了・保存</button>
+        <button class="btn-finish" data-action="finishTraining">トレーニング終了・保存</button>
     </div>
     
     <!-- JavaScript -->
     <script th:src="@{/js/theme.js}"></script>
     <script th:src="@{/js/training-modal.js}"></script>
-    
-    <script>
-        // Load saved theme on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const savedTheme = localStorage.getItem('training-app-theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-        });
         
-        // Enhanced logout functionality
-        function handleLogout() {
-            const hasUnsavedChanges = hasTrainingInProgress();
-            
-            if (hasUnsavedChanges) {
-                if (confirm('トレーニング中です。ログアウトすると進行中のデータが失われます。よろしいですか？')) {
-                    // Rollback any in-progress operations
-                    rollbackTrainingData();
-                    performLogout();
-                }
-            } else {
-                if (confirm('ログアウトしてもよろしいですか？')) {
-                    performLogout();
-                }
-            }
-        }
         
-        function hasTrainingInProgress() {
-            // Check if there are any unsaved changes or active timers
-            const timer = document.getElementById('totalTimer');
-            const timerValue = timer.textContent;
-            return timerValue !== '00:00:00' || document.querySelectorAll('.set-row input').length > 0;
-        }
-        
-        function rollbackTrainingData() {
-            // Clear any in-progress training data
-            console.log('Rolling back training data...');
-            // Add specific rollback logic here
-        }
-        
-        function performLogout() {
-            // Check if this is a popup/tab
-            if (window.opener || window.history.length <= 1) {
-                // This is a popup or new tab, close it
-                window.close();
-                // Fallback if window.close() doesn't work
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 100);
-            } else {
-                // This is a regular page, go back to menu
-                window.location.href = '/menu';
-            }
-        }
-        
-        // Override the default logout form submission
-        document.addEventListener('DOMContentLoaded', function() {
-            const logoutForm = document.querySelector('form[action*="logout"]');
-            if (logoutForm) {
-                logoutForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    handleLogout();
-                });
-            }
-        });
-    </script>
 </body>
 </html>

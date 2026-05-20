@@ -12,4 +12,4 @@ SELECT
 FROM
     users
 WHERE
-    user_name = /* userName */'placeholder'
+    email = /* email */'placeholder'

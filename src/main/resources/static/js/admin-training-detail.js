@@ -1,7 +1,16 @@
-// Load saved theme on page load
+// Load saved theme and initialize page state on page load
 document.addEventListener('DOMContentLoaded', function() {
     const savedTheme = localStorage.getItem('training-app-theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
+
+    const userIdElement = document.querySelector('body[data-user-id]');
+    if (userIdElement && userIdElement.dataset.userId) {
+        window.userId = parseInt(userIdElement.dataset.userId, 10);
+        console.log('Loaded userId from data attribute:', window.userId);
+    } else {
+        console.error('User ID not found in data attribute');
+        window.userId = null;
+    }
     
     // Load chart data if available
     loadChartData();
@@ -214,7 +223,7 @@ function displayError(dateString) {
             </svg>
             <p class="text-lg">エラーが発生しました</p>
             <p class="text-sm text-muted">${dateString} のデータ読み込みに失敗しました</p>
-            <button onclick="loadTrainingDetails('${dateString}')" class="btn btn-primary mt-4">
+            <button data-action="loadTrainingDetails" data-date="${dateString}" class="btn btn-primary mt-4">
                 再試行
             </button>
         </div>

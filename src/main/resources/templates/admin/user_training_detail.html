@@ -83,7 +83,7 @@
                                             th:with="index=${i * 7 + j}, day=${dateList[index]}, dayStatus=${status[index]}"
                                             class="calendar-cell cursor-pointer hover:bg-tertiary transition-colors"
                                             th:classappend="${day == today} ? 'bg-primary bg-opacity-20 font-bold' : ''"
-                                            th:onclick="loadTrainingDetails([[${#temporals.format(day, 'yyyy-MM-dd')}]])">
+                                                th:attr="data-action='loadTrainingDetails' data-date='${#temporals.format(day, 'yyyy-MM-dd')}'">
                                             
                                             <div class="text-center p-2">
                                                 <span th:text="${day.dayOfMonth}" 
@@ -133,7 +133,7 @@
                             <h2 class="text-xl font-semibold">各部位の総重量推移</h2>
                             <p class="text-sm text-muted">トレーニング量の推移グラフ</p>
                         </div>
-                        <button type="button" onclick="toggleDateSearch()" class="btn btn-outline btn-sm">
+                        <button type="button" data-action="toggleDateSearch" class="btn btn-outline btn-sm">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
                                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 18 12.46 22 3"/>
                             </svg>
@@ -154,7 +154,7 @@
                                 <input type="date" id="endDate" class="form-control">
                             </div>
                             <div class="flex items-end mt-2">
-                                <button type="button" onclick="searchChartData()" class="btn btn-primary w-full">
+                                <button type="button" data-action="searchChartData" class="btn btn-primary w-full">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
                                         <circle cx="11" cy="11" r="8"/>
                                         <path d="m21 21-4.35-4.35"/>
@@ -181,16 +181,5 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script th:src="@{/js/chart.js}"></script>
     <script th:src="@{/js/admin-training-detail.js}"></script>
-    <script>
-        // Set userId from data attribute
-        const userIdElement = document.querySelector('body[data-user-id]');
-        if (userIdElement && userIdElement.dataset.userId) {
-            window.userId = parseInt(userIdElement.dataset.userId);
-            console.log('Loaded userId from data attribute:', window.userId);
-        } else {
-            console.error('User ID not found in data attribute');
-            window.userId = null;
-        }
-    </script>
 </body>
 </html>
