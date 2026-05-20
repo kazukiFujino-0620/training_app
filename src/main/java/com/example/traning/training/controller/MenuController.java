@@ -132,7 +132,7 @@ public class MenuController {
 
 	@PostMapping("/menu/save")
 	public String save(@ModelAttribute Training training, Principal principal) {
-		Long userId = trainingService.getUserIdByName(principal.getName());
+		Long userId = trainingService.getUserIdByEmail(principal.getName());
 		training.setUserId(userId);
 
 		if (training.getId() == null) {
@@ -156,7 +156,7 @@ public class MenuController {
 			return "redirect:/menu";
 		}
 
-		Long currentUserId = trainingService.getUserIdByName(principal.getName());
+		Long currentUserId = trainingService.getUserIdByEmail(principal.getName());
 		if (!training.getUserId().equals(currentUserId)) {
 			log.warn("不正な削除リクエスト: ユーザー {} がトレーニング {} を削除しようとしました",
 					currentUserId, id);
@@ -178,11 +178,12 @@ public class MenuController {
 	@GetMapping("/start/training")
 	public String startTraining(@RequestParam("date") String dateStr, Model model, Principal principal) {
 		LocalDate selectedDate = LocalDate.parse(dateStr);
-		Long userId = trainingService.getUserIdByName(principal.getName());
+		Long userId = trainingService.getUserIdByEmail(principal.getName());
 		List<Training> trainingList = trainingService.getFullTrainingData(userId, LocalDate.parse(dateStr));
 		List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
 
 		model.addAttribute("selectedDate", selectedDate);
+		model.addAttribute("currentUserId", userId);
 		model.addAttribute("trainingList", trainingList);
 		model.addAttribute("partList", partList);
 
@@ -192,7 +193,7 @@ public class MenuController {
 	@PostMapping("/api/training/save")
 	@ResponseBody
 	public Long apiSaveTraining(@Valid @RequestBody Training training, Principal principal) {
-		training.setUserId(trainingService.getUserIdByName(principal.getName()));
+		training.setUserId(trainingService.getUserIdByEmail(principal.getName()));
 
 		if (training.getCreateDatetime() == null) {
 			training.setCreateDatetime(LocalDateTime.now());
@@ -209,7 +210,7 @@ public class MenuController {
 	public ResponseEntity<String> finishTrainig(@Valid @RequestBody List<Training> trainingList, Principal principal) {
 		try {
 			// ★ IDOR 対策: ログインユーザーが所有するトレーニングのみ保存を許可
-			Long currentUserId = trainingService.getUserIdByName(principal.getName());
+			Long currentUserId = trainingService.getUserIdByEmail(principal.getName());
 
 			for (Training t : trainingList) {
 				// 1. セットデータ確認
@@ -258,7 +259,7 @@ public class MenuController {
 		}
 
 		// ★ 所有者チェック: ログインユーザーのデータでなければ 403 を返す
-		Long currentUserId = trainingService.getUserIdByName(principal.getName());
+		Long currentUserId = trainingService.getUserIdByEmail(principal.getName());
 		if (!training.getUserId().equals(currentUserId)) {
 			log.warn("不正アクセス検知: ユーザー {} がトレーニング {} へアクセスしようとしました",
 					currentUserId, id);
@@ -283,7 +284,7 @@ public class MenuController {
 		training.setPartCode(existingTraining.getPartCode());
 		training.setCreateDatetime(existingTraining.getCreateDatetime());
 
-		Long currentUserId = trainingService.getUserIdByName(principal.getName());
+		Long currentUserId = trainingService.getUserIdByEmail(principal.getName());
 		if (!training.getUserId().equals(currentUserId)) {
 			log.warn("不正な更新リクエスト: ユーザー {} がトレーニング {} を更新しようとしました",
 					currentUserId, id);
@@ -302,7 +303,7 @@ public class MenuController {
 			return ResponseEntity.notFound().build();
 		}
 
-		Long currentUserId = trainingService.getUserIdByName(principal.getName());
+		Long currentUserId = trainingService.getUserIdByEmail(principal.getName());
 		if (!existingTraining.getUserId().equals(currentUserId)) {
 			log.warn("不正な削除リクエスト: ユーザー {} がトレーニング {} を削除しようとしました",
 					currentUserId, id);
@@ -318,7 +319,7 @@ public class MenuController {
 			Principal principal) {
 		LocalDate today = LocalDate.now();
 		LocalDate selectedDate = (dateStr != null) ? LocalDate.parse(dateStr) : today;
-		Long userId = trainingService.getUserIdByName(principal.getName());
+		Long userId = trainingService.getUserIdByEmail(principal.getName());
 
 		List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
 
@@ -360,7 +361,7 @@ public class MenuController {
 			List<Map<String, Object>> trainingsData = (List<Map<String, Object>>) data.get("trainings");
 
 			LocalDate trainingDate = LocalDate.parse(dateStr);
-			Long userId = trainingService.getUserIdByName(principal.getName());
+			Long userId = trainingService.getUserIdByEmail(principal.getName());
 
 			for (Map<String, Object> trainingMap : trainingsData) {
 				Training training = new Training();
