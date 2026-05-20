@@ -182,10 +182,17 @@ public class MenuController {
 		List<Training> trainingList = trainingService.getFullTrainingData(userId, LocalDate.parse(dateStr));
 		List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
 
+		// タイマーの復元用に最初の training の duration を取得
+		String restoredDuration = "00:00:00";
+		if (!trainingList.isEmpty() && trainingList.get(0).getDuration() != null) {
+			restoredDuration = trainingList.get(0).getDuration();
+		}
+
 		model.addAttribute("selectedDate", selectedDate);
 		model.addAttribute("currentUserId", userId);
 		model.addAttribute("trainingList", trainingList);
 		model.addAttribute("partList", partList);
+		model.addAttribute("restoredDuration", restoredDuration);
 
 		return "training/start_training";
 	}

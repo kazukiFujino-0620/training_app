@@ -1,4 +1,30 @@
 let myChart;
+let totalSeconds = 0;
+let timerInterval = null;
+let isTimerRunning = false;
+
+// タイマー用の経過時間をパース
+function parseTimeToSeconds(timeString) {
+    const [h, m, s] = (timeString || '00:00:00').split(':').map(Number);
+    return h * 3600 + m * 60 + s;
+}
+
+// 秒数を HH:MM:SS 形式に変換
+function formatDuration(seconds) {
+    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
+
+// DOMContentLoaded 時にタイマーを初期化
+function initializeTimer() {
+    const initialDurationElem = document.getElementById('initialDuration');
+    if (initialDurationElem) {
+        totalSeconds = parseTimeToSeconds(initialDurationElem.value);
+        document.getElementById('totalTimer').textContent = formatDuration(totalSeconds);
+    }
+}
 
 // 1. カレンダー・共通
 function selectDate(date) {
@@ -243,21 +269,6 @@ function closeEditModal() {
     originalTrainingData = null;
 }
 
-// 2. タイマー関連
-let totalSeconds = 0;
-let mainTimerInterval;
-let isRunning = false;
-let intervalCountDown;
-
-document.addEventListener('DOMContentLoaded', () => {
-    const initialTimeInput = document.getElementById('initialDuration');
-    if (initialTimeInput && initialTimeInput.value && initialTimeInput.value !== "null") {
-        totalSeconds = timeToSeconds(initialTimeInput.value);
-        updateTimerDisplay(); // 画面表示を "00:00:00" から保存時間に更新
-    }
-});
-
-
 // "hh:mm:ss" を秒数に変換するヘルパー関数
 function timeToSeconds(timeStr) {
     const parts = timeStr.split(':');
@@ -269,19 +280,38 @@ function timeToSeconds(timeStr) {
 
 function toggleMainTimer() {
     const btn = document.getElementById('startBtn');
-    if (!isRunning) {
-        isRunning = true;
+    if (!isTimerRunning) {
+        isTimerRunning = true;
         btn.textContent = "一時停止";
-        btn.style.background = "#ff9800";
-        mainTimerInterval = setInterval(() => {
+        btn.classList.add('btn-success');
+        btn.classList.remove('btn-warning');
+        timerInterval = setInterval(() => {
             totalSeconds++;
             updateTimerDisplay();
         }, 1000);
     } else {
-        isRunning = false;
+        isTimerRunning = false;
         btn.textContent = "再開";
-        btn.style.background = "#4CAF50";
-        clearInterval(mainTimerInterval);
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-warning');
+        clearInterval(timerInterval);
+    }
+}
+
+// タイマー統計情報を取得
+function getTimerState() {
+    return {
+        totalSeconds: totalSeconds,
+        isRunning: isTimerRunning,
+        durationString: formatDuration(totalSeconds)
+    };
+}
+
+// タイマー表示を更新
+function updateTimerDisplay() {
+    const timerDisplay = document.getElementById('totalTimer');
+    if (timerDisplay) {
+        timerDisplay.textContent = formatDuration(totalSeconds);
     }
 }
 
@@ -310,14 +340,6 @@ function changeInterval(delta) {
 
     // 画面の表示を更新
     timeSpan.innerText = remaining;
-}
-
-function updateTimerDisplay() {
-    const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-    const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-    const s = String(totalSeconds % 60).padStart(2, '0');
-    const display = document.getElementById('totalTimer');
-    if (display) display.innerText = `${h}:${m}:${s}`;
 }
 
 function handleCheck(btn) {
@@ -501,14 +523,8 @@ window.onclick = function(event) {
 async function finishTraining() {
     if (!confirm("トレーニングを終了して保存しますか？")) return;
 
-	const formatDuration = (seconds) => {
-	        const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
-	        const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
-	        const s = (seconds % 60).toString().padStart(2, '0');
-	        return `${h}:${m}:${s}`;
-	    };
-	
 	const durationStr = formatDuration(totalSeconds); // 例: "00:45:10"
+
 
 	const trainingCards = document.querySelectorAll('.training-card');
     const allData = [];
@@ -679,6 +695,8 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    initializeTimer();
+    
     const modalForm = document.querySelector('#trainingModal form');
     if (modalForm) {
         modalForm.addEventListener('submit', function(e) {
@@ -738,6 +756,9 @@ function performLogout() {
         window.location.href = '/menu';
     }
 }
+
+// 公開 API 用にタイマー機能をグローバルに
+window.getTimerState = getTimerState;
 
 async function deleteTrainingCard(btn) {
     const card = btn.closest('.training-card');

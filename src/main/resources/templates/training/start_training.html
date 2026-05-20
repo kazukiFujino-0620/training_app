@@ -244,8 +244,7 @@
         <div class="content-wrapper">
                 <div class="timer-container">
                 <input type="hidden" id="currentUserId" th:value="${currentUserId}">
-                <input type="hidden" id="initialDuration" 
-                       th:value="${not #lists.isEmpty(trainingList) ? trainingList[0].duration : '00:00:00'}">
+                <input type="hidden" id="initialDuration" th:value="${restoredDuration ?: '00:00:00'}">
                 <div class="timer-display" id="totalTimer">00:00:00</div>
                 <button id="startBtn" data-action="toggleMainTimer" class="btn btn-success">開始</button>
             </div>
