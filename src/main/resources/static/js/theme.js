@@ -3,6 +3,19 @@
  * Handles dark/light mode switching and persistence
  */
 
+const initialTheme = (() => {
+    try {
+        return localStorage.getItem('training-app-theme');
+    } catch (e) {
+        console.warn('Failed to read theme from localStorage:', e);
+        return null;
+    }
+})();
+
+if (initialTheme) {
+    document.documentElement.setAttribute('data-theme', initialTheme);
+}
+
 class ThemeManager {
     constructor() {
         this.storageKey = 'training-app-theme';
@@ -34,6 +47,33 @@ class ThemeManager {
                 this.toggleTheme();
             }
         });
+
+        this.initPageHandlers();
+    }
+    
+    initPageHandlers() {
+        this.initializeFormLoading();
+        this.preventFormResubmission();
+        installDataActionDispatcher();
+        installDataChangeDispatcher();
+    }
+
+    initializeFormLoading() {
+        const formSelectors = ['.login-form', '#forgetPasswordForm', '#resetPasswordForm', '.signup-form'];
+        formSelectors.forEach(selector => {
+            const form = document.querySelector(selector);
+            if (form) {
+                form.addEventListener('submit', function() {
+                    this.classList.add('loading');
+                });
+            }
+        });
+    }
+
+    preventFormResubmission() {
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
     }
     
     getStoredTheme() {
@@ -175,6 +215,64 @@ class ThemeManager {
 
 // Initialize theme manager
 const themeManager = new ThemeManager();
+
+function getActionArgs(el) {
+    const args = [];
+    if (el.dataset.index) args.push(parseInt(el.dataset.index, 10));
+    if (el.dataset.trainingIndex) args.push(parseInt(el.dataset.trainingIndex, 10));
+    if (el.dataset.setIndex) args.push(parseInt(el.dataset.setIndex, 10));
+    if (el.dataset.date) args.push(el.dataset.date);
+    if (el.dataset.delta) args.push(parseInt(el.dataset.delta, 10));
+    if (el.dataset.seconds) args.push(parseInt(el.dataset.seconds, 10));
+    if (el.dataset.field) args.push(el.dataset.field);
+    if (el.dataset.value) args.push(el.dataset.value);
+    return args;
+}
+
+function invokeDataAction(el, action) {
+    const fn = window[action] || window[action.replace(/-([a-z])/g, (_, c) => c.toUpperCase())];
+    if (typeof fn !== 'function') return false;
+    const args = getActionArgs(el);
+    if (args.length === 0 && el.value !== undefined) {
+        args.push(el.value);
+    }
+    try {
+        fn.apply(null, args);
+    } catch (err) {
+        console.error('Error invoking data-action', action, err);
+    }
+    return true;
+}
+
+function installDataActionDispatcher() {
+    if (window.__dataActionDispatcherInstalled) return;
+    window.__dataActionDispatcherInstalled = true;
+
+    document.addEventListener('click', function(e) {
+        const el = e.target.closest('[data-action]');
+        if (!el) return;
+        const action = el.dataset.action;
+        if (!action) return;
+        if (invokeDataAction(el, action)) {
+            e.preventDefault();
+        }
+    });
+}
+
+function installDataChangeDispatcher() {
+    if (window.__dataChangeDispatcherInstalled) return;
+    window.__dataChangeDispatcherInstalled = true;
+
+    document.addEventListener('change', function(e) {
+        const el = e.target.closest('[data-change]');
+        if (!el) return;
+        const action = el.dataset.change;
+        if (!action) return;
+        if (invokeDataAction(el, action)) {
+            e.preventDefault();
+        }
+    });
+}
 
 // Global functions for backward compatibility
 window.toggleTheme = () => themeManager.toggleTheme();

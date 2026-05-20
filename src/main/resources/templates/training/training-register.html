@@ -499,7 +499,7 @@
                     <h3 class="text-secondary mb-8">
                         トレーニング種目を選択してください
                     </h3>
-                    <button class="btn-register-main" onclick="openExerciseModal()">
+                    <button class="btn-register-main" data-action="openExerciseModal">
                         ＋ トレーニング登録
                     </button>
                 </div>
@@ -527,11 +527,11 @@
                 <!-- Exercise lists for each part will be displayed here -->
             </div>
 
-            <div class="selection-actions">
-                <button onclick="cancelSelection()" class="btn-selection-cancel">
+                <div class="selection-actions">
+                <button data-action="cancelSelection" class="btn-selection-cancel">
                     キャンセル
                 </button>
-                <button onclick="confirmSelection()" class="btn-selection-ok" disabled>
+                <button data-action="confirmSelection" class="btn-selection-ok" disabled>
                     OK
                 </button>
             </div>
@@ -540,8 +540,8 @@
 
     <!-- Action buttons -->
     <div class="action-buttons" id="actionButtons" style="display: none">
-        <button class="btn-cancel" onclick="cancelRegister()">キャンセル</button>
-        <button class="btn-save" onclick="saveRegister()">保存</button>
+        <button class="btn-cancel" data-action="cancelRegister">キャンセル</button>
+        <button class="btn-save" data-action="saveRegister">保存</button>
     </div>
 
     <input type="hidden" id="selectedDate" th:value="${selectedDate}" />
@@ -550,76 +550,5 @@
     <!-- JavaScript -->
     <script th:src="@{/js/theme.js}"></script>
     <script th:src="@{/js/training-register.js}"></script>
-    
-    <script>
-        // Load saved theme on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const savedTheme = localStorage.getItem('training-app-theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-        });
-        
-        // Enhanced logout functionality
-        function handleLogout() {
-            const hasUnsavedChanges = hasTrainingDataInProgress();
-            
-            if (hasUnsavedChanges) {
-                if (confirm('トレーニング登録中です。ログアウトすると入力中のデータが失われます。よろしいですか？')) {
-                    // Rollback any in-progress operations
-                    rollbackTrainingData();
-                    performLogout();
-                }
-            } else {
-                if (confirm('ログアウトしてもよろしいですか？')) {
-                    performLogout();
-                }
-            }
-        }
-        
-        function hasTrainingDataInProgress() {
-            // Check if there are any unsaved changes
-            const registerContent = document.getElementById('registerContent');
-            const isRegistering = registerContent.style.display === 'block';
-            const hasTrainingBlocks = document.querySelectorAll('.training-block').length > 0;
-            
-            return isRegistering && hasTrainingBlocks;
-        }
-        
-        function rollbackTrainingData() {
-            // Clear any in-progress training data
-            console.log('Rolling back training data...');
-            
-            // Reset to initial state
-            document.getElementById('initialState').style.display = 'block';
-            document.getElementById('registerContent').style.display = 'none';
-            document.getElementById('actionButtons').style.display = 'none';
-            document.getElementById('trainingBlocksContainer').innerHTML = '';
-        }
-        
-        function performLogout() {
-            // Check if this is a popup/tab
-            if (window.opener || window.history.length <= 1) {
-                // This is a popup or new tab, close it
-                window.close();
-                // Fallback if window.close() doesn't work
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 100);
-            } else {
-                // This is a regular page, go back to menu
-                window.location.href = '/menu';
-            }
-        }
-        
-        // Override the default logout form submission
-        document.addEventListener('DOMContentLoaded', function() {
-            const logoutForm = document.querySelector('form[action*="logout"]');
-            if (logoutForm) {
-                logoutForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    handleLogout();
-                });
-            }
-        });
-    </script>
 </body>
 </html>
