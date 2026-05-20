@@ -335,7 +335,7 @@
         
         <!-- Theme Toggle -->
         <div class="theme-toggle-login">
-            <button class="settings-btn" onclick="toggleTheme()" aria-label="テーマ切り替え">
+            <button class="settings-btn" data-action="toggleTheme" aria-label="テーマ切り替え">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                 </svg>
@@ -446,41 +446,5 @@
         </div>
     </div>
     
-    <script>
-        // Theme toggle functionality
-        function toggleTheme() {
-            const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            
-            // Save theme preference to server (optional)
-            fetch('/api/theme', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ theme: newTheme })
-            }).catch(error => console.error('Failed to save theme preference:', error));
-        }
-        
-        // Load saved theme on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-        });
-        
-        // Form submission handling
-        document.getElementById('loginForm').addEventListener('submit', function() {
-            this.classList.add('loading');
-        });
-        
-        // Prevent resubmission on page refresh
-        if (window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.href);
-        }
-    </script>
 </body>
 </html>

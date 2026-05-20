@@ -257,7 +257,7 @@ function renderTrainingBlocks() {
                 <div class="exercise-header" style="margin-bottom: 0;">
                     ${training.menu}
                 </div>
-                <button type="button" onclick="removeTraining(${trainingIndex})" style="color:#f44336; border:none; background:none; cursor:pointer; font-size:1.2em; padding: 0;">
+                <button type="button" data-action="removeTraining" data-index="${trainingIndex}" style="color:#f44336; border:none; background:none; cursor:pointer; font-size:1.2em; padding: 0;">
                     ✕
                 </button>
             </div>
@@ -271,10 +271,10 @@ function renderTrainingBlocks() {
             </div>
             
             <div class="set-actions">
-                <button type="button" class="btn-set-action" onclick="removeSet(${trainingIndex})">
+                <button type="button" class="btn-set-action" data-action="removeSet" data-index="${trainingIndex}">
                     − セット削除
                 </button>
-                <button type="button" class="btn-set-action" onclick="addSet(${trainingIndex})" style="background: #e3f2fd; border-color: #2196F3;">
+                <button type="button" class="btn-set-action" data-action="addSet" data-index="${trainingIndex}" style="background: #e3f2fd; border-color: #2196F3;">
                     + セット追加
                 </button>
             </div>
@@ -300,23 +300,31 @@ function renderSetRows(trainingIndex) {
         setDiv.innerHTML = `
             <span class="set-num">${setIndex + 1}</span>
             <div class="set-input-group">
-                <input type="number" class="weight" value="${detail.weight}" step="0.5" 
-                       onchange="updateTrainingDetail(${trainingIndex}, ${setIndex}, 'weight', this.value)">
+                  <input type="number" class="weight" value="${detail.weight}" step="0.5" 
+                      data-change="updateTrainingDetail" data-training-index="${trainingIndex}" data-set-index="${setIndex}" data-field="weight">
                 <label>kg</label>
-                <input type="number" class="reps" value="${detail.reps}" 
-                       onchange="updateTrainingDetail(${trainingIndex}, ${setIndex}, 'reps', this.value)">
+                  <input type="number" class="reps" value="${detail.reps}" 
+                      data-change="updateTrainingDetail" data-training-index="${trainingIndex}" data-set-index="${setIndex}" data-field="reps">
                 <label>回</label>
             </div>
-            <button type="button" class="btn-check-set ${isCompleted}" 
-                    onclick="toggleSetCompletion(${trainingIndex}, ${setIndex})">✓</button>
-            <button type="button" class="btn-remove-set" 
-                    onclick="removeIndividualSet(${trainingIndex}, ${setIndex})">✕</button>
+                <button type="button" class="btn-check-set ${isCompleted}" data-action="toggleSetCompletion" data-training-index="${trainingIndex}" data-set-index="${setIndex}">✓</button>
+                <button type="button" class="btn-remove-set" data-action="removeIndividualSet" data-training-index="${trainingIndex}" data-set-index="${setIndex}">✕</button>
         `;
         
         setContainer.appendChild(setDiv);
     });
     
     updateVolumeDisplay(trainingIndex);
+
+    // Attach change handlers for inputs added via innerHTML
+    setContainer.querySelectorAll('input[data-change]').forEach(inp => {
+        inp.addEventListener('change', (e) => {
+            const tIdx = parseInt(inp.dataset.trainingIndex, 10);
+            const sIdx = parseInt(inp.dataset.setIndex, 10);
+            const field = inp.dataset.field;
+            updateTrainingDetail(tIdx, sIdx, field, inp.value);
+        });
+    });
 }
 
 function updateTrainingDetail(trainingIndex, setIndex, field, value) {
@@ -479,7 +487,7 @@ function showSuccessPopup() {
         <div style="font-size: 3em; color: #4CAF50; margin-bottom: 20px;">✓</div>
         <h3 style="color: #333; margin-bottom: 15px;">トレーニング登録完了</h3>
         <p style="color: #666; margin-bottom: 25px;">トレーニングデータが正常に保存されました。</p>
-        <button onclick="closeSuccessPopup()" style="
+        <button data-action="closeSuccessPopup" style="
             background: #4CAF50;
             color: white;
             border: none;
@@ -493,6 +501,60 @@ function showSuccessPopup() {
     
     popup.appendChild(popupContent);
     document.body.appendChild(popup);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const logoutForm = document.querySelector('form[action*="logout"]');
+    if (logoutForm) {
+        logoutForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleLogout();
+        });
+    }
+});
+
+function handleLogout() {
+    const hasUnsavedChanges = hasTrainingDataInProgress();
+    if (hasUnsavedChanges) {
+        if (confirm('トレーニング登録中です。ログアウトすると入力中のデータが失われます。よろしいですか？')) {
+            rollbackTrainingData();
+            performLogout();
+        }
+    } else {
+        if (confirm('ログアウトしてもよろしいですか？')) {
+            performLogout();
+        }
+    }
+}
+
+function hasTrainingDataInProgress() {
+    const registerContent = document.getElementById('registerContent');
+    const isRegistering = registerContent && registerContent.style.display === 'block';
+    const hasTrainingBlocks = document.querySelectorAll('.training-block').length > 0;
+    return isRegistering && hasTrainingBlocks;
+}
+
+function rollbackTrainingData() {
+    console.log('Rolling back training data...');
+    const initialState = document.getElementById('initialState');
+    const registerContent = document.getElementById('registerContent');
+    const actionButtons = document.getElementById('actionButtons');
+    const trainingBlocks = document.getElementById('trainingBlocksContainer');
+    if (initialState) initialState.style.display = 'block';
+    if (registerContent) registerContent.style.display = 'none';
+    if (actionButtons) actionButtons.style.display = 'none';
+    if (trainingBlocks) trainingBlocks.innerHTML = '';
+}
+
+function performLogout() {
+    if (window.opener || window.history.length <= 1) {
+        window.close();
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 100);
+    } else {
+        window.location.href = '/menu';
+    }
 }
 
 // ===== 成功ポップアップを閉じてメニューへ遷移 =====

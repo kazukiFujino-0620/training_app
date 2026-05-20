@@ -18,7 +18,7 @@
 
     <!-- Theme Toggle -->
     <div class="theme-toggle-login">
-        <button class="settings-btn" onclick="toggleTheme()" aria-label="テーマ切り替え">
+        <button class="settings-btn" data-action="toggleTheme" aria-label="テーマ切り替え">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
             </svg>
@@ -61,15 +61,5 @@
 
     <!-- JavaScript -->
     <script th:src="@{/js/theme.js}"></script>
-
-    <script>
-        // Apply theme immediately to prevent flash
-        (function() {
-            const storedTheme = localStorage.getItem('training-app-theme');
-            if (storedTheme) {
-                document.documentElement.setAttribute('data-theme', storedTheme);
-            }
-        })();
-    </script>
 </body>
 </html>
