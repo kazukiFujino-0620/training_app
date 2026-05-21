@@ -130,9 +130,9 @@ function renderEditSets() {
             <div style="display: flex; align-items: center; gap: 10px; padding: 12px; margin: 8px 0; background: #f9f9f9; border-radius: 8px; border: 1px solid #e0e0e0;">
                 <span style="font-weight: bold; min-width: 30px; color: #666;">${setIndex + 1}</span>
                 <div style="display: flex; gap: 15px; flex-grow: 1; align-items: center;">
-                    <input type="number" id="editWeight-${setIndex}" value="${detail.weight}" step="0.5" data-index="${setIndex}" data-change="updateEditSet" style="width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
+                    <input type="number" id="editWeight-${setIndex}" value="${detail.weight != null ? detail.weight : ''}" step="0.5" data-index="${setIndex}" data-change="updateEditSet" placeholder="0" style="width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
                     <label style="color: #666; font-size: 0.9em;">kg</label>
-                    <input type="number" id="editReps-${setIndex}" value="${detail.reps}" data-index="${setIndex}" data-change="updateEditSet" style="width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
+                    <input type="number" id="editReps-${setIndex}" value="${detail.reps != null ? detail.reps : ''}" data-index="${setIndex}" data-change="updateEditSet" placeholder="0" style="width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center;">
                     <label style="color: #666; font-size: 0.9em;">回</label>
                 </div>
                 <button type="button" data-action="removeEditSet" data-index="${setIndex}" style="background: none; border: none; color: #f44336; font-size: 1.2em; cursor: pointer; padding: 0;">✕</button>
@@ -176,8 +176,10 @@ function renderEditSets() {
 
 // 編集セットの更新
 function updateEditSet(setIndex) {
-    const weight = parseFloat(document.getElementById(`editWeight-${setIndex}`).value) || 0;
-    const reps = parseInt(document.getElementById(`editReps-${setIndex}`).value) || 0;
+    const weightValue = document.getElementById(`editWeight-${setIndex}`).value;
+    const repsValue = document.getElementById(`editReps-${setIndex}`).value;
+    const weight = weightValue === '' ? 0 : parseFloat(weightValue);
+    const reps = repsValue === '' ? 0 : parseInt(repsValue);
     
     currentEditingTraining.details[setIndex].weight = weight;
     currentEditingTraining.details[setIndex].reps = reps;
@@ -206,8 +208,8 @@ function addEditSet() {
     
     if (currentEditingTraining.details.length > 0) {
         const lastSet = currentEditingTraining.details[currentEditingTraining.details.length - 1];
-        lastWeight = lastSet.weight;
-        lastReps = lastSet.reps;
+        lastWeight = lastSet.weight || 0;
+        lastReps = lastSet.reps || 0;
     }
     
     currentEditingTraining.details.push({
@@ -398,15 +400,15 @@ function addSet(btn) {
     const lastRow = tbody.lastElementChild;
     let weight = 0, reps = 0;
     if (lastRow) {
-        weight = lastRow.querySelector('.weight').value;
-        reps = lastRow.querySelector('.reps').value;
+        weight = parseFloat(lastRow.querySelector('.weight').value) || 0;
+        reps = parseInt(lastRow.querySelector('.reps').value) || 0;
     }
     const nextNum = tbody.children.length + 1;
     const newRow = `
         <tr class="set-row">
             <td><span class="set-num">${nextNum}</span></td>
-            <td><input type="number" class="weight" value="${weight}" step="0.5"> kg</td>
-            <td><input type="number" class="reps" value="${reps}"> 回</td>
+            <td><input type="number" class="weight" value="${weight || ''}" step="0.5" placeholder="0"> kg</td>
+            <td><input type="number" class="reps" value="${reps || ''}" placeholder="0"> 回</td>
             <td><button class="btn-check" data-action="handleCheck">✓</button></td>
             <td><button type="button" data-action="removeSet" style="color:#f44336; border:none; background:none; cursor:pointer;">✕</button></td>
         </tr>
@@ -499,8 +501,8 @@ function addSetRow() {
     const row = `
         <tr>
             <td>${setIndex + 1}</td>
-            <td><input type="number" name="details[${setIndex}].weight" step="0.1" required></td>
-            <td><input type="number" name="details[${setIndex}].reps" required></td>
+            <td><input type="number" name="details[${setIndex}].weight" step="0.1" placeholder="0"></td>
+            <td><input type="number" name="details[${setIndex}].reps" placeholder="0"></td>
             <td><button type="button" data-action="removeRow" style="color:red; border:none; background:none; cursor:pointer;">✕</button></td>
         </tr>
     `;
@@ -664,8 +666,8 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
     let rowsHtml = details.map(d => `
 		<tr class="set-row">
         <td><span class="set-num">${d.setNumber}</span></td>
-        <td><input type="number" class="weight" value="${d.weight}" step="0.5"> kg</td>
-        <td><input type="number" class="reps" value="${d.reps}"> 回</td>
+        <td><input type="number" class="weight" value="${d.weight != null ? d.weight : ''}" step="0.5" placeholder="0"> kg</td>
+        <td><input type="number" class="reps" value="${d.reps != null ? d.reps : ''}" placeholder="0"> 回</td>
         <td><button class="btn-check ${(d.isCompleted || d.completed) ? 'completed' : ''}" data-action="handleCheck">✓</button></td>
         <td><button type="button" data-action="removeSet" style="color:#f44336; border:none; background:none; cursor:pointer;">✕</button></td>
     </tr>
