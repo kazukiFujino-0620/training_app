@@ -391,7 +391,7 @@ public class MenuController {
 					detail.setWeight(((Number) detailMap.get("weight")).doubleValue());
 					detail.setReps(((Number) detailMap.get("reps")).intValue());
 					detail.setSetNumber(i + 1);
-					detail.setIsCompleted((Boolean) detailMap.getOrDefault("completed", false));
+					detail.setIsCompleted((Boolean) detailMap.getOrDefault("isCompleted", false));
 					details.add(detail);
 				}
 
