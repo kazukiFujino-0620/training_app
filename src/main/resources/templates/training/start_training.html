@@ -281,11 +281,11 @@
                         <tbody class="set-tbody">
                             <tr th:each="detail, stat : ${item.details}" class="set-row">
                                 <td><span class="set-num font-medium" th:text="${stat.count}">1</span></td>
-                                <td><input type="number" class="weight" th:value="${detail.weight}" step="0.5"> kg</td>
-                                <td><input type="number" class="reps" th:value="${detail.reps}"> 回</td>
+                                <td><input type="number" class="weight" th:value="${detail.weight != null ? detail.weight : ''}" step="0.5" placeholder="0"> kg</td>
+                                <td><input type="number" class="reps" th:value="${detail.reps != null ? detail.reps : ''}" placeholder="0"> 回</td>
                                 <td>
-                                    <button class="btn-check" 
-                                            th:classappend="${detail.isCompleted} ? 'completed' : ''" 
+                                    <button class="btn-check"
+                                            th:classappend="${detail.isCompleted} ? 'completed' : ''"
                                             data-action="handleCheck">✓</button>
                                 </td>
                                 <td>
