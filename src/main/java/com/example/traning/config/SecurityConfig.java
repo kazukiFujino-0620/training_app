@@ -33,8 +33,20 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain securityFilterChain(HttpSecurity http,
+			org.springframework.security.core.userdetails.UserDetailsService userDetailsService) throws Exception {
+
+		// ── ユーザー非表示設定の解除（本物の例外メッセージを直通させる） ──
+		org.springframework.security.authentication.dao.DaoAuthenticationProvider provider = new org.springframework.security.authentication.dao.DaoAuthenticationProvider();
+		provider.setUserDetailsService(userDetailsService);
+		provider.setPasswordEncoder(passwordEncoder());
+		// ★ これが重要！「ユーザーが見つからない」系の例外メッセージを隠さずにそのまま後ろへ流す設定です
+		provider.setHideUserNotFoundExceptions(false);
+
 		http
+				// ★ 上で作ったプロバイダーを登録
+				.authenticationProvider(provider)
+
 				// ── URL ベースの認可 ─────────────────────────────────────
 				.authorizeHttpRequests(auth -> auth
 						// 公開ページ・静的リソース
@@ -49,25 +61,13 @@ public class SecurityConfig {
 						.anyRequest().authenticated())
 
 				// ── セキュリティヘッダー ──────────────────────────────────
-				// Spring Boot 3.x (Spring Security 6.x) では xssProtection().enable() は廃止。
-				// X-XSS-Protection ヘッダー自体もモダンブラウザでは非推奨のため、
-				// CSP (Content-Security-Policy) で代替する。
 				.headers(headers -> headers
-						// HSTS（HTTP Strict-Transport-Security）設定
-						// HTTPS通信を強制し、中間者攻撃を防止
 						.httpStrictTransportSecurity(hsts -> hsts
 								.includeSubDomains(true)
-								.maxAgeInSeconds(31536000)) // 1年間
-						// クリックジャッキング対策: iframe 埋め込みを全面禁止
+								.maxAgeInSeconds(31536000))
 						.frameOptions(frame -> frame.deny())
-						// MIME スニッフィング対策
 						.contentTypeOptions(contentType -> {
 						})
-						// CSP: 自ドメイン + 利用中の外部リソースのみ許可
-						// ★ SECURITY: script-src から 'unsafe-inline' を削除
-						// - inline <script> や event handler は禁止
-						// - 将来的に nonce/hash 方式へ移行することを推奨
-						// - 現在: Thymeleaf の inline style を使用（CSS は 'unsafe-inline' で許可）
 						.contentSecurityPolicy(csp -> csp.policyDirectives(
 								"default-src 'self'; " +
 										"script-src 'self' 'unsafe-hashes' https://cdn.jsdelivr.net; " +
@@ -80,6 +80,7 @@ public class SecurityConfig {
 				// ── CSRF 保護 ────────────────────────────────────
 				.csrf(csrf -> csrf
 						.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
+
 				// ── OAuth2 ログイン ───────────────────────────────────────
 				.oauth2Login(oauth2 -> oauth2
 						.loginPage(LOGIN_PATH)
@@ -92,18 +93,28 @@ public class SecurityConfig {
 						}))
 
 				// ── フォームログイン ──────────────────────────────────────
-				// ★ ブルートフォース攻撃対策：
-				// 現在：基本的なログイン失敗画面を表示
-				// 今後改善案：
-				// 1. ログイン試行失敗回数をカウント（Redis/DB）
-				// 2. N回失敗後、M分間アカウントロック
-				// 3. または CAPTCHA を導入
 				.formLogin(login -> login
-						.loginPage("/login")
+						.loginPage(LOGIN_PATH)
 						.usernameParameter("username")
 						.passwordParameter("password")
 						.defaultSuccessUrl("/menu", true)
-						.failureUrl("/login?error=login_failed")
+						.failureHandler((request, response, exception) -> {
+							String reason = "bad_credentials";
+
+							// ★ 修正ポイント: Springの例外オブジェクトは無視して、セッションから直接理由を回収する
+							jakarta.servlet.http.HttpSession session = request.getSession(false);
+							if (session != null) {
+								String savedReason = (String) session.getAttribute("LOGIN_ERROR_REASON");
+								if (savedReason != null) {
+									reason = savedReason;
+									// 次回のログイン時のために、使い終わったフラグは消しておく
+									session.removeAttribute("LOGIN_ERROR_REASON");
+								}
+							}
+
+							// 原因に応じたパラメータを付与してリダイレクト
+							response.sendRedirect("/login?error&reason=" + reason);
+						})
 						.permitAll())
 
 				// ── ログアウト ────────────────────────────────────────────
@@ -115,10 +126,9 @@ public class SecurityConfig {
 						.permitAll())
 
 				// ── Remember-me 機能 ──────────────────────────────────
-				// ユーザーが「ログイン状態を保持」にチェックした場合、2週間自動ログイン
 				.rememberMe(remember -> remember
 						.key("TrainingApp-SecureKey-2025")
-						.tokenValiditySeconds(14 * 24 * 60 * 60) // 2週間
+						.tokenValiditySeconds(14 * 24 * 60 * 60)
 						.rememberMeParameter("remember-me")
 						.rememberMeCookieName("remember-me-cookie"));
 
