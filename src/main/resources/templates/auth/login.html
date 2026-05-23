@@ -43,8 +43,24 @@
                 <line x1="15" y1="9" x2="9" y2="15"/>
                 <line x1="9" y1="9" x2="15" y2="15"/>
             </svg>
-            <span>メールアドレスまたはパスワードが正しくありません</span>
-        </div>
+            
+            <!-- パターン1: OAuth2ユーザー（URLに reason=oauth2_user が含まれる場合） -->
+            <span th:if="${param.reason != null && #strings.contains(param.reason, 'oauth2_user')}">
+                このアカウントはGoogleまたはLINEで登録されています。<br>
+                対応するボタンからログインしてください。
+            </span>
+            
+            <!-- パターン2: 退会済みアカウント（URLに reason=withdrawn が含まれる場合） -->
+            <span th:if="${param.reason != null && #strings.contains(param.reason, 'withdrawn')}">
+                このアカウントは退会済みです。<br>
+                再度ご利用の場合は新規登録をお願いします。
+            </span>
+            
+            <!-- パターン3: 通常の入力ミス（reasonが無い、またはそれ以外の場合） -->
+            <span th:if="${param.reason == null || (!#strings.contains(param.reason, 'oauth2_user') && !#strings.contains(param.reason, 'withdrawn'))}">
+                ユーザー名またはパスワードが正しくありません
+            </span>
+            </div>
         
         <div th:if="${param.logout}" class="success-message">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -97,7 +113,7 @@
                     <input type="checkbox" name="remember-me">
                     <span>ログイン状態を保持</span>
                 </label>
-                <a href="#" class="text-primary">パスワードを忘れた場合</a>
+                <a th:href="@{/password/forget}" class="text-primary">パスワードを忘れた方はこちら</a>
             </div>
             
             <button type="submit" class="btn btn-primary login-btn">
@@ -131,9 +147,9 @@
         <!-- Footer -->
         <div class="login-footer">
             <p>アカウントをお持ちでないですか？</p>
+            <span class="mx-2 text-muted">|</span>
             <a th:href="@{/signup}" class="text-primary">新規登録</a>
             <span class="mx-2 text-muted">|</span>
-            <a th:href="@{/password/forget}" class="text-primary">パスワードを忘れた方はこちら</a>
         </div>
     </div>
     

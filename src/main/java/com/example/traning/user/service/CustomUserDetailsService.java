@@ -32,6 +32,9 @@ public class CustomUserDetailsService implements UserDetailsService {
 
 			// 1. ログに出力
 			log.error(msg);
+
+			saveLoginErrorReasonToSession("withdrawn");
+
 			throw new UsernameNotFoundException(msg);
 		}
 
@@ -39,6 +42,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 		if (user.getPassword() == null || user.getPassword().isEmpty()) {
 			String msg = "このユーザーはOAuth2経由で登録されています。LINEまたはGoogleでログインしてください: " + email;
 			log.warn(msg);
+			saveLoginErrorReasonToSession("oauth2_user");
 			throw new UsernameNotFoundException(msg);
 		}
 
@@ -54,5 +58,18 @@ public class CustomUserDetailsService implements UserDetailsService {
 				userDetails.getUsername(), userDetails.getAuthorities());
 
 		return userDetails;
+	}
+
+	private void saveLoginErrorReasonToSession(String reason) {
+		try {
+			org.springframework.web.context.request.ServletRequestAttributes attributes = (org.springframework.web.context.request.ServletRequestAttributes) org.springframework.web.context.request.RequestContextHolder
+					.currentRequestAttributes();
+			if (attributes != null) {
+				jakarta.servlet.http.HttpSession session = attributes.getRequest().getSession(true);
+				session.setAttribute("LOGIN_ERROR_REASON", reason);
+			}
+		} catch (Exception e) {
+			log.error("Failed to save login error reason to session", e);
+		}
 	}
 }
