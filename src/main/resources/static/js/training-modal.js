@@ -2,6 +2,10 @@ let myChart;
 let totalSeconds = 0;
 let timerInterval = null;
 let isTimerRunning = false;
+// 選択されたトレーニング一覧（別ファイルと共通で使えるようグローバルで初期化）
+let selectedTrainings = window.selectedTrainings || [];
+// 参照をグローバルに公開（他スクリプトと共有）
+window.selectedTrainings = selectedTrainings;
 
 // タイマー用の経過時間をパース
 function parseTimeToSeconds(timeString) {
@@ -400,24 +404,14 @@ window.stopInterval = stopInterval;
 
 // 3. セット操作（実技・モーダル共通）
 function addSet(btn) {
-    const tbody = btn.closest('.training-card').querySelector('.set-tbody');
-    const lastRow = tbody.lastElementChild;
-    let weight = 0, reps = 0;
-    if (lastRow) {
-        weight = parseFloat(lastRow.querySelector('.weight').value) || 0;
-        reps = parseInt(lastRow.querySelector('.reps').value) || 0;
-    }
-    const nextNum = tbody.children.length + 1;
-    const newRow = `
-        <tr class="set-row">
-            <td><span class="set-num">${nextNum}</span></td>
-            <td><input type="number" class="weight" value="${weight || ''}" step="0.5" placeholder="0"> kg</td>
-            <td><input type="number" class="reps" value="${reps || ''}" placeholder="0"> 回</td>
-            <td><button class="btn-check" data-action="handleCheck">✓</button></td>
-            <td><button type="button" data-action="removeSet" style="color:#f44336; border:none; background:none; cursor:pointer;">✕</button></td>
-        </tr>
-    `;
-    tbody.insertAdjacentHTML('beforeend', newRow);
+    // 既存のインライン追加はやめ、モーダルでセット追加する UX に変更
+    const card = btn.closest('.training-card');
+    if (!card) return;
+    const trainingDate = card.getAttribute('data-training-date') || document.getElementById('modalDate')?.value;
+    const trainingId = card.getAttribute('data-training-id') || null;
+
+    // モーダルを開く。既存のIDを渡すと編集モード（必要ならそこから追加処理を行う）
+    openModal(trainingDate, trainingId);
 }
 
 function removeSet(btn) {
@@ -446,7 +440,7 @@ let setIndex = 0; // 宣言はここ1回だけ！
 function openModal(date, id = null) {
     const modal = document.getElementById('trainingModal');
     if (!modal) return;
-	
+
     const partSelect = document.getElementById('modalPart');
     if (partSelect) partSelect.value = "";
 
@@ -455,40 +449,185 @@ function openModal(date, id = null) {
         menuSelect.innerHTML = '<option value="">部位を先に選択してください</option>';
         menuSelect.disabled = true;
     }
-		
-    modal.style.display = 'block';
+
+    modal.classList.remove('hidden');
     document.getElementById('modalDate').value = date;
     document.getElementById('displayDate').innerText = "実施日: " + date;
-    
+
     const setList = document.getElementById('setList');
     setList.innerHTML = '';
     setIndex = 0;
-    
+
     if (id) {
+        // 編集モード: 画面上のカードから値を読み取りプリフィルする
         document.getElementById('modalTitle').innerText = "トレーニング編集";
         document.getElementById('trainingId').value = id;
+
+        const card = document.querySelector(`.training-card[data-training-id="${id}"]`);
+        if (card) {
+            const partCode = card.getAttribute('data-part-code') || '';
+            const menu = card.getAttribute('data-menu') || '';
+
+            // 部位をセット
+            if (partSelect) {
+                partSelect.value = partCode;
+            }
+
+            // 種目は部位を元にitemsを取得してから選択する
+            updateItems(partCode).then(() => {
+                if (menuSelect) {
+                    // 同名のoptionがあれば選択、なければ新たに追加して選択
+                    let found = Array.from(menuSelect.options).some(opt => {
+                        if (opt.value === menu) {
+                            menuSelect.value = menu;
+                            return true;
+                        }
+                        return false;
+                    });
+                    if (!found && menu) {
+                        const opt = document.createElement('option');
+                        opt.value = menu;
+                        opt.textContent = menu;
+                        menuSelect.appendChild(opt);
+                        menuSelect.value = menu;
+                    }
+                }
+            }).catch(() => {
+                // 取得失敗してもユーザーは手動で選べるようにする
+            });
+
+            // セット一覧をカードからコピー
+            const rows = card.querySelectorAll('.set-row');
+            rows.forEach((r) => {
+                const weight = r.querySelector('.weight')?.value || '';
+                const reps = r.querySelector('.reps')?.value || '';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${setList.children.length + 1}</td>
+                    <td><input type="number" class="weight" step="0.1" placeholder="0" value="${weight}"></td>
+                    <td><input type="number" class="reps" placeholder="0" value="${reps}"></td>
+                    <td>
+                        <button type="button"
+                                data-action="removeRow"
+                                style="color:red;border:none;background:none;cursor:pointer;">
+                            ✕
+                        </button>
+                    </td>
+                `;
+                setList.appendChild(tr);
+            });
+        }
     } else {
         document.getElementById('modalTitle').innerText = "トレーニング登録";
         document.getElementById('trainingId').value = "";
-        addSetRow();
+
+        setTimeout(() => {
+            if (document.getElementById('setList')) {
+                addSetRow();
+            }
+        }, 10);
     }
 }
 
 function closeModal() {
     const modal = document.getElementById('trainingModal');
-    if (modal) modal.style.display = 'none';
+
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function saveRegister() {
+    const modal = document.getElementById('trainingModal');
+    if (modal && !modal.classList.contains('hidden')) {
+        addTrainingCardLocally();
+        return;
+    }
+    saveRegisterBulk();
+}
+
+function saveRegisterBulk() {
+  const trainingBlocks = document.querySelectorAll('.training-block');
+  
+  trainingBlocks.forEach((block, blockIndex) => {
+    if (!selectedTrainings[blockIndex]) return;
+    
+    const setRows = block.querySelectorAll('.set-row');
+    selectedTrainings[blockIndex].details = [];
+    
+    setRows.forEach((row, rowIndex) => {
+      const weightInput = row.querySelector('.weight');
+      const repsInput = row.querySelector('.reps');
+      const completedButton = row.querySelector('.btn-check-set');
+      
+      const weightVal = weightInput ? parseFloat(weightInput.value) : 0;
+      const repsVal = repsInput ? parseInt(repsInput.value, 10) : 0;
+      const isCompleted = completedButton ? completedButton.classList.contains('active') : false;
+      
+      selectedTrainings[blockIndex].details.push({
+        setNumber: rowIndex + 1,
+        weight: isNaN(weightVal) ? 0 : weightVal,
+        reps: isNaN(repsVal) ? 0 : repsVal,
+        isCompleted: isCompleted
+      });
+    });
+  });
+
+  if (selectedTrainings.length === 0) {
+    alert('トレーニング種目を選択してください');
+    return;
+  }
+
+  const selectedDate = document.getElementById('selectedDate')?.value;
+  const data = {
+    date: selectedDate,
+    trainings: selectedTrainings,
+  };
+
+  const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+  const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (csrfToken && csrfHeader) {
+    headers[csrfHeader] = csrfToken;
+  }
+
+  fetch('/api/training/register-bulk', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(data),
+  })
+    .then((response) => {
+      if (response.ok) {
+        showSuccessPopup();
+        closeModal();
+      } else {
+        alert('保存に失敗しました');
+      }
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+      alert('保存中にエラーが発生しました');
+    });
 }
 
 function updateItems(partCode) {
     const menuSelect = document.getElementById('modalMenu');
     if (!partCode) {
-        menuSelect.innerHTML = '<option value="">部位を先に選択してください</option>';
-        menuSelect.disabled = true;
-        return;
+        if (menuSelect) {
+            menuSelect.innerHTML = '<option value="">部位を先に選択してください</option>';
+            menuSelect.disabled = true;
+        }
+        return Promise.resolve([]);
     }
-    fetch('/api/training-items?partCode=' + partCode)
+    return fetch('/api/training-items?partCode=' + partCode)
         .then(response => response.json())
         .then(items => {
+            if (!menuSelect) return items;
             menuSelect.innerHTML = '<option value="">種目を選択してください</option>';
             items.forEach(item => {
                 const option = document.createElement('option');
@@ -497,21 +636,42 @@ function updateItems(partCode) {
                 menuSelect.appendChild(option);
             });
             menuSelect.disabled = false;
+            return items;
+        })
+        .catch(err => {
+            console.error('updateItems error', err);
+            if (menuSelect) {
+                menuSelect.innerHTML = '<option value="">部位を先に選択してください</option>';
+                menuSelect.disabled = true;
+            }
+            return [];
         });
 }
 
 function addSetRow() {
     const tbody = document.getElementById('setList');
-    const row = `
-        <tr>
-            <td>${setIndex + 1}</td>
-            <td><input type="number" name="details[${setIndex}].weight" step="0.1" placeholder="0"></td>
-            <td><input type="number" name="details[${setIndex}].reps" placeholder="0"></td>
-            <td><button type="button" data-action="removeRow" style="color:red; border:none; background:none; cursor:pointer;">✕</button></td>
-        </tr>
+
+    if (!tbody) {
+        console.error("setList が見つかりません");
+        return;
+    }
+
+    const row = document.createElement('tr');
+
+    row.innerHTML = `
+        <td>${tbody.children.length + 1}</td>
+        <td><input type="number" class="weight" step="0.1" placeholder="0"></td>
+        <td><input type="number" class="reps" placeholder="0"></td>
+        <td>
+            <button type="button"
+                    data-action="removeRow"
+                    style="color:red;border:none;background:none;cursor:pointer;">
+                ✕
+            </button>
+        </td>
     `;
-    tbody.insertAdjacentHTML('beforeend', row);
-    setIndex++;
+
+    tbody.appendChild(row);
 }
 
 function removeRow(btn) {
@@ -615,56 +775,117 @@ function addTraining() {
     openModal(dateText);
 }
 
-async function addTrainingCardLocally() {
-	const token = document.querySelector('meta[name="_csrf"]').content;
-　   const header = document.querySelector('meta[name="_csrf_header"]').content;
-    const menu = document.getElementById('modalMenu').value;
-    const partCode = document.getElementById('modalPart').value;
-    const partName = document.getElementById('modalPart').selectedOptions[0].text;
-    const trainingDate = document.getElementById('modalDate').value;
+function getModalTrainingData() {
+    const trainingId = document.getElementById('trainingId')?.value || null;
+    const menu = document.getElementById('modalMenu')?.value || '';
+    const partCode = document.getElementById('modalPart')?.value || '';
+    const partName = document.getElementById('modalPart')?.selectedOptions[0]?.text || '';
+    const trainingDate = document.getElementById('modalDate')?.value || '';
     const currentUserId = parseInt(document.getElementById('currentUserId')?.value, 10) || null;
 
-    // 1. フォームからデータを集める
-    const details = [];
-    document.querySelectorAll('#setList tr').forEach((row, index) => {
-        details.push({
+    const details = Array.from(document.querySelectorAll('#setList tr')).map((row, index) => {
+        const weightInput = row.querySelector('input.weight');
+        const repsInput = row.querySelector('input.reps');
+        return {
             setNumber: index + 1,
-            weight: row.querySelector('input[name*=".weight"]').value,
-            reps: row.querySelector('input[name*=".reps"]').value
-        });
+            weight: weightInput && weightInput.value !== '' ? parseFloat(weightInput.value) : 0,
+            reps: repsInput && repsInput.value !== '' ? parseInt(repsInput.value, 10) : 0,
+            isCompleted: false
+        };
     });
 
-    const trainingData = {
+    const existingCard = trainingId ? document.querySelector(`.training-card[data-training-id="${trainingId}"]`) : null;
+    const memo = existingCard?.querySelector('.memo-area')?.value || '';
+
+    return {
+        id: trainingId,
         userId: currentUserId,
         menu: menu,
         partCode: partCode,
+        partName: partName,
         trainingDate: trainingDate,
+        memo: memo,
         details: details
     };
+}
 
+function updateExistingTrainingCard(trainingData) {
+    const card = document.querySelector(`.training-card[data-training-id="${trainingData.id}"]`);
+    if (!card) return false;
+
+    card.dataset.partCode = trainingData.partCode;
+    card.dataset.menu = trainingData.menu;
+    card.dataset.trainingDate = trainingData.trainingDate;
+    if (trainingData.userId !== null) {
+        card.dataset.userId = trainingData.userId;
+    }
+
+    const title = card.querySelector('.exercise-title h3');
+    if (title) title.textContent = trainingData.menu;
+
+    const partLabel = card.querySelector('.exercise-title span');
+    if (partLabel) partLabel.textContent = trainingData.partName;
+
+    const tbody = card.querySelector('.set-tbody');
+    if (tbody) {
+        tbody.innerHTML = trainingData.details.map((detail, index) => {
+            return `
+            <tr class="set-row">
+                <td><span class="set-num">${index + 1}</span></td>
+                <td><input type="number" class="weight" value="${detail.weight != null ? detail.weight : ''}" step="0.5" placeholder="0"> kg</td>
+                <td><input type="number" class="reps" value="${detail.reps != null ? detail.reps : ''}" placeholder="0"> 回</td>
+                <td><button class="btn-check" data-action="handleCheck">✓</button></td>
+                <td><button type="button" data-action="removeSet" class="btn btn-danger btn-sm">✕</button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    const memoArea = card.querySelector('.memo-area');
+    if (memoArea) {
+        memoArea.value = trainingData.memo || memoArea.value || '';
+    }
+
+    return true;
+}
+
+async function addTrainingCardLocally() {
+    const token = document.querySelector('meta[name="_csrf"]')?.content;
+    const header = document.querySelector('meta[name="_csrf_header"]')?.content;
+    const trainingData = getModalTrainingData();
+
+    if (!trainingData.partCode || !trainingData.menu || !trainingData.trainingDate) {
+        alert('部位・種目・実施日を入力してください');
+        return;
+    }
+
+    const endpoint = trainingData.id ? `/api/training/update/${trainingData.id}` : '/api/training/save';
 
     try {
-        // 2. サーバーへ非同期送信 (Fetch API)
-        const response = await fetch('/api/training/save', {
+        const response = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', [header]: token },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(header && token ? { [header]: token } : {})
+            },
             body: JSON.stringify(trainingData)
         });
 
         if (!response.ok) throw new Error('保存に失敗しました');
-        
-        const savedId = await response.json(); // サーバーから返ってきたID
 
-        // 3. 成功したら画面にカードを追加
-        // ※ IDを data-training-id にセットしておくことで、後で「削除」や「更新」が可能になります
-        renderNewCard(menu, partName, partCode, trainingDate, currentUserId, details, savedId);
-        
+        const responseBody = await response.json();
+        const savedId = responseBody?.id || trainingData.id;
+        trainingData.id = savedId;
+
+        const updated = trainingData.id ? updateExistingTrainingCard(trainingData) : false;
+        if (!updated) {
+            renderNewCard(trainingData.menu, trainingData.partName, trainingData.partCode, trainingData.trainingDate, trainingData.userId, trainingData.details, trainingData.id);
+        }
+
         closeModal();
     } catch (error) {
         alert("エラーが発生しました: " + error.message);
     }
 }
-
 // 画面描画部分を切り出し
 function renderNewCard(menu, partName, partCode, trainingDate, userId, details, id) {
     let rowsHtml = details.map(d => `
