@@ -26,18 +26,6 @@ jobs:
         env:
           JASYPT_ENCRYPTOR_PASSWORD: ${{ secrets.JASYPT_PASSWORD }}
 
-      # 3. 事前にサーバー上のディレクトリをクリーンアップして権限をリセット
-      - name: Prepare directory
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.GCP_VM_IP }}
-          username: ${{ secrets.GCP_SSH_USER }}
-          key: ${{ secrets.GCP_SSH_KEY }}
-          script: |
-            sudo mkdir -p /opt/trainingapp/
-            sudo chown -R $USER:$USER /opt/trainingapp/
-            sudo rm -rf /opt/trainingapp/*
-
       # 4. JARファイルをサーバーに転送 (SCP)
       - name: Copy JAR to GCP VM
         uses: appleboy/scp-action@v0.1.7
