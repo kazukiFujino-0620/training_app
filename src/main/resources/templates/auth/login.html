@@ -112,8 +112,8 @@
                 <label class="remember-me">
                     <input type="checkbox" name="remember-me">
                     <span>ログイン状態を保持</span>
+                    <br>
                 </label>
-                <a th:href="@{/password/forget}" class="text-primary">パスワードを忘れた方はこちら</a>
             </div>
             
             <button type="submit" class="btn btn-primary login-btn">
@@ -150,6 +150,7 @@
             <span class="mx-2 text-muted">|</span>
             <a th:href="@{/signup}" class="text-primary">新規登録</a>
             <span class="mx-2 text-muted">|</span>
+            <a th:href="@{/password/forget}" class="text-primary">パスワードをお忘れの方</a>
         </div>
     </div>
     
