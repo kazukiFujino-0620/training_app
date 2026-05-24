@@ -84,17 +84,17 @@
                               th:text="${item.memo}" 
                               data-auto-resize></textarea>
                 </div>
-                <div class="text-right mt-5">
+                <!-- <div class="text-right mt-5">
                     <button class="btn btn-primary" data-action="openModal" th:attr="data-date=${selectedDate}">
                         ＋ 種目を追加
                     </button>
-                </div>
+                </div> -->
             </div>
         </div>
     </div>
 
     <!-- Training Modal -->
-    <div id="trainingModal" class="hidden fixed inset-0 bg-modal flex items-center justify-center z-50">
+    <!-- <div id="trainingModal" class="hidden fixed inset-0 bg-modal flex items-center justify-center z-50">
         <div class="bg-card rounded-xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto m-4">
             <h3 id="modalTitle" class="text-xl font-bold mb-4">トレーニング登録</h3>
             <p id="displayDate" class="text-muted font-bold mb-6"></p>
@@ -137,11 +137,11 @@
                 
                 <div class="flex justify-between mt-8">
                     <button type="button" data-action="closeModal" class="btn btn-secondary">キャンセル</button>
-                    <button type="submit" class="btn btn-success">保存する</button>
+                    <button type="button" data-action="saveRegister">保存</button>
                 </div>
             </form>
         </div>
-    </div>
+    </div> -->
 
     <!-- Footer Navigation -->
     <div class="footer-nav">
