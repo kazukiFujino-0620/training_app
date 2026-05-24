@@ -26,7 +26,19 @@ jobs:
         env:
           JASYPT_ENCRYPTOR_PASSWORD: ${{ secrets.JASYPT_PASSWORD }}
 
-      # 3. JARファイルをサーバーに転送 (SCP)
+      # 3. 事前にサーバー上のディレクトリをクリーンアップして権限をリセット
+      - name: Prepare directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_SSH_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
+            sudo mkdir -p /opt/trainingapp/
+            sudo chown -R $USER:$USER /opt/trainingapp/
+            sudo rm -rf /opt/trainingapp/*
+
+      # 4. JARファイルをサーバーに転送 (SCP)
       - name: Copy JAR to GCP VM
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -37,16 +49,14 @@ jobs:
           target: "/opt/trainingapp/"
           strip_components: 1
 
-      # 4. サーバー上のアプリを再起動
-      - name: Restart Application Service (set gcp profile)
+      # 5. サーバー上のアプリを再起動
+      - name: Restart Application Service
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_SSH_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
           script: |
-            sudo cp /opt/trainingapp/TraningApp-*.jar /opt/trainingapp/trainingapp.jar
-            # Ensure systemd environment includes SPRING_PROFILES_ACTIVE=gcp so the service uses gcp profile
-            sudo systemctl set-environment SPRING_PROFILES_ACTIVE=gcp || true
+            cp /opt/trainingapp/TraningApp-*.jar /opt/trainingapp/trainingapp.jar
+            sudo systemctl set-environment SPRING_PROFILES_ACTIVE=gcp
             sudo systemctl restart trainingapp
-            sudo systemctl status trainingapp
