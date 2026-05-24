@@ -326,73 +326,77 @@ function setIntervalTime(seconds) {
     document.getElementById('intervalTime').innerText = timeLeft;
 }
 
-function changeInterval(delta) {
-    const timeSpan = document.getElementById('intervalTime');
-    
-    // 現在の「表示」ではなく、プログラム内の「中身（remaining）」を増減させる
-    // タイマーが動いていない時のために、表示から数字を読み取る処理も入れます
-    if (remaining === 0) {
-        remaining = parseInt(timeSpan.innerText) || 0;
+function handleCheck(el) {
+    if (!el) return;
+    el.classList.toggle('completed');
+
+    if (el.classList.contains('completed')) {
+        startInterval(120); // 120秒開始
+    } else {
+        stopInterval();
     }
-
-    remaining += delta;
-    
-    if (remaining < 0) remaining = 0;
-    if (remaining > 1200) remaining = 1200; 
-
-    // 画面の表示を更新
-    timeSpan.innerText = remaining;
 }
 
-function handleCheck(btn) {
-    btn.classList.toggle('completed');
-    if (btn.classList.contains('completed')) {
-        const currentTime = document.getElementById('intervalTime')?.innerText || '0';
-        const seconds = parseInt(currentTime, 10) || 0;
-        document.getElementById('intervalBanner').style.display = 'block';
-        startInterval(seconds);
-    } else {
-        if (intervalCountDown) clearInterval(intervalCountDown);
-        document.getElementById('intervalBanner').style.display = 'none';
-    }
-	}
+let intervalTimerId = null;
+let intervalRemaining = 0; // 残り時間を管理する変数を追加
 
 function startInterval(seconds) {
-    if (intervalCountDown) clearInterval(intervalCountDown);
-    
+    stopInterval();
+
     const banner = document.getElementById('intervalBanner');
-    const timeSpan = document.getElementById('intervalTime');
-    if (!banner || !timeSpan) return;
-    
+    const timerDisplay = document.getElementById('intervalTimer');
+    if (!banner || !timerDisplay) return;
+
     banner.style.display = 'block';
-    remaining = seconds; 
-    timeSpan.innerText = remaining;
+    intervalRemaining = seconds; // 初期値をセット
+    
+    updateIntervalDisplay(timerDisplay, intervalRemaining);
 
-    intervalCountDown = setInterval(() => {
-        remaining--;
-        timeSpan.innerText = remaining;
-
-        // 10秒前の「ピッ」
-        if (remaining === 10) {
-            new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{});
-        }
-
-        if (remaining <= 0) {
-            clearInterval(intervalCountDown);
-            
-            // 終了時のバイブ
-            if (navigator.vibrate) {
-                navigator.vibrate([200, 100, 200, 100, 200]);
-            }
-            
-            // ピピピッ、ピピピッ という感じの電子音に変更
-            new Audio('https://actions.google.com/sounds/v1/alarms/digital_clock_beep.ogg').play().catch(()=>{});
-            
-            banner.style.display = 'none';
-            alert("インターバル終了！次のセットを開始してください。");
+    intervalTimerId = setInterval(() => {
+        intervalRemaining--; // 変数を減らす
+        
+        if (intervalRemaining >= 0) {
+            updateIntervalDisplay(timerDisplay, intervalRemaining);
+        } else {
+            stopInterval();
+            alert("インターバル終了です！");
         }
     }, 1000);
 }
+
+// 共通の表示更新関数
+function updateIntervalDisplay(el, seconds) {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    el.textContent = `${m}:${s}`;
+}
+
+// ボタン押下で呼ばれる関数
+function changeInterval(delta) {
+    const timerDisplay = document.getElementById('intervalTimer');
+    if (!timerDisplay) return;
+
+    // 変数 intervalRemaining を直接操作する
+    intervalRemaining += delta;
+    if (intervalRemaining < 0) intervalRemaining = 0;
+
+    // 表示を即時更新
+    updateIntervalDisplay(timerDisplay, intervalRemaining);
+}
+
+function stopInterval() {
+    if (intervalTimerId) {
+        clearInterval(intervalTimerId);
+        intervalTimerId = null;
+    }
+    const banner = document.getElementById('intervalBanner');
+    if (banner) banner.style.display = 'none';
+}
+
+// グローバル公開
+window.handleCheck = handleCheck;
+window.startInterval = startInterval;
+window.stopInterval = stopInterval;
 
 // 3. セット操作（実技・モーダル共通）
 function addSet(btn) {
@@ -874,6 +878,19 @@ function renderChart(data) {
     });
 }
 
+// 非同期のPromiseエラーを抑制するラッパー
+function safeInvoke(fnName, el) {
+    const fn = window[fnName];
+    if (typeof fn === 'function') {
+        try {
+            // Promiseを返さないように、返り値を受け取らない呼び出しにする
+            fn(el);
+        } catch (e) {
+            console.error("Invoke error:", e);
+        }
+    }
+}
+
 // Expose key functions to global scope for inline onclick handlers
 // (Ensures functions are available even if script execution environment differs)
 window.toggleMainTimer = toggleMainTimer;
@@ -891,3 +908,4 @@ window.openModal = openModal;
 window.closeModal = closeModal;
 window.addTrainingCardLocally = addTrainingCardLocally;
 window.reindexSets = reindexSets;
+window.stopInterval = stopInterval;
