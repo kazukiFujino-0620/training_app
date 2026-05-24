@@ -371,15 +371,39 @@ public class MenuController {
 			Long userId = trainingService.getUserIdByEmail(principal.getName());
 
 			for (Map<String, Object> trainingMap : trainingsData) {
-				Training training = new Training();
-				training.setUserId(userId);
+				Training training;
+
+				if (trainingMap.get("id") != null && !trainingMap.get("id").toString().isEmpty()) {
+					Long id = Long.valueOf(trainingMap.get("id").toString());
+					// データベースから既存データを丸ごと取得（作成日時やユーザーIDが保持される）
+					Training existingTraining = trainingService.getTrainingById(id);
+
+					if (existingTraining != null) {
+						training = existingTraining;
+					} else {
+						// 万が一見つからなければ新しく作る
+						training = new Training();
+						training.setUserId(userId);
+						training.setCreateDatetime(LocalDateTime.now());
+					}
+				} else {
+					// id が無い場合は完全に新規登録データとして作成
+					training = new Training();
+					training.setUserId(userId);
+					training.setCreateDatetime(LocalDateTime.now());
+				}
+
+				// 画面から変更されうる共通項目を上書き
 				training.setTrainingDate(trainingDate);
 				training.setMenu((String) trainingMap.get("menu"));
 				training.setPartCode((String) trainingMap.get("partCode"));
-				training.setIsCompleted(false);
-				training.setIsAllCompleted(false);
-				training.setCreateDatetime(LocalDateTime.now());
 				training.setUpdatedDatetime(LocalDateTime.now());
+
+				// 新規登録の時だけ完了フラグを初期化
+				if (training.getId() == null) {
+					training.setIsCompleted(false);
+					training.setIsAllCompleted(false);
+				}
 
 				@SuppressWarnings("unchecked")
 				List<Map<String, Object>> detailsData = (List<Map<String, Object>>) trainingMap.get("details");
@@ -388,14 +412,27 @@ public class MenuController {
 				for (int i = 0; i < detailsData.size(); i++) {
 					Map<String, Object> detailMap = detailsData.get(i);
 					TrainingDetail detail = new TrainingDetail();
-					detail.setWeight(((Number) detailMap.get("weight")).doubleValue());
-					detail.setReps(((Number) detailMap.get("reps")).intValue());
+					Object weightObj = detailMap.get("weight");
+					if (weightObj != null) {
+						detail.setWeight(((Number) weightObj).doubleValue());
+					} else {
+						detail.setWeight(1.0);
+					}
+
+					Object repsObj = detailMap.get("reps");
+					if (repsObj != null) {
+						detail.setReps(((Number) repsObj).intValue());
+					} else {
+						detail.setReps(0);
+					}
+
 					detail.setSetNumber(i + 1);
 					detail.setIsCompleted((Boolean) detailMap.getOrDefault("isCompleted", false));
 					details.add(detail);
 				}
 
 				training.setDetails(details);
+				// サービスを呼び出して保存（更新、または登録）
 				trainingService.save(training, principal);
 			}
 

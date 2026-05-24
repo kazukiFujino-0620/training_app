@@ -34,22 +34,40 @@ function initializeEditButtons() {
       const menu = this.getAttribute('data-menu');
       const partCode = this.getAttribute('data-part-code');
       const trainingDate = this.getAttribute('data-training-date');
-      const details = this.getAttribute('data-details');
       
-      // Parse details if it's a string
-      let parsedDetails = details;
-      if (typeof details === 'string') {
-        try {
-          parsedDetails = JSON.parse(details);
-        } catch (e) {
-          console.error('Failed to parse details:', e);
-          parsedDetails = [];
-        }
-      }
+      // ボタンの属性からカンマ区切りの文字列を取得
+      const weightsStr = this.getAttribute('data-weights') || "";
+      const repsStr = this.getAttribute('data-reps') || "";
+
+      // カンマで分割して配列にする
+      const weightsArray = weightsStr ? weightsStr.split(',') : [];
+      const repsArray = repsStr ? repsStr.split(',') : [];
+
+      // details の構造に組み立て直す
+      const detailsArray = weightsArray.map((weight, index) => {
+        return {
+          setNumber: index + 1,
+          weight: parseFloat(weight) || 0,
+          reps: parseInt(repsArray[index], 10) || 0,
+          isCompleted: false
+        };
+      });
+
+      // 1. 送信用にデータをパッケージング
+      const editData = {
+        id: id,
+        menu: menu,
+        partCode: partCode,
+        details: detailsArray
+      };
+
+      console.log("【チェック】送信直前のパッケージデータ:", editData);
+
+      // 2. URLパラメータで送れるように暗号化（Base64エンコード）
+      const encodedData = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(editData)))));
       
-      if (typeof openEditModal === 'function') {
-        openEditModal(id, menu, partCode, trainingDate, parsedDetails);
-      }
+      // 3. 正しい登録画面へジャンプ
+      window.location.href = `/training/register?date=${trainingDate}&editData=${encodedData}`;
     });
   });
 }
