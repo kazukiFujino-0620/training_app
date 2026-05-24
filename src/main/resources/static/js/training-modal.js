@@ -333,7 +333,9 @@ function setIntervalTime(seconds) {
 function handleCheck(el) {
     if (!el) return;
     el.classList.toggle('completed');
-
+    if (!isTimerRunning) {
+        toggleMainTimer();
+    }
     if (el.classList.contains('completed')) {
         startInterval(120); // 120秒開始
     } else {
