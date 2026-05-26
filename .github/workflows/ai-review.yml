@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+# トップレベルでもデフォルト権限を最小化する
+permissions:
+  contents: read
+
 jobs:
   review:
     runs-on: ubuntu-latest
