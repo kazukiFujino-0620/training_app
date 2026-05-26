@@ -26,6 +26,10 @@ public interface PasswordResetTokenDao {
     @Select
     Optional<PasswordResetToken> selectByUserId(Integer userId);
 
-    @Delete(sqlFile = true) // SQLファイルを使って削除を実行
+    @Delete(sqlFile = true)
     int deleteExpiredTokens(LocalDateTime now);
+
+    /** 同一ユーザーの既存トークンをすべて削除する（新規発行前に呼び出す） */
+    @Delete(sqlFile = true)
+    int deleteByUserId(Integer userId);
 }

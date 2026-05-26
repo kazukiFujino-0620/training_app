@@ -1,6 +1,5 @@
 package com.example.traning.forgetpassword.entity;
 
-import java.math.BigInteger;
 import java.time.LocalDateTime;
 
 import org.seasar.doma.Column;
@@ -19,7 +18,7 @@ public class PasswordResetToken {
     public Integer id;
 
     @Column(name = "user_id")
-    public BigInteger userId;
+    public Integer userId;
 
     @Column(name = "token")
     public String token;

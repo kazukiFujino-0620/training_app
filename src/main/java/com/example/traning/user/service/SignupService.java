@@ -19,17 +19,17 @@ public class SignupService {
 	}
 
 	public boolean register(SignupForm signupForm) {
-		if (userInfocheck(signupForm, true) == false) {
+		if (!userInfocheck(signupForm)) {
 			return false;
 		}
 		String encodedPassword = passwordEncoder.encode(signupForm.getPassword());
 		signupForm.setPassword(encodedPassword);
 
-		log.info("登録処理開始: " + signupForm.getEmail());
+		log.debug("登録処理開始");
 		return signupTransaction.execute(signupForm);
 	}
 
-	private static boolean userInfocheck(SignupForm signupForm, boolean checkFlg) {
+	private static boolean userInfocheck(SignupForm signupForm) {
 		if (!signupForm.getPassword().equals(signupForm.getPassword_confirm())) {
 			log.warn("パスワードが一致しません。");
 			return false;

@@ -61,15 +61,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             throw new OAuth2AuthenticationException("未対応のOAuth2プロバイダー: " + registrationId);
         }
 
-        log.info("OAuth2 user info - provider: {}, email: {}, name: {}, providerId: {}", registrationId, email, name,
-                providerId);
+        log.info("OAuth2 user info - provider: {}, name: {}, providerId: {}", registrationId, name, providerId);
 
         Optional<User> userOpt = userDao.selectByEmail(email);
         User user;
 
         if (userOpt.isEmpty()) {
             // --- 新規登録の処理 ---
-            log.info("New user registration via OAuth2 - provider: {}, email: {}", registrationId, email);
+            log.info("New user registration via OAuth2 - provider: {}", registrationId);
             try {
                 SignupForm signupForm = new SignupForm();
                 signupForm.setEmail(email);
@@ -85,20 +84,19 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 }
 
                 signupTransaction.execute(signupForm);
-                log.info("OAuth2 user registration completed - provider: {}, email: {}", registrationId, email);
+                log.info("OAuth2 user registration completed - provider: {}", registrationId);
 
                 final String emailForLambda = email;
                 user = userDao.selectByEmail(emailForLambda)
                         .orElseThrow(() -> new OAuth2AuthenticationException("登録後のユーザー検索に失敗しました: " + emailForLambda));
             } catch (Exception e) {
-                log.error("OAuth2 user registration failed - provider: {}, email: {}", registrationId, email, e);
+                log.error("OAuth2 user registration failed - provider: {}", registrationId, e);
                 throw new OAuth2AuthenticationException("OAuth2ユーザー登録処理に失敗しました: " + e.getMessage());
             }
         } else {
-            log.info("Existing user found via OAuth2 - email: {}, enabled: {}", email, userOpt.get().getEnabled());
-            if (Boolean.compare(userOpt.get().getEnabled(), false) == 0) {
-                String msg = "このメールアドレスは退会済みです: " + email +
-                        " 再度登録する場合は、管理者に連絡ください。";
+            log.info("Existing user found via OAuth2 - enabled: {}", userOpt.get().getEnabled());
+            if (Boolean.FALSE.equals(userOpt.get().getEnabled())) {
+                String msg = "このアカウントは退会済みです。再度登録する場合は、管理者に連絡ください。";
 
                 log.error(msg);
                 throw new OAuth2AuthenticationException(msg);
@@ -108,7 +106,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             user = userOpt.get();
         }
 
-        log.info("Creating CustomUserDetails - userId: {}, role: {}", user.getUserId(), user.getRole());
-        return new CustomUserDetails(oAuth2User, user.getUserId(), user.getRole());
+        log.debug("Creating CustomUserDetails - userId: {}", user.getUserId());
+        return new CustomUserDetails(oAuth2User, user.getUserId(), user.getRole(), user.getEmail());
     }
 }

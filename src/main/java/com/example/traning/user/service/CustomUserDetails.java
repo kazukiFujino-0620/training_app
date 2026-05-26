@@ -18,17 +18,16 @@ public class CustomUserDetails implements OAuth2User, UserDetails {
     private final String email;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public CustomUserDetails(OAuth2User oAuth2User, Integer userId, String role) {
+    public CustomUserDetails(OAuth2User oAuth2User, Integer userId, String role, String email) {
         this.oAuth2User = oAuth2User;
         this.userId = userId;
-        this.email = oAuth2User.getAttribute("email");
+        this.email = email;
 
         // ロールからROLE_プレフィックスを削除して権限を設定
         String roleName = role.replace("ROLE_", "");
         this.authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + roleName));
 
-        log.info("CustomUserDetails created - userId: {}, email: {}, role: {}, authorities: {}",
-                userId, email, role, authorities);
+        log.debug("CustomUserDetails created - userId: {}, role: {}", userId, role);
     }
 
     @Override

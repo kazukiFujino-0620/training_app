@@ -11,6 +11,7 @@ import org.seasar.doma.Table;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.OneToMany;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -63,6 +64,7 @@ public class Training {
 	@org.seasar.doma.Transient
 	@OneToMany(mappedBy = "training", cascade = CascadeType.ALL, orphanRemoval = true)
 	@NotNull(message = "セットデータは必須です")
+	@Valid
 	private List<TrainingDetail> details = new ArrayList<>();
 	@org.seasar.doma.Transient
 	@jakarta.persistence.Transient

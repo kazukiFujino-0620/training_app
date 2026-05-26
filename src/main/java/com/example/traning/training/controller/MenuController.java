@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.annotation.Validated;
@@ -39,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 @Controller
 @Validated
 @Slf4j
+@PreAuthorize("isAuthenticated()")
 public class MenuController {
 
 	private final TrainingDao trainingDao;
@@ -55,15 +57,17 @@ public class MenuController {
 	}
 
 	@GetMapping("/menu")
-	public String menu(@RequestParam(name = "date", required = false) String dateStr, Model model,
-			Principal principal) {
+	public String menu(
+			@RequestParam(name = "date", required = false)
+			@org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate selectedDate,
+			Model model, Principal principal) {
 		LocalDate today = LocalDate.now();
 
 		Long userId = trainingService.getUserIdByEmail(principal.getName());
 		log.debug("ログインユーザーのIDは: {}", userId);
 
 		// 1. 日付の決定
-		LocalDate selectedDate = (dateStr != null) ? LocalDate.parse(dateStr) : today;
+		if (selectedDate == null) selectedDate = today;
 		User userEntity = trainingService.getUserByEmail(principal.getName());
 
 		// 2. カレンダーの期間（42日分）を計算
@@ -176,10 +180,11 @@ public class MenuController {
 	}
 
 	@GetMapping("/start/training")
-	public String startTraining(@RequestParam("date") String dateStr, Model model, Principal principal) {
-		LocalDate selectedDate = LocalDate.parse(dateStr);
+	public String startTraining(
+			@RequestParam("date") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate selectedDate,
+			Model model, Principal principal) {
 		Long userId = trainingService.getUserIdByEmail(principal.getName());
-		List<Training> trainingList = trainingService.getFullTrainingData(userId, LocalDate.parse(dateStr));
+		List<Training> trainingList = trainingService.getFullTrainingData(userId, selectedDate);
 		List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
 
 		// タイマーの復元用に最初の training の duration を取得
@@ -250,7 +255,7 @@ public class MenuController {
 			return ResponseEntity.ok("保存に成功しました");
 		} catch (Exception e) {
 			log.error("トレーニング保存エラー", e);
-			return ResponseEntity.internalServerError().body("登録に失敗しました。" + e.getMessage());
+			return ResponseEntity.internalServerError().body("登録に失敗しました。時間をおいて再度お試しください。");
 		}
 	}
 
@@ -322,10 +327,12 @@ public class MenuController {
 	}
 
 	@GetMapping("/training/register")
-	public String trainingRegister(@RequestParam(name = "date", required = false) String dateStr, Model model,
-			Principal principal) {
+	public String trainingRegister(
+			@RequestParam(name = "date", required = false)
+			@org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate selectedDate,
+			Model model, Principal principal) {
 		LocalDate today = LocalDate.now();
-		LocalDate selectedDate = (dateStr != null) ? LocalDate.parse(dateStr) : today;
+		if (selectedDate == null) selectedDate = today;
 		Long userId = trainingService.getUserIdByEmail(principal.getName());
 
 		List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
@@ -364,8 +371,14 @@ public class MenuController {
 			Principal principal) {
 		try {
 			String dateStr = (String) data.get("date");
+			if (dateStr == null || dateStr.trim().isEmpty()) {
+				return ResponseEntity.badRequest().body("日付が指定されていません。");
+			}
 			@SuppressWarnings("unchecked")
 			List<Map<String, Object>> trainingsData = (List<Map<String, Object>>) data.get("trainings");
+			if (trainingsData == null || trainingsData.isEmpty()) {
+				return ResponseEntity.badRequest().body("トレーニングデータが指定されていません。");
+			}
 
 			LocalDate trainingDate = LocalDate.parse(dateStr);
 			Long userId = trainingService.getUserIdByEmail(principal.getName());
@@ -375,13 +388,18 @@ public class MenuController {
 
 				if (trainingMap.get("id") != null && !trainingMap.get("id").toString().isEmpty()) {
 					Long id = Long.valueOf(trainingMap.get("id").toString());
-					// データベースから既存データを丸ごと取得（作成日時やユーザーIDが保持される）
 					Training existingTraining = trainingService.getTrainingById(id);
 
 					if (existingTraining != null) {
+						// IDOR 防止: 取得したレコードがログインユーザーのものか確認する
+						if (!existingTraining.getUserId().equals(userId)) {
+							log.warn("不正な一括登録リクエスト: ユーザー {} がトレーニング {} を更新しようとしました",
+									userId, id);
+							return ResponseEntity.status(HttpStatus.FORBIDDEN)
+									.body("このトレーニングを変更する権限がありません。");
+						}
 						training = existingTraining;
 					} else {
-						// 万が一見つからなければ新しく作る
 						training = new Training();
 						training.setUserId(userId);
 						training.setCreateDatetime(LocalDateTime.now());
@@ -427,7 +445,8 @@ public class MenuController {
 					}
 
 					detail.setSetNumber(i + 1);
-					detail.setIsCompleted((Boolean) detailMap.getOrDefault("isCompleted", false));
+					Object completedObj = detailMap.getOrDefault("isCompleted", false);
+					detail.setIsCompleted(Boolean.parseBoolean(completedObj.toString()));
 					details.add(detail);
 				}
 
@@ -439,7 +458,7 @@ public class MenuController {
 			return ResponseEntity.ok("保存に成功しました");
 		} catch (Exception e) {
 			log.error("一括登録エラー", e);
-			return ResponseEntity.internalServerError().body("登録に失敗しました: " + e.getMessage());
+			return ResponseEntity.internalServerError().body("登録に失敗しました。時間をおいて再度お試しください。");
 		}
 	}
 }
