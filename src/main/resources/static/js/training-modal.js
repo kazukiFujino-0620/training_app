@@ -925,7 +925,14 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeTimer();
-    
+
+    const partSelect = document.getElementById('modalPart');
+    if (partSelect) {
+        partSelect.addEventListener('change', function() {
+            updateItems(this.value);
+        });
+    }
+
     const modalForm = document.querySelector('#trainingModal form');
     if (modalForm) {
         modalForm.addEventListener('submit', function(e) {
@@ -1129,6 +1136,7 @@ window.deleteTrainingCard = deleteTrainingCard;
 window.addTraining = addTraining;
 window.openModal = openModal;
 window.closeModal = closeModal;
+window.saveRegister = saveRegister;
 window.addTrainingCardLocally = addTrainingCardLocally;
 window.reindexSets = reindexSets;
 window.stopInterval = stopInterval;

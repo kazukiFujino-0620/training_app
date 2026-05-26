@@ -14,62 +14,54 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class CustomUserDetailsService implements UserDetailsService {
 
-	private final UserDao userDao;
+    private final UserDao userDao;
 
-	public CustomUserDetailsService(UserDao userDao) {
-		this.userDao = userDao;
-	}
+    public CustomUserDetailsService(UserDao userDao) {
+        this.userDao = userDao;
+    }
 
-	@Override
-	public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-		log.info("Form login attempt - email: {}", email);
-		User user = userDao.selectByEmail(email)
-				.orElseThrow(() -> new UsernameNotFoundException("ユーザーが見つかりませんでした: " + email));
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        // メールアドレスは個人情報のため DEBUG レベルでのみ出力する
+        log.debug("Form login attempt for user");
+        User user = userDao.selectByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("ユーザーが見つかりません"));
 
-		if (Boolean.compare(user.getEnabled(), false) == 0) {
-			String msg = "このメールアドレスは退会済みです: " + email +
-					" 再度登録する場合は、管理者に連絡ください。";
+        if (Boolean.FALSE.equals(user.getEnabled())) {
+            // 退会済みの旨をセッションに保存し、ログには userId のみ記録する
+            log.warn("Login attempt for disabled account - userId: {}", user.getUserId());
+            saveLoginErrorReasonToSession("withdrawn");
+            throw new UsernameNotFoundException("このアカウントは無効です");
+        }
 
-			// 1. ログに出力
-			log.error(msg);
+        // OAuth2ユーザーはパスワードがないためフォームログイン不可
+        if (user.getPassword() == null || user.getPassword().isEmpty()) {
+            log.warn("Form login attempt for OAuth2-only account - userId: {}", user.getUserId());
+            saveLoginErrorReasonToSession("oauth2_user");
+            throw new UsernameNotFoundException("OAuth2専用アカウントです");
+        }
 
-			saveLoginErrorReasonToSession("withdrawn");
+        log.debug("User authenticated successfully - userId: {}, role: {}",
+                user.getUserId(), user.getRole());
+        String roleName = user.getRole().replace("ROLE_", "");
 
-			throw new UsernameNotFoundException(msg);
-		}
+        return org.springframework.security.core.userdetails.User.withUsername(user.getEmail())
+                .password(user.getPassword())
+                .roles(roleName)
+                .build();
+    }
 
-		// OAuth2ユーザーはパスワードがないため、フォームログインできない
-		if (user.getPassword() == null || user.getPassword().isEmpty()) {
-			String msg = "このユーザーはOAuth2経由で登録されています。LINEまたはGoogleでログインしてください: " + email;
-			log.warn(msg);
-			saveLoginErrorReasonToSession("oauth2_user");
-			throw new UsernameNotFoundException(msg);
-		}
-
-		log.info("User found for form login - email: {}, role: {}", user.getEmail(), user.getRole());
-		String roleName = user.getRole().replace("ROLE_", "");
-
-		UserDetails userDetails = org.springframework.security.core.userdetails.User.withUsername(user.getEmail())
-				.password(user.getPassword())
-				.roles(roleName)
-				.build();
-
-		log.info("UserDetails created for form login - username: {}, authorities: {}",
-				userDetails.getUsername(), userDetails.getAuthorities());
-
-		return userDetails;
-	}
-
-	private void saveLoginErrorReasonToSession(String reason) {
-		try {
-			org.springframework.web.context.request.ServletRequestAttributes attributes = (org.springframework.web.context.request.ServletRequestAttributes) org.springframework.web.context.request.RequestContextHolder
-					.currentRequestAttributes();
-			if (attributes != null) {
-				jakarta.servlet.http.HttpSession session = attributes.getRequest().getSession(true);
-				session.setAttribute("LOGIN_ERROR_REASON", reason);
-			}
-		} catch (Exception e) {
-			log.error("Failed to save login error reason to session", e);
-		}
-	}
+    private void saveLoginErrorReasonToSession(String reason) {
+        try {
+            org.springframework.web.context.request.ServletRequestAttributes attributes =
+                    (org.springframework.web.context.request.ServletRequestAttributes)
+                    org.springframework.web.context.request.RequestContextHolder.currentRequestAttributes();
+            if (attributes != null) {
+                jakarta.servlet.http.HttpSession session = attributes.getRequest().getSession(true);
+                session.setAttribute("LOGIN_ERROR_REASON", reason);
+            }
+        } catch (Exception e) {
+            log.error("Failed to save login error reason to session", e);
+        }
+    }
 }

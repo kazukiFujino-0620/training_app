@@ -74,6 +74,16 @@ public class PasswordController {
             @RequestParam("passwordConfirm") String passwordConfirm,
             Model model) {
 
+        if (password.length() < 8 || password.length() > 100) {
+            model.addAttribute("errorMessage", "パスワードは8〜100文字で入力してください");
+            model.addAttribute("token", token);
+            return "auth/reset_password";
+        }
+        if (!password.matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).+$")) {
+            model.addAttribute("errorMessage", "パスワードは大文字・小文字・数字・記号をそれぞれ1文字以上含む必要があります");
+            model.addAttribute("token", token);
+            return "auth/reset_password";
+        }
         if (!password.equals(passwordConfirm)) {
             model.addAttribute("errorMessage", "パスワードが一致しません");
             model.addAttribute("token", token);

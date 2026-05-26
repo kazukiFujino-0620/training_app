@@ -4,10 +4,9 @@ spring:
 
 jasypt:
   encryptor:
-    # ★ SECURITY: 本番環境では環境変数 JASYPT_ENCRYPTOR_PASSWORD を設定必須
-    # デフォルト値 'local-dev-password' は開発環境用のみ
-    # 本番では強力でランダムなパスワード（最低32文字）を使用してください
-    password: ${JASYPT_ENCRYPTOR_PASSWORD:local-dev-password}
+    # 必須: 環境変数 JASYPT_ENCRYPTOR_PASSWORD を設定してください。
+    # デフォルト値は設定しません。未設定のまま起動すると IllegalArgumentException で失敗します。
+    password: ${JASYPT_ENCRYPTOR_PASSWORD}
     algorithm: PBEWithHmacSHA512AndAES_256
-    key-obtention-iterations: 1000
+    key-obtention-iterations: 310000
     provider-name: SunJCE
