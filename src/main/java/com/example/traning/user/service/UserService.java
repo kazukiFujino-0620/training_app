@@ -44,12 +44,16 @@ public class UserService {
 	}
 
 	public List<User> searchUsers(String userName) {
-		log.info("ユーザー名で検索を開始します。検索ワード: {}", userName);
+		log.debug("ユーザー名検索開始");
 		if (userName == null || userName.trim().isEmpty()) {
 			return userDao.selectAll();
 		}
-
-		String searchWord = "%" + userName + "%";
+		// LIKE 特殊文字（% _ \）をエスケープしてワイルドカードインジェクションを防ぐ
+		String escaped = userName
+				.replace("\\", "\\\\")
+				.replace("%", "\\%")
+				.replace("_", "\\_");
+		String searchWord = "%" + escaped + "%";
 		return userDao.selectByName(searchWord);
 	}
 
@@ -68,6 +72,11 @@ public class UserService {
 
 	public List<String> getDayStatusList(Integer userId, List<LocalDate> dateList) {
 		log.info("ユーザーID: {} の進捗ステータスを取得します。", userId);
+		if (dateList == null || dateList.size() < 42) {
+			log.warn("カレンダー日付リストが不正です: size={}", dateList == null ? 0 : dateList.size());
+			return dateList == null ? List.of()
+					: dateList.stream().map(d -> "NONE").collect(java.util.stream.Collectors.toList());
+		}
 		List<Training> records = trainingDao.selectByUserIdAndDateRange(
 				userId, dateList.get(0), dateList.get(41));
 

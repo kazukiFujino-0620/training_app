@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,22 +36,32 @@ public class PasswordResetService {
         tokenDao.deleteExpiredTokens(LocalDateTime.now());
         userDao.selectByEmail(email).ifPresent(user -> {
 
+            // 同一ユーザーの既存トークンを削除（複数トークン並存を防ぐ）
+            tokenDao.deleteByUserId(user.getUserId());
+
             // 1. トークンの生成
             String token = UUID.randomUUID().toString();
 
-            // ユーザーが存在する場合のみ、以下の処理が実行される
             LocalDateTime expiryDate = LocalDateTime.now().plusMinutes(30);
 
             PasswordResetToken resetToken = new PasswordResetToken();
             resetToken.token = token;
             resetToken.expiryDate = expiryDate;
-            resetToken.userId = java.math.BigInteger.valueOf(user.getUserId());
+            resetToken.userId = user.getUserId();
 
             // 3. DB保存
             tokenDao.insert(resetToken);
 
-            // 4. メール送信 (後ほど実装)
-            mailService.sendResetMail(email, token);
+            // 4. コミット後にメール送信（TX内でのメール送信失敗でロールバックされる不整合を防ぐ）
+            final String tokenForMail = token;
+            final String emailForMail = email;
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronizationAdapter() {
+                        @Override
+                        public void afterCommit() {
+                            mailService.sendResetMail(emailForMail, tokenForMail);
+                        }
+                    });
         });
     }
 
@@ -70,9 +82,7 @@ public class PasswordResetService {
         }
 
         // 3. ユーザーの取得とパスワード更新
-        // userId (BigInteger) を Userエンティティの型に合わせて変換
-        Integer userId = resetToken.userId.intValue();
-        User user = userDao.selectById(userId);
+        User user = userDao.selectById(resetToken.userId);
 
         if (user == null) {
             throw new RuntimeException("ユーザーが見つかりません。");

@@ -25,9 +25,7 @@ public class TraningAppApplication {
 
 			SpringApplication app = new SpringApplication(TraningAppApplication.class);
 
-			// Reduce startup components
-			app.setAdditionalProfiles("performance");
-
+			// プロファイルは起動引数 --spring.profiles.active=xxx で外部指定する
 			// Disable unnecessary auto-configurations for faster startup
 			app.setWebApplicationType(org.springframework.boot.WebApplicationType.SERVLET);
 

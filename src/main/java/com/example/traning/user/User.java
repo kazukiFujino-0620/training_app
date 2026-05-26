@@ -9,6 +9,8 @@ import org.seasar.doma.GenerationType;
 import org.seasar.doma.Id;
 import org.seasar.doma.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -29,6 +31,7 @@ public class User {
 
 	public String email;
 
+	@JsonIgnore
 	@Column(name = "password")
 	public String password;
 
@@ -38,9 +41,11 @@ public class User {
 	public String role;
 	public Boolean enabled;
 
+	@JsonIgnore
 	@Column(name = "google_Id")
 	public String googleId;
 
+	@JsonIgnore
 	@Column(name = "line_Id")
 	public String lineId;
 

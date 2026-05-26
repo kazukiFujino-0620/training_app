@@ -30,7 +30,8 @@ public class JasyptConfig {
         // bootstrap.yml の設定と完全に一致させる
         config.setPassword(encryptorPassword);
         config.setAlgorithm("PBEWithHmacSHA512AndAES_256");
-        config.setKeyObtentionIterations("1000");
+        // OWASP 推奨: PBKDF2-SHA512 で 210,000 回以上
+        config.setKeyObtentionIterations("310000");
         config.setPoolSize("1");
         config.setProviderName("SunJCE");
 
