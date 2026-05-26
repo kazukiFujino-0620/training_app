@@ -4,6 +4,11 @@ on:
   push:
     branches: [master]
 
+# 最小権限の原則: デプロイは読み取りのみ。
+# サードパーティ Action 改ざん時の被害を最小化する。
+permissions:
+  contents: read
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
