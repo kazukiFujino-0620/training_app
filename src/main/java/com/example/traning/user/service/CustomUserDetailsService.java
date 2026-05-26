@@ -1,5 +1,6 @@
 package com.example.traning.user.service;
 
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -15,13 +16,23 @@ import lombok.extern.slf4j.Slf4j;
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserDao userDao;
+    private final LoginAttemptService loginAttemptService;
 
-    public CustomUserDetailsService(UserDao userDao) {
+    public CustomUserDetailsService(UserDao userDao, LoginAttemptService loginAttemptService) {
         this.userDao = userDao;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        // ブルートフォース対策: ロック中なら即座に拒否
+        if (loginAttemptService.isBlocked(email)) {
+            log.warn("Login blocked due to lockout - userHash: {}",
+                    Integer.toHexString(email == null ? 0 : email.hashCode()));
+            saveLoginErrorReasonToSession("account_locked");
+            throw new LockedException("アカウントが一時的にロックされています");
+        }
+
         // メールアドレスは個人情報のため DEBUG レベルでのみ出力する
         log.debug("Form login attempt for user");
         User user = userDao.selectByEmail(email)
