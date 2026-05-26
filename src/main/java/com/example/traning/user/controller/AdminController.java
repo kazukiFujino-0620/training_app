@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +27,7 @@ import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.user.User;
+import com.example.traning.user.form.UserAdminUpdateForm;
 import com.example.traning.user.service.UserService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -81,11 +84,23 @@ public class AdminController {
         return "admin/user_edit";
     }
 
+    /**
+     * ユーザー情報更新。
+     * UserAdminUpdateForm を使い userName / enabled のみを更新する。
+     * role / password は このエンドポイントでは変更不可（Mass Assignment 防止）。
+     */
     @PostMapping("/user/update")
-    public String updateUser(@ModelAttribute User user) {
-        // パスワードは hidden フィールドから送信されないため、null のまま
-        // ユーザー編集時はパスワードを更新しない（パスワード変更は別画面で管理）
-        User updatedUser = user.toBuilder()
+    public String updateUser(@Validated @ModelAttribute UserAdminUpdateForm form,
+            BindingResult result,
+            org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        if (result.hasErrors()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "入力内容に誤りがあります。再度ご確認ください。");
+            return "redirect:/admin/user/edit/" + form.getUserId();
+        }
+        User existing = userService.getUserById(form.getUserId());
+        User updatedUser = existing.toBuilder()
+                .userName(form.getUserName())
+                .enabled(form.getEnabled())
                 .updatedDatetime(LocalDateTime.now())
                 .build();
         userService.updateUserInfo(updatedUser);

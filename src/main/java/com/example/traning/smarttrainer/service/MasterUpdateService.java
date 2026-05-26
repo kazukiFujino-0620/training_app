@@ -192,8 +192,13 @@ public class MasterUpdateService {
 
     private TrainingItemMaster createTrainingItemMaster(String[] data, Set<String> existingKeys,
             Map<String, Integer> orderMap) {
-        String partsCode = data[0];
-        String itemName = data[1];
+        String partsCode = data[0].trim();
+        String itemName = data[1].trim();
+
+        if (partsCode.isEmpty() || itemName.isEmpty()) {
+            logger.warn("空のパーツコードまたはアイテム名をスキップしました");
+            return null;
+        }
 
         // --- 重複チェック ---
         String key = partsCode + ":" + itemName;

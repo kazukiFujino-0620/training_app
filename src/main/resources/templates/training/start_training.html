@@ -94,15 +94,15 @@
     </div>
 
     <!-- Training Modal -->
-    <div id="trainingModal" class="hidden fixed inset-0 bg-modal flex items-center justify-center z-50">
-        <div class="bg-card rounded-xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto m-4">
-            <h3 id="modalTitle" class="text-xl font-bold mb-4">トレーニング登録</h3>
-            <p id="displayDate" class="text-muted font-bold mb-6"></p>
-            
+    <div id="trainingModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 id="modalTitle">トレーニング登録</h3>
+            <p id="displayDate" class="text-muted modal-date"></p>
+
             <form th:action="@{/menu/save}" method="post">
                 <input type="hidden" id="trainingId" name="id">
                 <input type="hidden" id="modalDate" name="trainingDate">
-                
+
                 <div class="form-group">
                     <label class="form-label">部位</label>
                     <select name="partCode" id="modalPart" class="form-select" required data-change="updateItems">
@@ -110,7 +110,7 @@
                         <option th:each="p : ${partList}" th:value="${p.partCode}" th:text="${p.partName}"></option>
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label">種目名</label>
                     <select name="menu" id="modalMenu" class="form-select" required disabled>
@@ -118,8 +118,8 @@
                     </select>
                 </div>
 
-                <div class="mt-6">
-                    <label class="form-label font-bold">セット詳細</label>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight:600;">セット詳細</label>
                     <table class="table">
                         <thead>
                             <tr>
@@ -132,12 +132,12 @@
                         <tbody id="setList">
                         </tbody>
                     </table>
-                    <button type="button" data-action="addSetRow" class="btn btn-outline w-full mt-2">＋ セットを追加</button>
+                    <button type="button" data-action="addSetRow" class="btn btn-outline w-full" style="margin-top:0.5rem;">＋ セットを追加</button>
                 </div>
-                
-                <div class="flex justify-between mt-8">
+
+                <div class="flex justify-between" style="margin-top:1.5rem;">
                     <button type="button" data-action="closeModal" class="btn btn-secondary">キャンセル</button>
-                    <button type="button" data-action="saveRegister">保存</button>
+                    <button type="button" data-action="saveRegister" class="btn btn-primary">保存</button>
                 </div>
             </form>
         </div>

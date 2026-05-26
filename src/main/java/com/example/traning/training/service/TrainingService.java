@@ -173,8 +173,9 @@ public class TrainingService {
 		try {
 			Long userId = trainingDao.selectIdByUsername(username);
 			if (userId == null) {
-				logger.warn("ユーザーが見つかりません - ユーザー名: {}, デフォルトID: 1 を使用", username);
-				return 1L;
+				logger.warn("ユーザーが見つかりません - ユーザー名: {}", username);
+				throw new org.springframework.security.core.userdetails.UsernameNotFoundException(
+						"ユーザーが見つかりません: " + username);
 			}
 			logger.debug("ユーザーID取得完了 - ユーザー名: {}, ID: {}", username, userId);
 			return userId;
@@ -185,18 +186,19 @@ public class TrainingService {
 	}
 
 	public Long getUserIdByEmail(String email) {
-		logger.debug("ユーザーID取得開始（メール） - メール: {}", email);
+		logger.debug("ユーザーID取得開始（メール）");
 
 		try {
 			Long userId = trainingDao.selectIdByEmail(email);
 			if (userId == null) {
-				logger.warn("ユーザーが見つかりません - メール: {}", email);
-				return null;
+				logger.warn("ユーザーが見つかりません - メール: [PROTECTED]");
+				throw new org.springframework.security.core.userdetails.UsernameNotFoundException(
+						"ユーザーが見つかりません");
 			}
-			logger.debug("ユーザーID取得完了（メール） - メール: {}, ID: {}", email, userId);
+			logger.debug("ユーザーID取得完了（メール） - ID: {}", userId);
 			return userId;
 		} catch (Exception e) {
-			logger.error("ユーザーID取得中にエラー発生（メール） - メール: {}", email, e);
+			logger.error("ユーザーID取得中にエラー発生（メール）", e);
 			throw e;
 		}
 	}

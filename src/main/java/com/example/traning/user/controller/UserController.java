@@ -40,7 +40,7 @@ public class UserController {
 	}
 
 	@PostMapping("/signup")
-	public String processSignup(@Validated @ModelAttribute SignupForm signupForm, BindingResult result) {
+	public String processSignup(@Validated @ModelAttribute SignupForm signupForm, BindingResult result, Model model) {
 		if (result.hasErrors()) {
 			log.error("バリデーションチェックエラーが発生しました。");
 			log.error("バリデーションエラー: {}", result.getAllErrors());
@@ -48,10 +48,12 @@ public class UserController {
 		}
 		try {
 			if (!signupService.register(signupForm)) {
+				model.addAttribute("errorMessage", "登録に失敗しました。入力内容をご確認ください。");
 				return "auth/signup";
 			}
 		} catch (Exception e) {
 			log.error("予期せぬエラーが発生しました。", e);
+			model.addAttribute("errorMessage", "登録中にエラーが発生しました。時間をおいて再度お試しください。");
 			return "auth/signup";
 		}
 		return "redirect:/login";

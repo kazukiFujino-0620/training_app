@@ -21,9 +21,11 @@ public class TokenCleanupTask {
 
     // 1時間ごとに実行
     @Scheduled(cron = "${batch.master.tokenCleanup.cron}")
+    @org.springframework.transaction.annotation.Transactional
     public void cleanupExpiredTokens() {
         LocalDateTime now = LocalDateTime.now();
         log.info("トークンクリーンアップを開始します...");
-        tokenDao.deleteExpiredTokens(now); // Daoに一括削除用のメソッドを作る
+        tokenDao.deleteExpiredTokens(now);
+        log.info("トークンクリーンアップ完了");
     }
 }
