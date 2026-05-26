@@ -17,6 +17,13 @@
 	<properties>
 			<java.version>21</java.version>
 			<doma.version>2.61.0</doma.version>
+			<!-- Lombok: Java 21 record/pattern との互換性確保のため 1.18.34 以上 -->
+			<lombok.version>1.18.34</lombok.version>
+			<!-- Maven プラグインの再現性確保のためバージョン固定 -->
+			<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+			<maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
+			<owasp-dependency-check.version>10.0.4</owasp-dependency-check.version>
+			<cyclonedx-maven-plugin.version>2.9.0</cyclonedx-maven-plugin.version>
 		</properties>
 
 		<profiles>
@@ -139,6 +146,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven-compiler-plugin.version}</version>
 				<configuration>
 					<source>${java.version}</source>
 					<target>${java.version}</target>
@@ -154,7 +162,7 @@
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
-							<version>1.18.30</version>
+							<version>${lombok.version}</version>
 						</path>
 					</annotationProcessorPaths>
 				</configuration>
@@ -181,9 +189,61 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
+				<version>${maven-surefire-plugin.version}</version>
 				<configuration>
 					<forkCount>1</forkCount>
 					<reuseForks>true</reuseForks>
+				</configuration>
+			</plugin>
+
+			<!--
+				OWASP Dependency-Check:
+				依存関係の既知 CVE をビルド時にスキャン。
+				CVSS 7 以上の脆弱性で fail。本番リリース前のセーフティネット。
+				NVD API キーは環境変数 NVD_API_KEY で渡す。
+				ローカル CLI: `mvn org.owasp:dependency-check-maven:check`
+			-->
+			<plugin>
+				<groupId>org.owasp</groupId>
+				<artifactId>dependency-check-maven</artifactId>
+				<version>${owasp-dependency-check.version}</version>
+				<configuration>
+					<failBuildOnCVSS>7</failBuildOnCVSS>
+					<nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+					<formats>
+						<format>HTML</format>
+						<format>SARIF</format>
+					</formats>
+					<!-- 誤検知抑止ファイル（必要時に作成） -->
+					<suppressionFiles>
+						<suppressionFile>owasp-suppressions.xml</suppressionFile>
+					</suppressionFiles>
+					<failOnError>false</failOnError>
+				</configuration>
+			</plugin>
+
+			<!--
+				CycloneDX SBOM 生成:
+				ソフトウェア部品表（SBOM）を JSON 形式で生成。
+				サプライチェーン透明性確保と監査対応のため。
+				出力先: target/bom.json
+			-->
+			<plugin>
+				<groupId>org.cyclonedx</groupId>
+				<artifactId>cyclonedx-maven-plugin</artifactId>
+				<version>${cyclonedx-maven-plugin.version}</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>makeAggregateBom</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<outputFormat>json</outputFormat>
+					<outputName>bom</outputName>
+					<skipNotDeployed>false</skipNotDeployed>
 				</configuration>
 			</plugin>
 		</plugins>

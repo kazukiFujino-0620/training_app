@@ -82,6 +82,15 @@ public class SecurityConfig {
                             .maxAgeInSeconds(31536000))
                     .frameOptions(frame -> frame.deny())
                     .contentTypeOptions(contentType -> {})
+                    .referrerPolicy(referrer -> referrer
+                            .policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                    .permissionsPolicyHeader(permissions -> permissions
+                            // 機能の最小権限化（不要なブラウザ機能をすべて拒否）
+                            .policy("camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), fullscreen=(self)"))
+                    .crossOriginOpenerPolicy(coop -> coop
+                            .policy(org.springframework.security.web.header.writers.CrossOriginOpenerPolicyHeaderWriter.CrossOriginOpenerPolicy.SAME_ORIGIN))
+                    .crossOriginResourcePolicy(corp -> corp
+                            .policy(org.springframework.security.web.header.writers.CrossOriginResourcePolicyHeaderWriter.CrossOriginResourcePolicy.SAME_ORIGIN))
                     .contentSecurityPolicy(csp -> csp.policyDirectives(
                             "default-src 'self'; " +
                             // 'unsafe-inline' は Swagger UI のインラインスクリプトに必要。
@@ -91,6 +100,9 @@ public class SecurityConfig {
                             "font-src 'self' https://fonts.gstatic.com; " +
                             "img-src 'self' data:; " +
                             "connect-src 'self'; " +
+                            "form-action 'self'; " +
+                            "base-uri 'self'; " +
+                            "object-src 'none'; " +
                             "frame-ancestors 'none';")))
 
             // ── CSRF 保護 ───────────────────────────────────────────────────
