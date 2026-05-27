@@ -6,5 +6,6 @@ JOIN training_details d ON t.id = d.training_id
 WHERE t.user_id = /* userId */5
   AND t.part_code = /* partCode */'LEG'
   AND t.training_date BETWEEN /* startDate */'2026-05-01' AND /* endDate */'2026-05-07'
+  AND t.deleted_at IS NULL
 GROUP BY t.training_date
 ORDER BY training_date ASC;

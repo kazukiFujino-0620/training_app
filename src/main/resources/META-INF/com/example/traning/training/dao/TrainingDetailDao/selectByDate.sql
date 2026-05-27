@@ -17,6 +17,10 @@ ON
   t.id = td.training_id
 WHERE
   t.training_date = /* date */'2026-05-01'
+AND
+  t.deleted_at IS NULL
+AND
+  td.deleted_at IS NULL
 ORDER BY
   td.training_id ASC,
   td.set_number ASC

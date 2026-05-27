@@ -78,21 +78,16 @@ public class TrainingService {
 
 	@Transactional
 	public void deleteTraining(Long id) {
-		logger.info("トレーニングデータ削除開始 - ID: {}", id);
+		logger.info("トレーニングデータ論理削除開始 - ID: {}", id);
 
 		try {
-			trainingDetailDao.deleteByTrainingId(id);
-			logger.debug("トレーニング詳細データ削除完了 - ID: {}", id);
+			trainingDetailDao.softDeleteByTrainingId(id);
+			logger.debug("トレーニング詳細データ論理削除完了 - ID: {}", id);
 
-			Training training = trainingDao.selectById(id);
-			if (training != null) {
-				trainingDao.delete(training);
-				logger.info("トレーニングデータ削除完了 - ID: {}", id);
-			} else {
-				logger.warn("削除対象のトレーニングデータが見つかりません - ID: {}", id);
-			}
+			trainingDao.softDeleteById(id);
+			logger.info("トレーニングデータ論理削除完了 - ID: {}", id);
 		} catch (Exception e) {
-			logger.error("トレーニングデータ削除中にエラー発生 - ID: {}", id, e);
+			logger.error("トレーニングデータ論理削除中にエラー発生 - ID: {}", id, e);
 			throw e;
 		}
 	}
