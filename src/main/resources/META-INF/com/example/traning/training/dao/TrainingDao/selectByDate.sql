@@ -15,5 +15,7 @@ WHERE
   user_id = /* userId */0
 AND
   training_date BETWEEN /* startDate */'2026-05-01' AND /* endDate */'2026-05-31'
+AND
+  deleted_at IS NULL
 ORDER BY
   id ASC

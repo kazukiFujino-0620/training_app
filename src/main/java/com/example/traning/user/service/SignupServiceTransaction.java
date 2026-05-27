@@ -19,15 +19,24 @@ public class SignupServiceTransaction {
 
 	private final UserDao userDao;
 	private final PasswordEncoder passwordEncoder;
+	private final AccountRestoreService accountRestoreService;
 
-	public SignupServiceTransaction(UserDao userDao, PasswordEncoder passwordEncoder) {
+	public SignupServiceTransaction(UserDao userDao, PasswordEncoder passwordEncoder,
+			AccountRestoreService accountRestoreService) {
 		this.userDao = userDao;
 		this.passwordEncoder = passwordEncoder;
+		this.accountRestoreService = accountRestoreService;
 	}
 
 	@Transactional(rollbackFor = Exception.class)
 	public boolean execute(SignupForm signupForm) {
 		try {
+			// 論理削除済みユーザーが同じメールで再登録しようとした場合は復元フローへ
+			if (userDao.selectSoftDeletedByEmail(signupForm.getEmail()).isPresent()) {
+				accountRestoreService.initiateRestore(signupForm.getEmail());
+				throw new AccountRestoreRequiredException();
+			}
+
 			User user = new User();
 			user.setEmail(signupForm.getEmail());
 

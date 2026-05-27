@@ -34,6 +34,22 @@ public class MailService {
         mailSender.send(message);
     }
 
+    public void sendRestoreMail(String to, String token) {
+        String sanitizedTo = sanitizeHeader(to);
+        String sanitizedToken = sanitizeHeader(token);
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(sanitizedTo);
+        message.setSubject("【TraningApp】アカウント復元のご案内");
+
+        String restoreUrl = baseUrl + "/account/restore?token=" + sanitizedToken;
+        message.setText("以下のリンクをクリックしてアカウントの復元を完了してください。\n"
+                + "有効期限は24時間です。\n\n"
+                + restoreUrl);
+
+        mailSender.send(message);
+    }
+
     /** ヘッダーインジェクションに使われる CR・LF・NUL を除去する */
     private static String sanitizeHeader(String value) {
         if (value == null) {

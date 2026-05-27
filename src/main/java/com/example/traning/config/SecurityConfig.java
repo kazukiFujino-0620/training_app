@@ -21,6 +21,7 @@ public class SecurityConfig {
     private static final String PUBLIC_PATHS    = "/signup";
     private static final String LOGIN_PATH      = "/login";
     private static final String PASSWORD_PATH   = "/password/**";
+    private static final String RESTORE_PATH    = "/account/restore/**";
     private static final String CSS_PATH        = "/css/**";
     private static final String JS_PATH         = "/js/**";
     private static final String IMAGES_PATH     = "/images/**";
@@ -67,7 +68,7 @@ public class SecurityConfig {
 
             // ── URL ベースの認可 ────────────────────────────────────────────
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers(PUBLIC_PATHS, LOGIN_PATH, PASSWORD_PATH,
+                    .requestMatchers(PUBLIC_PATHS, LOGIN_PATH, PASSWORD_PATH, RESTORE_PATH,
                             CSS_PATH, JS_PATH, IMAGES_PATH,
                             SWAGGER_UI_PATH, SWAGGER_HTML, API_DOCS_PATH, OPENAPI_YAML)
                     .permitAll()
