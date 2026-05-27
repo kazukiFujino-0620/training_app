@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.servlet.ModelAndView;
 
 import com.example.traning.dao.UserDao;
+import com.example.traning.retention.RetentionPolicyException;
 import com.example.traning.user.User;
 
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,15 @@ public class GlobalControllerAdvice {
     }
 
     // ── 例外ハンドラー ──────────────────────────────────────────────────────
+
+    @ExceptionHandler(RetentionPolicyException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ModelAndView handleRetentionPolicyException(RetentionPolicyException ex) {
+        log.warn("Retention policy violation: {}", ex.getMessage());
+        ModelAndView mav = new ModelAndView("error/409");
+        mav.addObject("message", ex.getMessage());
+        return mav;
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)

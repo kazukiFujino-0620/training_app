@@ -1,6 +1,7 @@
 package com.example.traning.training.dao;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.seasar.doma.Column;
@@ -39,6 +40,12 @@ public interface TrainingDao {
 
 	@Delete
 	int delete(Training training);
+
+	@Update(sqlFile = true)
+	int softDeleteById(Long id);
+
+	@Delete(sqlFile = true)
+	int deleteExpiredPhysically(LocalDateTime cutoff);
 
 	@Select
 	List<Training> selectByUserIdAndDateRange(Integer userId, LocalDate startDate, LocalDate endDate);

@@ -11,5 +11,7 @@ SELECT
     updated_datetime
 FROM
     trainings
+WHERE
+    deleted_at IS NULL
 ORDER BY
     training_date DESC;
