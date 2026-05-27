@@ -57,6 +57,8 @@ public class TrainingDetail {
 	private LocalDateTime createDatetime = LocalDateTime.now();
 	@Column(name = "updated_datetime")
 	private LocalDateTime updatedDatetime = LocalDateTime.now();
+	@Column(name = "deleted_at")
+	private LocalDateTime deletedAt;
 
 	@org.seasar.doma.Transient
 	@ManyToOne

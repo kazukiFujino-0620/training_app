@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>復元メール送信完了 - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="login-container">
+    <div class="login-background"></div>
+
+    <div class="theme-toggle-login">
+        <button class="settings-btn" data-action="toggleTheme" aria-label="テーマ切り替え">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+            </div>
+            <h1 class="login-title">復元メール送信完了</h1>
+            <p class="login-subtitle">アカウント復元用のURLを送信しました</p>
+        </div>
+
+        <div class="success-message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span>メールを送信しました</span>
+        </div>
+
+        <div class="info-message">
+            <p>
+                入力されたメールアドレス宛に、アカウント復元用URLを送信しました。<br>
+                <strong>24時間以内</strong>にアカウントの復元を完了させてください。
+            </p>
+            <p>※メールが届かない場合は、迷惑メールフォルダをご確認ください。</p>
+        </div>
+
+        <div class="login-footer">
+            <p>ログイン画面に戻る</p>
+            <a th:href="@{/login}" class="text-primary">ログイン</a>
+        </div>
+    </div>
+
+    <script th:src="@{/js/theme.js}"></script>
+</body>
+</html>

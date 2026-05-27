@@ -13,3 +13,5 @@ FROM
     users
 WHERE
     user_name = /* userName */'placeholder'
+AND
+    deleted_at IS NULL

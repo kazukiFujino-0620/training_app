@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 
 import com.example.traning.user.form.SignupForm;
+import com.example.traning.user.service.AccountRestoreRequiredException;
 import com.example.traning.user.service.SignupService;
 
 @Controller
@@ -51,6 +52,8 @@ public class UserController {
 				model.addAttribute("errorMessage", "登録に失敗しました。入力内容をご確認ください。");
 				return "auth/signup";
 			}
+		} catch (AccountRestoreRequiredException e) {
+			return "redirect:/account/restore/sent";
 		} catch (Exception e) {
 			log.error("予期せぬエラーが発生しました。", e);
 			model.addAttribute("errorMessage", "登録中にエラーが発生しました。時間をおいて再度お試しください。");

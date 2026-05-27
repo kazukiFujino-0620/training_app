@@ -13,3 +13,5 @@ FROM
     users
 WHERE
     email = /* email */'placeholder'
+AND
+    deleted_at IS NULL

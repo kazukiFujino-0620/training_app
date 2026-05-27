@@ -12,5 +12,7 @@ FROM
     training_details
 WHERE
     training_details.training_id = /* trainingId */1
+AND
+    training_details.deleted_at IS NULL
 ORDER BY
     set_number ASC

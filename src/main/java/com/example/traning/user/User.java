@@ -54,4 +54,7 @@ public class User {
 
 	@Column(name = "update_Datetime")
 	public LocalDateTime updatedDatetime;
+
+	@Column(name = "deleted_at")
+	public LocalDateTime deletedAt;
 }

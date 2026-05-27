@@ -1,5 +1,6 @@
 package com.example.traning.training.dao;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.seasar.doma.Dao;
@@ -23,6 +24,12 @@ public interface TrainingDetailDao {
 
 	@Delete(sqlFile = true)
 	int deleteByTrainingId(Long trainingId);
+
+	@Update(sqlFile = true)
+	int softDeleteByTrainingId(Long trainingId);
+
+	@Delete(sqlFile = true)
+	int deleteExpiredPhysically(LocalDateTime cutoff);
 
 	@Select
 	List<TrainingDetail> selectByTrainingId(Long trainingId);
