@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -54,6 +55,12 @@ public class GlobalControllerAdvice {
                 .collect(Collectors.joining(", "));
         log.warn("Validation error: {}", message);
         return ResponseEntity.badRequest().body("入力値が不正です: " + message);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<String> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("JSON parse error: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body("リクエストの形式が正しくありません");
     }
 
     @ExceptionHandler(RetentionPolicyException.class)
