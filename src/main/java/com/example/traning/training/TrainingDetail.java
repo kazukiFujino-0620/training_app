@@ -44,7 +44,7 @@ public class TrainingDetail {
 	private Double weight;
 
 	@NotNull(message = "回数は必須です")
-	@Min(value = 1, message = "回数は1以上である必要があります")
+	@Min(value = 0, message = "回数は0以上である必要があります")
 	private Integer reps;
 	@Column(name = "count")
 	private Integer count;

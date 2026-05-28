@@ -75,10 +75,12 @@
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
-.training-container { 
-    padding: 1rem; 
-    max-width: 800px; 
-    margin: 0 auto; 
+.training-container {
+    padding: 1rem;
+    /* footer-nav（fixed bottom）の高さ分を確保して「種目を追加」ボタンが隠れないようにする */
+    padding-bottom: 90px;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 .training-card { 
@@ -200,9 +202,45 @@
 .timer-controls button:hover { background: rgba(255, 255, 255, 0.3); }
 
 @media (max-width: 768px) {
-    .training-container { padding: 0.5rem; }
+    .training-container {
+        padding: 0.5rem;
+        padding-bottom: 90px;
+    }
     .training-card { padding: 1rem; }
-    .set-row input { width: 60px; }
+
+    /* タイマー：スマホではコンパクトに */
+    .timer-container { padding: 1rem; }
+    .timer-display { font-size: 2em; }
+
+    /* セット入力：タップしやすい最小44pxを確保 */
+    .set-row input {
+        width: 65px;
+        height: 44px;
+        font-size: 1rem;
+    }
+    .btn-check {
+        width: 3rem;
+        height: 3rem;
+    }
+
+    /* 終了ボタン：幅を広げてタップしやすく */
+    .btn-finish {
+        width: 92%;
+        font-size: 1rem;
+        padding: 0.875rem 1rem;
+    }
+
+    /* インターバルボタン：行折り返しを許可 */
+    .interval-controls {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.4rem;
+    }
+    .btn-sm-interval {
+        padding: 8px 14px;
+        font-size: 0.9rem;
+    }
 }
 
 .btn-sm-interval {

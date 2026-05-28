@@ -33,6 +33,9 @@ public class TrainingServiceTransaction {
 			TrainingDetail d = training.getDetails().get(i);
 			d.setTrainingId(training.getId());
 			d.setSetNumber(i + 1);
+			if (d.getCount() == null) {
+				d.setCount(d.getReps() != null ? d.getReps() : 0);
+			}
 			trainingDetailDao.insert(d);
 		}
 	}
