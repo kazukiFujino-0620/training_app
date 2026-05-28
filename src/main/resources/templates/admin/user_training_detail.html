@@ -83,8 +83,8 @@
                                             th:with="index=${i * 7 + j}, day=${dateList[index]}, dayStatus=${status[index]}"
                                             class="calendar-cell cursor-pointer hover:bg-tertiary transition-colors"
                                             th:classappend="${day == today} ? 'bg-primary bg-opacity-20 font-bold' : ''"
-                                                th:attr="data-action='loadTrainingDetails' data-date='${#temporals.format(day, 'yyyy-MM-dd')}'">
-                                            
+                                                data-action="loadTrainingDetails"
+                                            th:data-date="${#temporals.format(day, 'yyyy-MM-dd')}">
                                             <div class="text-center p-2">
                                                 <span th:text="${day.dayOfMonth}" 
                                                       th:class="${day.month != targetMonth.month} ? 'text-muted' : ''">1</span>
