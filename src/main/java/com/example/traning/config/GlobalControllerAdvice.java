@@ -1,9 +1,13 @@
 package com.example.traning.config;
 
 import java.security.Principal;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -41,6 +45,23 @@ public class GlobalControllerAdvice {
     }
 
     // ── 例外ハンドラー ──────────────────────────────────────────────────────
+
+    // @Valid @RequestBody のバリデーション失敗時に JSON でエラーメッセージを返す。
+    // ModelAndView を返すと REST クライアントが HTML を受け取って処理できないため分離。
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<String> handleValidationException(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(e -> e.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        log.warn("Validation error: {}", message);
+        return ResponseEntity.badRequest().body("入力値が不正です: " + message);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<String> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("JSON parse error: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body("リクエストの形式が正しくありません");
+    }
 
     @ExceptionHandler(RetentionPolicyException.class)
     @ResponseStatus(HttpStatus.CONFLICT)

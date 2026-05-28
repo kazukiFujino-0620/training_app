@@ -293,7 +293,6 @@ public class MenuController {
 		training.setId(id);
 		training.setUserId(existingTraining.getUserId());
 		training.setTrainingDate(existingTraining.getTrainingDate());
-		training.setPartCode(existingTraining.getPartCode());
 		training.setCreateDatetime(existingTraining.getCreateDatetime());
 
 		Long currentUserId = trainingService.getUserIdByEmail(principal.getName());
@@ -459,6 +458,76 @@ public class MenuController {
 		} catch (Exception e) {
 			log.error("一括登録エラー", e);
 			return ResponseEntity.internalServerError().body("登録に失敗しました。時間をおいて再度お試しください。");
+		}
+	}
+
+	@GetMapping("/detail")
+	public String trainingDetail(
+			@RequestParam(name = "date", required = false)
+			@org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate date,
+			Model model, Principal principal) {
+
+		LocalDate today = LocalDate.now();
+		if (date == null) date = today;
+
+		Long userId = trainingService.getUserIdByEmail(principal.getName());
+		List<Training> trainings = trainingDao.selectByUserIdAndDate(userId.intValue(), date);
+
+		// 部位コード → 部位名のマップを構築
+		List<TrainingMaster> parts = trainingMasterDao.selectAllParts();
+		Map<String, String> partNameMap = parts.stream()
+				.collect(Collectors.toMap(TrainingMaster::getPartCode, TrainingMaster::getPartName, (a, b) -> a));
+
+		// 各トレーニングにセット詳細と部位名をセット、合計ボリュームを集計
+		long totalVolumeKg = 0;
+		for (Training t : trainings) {
+			List<TrainingDetail> details = trainingDetailDao.selectByTrainingId(t.getId());
+			t.setDetails(details);
+			t.setPartName(partNameMap.getOrDefault(t.getPartCode(), t.getPartCode()));
+			for (TrainingDetail d : details) {
+				if (d.getWeight() != null && d.getReps() != null) {
+					totalVolumeKg += Math.round(d.getWeight() * d.getReps());
+				}
+			}
+		}
+
+		// トレーニング時間: 全種目共通（finish時に同じ値を書き込む）の最初の非ゼロ値を使用
+		String duration = trainings.stream()
+				.map(Training::getDuration)
+				.filter(d -> d != null && !d.isEmpty() && !d.equals("00:00:00"))
+				.findFirst()
+				.orElse("00:00:00");
+
+		// 推定消費カロリー: レジスタンストレーニング MET≈5.0、体重65kg仮定
+		int durationMinutes = parseDurationToMinutes(duration);
+		int estimatedCalories = (int) Math.round(durationMinutes * 5.4); // 5.0 MET × 65kg / 60min
+
+		// トレーニングコース（種目の順序リスト）
+		List<String> course = trainings.stream()
+				.map(Training::getMenu)
+				.filter(m -> m != null && !m.isEmpty())
+				.collect(Collectors.toList());
+
+		model.addAttribute("trainings", trainings);
+		model.addAttribute("date", date);
+		model.addAttribute("today", today);
+		model.addAttribute("totalVolume", totalVolumeKg);
+		model.addAttribute("duration", duration);
+		model.addAttribute("estimatedCalories", estimatedCalories);
+		model.addAttribute("isToday", date.equals(today));
+		model.addAttribute("trainingCourse", course);
+
+		return "training/detail";
+	}
+
+	private int parseDurationToMinutes(String duration) {
+		if (duration == null || duration.isEmpty()) return 0;
+		String[] parts = duration.split(":");
+		if (parts.length != 3) return 0;
+		try {
+			return Integer.parseInt(parts[0]) * 60 + Integer.parseInt(parts[1]);
+		} catch (NumberFormatException e) {
+			return 0;
 		}
 	}
 }
