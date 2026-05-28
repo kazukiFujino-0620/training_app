@@ -293,7 +293,6 @@ public class MenuController {
 		training.setId(id);
 		training.setUserId(existingTraining.getUserId());
 		training.setTrainingDate(existingTraining.getTrainingDate());
-		training.setPartCode(existingTraining.getPartCode());
 		training.setCreateDatetime(existingTraining.getCreateDatetime());
 
 		Long currentUserId = trainingService.getUserIdByEmail(principal.getName());

@@ -1,5 +1,7 @@
 update trainings
 set
+  menu = /* training.menu */'dummy',
+  part_code = /* training.partCode */'CHEST',
   is_all_completed = /* training.allCompleted */'f',
   memo = /* training.memo */'memo',
   duration = /* training.duration */'00:00:00',
