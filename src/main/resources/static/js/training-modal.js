@@ -999,8 +999,12 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
     `;
 
     const container = document.querySelector('.training-container');
-    const lastDiv = container.querySelector('div[style*="text-align: right"]');
-    lastDiv.insertAdjacentHTML('beforebegin', newCard);
+    const addBtnWrapper = container.querySelector('[data-action="openModal"]')?.parentElement;
+    if (addBtnWrapper) {
+        addBtnWrapper.insertAdjacentHTML('beforebegin', newCard);
+    } else {
+        container.insertAdjacentHTML('beforeend', newCard);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
