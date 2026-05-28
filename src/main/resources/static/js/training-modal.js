@@ -2,6 +2,47 @@ let myChart;
 let totalSeconds = 0;
 let timerInterval = null;
 let isTimerRunning = false;
+
+// ── Web Audio API アラーム ────────────────────────────────────────────────
+// ユーザーのタップ操作（toggleMainTimer）でAudioContextを初期化する。
+// ブラウザの自動再生ポリシー対策: ユーザー操作なしに音を鳴らすとブロックされる。
+// iOS のマナーモードはブラウザからは制御不可。イヤホン接続時は多くの場合鳴る。
+let _audioCtx = null;
+
+function ensureAudioContext() {
+    if (!_audioCtx) {
+        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_audioCtx.state === 'suspended') {
+        _audioCtx.resume();
+    }
+}
+
+function playBeep(frequency, duration, volume) {
+    if (!_audioCtx) return;
+    const osc = _audioCtx.createOscillator();
+    const gain = _audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_audioCtx.destination);
+    osc.frequency.value = frequency;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(volume, _audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + duration);
+    osc.start(_audioCtx.currentTime);
+    osc.stop(_audioCtx.currentTime + duration);
+}
+
+function playWarningBeep() {
+    playBeep(660, 0.2, 0.7);
+}
+
+function playEndAlarm() {
+    playBeep(1047, 0.35, 0.9);
+    setTimeout(() => playBeep(1047, 0.35, 0.9), 420);
+    setTimeout(() => playBeep(1047, 0.35, 0.9), 840);
+    if (navigator.vibrate) navigator.vibrate([300, 120, 300, 120, 300]);
+}
+// ──────────────────────────────────────────────────────────────────────────
 // 選択されたトレーニング一覧（別ファイルと共通で使えるようグローバルで初期化）
 let selectedTrainings = window.selectedTrainings || [];
 // 参照をグローバルに公開（他スクリプトと共有）
@@ -220,7 +261,7 @@ function addEditSet() {
         weight: lastWeight,
         reps: lastReps,
         setNumber: currentEditingTraining.details.length + 1,
-        isCompleted: false
+        completed: false
     });
     
     renderEditSets();
@@ -285,6 +326,8 @@ function timeToSeconds(timeStr) {
 }
 
 function toggleMainTimer() {
+    // ユーザー操作のタイミングでAudioContextを初期化（自動再生ポリシー対策）
+    ensureAudioContext();
     const btn = document.getElementById('startBtn');
     if (!isTimerRunning) {
         isTimerRunning = true;
@@ -359,13 +402,19 @@ function startInterval(seconds) {
     updateIntervalDisplay(timerDisplay, intervalRemaining);
 
     intervalTimerId = setInterval(() => {
-        intervalRemaining--; // 変数を減らす
-        
-        if (intervalRemaining >= 0) {
+        intervalRemaining--;
+
+        if (intervalRemaining > 0) {
             updateIntervalDisplay(timerDisplay, intervalRemaining);
+            if (intervalRemaining === 10) {
+                playWarningBeep();
+                if (navigator.vibrate) navigator.vibrate(200);
+            }
         } else {
+            updateIntervalDisplay(timerDisplay, 0);
             stopInterval();
-            alert("インターバル終了です！");
+            playEndAlarm();
+            showIntervalEndBanner();
         }
     }, 1000);
 }
@@ -397,6 +446,18 @@ function stopInterval() {
     }
     const banner = document.getElementById('intervalBanner');
     if (banner) banner.style.display = 'none';
+}
+
+function showIntervalEndBanner() {
+    const banner = document.getElementById('intervalBanner');
+    if (!banner) return;
+    banner.style.display = 'block';
+    banner.style.background = '#4caf50';
+    banner.innerHTML = 'インターバル終了！次のセットを開始してください';
+    setTimeout(() => {
+        banner.style.display = 'none';
+        banner.style.background = '';
+    }, 3000);
 }
 
 // グローバル公開
@@ -438,6 +499,7 @@ function reindexSets() {
 
 // 4. モーダル関連
 let setIndex = 0; // 宣言はここ1回だけ！
+let isSaving = false;
 
 function openModal(date, id = null) {
     const modal = document.getElementById('trainingModal');
@@ -691,83 +753,86 @@ window.onclick = function(event) {
 async function finishTraining() {
     if (!confirm("トレーニングを終了して保存しますか？")) return;
 
-	const durationStr = formatDuration(totalSeconds); // 例: "00:45:10"
-
-
-	const trainingCards = document.querySelectorAll('.training-card');
+    const durationStr = formatDuration(totalSeconds);
+    const trainingCards = document.querySelectorAll('.training-card');
     const allData = [];
-    let hasError = false;
+    const validationErrors = [];
 
     trainingCards.forEach(card => {
-        const id = card.getAttribute('data-training-id');
+        const rawId = card.getAttribute('data-training-id');
+        const id = rawId && rawId !== 'null' ? Number(rawId) : null;
         const memo = card.querySelector('.memo-area')?.value || "";
         const details = [];
+        const menu = card.dataset.menu || '不明';
 
-        // 各セットの行をループ
+        if (!id) {
+            validationErrors.push(`「${menu}」はまだ保存されていません。一度モーダルから保存してください。`);
+        }
+
         card.querySelectorAll('.set-row').forEach((row, index) => {
-            const weight = row.querySelector('.weight').value;
-            const reps = row.querySelector('.reps').value;
-			const checkBtn = row.querySelector('.btn-check');
-			
-			const isCompleted = checkBtn.classList.contains('completed');
+            const weightVal = row.querySelector('.weight')?.value ?? '';
+            const repsVal = row.querySelector('.reps')?.value ?? '';
+            const checkBtn = row.querySelector('.btn-check');
+            const isCompleted = checkBtn?.classList.contains('completed') ?? false;
 
-            // 簡単なバリデーション：未入力があれば警告
-            if (!weight || !reps) {
-                hasError = true;
+            if (weightVal === '' || repsVal === '') {
+                validationErrors.push(`「${menu}」のセット ${index + 1} に未入力の項目があります。`);
             }
 
             details.push({
-                weight: weight,
-                reps: reps,
+                weight: weightVal !== '' ? parseFloat(weightVal) : null,
+                reps: repsVal !== '' ? parseInt(repsVal, 10) : null,
                 setNumber: index + 1,
-				completed: isCompleted
+                completed: isCompleted
             });
         });
 
-		const trainingDate = card.dataset.trainingDate;
-		const partCode = card.dataset.partCode;
-		const menu = card.dataset.menu;
-		const userId = parseInt(card.dataset.userId, 10);
+        const trainingDate = card.dataset.trainingDate;
+        const partCode = card.dataset.partCode;
+        const userId = parseInt(card.dataset.userId, 10);
 
-		if (!trainingDate || !partCode || !menu || isNaN(userId)) {
-		    hasError = true;
-		}
+        if (!trainingDate || !partCode || !menu || isNaN(userId)) {
+            validationErrors.push(`「${menu}」のデータが不完全です。`);
+        }
 
-		allData.push({ 
-	            id: id,
-	            userId: userId,
-	            trainingDate: trainingDate,
-	            partCode: partCode,
-	            menu: menu,
-	            memo: memo,
-	            duration: durationStr,
-	            details: details
-		        });
+        allData.push({
+            id: id,
+            userId: userId,
+            trainingDate: trainingDate,
+            partCode: partCode,
+            menu: menu,
+            memo: memo,
+            duration: durationStr,
+            details: details
+        });
     });
 
-    if (hasError) {
+    if (validationErrors.length > 0) {
+        alert("保存できません。\n\n" + validationErrors.join('\n'));
         return;
     }
 
     try {
         const token = document.querySelector('meta[name="_csrf"]').content;
         const header = document.querySelector('meta[name="_csrf_header"]').content;
-		
+
         const response = await fetch('/api/training/finish', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 [header]: token
             },
-            body: JSON.stringify(allData) // まとめたデータをJSONにして送る
+            body: JSON.stringify(allData)
         });
 
         if (response.ok) {
-            // カレンダー画面（menu）に戻る
-            window.location.href = '/menu'; 
+            window.location.href = '/menu';
+        } else {
+            const errorMsg = await response.text().catch(() => '不明なエラー');
+            alert("保存に失敗しました。\n" + errorMsg);
         }
     } catch (error) {
-        // エラー処理
+        alert("通信エラーが発生しました。\n" + error.message);
     }
 }
 
@@ -792,7 +857,7 @@ function getModalTrainingData() {
             setNumber: index + 1,
             weight: weightInput && weightInput.value !== '' ? parseFloat(weightInput.value) : 0,
             reps: repsInput && repsInput.value !== '' ? parseInt(repsInput.value, 10) : 0,
-            isCompleted: false
+            completed: false
         };
     });
 
@@ -851,6 +916,8 @@ function updateExistingTrainingCard(trainingData) {
 }
 
 async function addTrainingCardLocally() {
+    if (isSaving) return;
+
     const token = document.querySelector('meta[name="_csrf"]')?.content;
     const header = document.querySelector('meta[name="_csrf_header"]')?.content;
     const trainingData = getModalTrainingData();
@@ -860,7 +927,12 @@ async function addTrainingCardLocally() {
         return;
     }
 
-    const endpoint = trainingData.id ? `/api/training/update/${trainingData.id}` : '/api/training/save';
+    const isNew = !trainingData.id;
+    const endpoint = isNew ? '/api/training/save' : `/api/training/update/${trainingData.id}`;
+    const saveBtn = document.querySelector('#trainingModal [data-action="saveRegister"]');
+
+    isSaving = true;
+    if (saveBtn) saveBtn.disabled = true;
 
     try {
         const response = await fetch(endpoint, {
@@ -874,9 +946,11 @@ async function addTrainingCardLocally() {
 
         if (!response.ok) throw new Error('保存に失敗しました');
 
-        const responseBody = await response.json();
-        const savedId = responseBody?.id || trainingData.id;
-        trainingData.id = savedId;
+        if (isNew) {
+            // /api/training/save は Long を直接返す
+            const savedId = await response.json();
+            trainingData.id = typeof savedId === 'number' ? savedId : null;
+        }
 
         const updated = trainingData.id ? updateExistingTrainingCard(trainingData) : false;
         if (!updated) {
@@ -886,6 +960,9 @@ async function addTrainingCardLocally() {
         closeModal();
     } catch (error) {
         alert("エラーが発生しました: " + error.message);
+    } finally {
+        isSaving = false;
+        if (saveBtn) saveBtn.disabled = false;
     }
 }
 // 画面描画部分を切り出し
