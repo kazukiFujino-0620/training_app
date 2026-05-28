@@ -944,7 +944,10 @@ async function addTrainingCardLocally() {
             body: JSON.stringify(trainingData)
         });
 
-        if (!response.ok) throw new Error('保存に失敗しました');
+        if (!response.ok) {
+            const errMsg = await response.text().catch(() => '');
+            throw new Error(errMsg || '保存に失敗しました');
+        }
 
         if (isNew) {
             // /api/training/save は Long を直接返す

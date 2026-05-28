@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>トレーニング詳細 - トレーニング管理システム</title>
+  <meta name="_csrf" th:content="${_csrf.token}" />
+  <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+  <link rel="stylesheet" th:href="@{/css/main.css}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    .detail-page { max-width: 800px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+    .page-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.4rem; font-weight: 700; margin: 0; color: var(--text-primary); }
+    .date-label { color: var(--text-muted); font-size: 0.95rem; }
+
+    /* サマリーカード群 */
+    .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+    @media (min-width: 480px) { .summary-grid { grid-template-columns: repeat(4, 1fr); } }
+    .summary-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem 0.75rem;
+      text-align: center;
+    }
+    .summary-card .label { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.3rem; letter-spacing: 0.03em; }
+    .summary-card .value { font-size: 1.5rem; font-weight: 700; line-height: 1.1; color: var(--text-primary); }
+    .summary-card .unit { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* コース */
+    .section-title { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.6rem; }
+    .course-section { margin-bottom: 1.5rem; }
+    .course-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .course-badge {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 0.3rem 0.85rem;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .course-arrow { color: var(--text-muted); font-size: 0.9rem; }
+
+    /* 種目カード */
+    .exercise-section { margin-bottom: 1.5rem; }
+    .exercise-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .exercise-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+    }
+    .exercise-name { font-weight: 600; font-size: 1rem; color: var(--text-primary); }
+    .exercise-part { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem; }
+    .exercise-volume { font-size: 0.85rem; font-weight: 600; color: var(--primary-color); white-space: nowrap; }
+
+    .set-table { width: 100%; border-collapse: collapse; }
+    .set-table th {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+    }
+    .set-table td {
+      text-align: center;
+      padding: 0.6rem 0.75rem;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border-color);
+    }
+    .set-table tr:last-child td { border-bottom: none; }
+    .set-table td:first-child { color: var(--text-muted); font-size: 0.8rem; }
+    .completed-mark { color: var(--success-color); font-weight: 700; }
+
+    /* メモ */
+    .memo-box {
+      margin: 0.5rem 1rem 0.85rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    /* アクションボタン */
+    .action-area { margin-top: 2rem; display: flex; flex-direction: column; gap: 0.75rem; }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+  </style>
+</head>
+<body class="bg-secondary">
+  <header th:replace="~{common :: headerFragment}"></header>
+
+  <main class="main-content" style="padding-top: 4rem;">
+    <div class="detail-page">
+
+      <!-- ページヘッダー -->
+      <div class="page-header">
+        <div>
+          <h1>トレーニング詳細</h1>
+          <p class="date-label" th:text="${#temporals.format(date, 'yyyy年M月d日')}"></p>
+        </div>
+      </div>
+
+      <!-- データなし -->
+      <div th:if="${#lists.isEmpty(trainings)}" class="empty-state">
+        <p>この日のトレーニング記録がありません。</p>
+        <a th:href="@{/menu}" class="btn btn-secondary mt-4">メニューに戻る</a>
+      </div>
+
+      <!-- データあり -->
+      <div th:if="${!#lists.isEmpty(trainings)}">
+
+        <!-- サマリー -->
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="label">種目数</div>
+            <div class="value" th:text="${#lists.size(trainings)}">0</div>
+            <div class="unit">種目</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">総ボリューム</div>
+            <div class="value" th:text="${totalVolume}">0</div>
+            <div class="unit">kg</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">時間</div>
+            <div class="value" th:text="${duration}">00:00:00</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">推定消費カロリー</div>
+            <div class="value" th:text="${estimatedCalories}">0</div>
+            <div class="unit">kcal</div>
+          </div>
+        </div>
+
+        <!-- トレーニングコース -->
+        <div class="course-section" th:if="${!#lists.isEmpty(trainingCourse)}">
+          <div class="section-title">トレーニングコース</div>
+          <div class="course-badges">
+            <th:block th:each="ex, stat : ${trainingCourse}">
+              <span class="course-badge" th:text="${ex}"></span>
+              <span class="course-arrow" th:if="${!stat.last}">→</span>
+            </th:block>
+          </div>
+        </div>
+
+        <!-- 種目ごとの詳細 -->
+        <div class="exercise-section">
+          <div class="section-title">種目別詳細</div>
+
+          <div th:each="training : ${trainings}" class="exercise-card">
+            <!-- 種目ヘッダー -->
+            <div class="exercise-header">
+              <div>
+                <div class="exercise-name" th:text="${training.menu}">種目名</div>
+                <div class="exercise-part" th:text="${training.partName}">部位</div>
+              </div>
+              <div class="exercise-volume"
+                   th:with="vol=${#aggregates.sum(training.details.![weight != null && reps != null ? (weight * reps) : 0])}"
+                   th:text="${#numbers.formatDecimal(vol, 0, 1)} + ' kg'">
+              </div>
+            </div>
+
+            <!-- セット表 -->
+            <table class="set-table" th:if="${!#lists.isEmpty(training.details)}">
+              <thead>
+                <tr>
+                  <th>セット</th>
+                  <th>重量 (kg)</th>
+                  <th>回数</th>
+                  <th>ボリューム</th>
+                  <th>完了</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="d : ${training.details}">
+                  <td th:text="${d.setNumber}">1</td>
+                  <td th:text="${d.weight != null ? d.weight : '-'}">0</td>
+                  <td th:text="${d.reps != null ? d.reps : '-'}">0</td>
+                  <td th:text="${d.weight != null && d.reps != null ? #numbers.formatDecimal(d.weight * d.reps, 0, 1) + ' kg' : '-'}">0 kg</td>
+                  <td>
+                    <span class="completed-mark" th:if="${d.isCompleted}">✓</span>
+                    <span th:unless="${d.isCompleted}" style="color:#ccc;">—</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- メモ -->
+            <div class="memo-box"
+                 th:if="${training.memo != null && !training.memo.isEmpty()}"
+                 th:text="'📝 ' + ${training.memo}">
+            </div>
+          </div>
+        </div>
+
+        <!-- アクションエリア -->
+        <div class="action-area">
+          <!-- 編集ボタン（当日のみ表示） -->
+          <a th:if="${isToday}"
+             th:href="@{/start/training(date=${date})}"
+             class="btn btn-primary w-full text-center py-3 font-bold">
+            ✏️ 今日のトレーニングを修正する
+          </a>
+
+          <a th:href="@{/menu}" class="btn btn-secondary w-full text-center">
+            ← メニューに戻る
+          </a>
+        </div>
+
+      </div><!-- /データあり -->
+    </div><!-- /detail-page -->
+  </main>
+
+  <script th:src="@{/js/training-modal.js}"></script>
+</body>
+</html>
