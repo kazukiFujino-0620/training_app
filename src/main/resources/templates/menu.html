@@ -22,6 +22,21 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <style>
+      .mz {
+        fill: var(--bg-tertiary);
+        stroke: var(--border-color);
+        stroke-width: 0.5;
+        transition: fill 0.4s ease;
+        cursor: default;
+      }
+      .muscle-neutral {
+        fill: var(--bg-tertiary);
+        stroke: var(--border-color);
+        stroke-width: 0.5;
+        opacity: 0.45;
+      }
+    </style>
   </head>
   <body class="bg-secondary">
     <!-- Header -->
@@ -360,6 +375,163 @@
           </div>
         </div>
 
+        <!-- 筋肉疲労マップ -->
+        <div class="mt-8">
+          <div class="card">
+            <div class="card-header">
+              <div class="flex items-center justify-between">
+                <span class="font-bold">筋肉疲労マップ</span>
+                <span style="font-size:0.78rem;color:var(--text-muted);">過去7日間・半減期モデル（48h/50%回復）</span>
+              </div>
+            </div>
+            <div class="card-body" style="padding:1rem;">
+
+              <!-- 凡例 -->
+              <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.78rem;color:var(--text-muted);">
+                <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--bg-tertiary);border:1px solid var(--border-color);vertical-align:middle;margin-right:4px;"></span>記録なし</span>
+                <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:hsl(120,60%,52%);vertical-align:middle;margin-right:4px;"></span>低疲労（〜30%）</span>
+                <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:hsl(48,90%,52%);vertical-align:middle;margin-right:4px;"></span>中疲労（31〜65%）</span>
+                <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:hsl(4,80%,55%);vertical-align:middle;margin-right:4px;"></span>高疲労（66%〜）</span>
+              </div>
+
+              <!-- SVG 人体図 -->
+              <div style="display:flex;justify-content:center;margin-bottom:1.25rem;">
+                <svg id="muscle-map-svg" viewBox="0 0 300 330"
+                     xmlns="http://www.w3.org/2000/svg"
+                     style="width:100%;max-width:340px;height:auto;">
+
+                  <!-- ラベル -->
+                  <text x="75" y="11" text-anchor="middle"
+                        style="font-size:10px;fill:var(--text-muted);font-family:sans-serif;">正面</text>
+                  <text x="225" y="11" text-anchor="middle"
+                        style="font-size:10px;fill:var(--text-muted);font-family:sans-serif;">背面</text>
+                  <!-- 仕切り線 -->
+                  <line x1="150" y1="0" x2="150" y2="330"
+                        stroke="var(--border-color)" stroke-width="1" stroke-dasharray="4,3"/>
+
+                  <!-- ========== 正面 ========== -->
+                  <!-- 頭・首（データなし） -->
+                  <circle cx="75" cy="26" r="17" class="muscle-neutral"/>
+                  <rect x="68" y="43" width="14" height="12" rx="4" class="muscle-neutral"/>
+
+                  <!-- 前部三角筋（SHOULDER） -->
+                  <ellipse id="delt-front-l" class="mz" data-part="SHOULDER" cx="30" cy="76" rx="16" ry="22"/>
+                  <ellipse id="delt-front-r" class="mz" data-part="SHOULDER" cx="120" cy="76" rx="16" ry="22"/>
+
+                  <!-- 大胸筋 上部（CHEST） -->
+                  <path id="chest-upper" class="mz" data-part="CHEST"
+                        d="M44,60 Q75,51 106,60 L102,88 Q75,82 48,88 Z"/>
+                  <!-- 大胸筋 下部（CHEST） -->
+                  <path id="chest-lower" class="mz" data-part="CHEST"
+                        d="M48,88 Q75,82 102,88 L97,108 Q75,104 53,108 Z"/>
+
+                  <!-- 腹直筋（ABS・データなし） -->
+                  <rect id="abs-zone" cx="75" class="muscle-neutral"
+                        x="55" y="108" width="40" height="56" rx="6"/>
+
+                  <!-- 上腕二頭筋（ARM） -->
+                  <rect id="bicep-l" class="mz" data-part="ARM" x="12" y="71" width="17" height="55" rx="8"/>
+                  <rect id="bicep-r" class="mz" data-part="ARM" x="121" y="71" width="17" height="55" rx="8"/>
+                  <!-- 前腕（ARM） -->
+                  <rect id="forearm-l" class="mz" data-part="ARM" x="10" y="129" width="15" height="40" rx="6"/>
+                  <rect id="forearm-r" class="mz" data-part="ARM" x="125" y="129" width="15" height="40" rx="6"/>
+
+                  <!-- 腰（データなし） -->
+                  <rect x="47" y="164" width="56" height="12" rx="5" class="muscle-neutral"/>
+
+                  <!-- 大腿四頭筋（LEG） -->
+                  <rect id="quad-l" class="mz" data-part="LEG" x="41" y="176" width="27" height="74" rx="10"/>
+                  <rect id="quad-r" class="mz" data-part="LEG" x="82" y="176" width="27" height="74" rx="10"/>
+                  <!-- ふくらはぎ前面（LEG） -->
+                  <rect id="calf-front-l" class="mz" data-part="LEG" x="43" y="252" width="23" height="54" rx="9"/>
+                  <rect id="calf-front-r" class="mz" data-part="LEG" x="84" y="252" width="23" height="54" rx="9"/>
+
+                  <!-- ========== 背面 ========== -->
+                  <!-- 頭・首（データなし） -->
+                  <circle cx="225" cy="26" r="17" class="muscle-neutral"/>
+                  <rect x="218" y="43" width="14" height="12" rx="4" class="muscle-neutral"/>
+
+                  <!-- 僧帽筋 上部（BACK） -->
+                  <path id="trap" class="mz" data-part="BACK"
+                        d="M219,43 Q225,50 231,43 L250,62 L225,67 L200,62 Z"/>
+
+                  <!-- 広背筋 左右（BACK） -->
+                  <path id="lat-l" class="mz" data-part="BACK"
+                        d="M163,68 Q180,62 192,67 L188,155 L167,160 Z"/>
+                  <path id="lat-r" class="mz" data-part="BACK"
+                        d="M287,68 Q270,62 258,67 L262,155 L283,160 Z"/>
+
+                  <!-- 脊柱起立筋（BACK） -->
+                  <rect id="erector-l" class="mz" data-part="BACK" x="206" y="108" width="15" height="50" rx="5"/>
+                  <rect id="erector-r" class="mz" data-part="BACK" x="229" y="108" width="15" height="50" rx="5"/>
+
+                  <!-- 後部三角筋（SHOULDER） -->
+                  <ellipse id="delt-rear-l" class="mz" data-part="SHOULDER" cx="170" cy="76" rx="16" ry="22"/>
+                  <ellipse id="delt-rear-r" class="mz" data-part="SHOULDER" cx="280" cy="76" rx="16" ry="22"/>
+
+                  <!-- 上腕三頭筋（ARM） -->
+                  <rect id="tricep-l" class="mz" data-part="ARM" x="151" y="71" width="17" height="55" rx="8"/>
+                  <rect id="tricep-r" class="mz" data-part="ARM" x="282" y="71" width="17" height="55" rx="8"/>
+                  <!-- 後腕（ARM） -->
+                  <rect id="backarm-l" class="mz" data-part="ARM" x="149" y="129" width="15" height="40" rx="6"/>
+                  <rect id="backarm-r" class="mz" data-part="ARM" x="286" y="129" width="15" height="40" rx="6"/>
+
+                  <!-- 腰（データなし） -->
+                  <rect x="197" y="164" width="56" height="12" rx="5" class="muscle-neutral"/>
+
+                  <!-- ハムストリング（LEG） -->
+                  <rect id="ham-l" class="mz" data-part="LEG" x="181" y="176" width="27" height="74" rx="10"/>
+                  <rect id="ham-r" class="mz" data-part="LEG" x="242" y="176" width="27" height="74" rx="10"/>
+                  <!-- ふくらはぎ後面（LEG） -->
+                  <rect id="calf-back-l" class="mz" data-part="LEG" x="183" y="252" width="23" height="54" rx="9"/>
+                  <rect id="calf-back-r" class="mz" data-part="LEG" x="244" y="252" width="23" height="54" rx="9"/>
+
+                  <!-- 各部位ラベル（ツールチップ代わり） -->
+                  <title id="svg-title">筋肉疲労マップ — 各部位にカーソルを当てると詳細が表示されます</title>
+                </svg>
+              </div>
+
+              <!-- 案B テーブル -->
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+                  <thead>
+                    <tr style="border-bottom:2px solid var(--border-color);">
+                      <th style="text-align:left;padding:0.5rem 0.75rem;color:var(--text-muted);font-weight:600;font-size:0.75rem;">部位</th>
+                      <th style="text-align:right;padding:0.5rem 0.75rem;color:var(--text-muted);font-weight:600;font-size:0.75rem;">ボリューム</th>
+                      <th style="text-align:right;padding:0.5rem 0.75rem;color:var(--text-muted);font-weight:600;font-size:0.75rem;">セット数</th>
+                      <th style="text-align:left;padding:0.5rem 0.75rem;color:var(--text-muted);font-weight:600;font-size:0.75rem;min-width:140px;">疲労度</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr th:each="pc : ${partOrder}"
+                        style="border-bottom:1px solid var(--border-color);">
+                      <td style="padding:0.6rem 0.75rem;font-weight:500;color:var(--text-primary);"
+                          th:text="${partNameMap[pc]}">部位</td>
+                      <td style="padding:0.6rem 0.75rem;text-align:right;color:var(--text-primary);"
+                          th:text="${#numbers.formatInteger(volumeByPart[pc], 1, 'COMMA')} + ' kg'">0 kg</td>
+                      <td style="padding:0.6rem 0.75rem;text-align:right;color:var(--text-primary);"
+                          th:text="${setsByPart[pc]} + ' set'">0 set</td>
+                      <td style="padding:0.6rem 0.75rem;">
+                        <div style="display:flex;align-items:center;gap:0.5rem;">
+                          <div style="flex:1;height:8px;background:var(--bg-tertiary);border-radius:4px;overflow:hidden;">
+                            <div class="fatigue-bar-fill"
+                                 th:attr="data-pct=${fatiguePct[pc]}"
+                                 th:style="'width:' + ${fatiguePct[pc]} + '%;height:100%;border-radius:4px;'">
+                            </div>
+                          </div>
+                          <span style="font-size:0.78rem;color:var(--text-muted);min-width:34px;text-align:right;"
+                                th:text="${fatiguePct[pc]} + '%'">0%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+            </div><!-- /card-body -->
+          </div><!-- /card -->
+        </div><!-- /muscle map -->
+
         <!-- Admin Section -->
         <div sec:authorize="hasRole('ADMIN')" class="mt-8">
           <div class="card">
@@ -472,5 +644,40 @@
     <script th:src="@{/js/theme.js}"></script>
     <script th:src="@{/js/training-modal.js}"></script>
     <script th:src="@{/js/menu.js}"></script>
+
+    <!-- 筋肉疲労マップ カラーリング -->
+    <script th:inline="javascript">
+      (function () {
+        const fatiguePct = /*[[${fatiguePct}]]*/ {};
+
+        function getFatigueColor(pct) {
+          if (!pct || pct === 0) return null;
+          if (pct <= 30) return 'hsl(120,60%,52%)';
+          if (pct <= 65) return 'hsl(48,90%,52%)';
+          return 'hsl(4,80%,55%)';
+        }
+
+        function applyFatigueColors() {
+          document.querySelectorAll('.mz').forEach(function (el) {
+            const part = el.getAttribute('data-part');
+            const pct = fatiguePct[part] || 0;
+            const color = getFatigueColor(pct);
+            if (color) el.style.fill = color;
+          });
+
+          document.querySelectorAll('.fatigue-bar-fill').forEach(function (el) {
+            const pct = parseInt(el.getAttribute('data-pct') || '0', 10);
+            const color = getFatigueColor(pct);
+            if (color) el.style.background = color;
+          });
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', applyFatigueColors);
+        } else {
+          applyFatigueColors();
+        }
+      })();
+    </script>
   </body>
 </html>
