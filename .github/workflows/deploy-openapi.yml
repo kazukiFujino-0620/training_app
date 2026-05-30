@@ -32,8 +32,8 @@ jobs:
           # メインページ: システム紹介ページ
           cp docs/index.html _site/index.html
 
-          # API ドキュメント: Swagger UI を /api/ サブパスに配置
-          cp src/main/resources/openapi.yaml _site/api/openapi.yaml
+          # API ドキュメント: openapi/ ディレクトリ全体（マルチファイル）を /api/ にコピー
+          cp -r src/main/resources/openapi/. _site/api/
           cat > _site/api/index.html << 'HTML'
           <!DOCTYPE html>
           <html lang="ja">
