@@ -1,32 +1,891 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Training App API ドキュメント</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartTrainer — トレーニング管理システム</title>
+  <meta name="description" content="ジムや個人トレーニングに最適。記録・分析・管理をワンストップで提供するクラウド型トレーニング管理システム。" />
   <style>
-    body { margin: 0; }
-    .topbar { display: none; }
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:   #4f46e5;
+      --primary-d: #3730a3;
+      --secondary: #10b981;
+      --accent:    #f59e0b;
+      --danger:    #ef4444;
+      --bg:        #0f172a;
+      --bg2:       #1e293b;
+      --bg3:       #334155;
+      --text:      #f1f5f9;
+      --muted:     #94a3b8;
+      --border:    #334155;
+      --radius:    12px;
+      --shadow:    0 4px 24px rgba(0,0,0,0.35);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'YuGothic', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ===== UTILITIES ===== */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+    .section   { padding: 80px 0; }
+    .section-alt { background: var(--bg2); }
+    .badge {
+      display: inline-block; padding: 4px 12px;
+      background: rgba(79,70,229,.2); color: #a5b4fc;
+      border-radius: 99px; font-size: .75rem; font-weight: 600;
+      letter-spacing: .06em; text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 4vw, 2.2rem);
+      font-weight: 800; margin-bottom: 12px;
+    }
+    .section-sub {
+      color: var(--muted); font-size: 1.05rem; max-width: 640px;
+      margin-bottom: 48px;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 28px; border-radius: 8px;
+      font-weight: 700; font-size: .95rem; cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      border: none;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary {
+      background: var(--primary); color: #fff;
+      box-shadow: 0 4px 14px rgba(79,70,229,.45);
+    }
+    .btn-primary:hover { background: var(--primary-d); box-shadow: 0 6px 20px rgba(79,70,229,.55); }
+    .btn-outline {
+      background: transparent; color: #a5b4fc;
+      border: 2px solid rgba(79,70,229,.5);
+    }
+    .btn-outline:hover { background: rgba(79,70,229,.1); }
+
+    /* ===== NAV ===== */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(15,23,42,.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+    }
+    .nav-logo {
+      font-size: 1.15rem; font-weight: 800;
+      background: linear-gradient(135deg, #818cf8, #34d399);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .nav-links { display: flex; gap: 28px; }
+    .nav-links a {
+      color: var(--muted); font-size: .9rem; font-weight: 500;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    @media (max-width: 640px) { .nav-links { gap: 16px; font-size: .82rem; } }
+
+    /* ===== HERO ===== */
+    .hero {
+      min-height: 88vh;
+      display: flex; align-items: center;
+      position: relative; overflow: hidden;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 70% 40%, rgba(79,70,229,.25) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 20% 70%, rgba(16,185,129,.15) 0%, transparent 60%);
+    }
+    .hero-inner {
+      position: relative; z-index: 1;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 56px;
+      align-items: center;
+    }
+    @media (max-width: 800px) {
+      .hero-inner { grid-template-columns: 1fr; gap: 32px; }
+    }
+    .hero-eyebrow {
+      font-size: .8rem; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: #818cf8; margin-bottom: 16px;
+    }
+    .hero-title {
+      font-size: clamp(2rem, 5.5vw, 3.2rem);
+      font-weight: 900; line-height: 1.2;
+      margin-bottom: 20px;
+    }
+    .hero-title span {
+      background: linear-gradient(135deg, #818cf8 0%, #34d399 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-desc { color: var(--muted); font-size: 1.05rem; margin-bottom: 32px; }
+    .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; }
+    .hero-stats {
+      display: flex; gap: 24px; margin-top: 40px; flex-wrap: wrap;
+    }
+    .stat-item { text-align: center; }
+    .stat-num {
+      font-size: 1.8rem; font-weight: 900;
+      background: linear-gradient(135deg, #818cf8, #34d399);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .stat-label { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+
+    /* UI MOCKUP */
+    .ui-mockup {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .mockup-bar {
+      background: var(--bg3);
+      padding: 10px 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ef4444; }
+    .dot-y { background: #f59e0b; }
+    .dot-g { background: #10b981; }
+    .mockup-body { padding: 20px; }
+    .mockup-cal {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 4px; margin-bottom: 16px;
+    }
+    .cal-cell {
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; font-size: .78rem; font-weight: 600;
+      background: var(--bg3); color: var(--muted);
+    }
+    .cal-cell.done  { background: rgba(16,185,129,.2); color: #34d399; }
+    .cal-cell.today { background: var(--primary); color: #fff; }
+    .cal-cell.prog  { background: rgba(245,158,11,.2); color: #fbbf24; }
+    .mockup-cards { display: flex; flex-direction: column; gap: 10px; }
+    .m-card {
+      background: var(--bg3); border-radius: 8px; padding: 12px 14px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .m-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0;
+    }
+    .m-icon-g  { background: rgba(16,185,129,.2);  color: #34d399; }
+    .m-icon-p  { background: rgba(79,70,229,.25);   color: #818cf8; }
+    .m-icon-y  { background: rgba(245,158,11,.2); color: #fbbf24; }
+    .m-label   { font-size: .85rem; font-weight: 600; }
+    .m-sub     { font-size: .75rem; color: var(--muted); }
+    .progress-bar-wrap { margin-top: 4px; height: 4px; background: var(--bg2); border-radius: 2px; }
+    .progress-bar      { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--primary), var(--secondary)); }
+
+    /* ===== FEATURE CARDS ===== */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+    }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0,0,0,.35);
+      border-color: rgba(79,70,229,.4);
+    }
+    .feature-icon {
+      font-size: 2rem; margin-bottom: 14px;
+      width: 52px; height: 52px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .fi-blue   { background: rgba(79,70,229,.15); }
+    .fi-green  { background: rgba(16,185,129,.15); }
+    .fi-amber  { background: rgba(245,158,11,.15); }
+    .fi-red    { background: rgba(239,68,68,.15);  }
+    .fi-purple { background: rgba(168,85,247,.15); }
+    .fi-teal   { background: rgba(20,184,166,.15); }
+    .feature-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+    .feature-desc  { font-size: .9rem; color: var(--muted); line-height: 1.65; }
+
+    /* ===== SECURITY ===== */
+    .security-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .sec-card {
+      background: var(--bg2);
+      border: 1px solid rgba(16,185,129,.25);
+      border-radius: var(--radius);
+      padding: 22px 20px;
+      display: flex; gap: 14px;
+    }
+    .sec-icon {
+      font-size: 1.3rem; flex-shrink: 0; margin-top: 2px;
+    }
+    .sec-title { font-size: .95rem; font-weight: 700; margin-bottom: 6px; }
+    .sec-desc  { font-size: .83rem; color: var(--muted); line-height: 1.6; }
+
+    /* ===== FLOW ===== */
+    .flow-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 24px; position: relative;
+    }
+    .flow-step {
+      text-align: center; padding: 24px 16px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .step-num {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #818cf8);
+      color: #fff; font-size: 1.1rem; font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 14px;
+    }
+    .step-title { font-size: .95rem; font-weight: 700; margin-bottom: 6px; }
+    .step-desc  { font-size: .83rem; color: var(--muted); }
+
+    /* ===== FATIGUE MAP ===== */
+    .fatigue-demo {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+    }
+    .fatigue-bars { display: flex; flex-direction: column; gap: 14px; }
+    .fatigue-row  { display: flex; align-items: center; gap: 12px; }
+    .f-label { width: 60px; font-size: .82rem; font-weight: 600; }
+    .f-bar-wrap {
+      flex: 1; height: 10px; background: var(--bg3);
+      border-radius: 5px; overflow: hidden;
+    }
+    .f-bar { height: 100%; border-radius: 5px; }
+    .f-pct { width: 36px; text-align: right; font-size: .8rem; color: var(--muted); }
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; font-size: .78rem; color: var(--muted); }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+    /* ===== TECH ===== */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+    }
+    .tech-item {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px;
+      text-align: center;
+      transition: border-color .2s;
+    }
+    .tech-item:hover { border-color: rgba(79,70,229,.5); }
+    .tech-logo { font-size: 2rem; margin-bottom: 8px; }
+    .tech-name  { font-size: .85rem; font-weight: 700; }
+    .tech-role  { font-size: .75rem; color: var(--muted); margin-top: 3px; }
+
+    /* ===== CTA ===== */
+    .cta-section {
+      background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+      border-top: 1px solid var(--border);
+      text-align: center; padding: 80px 24px;
+    }
+    .cta-title { font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 900; margin-bottom: 16px; }
+    .cta-desc  { color: var(--muted); font-size: 1.05rem; max-width: 560px; margin: 0 auto 36px; }
+    .cta-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+    /* ===== FOOTER ===== */
+    footer {
+      background: var(--bg); border-top: 1px solid var(--border);
+      padding: 32px 24px; text-align: center;
+    }
+    .footer-logo {
+      font-size: 1rem; font-weight: 800; margin-bottom: 8px;
+      background: linear-gradient(135deg, #818cf8, #34d399);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .footer-text { font-size: .82rem; color: var(--muted); }
+
+    /* ===== SCREEN MOCKUP SECTION ===== */
+    .screens-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+    }
+    .screen-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .screen-header {
+      background: var(--bg3); padding: 10px 14px;
+      display: flex; align-items: center; gap: 8px;
+      font-size: .78rem; color: var(--muted);
+    }
+    .screen-body { padding: 16px; }
+
+    /* ===== SCROLL ANIMATIONS ===== */
+    .fade-in {
+      opacity: 0; transform: translateY(20px);
+      transition: opacity .55s ease, transform .55s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
   </style>
 </head>
 <body>
-  <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-  <script>
-    SwaggerUIBundle({
-      url: "./openapi.yaml",
-      dom_id: "#swagger-ui",
-      presets: [
-        SwaggerUIBundle.presets.apis,
-        SwaggerUIBundle.SwaggerUIStandalonePreset
-      ],
-      layout: "BaseLayout",
-      deepLinking: true,
-      displayRequestDuration: true,
-      defaultModelsExpandDepth: 2,
-      defaultModelExpandDepth: 2
+
+<!-- NAV -->
+<nav>
+  <div class="container nav-inner">
+    <div class="nav-logo">⚡ SmartTrainer</div>
+    <div class="nav-links">
+      <a href="#features">機能</a>
+      <a href="#security">セキ���リティ</a>
+      <a href="#tech">技術</a>
+      <a href="api/">API ドキュメント</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container" style="width:100%;">
+    <div class="hero-inner">
+      <div>
+        <p class="hero-eyebrow">🏋️ Gym Management System</p>
+        <h1 class="hero-title">
+          トレーニングを<br>
+          <span>科学する</span><br>
+          管理システム
+        </h1>
+        <p class="hero-desc">
+          ジムや個人トレーニングに最適。<br>
+          記録・分析・管理をひとつのアプリで完結。<br>
+          筋肉疲労マップ・タイマー・カレンダー管理など
+          本格的なトレーニングをサポートします。
+        </p>
+        <div class="hero-actions">
+          <a href="#features" class="btn btn-primary">機能を見る</a>
+          <a href="api/" class="btn btn-outline">API ドキュメント</a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-item">
+            <div class="stat-num">5</div>
+            <div class="stat-label">部位別<br>疲労管理</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">3</div>
+            <div class="stat-label">ログイン<br>方式対���</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">10+</div>
+            <div class="stat-label">セキュリティ<br>対策実装</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">7年</div>
+            <div class="stat-label">データ<br>保護期間</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- UI MOCKUP -->
+      <div class="ui-mockup fade-in">
+        <div class="mockup-bar">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+          <span style="margin-left:8px;font-size:.78rem;color:var(--muted);">SmartTrainer — メインメニュー</span>
+        </div>
+        <div class="mockup-body">
+          <!-- Calendar mockup -->
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;font-weight:600;">2026年5月</div>
+          <div class="mockup-cal">
+            <div class="cal-cell" style="color:#475569;font-size:.65rem;">月</div>
+            <div class="cal-cell" style="color:#475569;font-size:.65rem;">火</div>
+            <div class="cal-cell" style="color:#475569;font-size:.65rem;">水</div>
+            <div class="cal-cell" style="color:#475569;font-size:.65rem;">木</div>
+            <div class="cal-cell" style="color:#475569;font-size:.65rem;">金</div>
+            <div class="cal-cell" style="color:#475569;font-size:.65rem;">土</div>
+            <div class="cal-cell" style="color:#475569;font-size:.65rem;">日</div>
+            <div class="cal-cell">26</div>
+            <div class="cal-cell done">27</div>
+            <div class="cal-cell done">28</div>
+            <div class="cal-cell">29</div>
+            <div class="cal-cell today">30</div>
+            <div class="cal-cell">31</div>
+            <div class="cal-cell">1</div>
+            <div class="cal-cell done">2</div>
+            <div class="cal-cell">3</div>
+            <div class="cal-cell prog">4</div>
+            <div class="cal-cell done">5</div>
+            <div class="cal-cell">6</div>
+            <div class="cal-cell">7</div>
+            <div class="cal-cell">8</div>
+          </div>
+          <!-- Training cards -->
+          <div class="mockup-cards">
+            <div class="m-card">
+              <div class="m-icon m-icon-g">🏋️</div>
+              <div style="flex:1;">
+                <div class="m-label">ベンチプレス</div>
+                <div class="m-sub">胸 ・ 3セット完了</div>
+                <div class="progress-bar-wrap"><div class="progress-bar" style="width:100%"></div></div>
+              </div>
+              <span style="color:#34d399;font-size:.85rem;">��</span>
+            </div>
+            <div class="m-card">
+              <div class="m-icon m-icon-p">��</div>
+              <div style="flex:1;">
+                <div class="m-label">デッドリフト</div>
+                <div class="m-sub">背中 ・ 2/3 セット</div>
+                <div class="progress-bar-wrap"><div class="progress-bar" style="width:67%"></div></div>
+              </div>
+              <span style="color:#fbbf24;font-size:.85rem;">…</span>
+            </div>
+            <div class="m-card">
+              <div class="m-icon m-icon-y">⏱️</div>
+              <div>
+                <div class="m-label">タイマー</div>
+                <div class="m-sub">経過: 00:42:15</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section section-alt" id="features">
+  <div class="container">
+    <div class="fade-in">
+      <p class="badge">Features</p>
+      <h2 class="section-title">豊富な機能で<br>トレーニングを完全サポート</h2>
+      <p class="section-sub">
+        記録から分析まで、トレーニングに必要なすべての機能をひとつのアプリで。
+        スマートフォンでも快適に使え���す。
+      </p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-blue">📅</div>
+        <div class="feature-title">カレンダー管理</div>
+        <div class="feature-desc">
+          月別カレンダーでトレーニング履歴を一目で確認。
+          完了・進行中・未記録の日を色分けして表示するので、
+          継続状況がひと目でわかります。
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-green">🏋️</div>
+        <div class="feature-title">トレーニング記録</div>
+        <div class="feature-desc">
+          種目・セット数・重量・回数を手軽に記録。
+          胸・背中・肩・腕・脚の5部位から種目を選び、
+          複数種目をまとめて登録できます。
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-amber">🔥</div>
+        <div class="feature-title">筋肉疲労マップ</div>
+        <div class="feature-desc">
+          過去7日間のトレーニング量を「半減期モデル（48時間/50%回復）」で計算。
+          人体の正面・背面 SVG 図に疲労度をカラーで表示します。
+          オーバートレーニングの防止に役立ちます。
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-purple">⏱️</div>
+        <div class="feature-title">トレーニングタイマー</div>
+        <div class="feature-desc">
+          全体経過時間とインターバルタイマーを同時管理。
+          インターバル終了時はビープ音 + バイブレーションでお知らせ。
+          インターバル時間は±30/60秒で調整可能。
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-teal">📊</div>
+        <div class="feature-title">トレーニング詳細レポート</div>
+        <div class="feature-desc">
+          1日のトレーニング詳細を一覧表示。
+          総ボリューム（kg）・推定消費カロリー・種目コース・
+          所要時間を自動算出してレポートします。
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-red">🔐</div>
+        <div class="feature-title">マルチログイン対応</div>
+        <div class="feature-desc">
+          メール＋パスワードのほか、<strong>Google / LINE</strong> の
+          ソーシャルログインに対応。
+          初回ログイン時に自動アカウント作成し、
+          次回からワンタップでログインできます。
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-blue">📧</div>
+        <div class="feature-title">パスワードリセット</div>
+        <div class="feature-desc">
+          パスワードを忘れた場合はメールアドレスで再設定。
+          有効期限30分のワンタイムリンクを送信し、
+          安全にパスワードを更新できます。
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-green">👑</div>
+        <div class="feature-title">管理���機能</div>
+        <div class="feature-desc">
+          ジムオーナー・管理者は全会員のトレーニングデータを閲覧可能。
+          ユーザーの有効/無効・権限管理もできます。
+          部位別ボリュームのグラフ表示にも対応。
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-amber">🌙</div>
+        <div class="feature-title">ログイン維持 (Remember-me)</div>
+        <div class="feature-desc">
+          「ログインを保持する」チェックボックスで
+          7日間ログイン状態を維持。
+          毎回ログインする手間を省きます。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="flow">
+  <div class="container">
+    <div class="fade-in">
+      <p class="badge">How It Works</p>
+      <h2 class="section-title">かんたん 4 ステップで<br>今日からスタート</h2>
+      <p class="section-sub">複雑な設定は不要。登録からトレーニング記録まで数分で完了。</p>
+    </div>
+    <div class="flow-steps">
+      <div class="flow-step fade-in">
+        <div class="step-num">1</div>
+        <div class="step-title">アカウント登録</div>
+        <div class="step-desc">メールアドレスまたは Google / LINE アカウントで無料登録。数秒で完了���</div>
+      </div>
+      <div class="flow-step fade-in">
+        <div class="step-num">2</div>
+        <div class="step-title">種目を選んで記録</div>
+        <div class="step-desc">部位から種目を選び、セット数・重量・回数を入力するだけ。</div>
+      </div>
+      <div class="flow-step fade-in">
+        <div class="step-num">3</div>
+        <div class="step-title">タイマーで実施</div>
+        <div class="step-desc">トレーニング実施画面でタイマーを起動。セット完了ごとにインターバルを自動計測。</div>
+      </div>
+      <div class="flow-step fade-in">
+        <div class="step-num">4</div>
+        <div class="step-title">疲労度を確認</div>
+        <div class="step-desc">翌日以降、筋肉疲労マップで回復状況を確認。次のトレーニング計画に活かせます。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FATIGUE MAP DEMO -->
+<section class="section section-alt">
+  <div class="container">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;">
+      <div class="fade-in">
+        <p class="badge">Muscle Fatigue Map</p>
+        <h2 class="section-title">科学的な<br>疲労度管理</h2>
+        <p style="color:var(--muted);margin-bottom:20px;line-height:1.8;">
+          過去7日間のトレーニングデータをもとに、部位ごとの疲労度を計算。
+          疲労が50%回復するまでの時間（半減期）を<strong style="color:var(--text);">48時間</strong>として算出するため、
+          休息の必要な筋肉がひと目でわかります。
+        </p>
+        <ul style="color:var(--muted);list-style:none;line-height:2;font-size:.9rem;">
+          <li>✅ 人体SVGで視覚的に確認</li>
+          <li>✅ 疲労度0〜100%をカラーで表示</li>
+          <li>✅ 部位別ボリューム・セット数を一覧</li>
+          <li>✅ オーバートレーニング防止に活用</li>
+        </ul>
+      </div>
+      <div class="fatigue-demo fade-in">
+        <div style="font-size:.85rem;font-weight:700;margin-bottom:16px;">部位別 疲労度（本日時点）</div>
+        <div class="fatigue-bars">
+          <div class="fatigue-row">
+            <div class="f-label">胸</div>
+            <div class="f-bar-wrap"><div class="f-bar" style="width:85%;background:hsl(4,80%,55%);"></div></div>
+            <div class="f-pct">85%</div>
+          </div>
+          <div class="fatigue-row">
+            <div class="f-label">背中</div>
+            <div class="f-bar-wrap"><div class="f-bar" style="width:45%;background:hsl(48,90%,52%);"></div></div>
+            <div class="f-pct">45%</div>
+          </div>
+          <div class="fatigue-row">
+            <div class="f-label">肩</div>
+            <div class="f-bar-wrap"><div class="f-bar" style="width:60%;background:hsl(48,90%,52%);"></div></div>
+            <div class="f-pct">60%</div>
+          </div>
+          <div class="fatigue-row">
+            <div class="f-label">腕</div>
+            <div class="f-bar-wrap"><div class="f-bar" style="width:20%;background:hsl(120,60%,52%);"></div></div>
+            <div class="f-pct">20%</div>
+          </div>
+          <div class="fatigue-row">
+            <div class="f-label">脚</div>
+            <div class="f-bar-wrap"><div class="f-bar" style="width:100%;background:hsl(4,80%,55%);"></div></div>
+            <div class="f-pct">100%</div>
+          </div>
+        </div>
+        <div class="legend">
+          <span><div class="legend-dot" style="background:hsl(120,60%,52%);"></div>低疲労 〜30%</span>
+          <span><div class="legend-dot" style="background:hsl(48,90%,52%);"></div>中疲労 31〜65%</span>
+          <span><div class="legend-dot" style="background:hsl(4,80%,55%);"></div>高疲労 66%〜</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECURITY -->
+<section class="section" id="security">
+  <div class="container">
+    <div class="fade-in">
+      <p class="badge">Security</p>
+      <h2 class="section-title">ジム導入を見据えた<br>堅牢なセキュリティ</h2>
+      <p class="section-sub">
+        会員の個人情報・トレーニングデータを守るため、
+        10 項目以上のセキュリティ対策を実装しています���
+      </p>
+    </div>
+    <div class="security-grid">
+      <div class="sec-card fade-in">
+        <div class="sec-icon">🛡️</div>
+        <div>
+          <div class="sec-title">CSRF 保護</div>
+          <div class="sec-desc">全フォーム送信・API リクエストにCSRF トークンを要求。第三者サイトからの不正操作を防止します。</div>
+        </div>
+      </div>
+      <div class="sec-card fade-in">
+        <div class="sec-icon">🔒</div>
+        <div>
+          <div class="sec-title">パスワードハッシュ (BCrypt)</div>
+          <div class="sec-desc">パスワードは BCrypt で安全にハッシュ化。大文字・小文字・数字・記号の混在を必須としていま���。</div>
+        </div>
+      </div>
+      <div class="sec-card fade-in">
+        <div class="sec-icon">🚫</div>
+        <div>
+          <div class="sec-title">ブルートフォース対策</div>
+          <div class="sec-desc">ログイン失敗5回で15分間アカウントをロック。辞書攻撃やパスワード総当たりを自動でブロックします。</div>
+        </div>
+      </div>
+      <div class="sec-card fade-in">
+        <div class="sec-icon">🔑</div>
+        <div>
+          <div class="sec-title">セッション管理</div>
+          <div class="sec-desc">ログイン成功時にセッションIDを再生成（固定化攻撃対策）。同一ユーザーのセッションを1つに制限します。</div>
+        </div>
+      </div>
+      <div class="sec-card fade-in">
+        <div class="sec-icon">👤</div>
+        <div>
+          <div class="sec-title">IDOR 対策（所有者チェック）</div>
+          <div class="sec-desc">全データ操作で「自分のデータか」を検証。他ユーザーのトレーニングデータを参照・変更・削除できません。</div>
+        </div>
+      </div>
+      <div class="sec-card fade-in">
+        <div class="sec-icon">📋</div>
+        <div>
+          <div class="sec-title">セキュリティヘッダー</div>
+          <div class="sec-desc">HSTS・CSP・X-Frame-Options・Permissions-Policy など主要なセキュリティヘッダーを網羅的に設定。</div>
+        </div>
+      </div>
+      <div class="sec-card fade-in">
+        <div class="sec-icon">��</div>
+        <div>
+          <div class="sec-title">Cookie セキュリティ</div>
+          <div class="sec-desc">セッション Cookie に HttpOnly・Secure・SameSite=Lax を設定。本番環境では HTTPS のみで送信されます。</div>
+        </div>
+      </div>
+      <div class="sec-card fade-in">
+        <div class="sec-icon">🚨</div>
+        <div>
+          <div class="sec-title">エラー情報の秘匿化</div>
+          <div class="sec-desc">スタックトレース・例外メッセージをレスポンスに含めない設定。攻撃者への情報漏洩を防ぎます。</div>
+        </div>
+      </div>
+      <div class="sec-card fade-in">
+        <div class="sec-icon">📁</div>
+        <div>
+          <div class="sec-title">パストラバーサル対策</div>
+          <div class="sec-desc">CSV バッチ取り込み時にファイルパスを正規化・検証。許可ディレクトリ外へのアクセスを遮断します。</div>
+        </div>
+      </div>
+      <div class="sec-card fade-in">
+        <div class="sec-icon">📬</div>
+        <div>
+          <div class="sec-title">メールヘッダーインジェクション対策</div>
+          <div class="sec-desc">パスワードリセットメール送信時に CR/LF を除去。メールヘッダーの改ざんによるスパム悪用を防止します。</div>
+        </div>
+      </div>
+      <div class="sec-card fade-in">
+        <div class="sec-icon">🗃️</div>
+        <div>
+          <div class="sec-title">データ保護期間 7��</div>
+          <div class="sec-desc">退会後も7年間はデータを物理削除しない保護期間を設定。誤削除・不正削除からのデータ復元に対応。</div>
+        </div>
+      </div>
+      <div class="sec-card fade-in">
+        <div class="sec-icon">🔐</div>
+        <div>
+          <div class="sec-title">設定値の暗号化 (Jasypt)</div>
+          <div class="sec-desc">DB パスワードなど機密性の高い設定値を Jasypt で暗号化して管理。ソースコードへのハードコードを禁止。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH STACK -->
+<section class="section section-alt" id="tech">
+  <div class="container">
+    <div class="fade-in">
+      <p class="badge">Technology</p>
+      <h2 class="section-title">使用技術スタック</h2>
+      <p class="section-sub">信頼性の高いエンタープライズ技術を採用。クラウド環境での安定稼働を実現します。</p>
+    </div>
+    <div class="tech-grid">
+      <div class="tech-item fade-in">
+        <div class="tech-logo">☕</div>
+        <div class="tech-name">Java 17</div>
+        <div class="tech-role">バックエンド言語</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-logo">🍃</div>
+        <div class="tech-name">Spring Boot 3</div>
+        <div class="tech-role">アプリケーション基盤</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-logo">🔒</div>
+        <div class="tech-name">Spring Security</div>
+        <div class="tech-role">認証・認可</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-logo">🐬</div>
+        <div class="tech-name">MySQL</div>
+        <div class="tech-role">データベース</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-logo">🔵</div>
+        <div class="tech-name">Doma2</div>
+        <div class="tech-role">O/R マッパー</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-logo">🍀</div>
+        <div class="tech-name">Thymeleaf</div>
+        <div class="tech-role">テンプレートエンジン</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-logo">☁️</div>
+        <div class="tech-name">GCP Cloud Run</div>
+        <div class="tech-role">本番環境</div>
+      </div>
+      <div class="tech-item fade-in">
+        <div class="tech-logo">⚡</div>
+        <div class="tech-name">GitHub Actions</div>
+        <div class="tech-role">CI / CD</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOR GYM OPERATORS -->
+<section class="section">
+  <div class="container">
+    <div class="fade-in">
+      <p class="badge">For Gym Operators</p>
+      <h2 class="section-title">ジム導入のメリット</h2>
+      <p class="section-sub">スタッフ・会員双方にとってメリットのある機能を多数搭載。</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-green">📈</div>
+        <div class="feature-title">会員のモチベーション維持</div>
+        <div class="feature-desc">
+          カレンダーで継続を可視化。トレーニング履歴が一目でわかるので、
+          会員の継続率向上・退会防止に貢献します。
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-blue">👥</div>
+        <div class="feature-title">全会員データの一元管理</div>
+        <div class="feature-desc">
+          管理者ダッシュボードから全会員のトレーニング状況を確認。
+          部位別ボリュームのグラフで進捗を把握できます。
+        </div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon fi-amber">🔧</div>
+        <div class="feature-title">かんたんユーザー管理</div>
+        <div class="feature-desc">
+          退会・アカウント停止・権限変更をブラウザから操作可能。
+          スタッフ向け管理者アカウントの発行もできます。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="fade-in">
+    <h2 class="cta-title">
+      トレーニング管理を<br>次のレベルへ
+    </h2>
+    <p class="cta-desc">
+      SmartTrainer はジムの導入から個人利用まで対応したオールインワンの
+      トレーニング管理システムです。
+      ご導入・ご相談はお気軽にご連絡ください。
+    </p>
+    <div class="cta-actions">
+      <a href="api/" class="btn btn-primary">API ドキュメントを見る</a>
+      <a href="https://github.com/kazukiFujino-0620/training_app" target="_blank" rel="noopener noreferrer" class="btn btn-outline">GitHub を見る</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">⚡ SmartTrainer</div>
+  <p class="footer-text">
+    &copy; 2026 SmartTrainer — トレーニング管理システム<br>
+    Built with Spring Boot 3 &amp; Java 17 · Deployed on GCP Cloud Run
+  </p>
+</footer>
+
+<script>
+  // Intersection Observer for fade-in animation
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
     });
-  </script>
+  }, { threshold: 0.12 });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
 </body>
 </html>
