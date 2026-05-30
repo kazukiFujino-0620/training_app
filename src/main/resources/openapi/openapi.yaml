@@ -38,6 +38,38 @@ paths:
       responses:
         "200":
           description: ログイン画面 HTML
+    post:
+      tags: [auth]
+      summary: ログイン認証
+      description: |
+        Spring Security のフォームログイン処理。
+        成功時は /menu へリダイレクト、失敗時は /login?error へリダイレクト。
+        IP 単位で 10回/分 のレート制限あり。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: ユーザー名
+                password:
+                  type: string
+                  format: password
+                  description: パスワード
+                remember-me:
+                  type: string
+                  description: リメンバーミー（"on" を指定）
+              required:
+                - username
+                - password
+      responses:
+        "302":
+          description: 認証成功 → /menu へリダイレクト、または失敗 → /login?error へリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /signup:
     get:
@@ -61,6 +93,8 @@ paths:
           description: 登録成功 → /login へリダイレクト
         "200":
           description: バリデーションエラー → フォーム再表示
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   # ── パスワードリセット ────────────────────────────────────────────
   /password/forget:
@@ -220,6 +254,8 @@ paths:
       responses:
         "200":
           $ref: "./schemas/responses/MasterListResponse.yaml"
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training-items:
     get:
@@ -235,6 +271,8 @@ paths:
       responses:
         "200":
           $ref: "./schemas/responses/ItemMasterListResponse.yaml"
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training-items-grouped:
     get:
@@ -244,6 +282,8 @@ paths:
       responses:
         "200":
           $ref: "./schemas/responses/ItemMasterGroupedResponse.yaml"
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   # ── トレーニング REST API（CRUD + リスト取得） ───────────────────
   /api/training/{id}:
@@ -265,6 +305,8 @@ paths:
           description: 他ユーザーのデータへのアクセス
         "404":
           description: 指定 ID が存在しない
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training/save:
     post:
@@ -290,6 +332,8 @@ paths:
                 example: 42
         "400":
           description: バリデーションエラー
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training/update/{id}:
     post:
@@ -318,6 +362,8 @@ paths:
           description: 他ユーザーのデータへのアクセス
         "404":
           description: 指定 ID が存在しない
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training/delete/{id}:
     post:
@@ -338,6 +384,8 @@ paths:
           description: 他ユーザーのデータへのアクセス
         "404":
           description: 指定 ID が存在しない
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training/register-bulk:
     post:
@@ -366,6 +414,8 @@ paths:
             application/json:
               schema:
                 type: string
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training/finish:
     post:
@@ -398,6 +448,8 @@ paths:
           description: 指定したトレーニングが存在しない
         "500":
           description: 内部エラー
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   # ── 管理者画面（HTML） ──────────────────────────────────────────
   /admin/users:
@@ -586,6 +638,8 @@ paths:
           $ref: "./schemas/responses/TrainingDetailListResponse.yaml"
         "403":
           description: 権限なし
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /admin/api/training-volume/{userId}:
     get:
@@ -628,6 +682,8 @@ paths:
                 additionalProperties: true
         "403":
           description: 権限なし
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
 # ──────────────────────────────────────────────────────────────────
 # Components（セキュリティスキームのみ。スキーマは schemas/ を参照）

@@ -1,0 +1,10 @@
+type: object
+description: エラーレスポンス共通モデル
+properties:
+  error:
+    type: string
+    description: エラーメッセージ
+required:
+  - error
+example:
+  error: "リクエストが多すぎます。しばらくしてから再試行してください。"

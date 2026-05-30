@@ -1,0 +1,7 @@
+description: レート制限超過（1分あたりのリクエスト数が上限を超えた）
+content:
+  application/json:
+    schema:
+      $ref: "../models/ErrorResponse.yaml"
+    example:
+      error: "リクエストが多すぎます。しばらくしてから再試行してください。"
