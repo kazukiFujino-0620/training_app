@@ -1,0 +1,42 @@
+type: object
+description: 部位別トレーニングボリューム日次集計（グラフ表示用）
+properties:
+  labels:
+    type: array
+    description: 日付ラベル一覧（YYYY-MM-DD 形式）
+    items:
+      type: string
+    example:
+      - "2026-04-26"
+      - "2026-04-27"
+  chest:
+    type: array
+    description: 胸のボリューム（重量 × 回数 の合計、kg）
+    items:
+      type: number
+      format: double
+    example: [600.0, 0.0]
+  back:
+    type: array
+    description: 背中のボリューム（kg）
+    items:
+      type: number
+      format: double
+  arms:
+    type: array
+    description: 腕のボリューム（kg）
+    items:
+      type: number
+      format: double
+  shoulders:
+    type: array
+    description: 肩のボリューム（kg）
+    items:
+      type: number
+      format: double
+  legs:
+    type: array
+    description: 脚のボリューム（kg）
+    items:
+      type: number
+      format: double

@@ -1,0 +1,16 @@
+description: 種目マスター一覧（部位フィルタ済み）
+content:
+  application/json:
+    schema:
+      type: array
+      items:
+        $ref: "../models/TrainingItemMaster.yaml"
+    example:
+      - id: 1
+        partCode: CHEST
+        itemName: ベンチプレス
+        displayOrder: 1
+      - id: 2
+        partCode: CHEST
+        itemName: ダンベルフライ
+        displayOrder: 2
