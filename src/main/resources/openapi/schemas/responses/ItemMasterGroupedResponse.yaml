@@ -1,0 +1,29 @@
+description: 部位コード別種目マップ（全部位）
+content:
+  application/json:
+    schema:
+      type: object
+      description: キーが PartCode、値が種目リスト
+      additionalProperties:
+        type: array
+        items:
+          $ref: "../models/TrainingItemMaster.yaml"
+    example:
+      CHEST:
+        - id: 1
+          partCode: CHEST
+          itemName: ベンチプレス
+          displayOrder: 1
+        - id: 2
+          partCode: CHEST
+          itemName: ダンベルフライ
+          displayOrder: 2
+      BACK:
+        - id: 10
+          partCode: BACK
+          itemName: デッドリフト
+          displayOrder: 1
+        - id: 11
+          partCode: BACK
+          itemName: ラットプルダウン
+          displayOrder: 2

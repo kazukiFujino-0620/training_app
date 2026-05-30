@@ -1,0 +1,36 @@
+type: object
+description: ユーザーエンティティ（users テーブル）
+properties:
+  userId:
+    type: integer
+    description: ユーザーID（主キー・自動採番）
+    example: 1
+  email:
+    type: string
+    format: email
+    example: user@example.com
+  userName:
+    type: string
+    example: 山田太郎
+  role:
+    $ref: "../enums/UserRole.yaml"
+  enabled:
+    type: boolean
+    description: アカウント有効フラグ
+    example: true
+  googleId:
+    type: string
+    nullable: true
+    description: Google OAuth アカウントID
+  lineId:
+    type: string
+    nullable: true
+    description: LINE OAuth アカウントID
+  createDatetime:
+    type: string
+    format: date-time
+    readOnly: true
+  updatedDatetime:
+    type: string
+    format: date-time
+    readOnly: true

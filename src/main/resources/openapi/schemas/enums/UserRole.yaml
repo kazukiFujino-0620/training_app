@@ -1,0 +1,9 @@
+type: string
+description: |
+  ユーザーロール。
+  - USER: 一般ユーザー
+  - ADMIN: 管理者（全会員データ閲覧・ユーザー管理が可能）
+enum:
+  - USER
+  - ADMIN
+example: USER

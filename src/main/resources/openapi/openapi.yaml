@@ -1,0 +1,643 @@
+openapi: "3.0.3"
+info:
+  title: SmartTrainer API
+  description: |
+    Spring Boot 製トレーニング管理アプリケーションの API 仕様書。
+    認証は Spring Security によるセッションベースのフォームログインおよび
+    OAuth2（Google / LINE）に対応。
+    管理者専用エンドポイントは ADMIN ロールが必要。
+  version: "1.0.0"
+
+servers:
+  - url: http://localhost:8080
+    description: ローカル開発環境
+
+tags:
+  - name: auth
+    description: 認証・ユーザー登録
+  - name: password
+    description: パスワードリセット
+  - name: training
+    description: トレーニング管理（CRUD + リスト取得）
+  - name: master
+    description: マスターデータ取得
+  - name: admin
+    description: 管理者専用操作
+
+# ──────────────────────────────────────────────────────────────────
+# Paths
+# ──────────────────────────────────────────────────────────────────
+paths:
+
+  # ── 認証 ────────────────────────────────────────────────────────
+  /login:
+    get:
+      tags: [auth]
+      summary: ログイン画面表示
+      description: Spring Security が提供するフォームログイン画面を返す。
+      responses:
+        "200":
+          description: ログイン画面 HTML
+
+  /signup:
+    get:
+      tags: [auth]
+      summary: 新規登録画面表示
+      responses:
+        "200":
+          description: 新規登録フォーム HTML
+    post:
+      tags: [auth]
+      summary: ユーザー新規登録
+      description: フォームデータを受け取りユーザーを登録する。バリデーションエラー時はフォームを再表示。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/SignupRequest.yaml"
+      responses:
+        "302":
+          description: 登録成功 → /login へリダイレクト
+        "200":
+          description: バリデーションエラー → フォーム再表示
+
+  # ── パスワードリセット ────────────────────────────────────────────
+  /password/forget:
+    get:
+      tags: [password]
+      summary: パスワードリセット申請画面
+      responses:
+        "200":
+          description: メールアドレス入力フォーム HTML
+    post:
+      tags: [password]
+      summary: パスワードリセットメール送信
+      description: 入力されたメールアドレスへリセット用トークンを送信する。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/PasswordForgetRequest.yaml"
+      responses:
+        "302":
+          description: 送信完了 → /password/sent へリダイレクト
+        "200":
+          description: バリデーションエラーまたは送信失敗 → フォーム再表示
+
+  /password/sent:
+    get:
+      tags: [password]
+      summary: パスワードリセットメール送信完了画面
+      responses:
+        "200":
+          description: 送信完了画面 HTML
+
+  /password/reset:
+    get:
+      tags: [password]
+      summary: 新パスワード入力画面
+      parameters:
+        - name: token
+          in: query
+          required: true
+          description: メールで送付されたリセットトークン
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 新パスワード入力フォーム HTML
+        "302":
+          description: トークン無効または期限切れ → /password/forget へリダイレクト
+    post:
+      tags: [password]
+      summary: パスワード更新
+      description: トークンを検証し、パスワードを更新する。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/PasswordResetRequest.yaml"
+      responses:
+        "302":
+          description: 更新成功 → /login?resetSuccess へリダイレクト
+        "200":
+          description: パスワード不一致またはトークン無効 → フォーム再表示
+
+  # ── メニュー（カレンダー） ──────────────────────────────────────
+  /menu:
+    get:
+      tags: [training]
+      summary: メニュー画面（カレンダー表示）
+      description: ログインユーザーのトレーニングカレンダーを表示する。認証必須。
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: 表示する月の日付（省略時は今日）
+          schema:
+            type: string
+            format: date
+            example: "2026-05-01"
+      responses:
+        "200":
+          description: カレンダー付きメニュー画面 HTML
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /menu/save:
+    post:
+      tags: [training]
+      summary: トレーニング保存（フォーム）
+      description: フォームからトレーニングを登録・更新する。認証必須。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/TrainingFormRequest.yaml"
+      responses:
+        "302":
+          description: 保存完了 → /menu?date={trainingDate} へリダイレクト
+
+  /menu/delete:
+    post:
+      tags: [training]
+      summary: トレーニング削除（フォーム）
+      description: 指定 ID のトレーニングを削除する。所有者チェックあり。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/TrainingDeleteRequest.yaml"
+      responses:
+        "302":
+          description: 削除完了またはアクセス拒否 → /menu へリダイレクト
+
+  /start/training:
+    get:
+      tags: [training]
+      summary: トレーニング実施画面
+      description: 指定日のトレーニング一覧とタイマー情報を含む実施画面を返す。
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2026-05-26"
+      responses:
+        "200":
+          description: トレーニング実施画面 HTML
+
+  /training/register:
+    get:
+      tags: [training]
+      summary: トレーニング登録画面
+      description: 新規トレーニング登録フォームを表示する。
+      parameters:
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-05-26"
+      responses:
+        "200":
+          description: トレーニング登録フォーム HTML
+
+  # ── マスターデータ API ──────────────────────────────────────────
+  /api/training-parts:
+    get:
+      tags: [master]
+      summary: 部位マスター一覧取得
+      description: training_part_master の全件を返す。
+      responses:
+        "200":
+          $ref: "./schemas/responses/MasterListResponse.yaml"
+
+  /api/training-items:
+    get:
+      tags: [master]
+      summary: 部位別種目マスター一覧取得
+      parameters:
+        - name: partCode
+          in: query
+          required: true
+          description: 部位コード
+          schema:
+            $ref: "./schemas/enums/PartCode.yaml"
+      responses:
+        "200":
+          $ref: "./schemas/responses/ItemMasterListResponse.yaml"
+
+  /api/training-items-grouped:
+    get:
+      tags: [master]
+      summary: 全部位の種目マスターをグループ別に取得
+      description: 部位コードをキー、種目リストを値とするオブジェクトを返す。
+      responses:
+        "200":
+          $ref: "./schemas/responses/ItemMasterGroupedResponse.yaml"
+
+  # ── トレーニング REST API（CRUD + リスト取得） ───────────────────
+  /api/training/{id}:
+    get:
+      tags: [training]
+      summary: トレーニング取得（Read）
+      description: 指定 ID のトレーニングを返す。所有者チェックあり。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          $ref: "./schemas/responses/TrainingResponse.yaml"
+        "403":
+          description: 他ユーザーのデータへのアクセス
+        "404":
+          description: 指定 ID が存在しない
+
+  /api/training/save:
+    post:
+      tags: [training]
+      summary: トレーニング新規登録（Create）
+      description: |
+        トレーニングを新規登録する。
+        ログインユーザーの ID が自動付与される。登録成功時はトレーニング ID を返す。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/requests/TrainingRequest.yaml"
+      responses:
+        "200":
+          description: 登録されたトレーニング ID
+          content:
+            application/json:
+              schema:
+                type: integer
+                format: int64
+                example: 42
+        "400":
+          description: バリデーションエラー
+
+  /api/training/update/{id}:
+    post:
+      tags: [training]
+      summary: トレーニング更新（Update）
+      description: |
+        指定 ID のトレーニングを更新する。所有者チェックあり。
+        trainingDate・partCode・userId はサーバー側で保持する。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/requests/TrainingRequest.yaml"
+      responses:
+        "200":
+          description: 更新成功
+        "403":
+          description: 他ユーザーのデータへのアクセス
+        "404":
+          description: 指定 ID が存在しない
+
+  /api/training/delete/{id}:
+    post:
+      tags: [training]
+      summary: トレーニング削除（Delete）
+      description: 指定 ID のトレーニングを削除する。所有者チェックあり。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: 削除成功
+        "403":
+          description: 他ユーザーのデータへのアクセス
+        "404":
+          description: 指定 ID が存在しない
+
+  /api/training/register-bulk:
+    post:
+      tags: [training]
+      summary: トレーニング一括登録・更新（Bulk Create/Update）
+      description: |
+        日付と複数のトレーニングデータをまとめて登録・更新する。
+        id が指定されている場合は既存データを更新、null の場合は新規登録する。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/requests/BulkRegisterRequest.yaml"
+      responses:
+        "200":
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 保存に成功しました
+        "500":
+          description: 登録失敗
+          content:
+            application/json:
+              schema:
+                type: string
+
+  /api/training/finish:
+    post:
+      tags: [training]
+      summary: トレーニング一括完了保存
+      description: |
+        トレーニングリストを一括保存し完了状態にする。所有者チェックあり。
+        セットデータが空の場合は 400 を返す。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "./schemas/requests/TrainingRequest.yaml"
+      responses:
+        "200":
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 保存に成功しました
+        "400":
+          description: セットデータ未入力または不正なトレーニング ID
+        "403":
+          description: 他ユーザーのトレーニングへのアクセス
+        "404":
+          description: 指定したトレーニングが存在しない
+        "500":
+          description: 内部エラー
+
+  # ── 管理者画面（HTML） ──────────────────────────────────────────
+  /admin/users:
+    get:
+      tags: [admin]
+      summary: ユーザー一覧取得・画面表示（List）
+      description: 全ユーザーの一覧を表示する。ADMIN ロール必須。
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          description: ユーザー一覧 HTML
+        "403":
+          description: 権限なし
+
+  /admin/user/edit/{id}:
+    get:
+      tags: [admin]
+      summary: ユーザー編集画面（Read）
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: ユーザー編集フォーム HTML
+        "404":
+          description: 指定ユーザーが存在しない
+
+  /admin/user/update:
+    post:
+      tags: [admin]
+      summary: ユーザー情報更新（Update）
+      description: ユーザー情報を更新する（パスワードは変更しない）。ADMIN ロール必須。
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/UserUpdateRequest.yaml"
+      responses:
+        "302":
+          description: 更新完了 → /admin/users へリダイレクト
+        "403":
+          description: 権限なし
+
+  /admin/all-users-training:
+    get:
+      tags: [admin]
+      summary: 全ユーザーのトレーニング一覧取得・画面表示（List）
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: userName
+          in: query
+          required: false
+          description: ユーザー名で絞り込み（部分一致）
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ユーザー一覧 HTML（トレーニング状況付き）
+
+  /admin/user/training-detail/{id}:
+    get:
+      tags: [admin]
+      summary: ユーザーのトレーニング詳細・カレンダー表示（Read）
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ユーザー ID
+          schema:
+            type: integer
+        - name: date
+          in: query
+          required: false
+          description: 表示対象月（省略時は今月）
+          schema:
+            type: string
+            format: date
+            example: "2026-05-01"
+      responses:
+        "200":
+          description: ユーザートレーニング詳細 HTML
+        "404":
+          description: 指定ユーザーが存在しない
+
+  # ── 管理者 REST API ─────────────────────────────────────────────
+  /admin/training-details:
+    get:
+      tags: [admin]
+      summary: 指定ユーザー・日付のトレーニングリスト取得（List）
+      description: 指定ユーザーと日付に紐づくトレーニングリスト（セット詳細含む）を JSON で返す。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: date
+          in: query
+          required: true
+          description: 取得対象日（ISO 8601 形式）
+          schema:
+            type: string
+            format: date
+            example: "2026-05-26"
+      responses:
+        "200":
+          $ref: "./schemas/responses/TrainingListResponse.yaml"
+        "500":
+          description: 内部エラー
+
+  /admin/chart-data:
+    get:
+      tags: [admin]
+      summary: ユーザーの部位別ボリュームグラフデータ取得（List）
+      description: |
+        指定ユーザーの部位別トレーニングボリューム（重量 × 回数）を日次集計して返す。
+        startDate / endDate 省略時は過去 30 日間が対象になる。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-04-26"
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-05-26"
+      responses:
+        "200":
+          $ref: "./schemas/responses/ChartDataResponse.yaml"
+        "500":
+          description: 内部エラー
+
+  /admin/api/training-details:
+    get:
+      tags: [admin]
+      summary: トレーニングセット詳細一覧取得（List）
+      description: |
+        指定日付の TrainingDetail リストを返す。
+        userId 省略時は全ユーザーの指定日データを返す。
+        @PreAuthorize("hasRole('ADMIN')") により ADMIN ロール必須。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: date
+          in: query
+          required: true
+          description: 取得対象日（YYYY-MM-DD 形式）
+          schema:
+            type: string
+            example: "2026-05-26"
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          $ref: "./schemas/responses/TrainingDetailListResponse.yaml"
+        "403":
+          description: 権限なし
+
+  /admin/api/training-volume/{userId}:
+    get:
+      tags: [admin]
+      summary: ユーザーの期間別ボリュームデータ取得（List）
+      description: |
+        指定ユーザーの期間別トレーニングボリュームを返す。
+        @PreAuthorize("hasRole('ADMIN')") により ADMIN ロール必須。
+        IDOR を URL レベル＋メソッドレベルで防止。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2026-04-26"
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2026-05-26"
+      responses:
+        "200":
+          description: ボリュームデータ（Map<String, Object> 形式）
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "403":
+          description: 権限なし
+
+# ──────────────────────────────────────────────────────────────────
+# Components（セキュリティスキームのみ。スキーマは schemas/ を参照）
+# ──────────────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+      description: |
+        Spring Security のセッション認証。
+        ログイン後に JSESSIONID クッキーが付与される。

@@ -1,0 +1,29 @@
+type: object
+description: セット詳細の登録・更新リクエスト
+required:
+  - weight
+  - reps
+properties:
+  setNumber:
+    type: integer
+    minimum: 1
+    description: セット番号（1以上）
+    example: 1
+  weight:
+    type: number
+    format: double
+    minimum: 0
+    description: 重量（kg、0以上）
+    example: 60.0
+  reps:
+    type: integer
+    minimum: 0
+    description: 回数（0以上。入力中の暫定値として0を許容）
+    example: 10
+  completed:
+    type: boolean
+    description: |
+      セット完了フラグ。
+      JSONキー名は "completed"。
+      サーバー側では @JsonProperty("completed") により isCompleted フィールドにマッピングされる。
+    default: false
