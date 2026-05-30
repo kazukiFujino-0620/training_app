@@ -116,6 +116,59 @@ public class MenuController {
 		long totalCount = trainingList.size();
 		long completedCount = trainingList.stream().filter(Training::isAllCompleted).count();
 
+		// 疲労マップ用データ（過去7日間の半減期モデル）
+		LocalDate fatigueStart = today.minusDays(6);
+		List<Training> fatigueTrainings = trainingDao.selectByUserIdAndDateRange(userId.intValue(), fatigueStart, today);
+
+		String[] partOrder = {"CHEST", "BACK", "SHOULDER", "ARM", "LEG"};
+		Map<String, Long> volumeByPart = new java.util.LinkedHashMap<>();
+		Map<String, Integer> setsByPart = new java.util.LinkedHashMap<>();
+		Map<String, Double> rawFatigueByPart = new java.util.LinkedHashMap<>();
+		for (String p : partOrder) {
+			volumeByPart.put(p, 0L);
+			setsByPart.put(p, 0);
+			rawFatigueByPart.put(p, 0.0);
+		}
+		for (Training ft : fatigueTrainings) {
+			String pc = ft.getPartCode();
+			if (pc == null || !volumeByPart.containsKey(pc)) continue;
+			List<TrainingDetail> fDetails = trainingDetailDao.selectByTrainingId(ft.getId());
+			long daysAgo = java.time.temporal.ChronoUnit.DAYS.between(ft.getTrainingDate(), today);
+			double decay = Math.pow(0.5, daysAgo / 2.0); // 48時間で疲労50%回復
+			long vol = 0;
+			for (TrainingDetail fd : fDetails) {
+				if (fd.getWeight() != null && fd.getReps() != null) {
+					vol += Math.round(fd.getWeight() * fd.getReps());
+				}
+			}
+			volumeByPart.merge(pc, vol, Long::sum);
+			setsByPart.merge(pc, fDetails.size(), Integer::sum);
+			rawFatigueByPart.merge(pc, vol * decay, Double::sum);
+		}
+		double maxFat = rawFatigueByPart.values().stream().mapToDouble(Double::doubleValue).max().orElse(1.0);
+		if (maxFat < 1.0) maxFat = 1.0;
+		Map<String, Integer> fatiguePct = new java.util.LinkedHashMap<>();
+		for (String p : partOrder) {
+			fatiguePct.put(p, (int) Math.round(rawFatigueByPart.get(p) / maxFat * 100));
+		}
+		Map<String, String> partNameMap = partList.stream()
+				.collect(Collectors.toMap(TrainingMaster::getPartCode, TrainingMaster::getPartName, (a, b) -> a));
+
+		log.info("疲労マップ: {}件取得, partCodes={}", fatigueTrainings.size(),
+				fatigueTrainings.stream().map(Training::getPartCode).distinct().collect(Collectors.toList()));
+		log.info("疲労集計: volume={}, sets={}, pct={}", volumeByPart, setsByPart, fatiguePct);
+
+		// Thymeleaf のMap変数キーアクセス問題を避けるため、List<Map>で渡す
+		List<Map<String, Object>> fatigueRows = new ArrayList<>();
+		for (String p : partOrder) {
+			Map<String, Object> row = new java.util.LinkedHashMap<>();
+			row.put("partName", partNameMap.getOrDefault(p, p));
+			row.put("volume", volumeByPart.getOrDefault(p, 0L));
+			row.put("sets", setsByPart.getOrDefault(p, 0));
+			row.put("pct", fatiguePct.getOrDefault(p, 0));
+			fatigueRows.add(row);
+		}
+
 		model.addAttribute("loginUser", userEntity);
 		model.addAttribute("targetMonth", yearMonth);
 		model.addAttribute("dateList", dateList);
@@ -130,6 +183,8 @@ public class MenuController {
 		model.addAttribute("completedCount", completedCount);
 		model.addAttribute("isDailyCompleted", totalCount > 0 && totalCount == completedCount);
 		model.addAttribute("dayStatusList", dayStatusList);
+		model.addAttribute("fatiguePct", fatiguePct);
+		model.addAttribute("fatigueRows", fatigueRows);
 
 		return "menu";
 	}
