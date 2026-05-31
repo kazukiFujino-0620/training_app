@@ -1,13 +1,45 @@
-2026-05-10 20:48:01.528 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 20:51:28.133 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 20:56:22.191 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 20:58:55.186 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 21:04:54.490 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 21:13:42.100 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 21:16:00.998 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 21:23:43.097 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 21:30:04.518 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 21:33:39.469 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 21:39:01.850 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 21:45:08.202 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
-2026-05-10 21:53:26.032 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 00:00:00.342 [scheduling-1] INFO  c.e.t.s.task.TokenCleanupTask - トークンクリーンアップを開始します...
+2026-05-31 00:00:00.703 [scheduling-1] INFO  c.e.t.s.task.TokenCleanupTask - トークンクリーンアップ完了
+2026-05-31 00:00:00.719 [scheduling-1] INFO  c.e.t.s.t.DataRetentionCleanupTask - データ保護期間超過レコードの物理削除開始 - 基準日時: 2019-05-31T00:00:00.719770
+2026-05-31 00:00:00.757 [scheduling-1] INFO  c.e.t.s.t.DataRetentionCleanupTask - 物理削除完了 - 詳細: 0 件, トレーニング: 0 件, ユーザー: 0 件
+2026-05-31 00:46:28.526 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 10:57:32.228 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 11:13:03.422 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 11:45:52.827 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 11:47:08.675 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 11:48:31.409 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 11:52:20.763 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 11:53:37.089 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 11:56:25.762 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 13:44:56.998 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 13:45:54.254 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 13:56:10.412 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 14:12:03.336 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 14:16:28.277 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 14:46:58.237 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 14:51:09.246 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 15:13:35.041 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 15:14:12.089 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 15:14:54.348 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 15:16:42.517 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 15:30:00.243 [scheduling-1] INFO  c.e.t.s.task.MasterUpdateTask - === 夜間マスタ更新バッチ 開始 ===
+2026-05-31 15:30:00.254 [scheduling-1] INFO  c.e.t.s.service.MasterUpdateService - File path validation passed: /Users/fujinoikki/Desktop/java_app/develop/training_app/src/main/resources/input/master_data.csv
+2026-05-31 15:30:00.256 [scheduling-1] INFO  c.e.t.s.task.MasterUpdateTask - CSVファイルを確認: 存在します - サイズ: 971 bytes
+2026-05-31 15:30:00.256 [scheduling-1] INFO  c.e.t.s.task.MasterUpdateTask - マスタ情報取得します
+2026-05-31 15:30:00.375 [scheduling-1] INFO  c.e.t.s.task.MasterUpdateTask - 既存マスタ情報取得完了 - 件数: 56
+2026-05-31 15:30:00.375 [scheduling-1] INFO  c.e.t.s.task.MasterUpdateTask - ファイルを正常に検知しました。処理を開始します。
+2026-05-31 15:30:00.411 [scheduling-1] INFO  c.e.t.s.service.MasterUpdateService - File path validation passed: /Users/fujinoikki/Desktop/java_app/develop/training_app/src/main/resources/input/master_data.csv
+2026-05-31 15:30:00.411 [scheduling-1] INFO  c.e.t.s.service.MasterUpdateService - CSVインポート開始 - ファイル: /Users/fujinoikki/Desktop/java_app/develop/training_app/src/main/resources/input/master_data.csv
+2026-05-31 15:30:00.605 [scheduling-1] INFO  c.e.t.s.service.MasterUpdateService - CSVファイル読み込み完了 - 新規データ件数: 0
+2026-05-31 15:30:00.605 [scheduling-1] WARN  c.e.t.s.service.MasterUpdateService - 取り込むデータがありませんでした。
+2026-05-31 15:30:00.605 [scheduling-1] INFO  c.e.t.s.service.MasterUpdateService - CSVインポート完了
+2026-05-31 15:30:00.615 [scheduling-1] INFO  c.e.t.s.task.MasterUpdateTask - === 夜間マスタ更新バッチ 正常終了 ===
+2026-05-31 16:00:43.674 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 16:12:37.601 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 16:18:28.287 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 17:04:01.396 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 17:04:47.721 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 17:09:06.669 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 17:14:28.314 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 17:20:33.164 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
+2026-05-31 17:47:41.434 [main] INFO  c.e.t.s.task.MasterUpdateTask - MasterUpdateTask 初期化完了
