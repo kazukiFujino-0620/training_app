@@ -61,4 +61,8 @@ public class PersonalRecordService {
     public List<PersonalRecord> getByUserId(Long userId) {
         return personalRecordDao.selectByUserId(userId);
     }
+
+    public Optional<PersonalRecord> getByUserIdAndItem(Long userId, String itemName) {
+        return personalRecordDao.selectByUserIdAndItem(userId, itemName);
+    }
 }

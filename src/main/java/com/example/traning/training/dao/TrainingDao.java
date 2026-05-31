@@ -62,6 +62,9 @@ public interface TrainingDao {
 	@Select
 	List<VolumeResult> selectVolumeList(Long userId, String partCode, String startDate, String endDate);
 
+	@Select
+	List<Training> selectRecentSessionsByItem(Long userId, String itemName, LocalDate before, int limit);
+
 	@org.seasar.doma.Entity
 	public static class VolumeResult {
 		@Column(name = "training_date")
