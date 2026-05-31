@@ -280,14 +280,16 @@ function renderTrainingBlocks() {
                     ✕
                 </button>
             </div>
-            
+
+            <div class="prev-record-container" id="prev-container-${trainingIndex}"></div>
+
             <div class="set-container" id="setContainer-${trainingIndex}">
                 </div>
-            
+
             <div class="volume-display" id="volumeDisplay-${trainingIndex}">
                 総ボリューム: <strong>0 kg</strong>
             </div>
-            
+
             <div class="set-actions">
                 <button type="button" class="btn-set-action" data-vol-action="removeSet" data-index="${trainingIndex}">
                     − セット削除
@@ -300,6 +302,14 @@ function renderTrainingBlocks() {
 
     container.appendChild(blockDiv);
     renderSetRows(trainingIndex);
+
+    // 前回記録パネルをロード
+    if (typeof createPrevRecordPanel === 'function') {
+      var prevContainer = document.getElementById('prev-container-' + trainingIndex);
+      if (prevContainer && training.menu) {
+        createPrevRecordPanel(prevContainer).load(training.menu);
+      }
+    }
   });
 }
 

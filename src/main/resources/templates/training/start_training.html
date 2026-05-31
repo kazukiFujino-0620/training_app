@@ -125,8 +125,10 @@
                         <button class="btn btn-secondary" data-action="addSet">＋ セット追加</button>
                     </div>
                     
-                    <textarea class="memo-area" placeholder="メモ（セットの感想やフォームの注意点）" 
-                              th:text="${item.memo}" 
+                    <div class="prev-record-container" data-auto-prev></div>
+
+                    <textarea class="memo-area" placeholder="メモ（セットの感想やフォームの注意点）"
+                              th:text="${item.memo}"
                               data-auto-resize></textarea>
                 </div>
                 <div class="text-right mt-5">
@@ -161,18 +163,7 @@
                     <select name="menu" id="modalMenu" class="form-select" required disabled>
                         <option value="">部位を先に選択してください</option>
                     </select>
-                    <div id="prev-record-panel" class="prev-record-panel" style="display:none;">
-                        <div class="prev-record-header">
-                            <button id="btn-prev" type="button" class="prev-nav-btn" style="display:none;">&#8249;</button>
-                            <span id="prev-session-label" class="prev-session-label"></span>
-                            <button id="btn-next" type="button" class="prev-nav-btn" style="display:none;">&#8250;</button>
-                        </div>
-                        <div id="prev-sets-container" class="prev-sets-container"></div>
-                        <div id="prev-pr" class="prev-pr" style="display:none;"></div>
-                    </div>
-                    <div id="prev-record-empty" class="prev-record-empty" style="display:none;">
-                        この種目の記録はまだありません。今日が最初の記録です！
-                    </div>
+                    <div id="modal-prev-container" class="prev-record-container"></div>
                 </div>
 
                 <div class="form-group">
@@ -207,115 +198,27 @@
     
     <!-- JavaScript -->
     <script th:src="@{/js/theme.js}"></script>
+    <script th:src="@{/js/prev-record.js}"></script>
     <script th:src="@{/js/training-modal.js}"></script>
 
     <script>
-    // ── 前回記録表示 ─────────────────────────────────────────────────────
-    let prevSessions = [];
-    let prevPr       = null;
-    let currentIdx   = 0;
-
-    async function loadPreviousRecord(itemName) {
-        clearPreviousRecord();
-        if (!itemName) return;
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3000);
-
-        try {
-            const res = await fetch(
-                '/api/previous-training?itemName=' + encodeURIComponent(itemName),
-                { signal: controller.signal }
-            );
-            clearTimeout(timeout);
-            if (!res.ok) return;
-
-            const data = await res.json();
-            prevSessions = data.sessions || [];
-            prevPr       = data.pr || null;
-            currentIdx   = 0;
-
-            if (prevSessions.length === 0) {
-                document.getElementById('prev-record-empty').style.display = '';
-            } else {
-                document.getElementById('prev-record-panel').style.display = '';
-                renderSession();
-            }
-        } catch (e) {
-            // ネットワークエラー・タイムアウトは静かに無視
-        }
-    }
-
-    function renderSession() {
-        const session = prevSessions[currentIdx];
-        document.getElementById('prev-session-label').textContent =
-            getSessionLabel(currentIdx, session.date);
-
-        document.getElementById('prev-sets-container').innerHTML = session.sets
-            .map(s => '<div class="prev-set-row">Set' + s.setNumber + ': ' +
-                      s.weight + 'kg &times; ' + s.reps + '回</div>')
-            .join('');
-
-        const prEl = document.getElementById('prev-pr');
-        if (prevPr) {
-            prEl.textContent = 'PR: ' + prevPr.maxWeight + 'kg × ' + prevPr.maxReps +
-                               '回 (' + formatDate(prevPr.achievedDate) + ' 達成)';
-            prEl.style.display = '';
-        } else {
-            prEl.style.display = 'none';
-        }
-        updateNavButtons();
-    }
-
-    function navigateSession(direction) {
-        // direction: -1=古い方向(<), +1=新しい方向(>)
-        // currentIdx が大きいほど古いので direction*-1 で増減
-        const next = currentIdx + direction * -1;
-        if (next < 0 || next >= prevSessions.length) return;
-        currentIdx = next;
-        renderSession();
-    }
-
-    function updateNavButtons() {
-        const btnPrev = document.getElementById('btn-prev');
-        const btnNext = document.getElementById('btn-next');
-        btnPrev.style.display = (currentIdx < prevSessions.length - 1) ? '' : 'none';
-        btnNext.style.display = (currentIdx > 0) ? '' : 'none';
-    }
-
-    function getSessionLabel(idx, dateStr) {
-        const labels = ['前回', '前々回', '3回前', '4回前', '5回前', '6回前', '7回前'];
-        const label  = labels[idx] || ((idx + 1) + '回前');
-        const d = new Date(dateStr);
-        return label + ' (' + (d.getMonth() + 1) + '/' + d.getDate() + ')';
-    }
-
-    function formatDate(dateStr) {
-        const d = new Date(dateStr);
-        return (d.getMonth() + 1) + '/' + d.getDate();
-    }
-
-    function clearPreviousRecord() {
-        prevSessions = [];
-        prevPr       = null;
-        currentIdx   = 0;
-        document.getElementById('prev-record-panel').style.display = 'none';
-        document.getElementById('prev-record-empty').style.display = 'none';
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
-        const menuSelect = document.getElementById('modalMenu');
-        if (menuSelect) {
-            menuSelect.addEventListener('change', function() {
-                loadPreviousRecord(this.value);
-            });
-        }
-        const btnPrev = document.getElementById('btn-prev');
-        const btnNext = document.getElementById('btn-next');
-        if (btnPrev) btnPrev.addEventListener('click', function() { navigateSession(-1); });
-        if (btnNext) btnNext.addEventListener('click', function() { navigateSession(1); });
+        // ① モーダルの前回記録パネル
+        var modalPanel = createPrevRecordPanel(document.getElementById('modal-prev-container'));
+        var modalMenu  = document.getElementById('modalMenu');
+        var modalPart  = document.getElementById('modalPart');
+        if (modalMenu) modalMenu.addEventListener('change', function() { modalPanel.load(this.value); });
+        if (modalPart) modalPart.addEventListener('change', function() { modalPanel.clear(); });
+
+        // ② 既存カード（サーバーサイドレンダリング済み）の前回記録パネル
+        document.querySelectorAll('.training-card[data-menu]').forEach(function(card) {
+            var menu = card.getAttribute('data-menu');
+            var container = card.querySelector('.prev-record-container[data-auto-prev]');
+            if (container && menu) {
+                createPrevRecordPanel(container).load(menu);
+            }
+        });
     });
-    // ─────────────────────────────────────────────────────────────────────
     </script>
 </body>
 </html>
