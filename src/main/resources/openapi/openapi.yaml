@@ -29,6 +29,8 @@ tags:
     description: 自己記録（PR）管理
   - name: goal
     description: トレーニング目標設定・達成率管理
+  - name: mfa
+    description: 2要素認証（TOTP）設定・認証フロー（メール+パスワードログインユーザーのみ対象）
   - name: admin
     description: 管理者専用操作
 
@@ -62,7 +64,16 @@ paths:
       description: |
         Spring Security のフォームログイン処理。
         成功時は /menu へリダイレクト、失敗時は /login?error へリダイレクト。
-        IP 単位で 10回/分 のレート制限あり。
+
+        **レート制限（RateLimitFilter）**: IP 単位で 10回/分。超過で 429。
+
+        **IPブロック（IpBlockService）**: 同一IPからのログイン失敗が 20回 に達すると
+        30分間ブロック。ブロック中は認証処理を実行せず即座に 429 を返す。
+        レート制限とは独立して動作する。
+
+        **2FA（TOTP）**: メール+パスワードログインユーザーが 2FA 有効の場合、
+        認証成功後に SecurityContext をクリアしセッションに MFA_PENDING フラグをセット、
+        /auth/mfa へリダイレクト。Google / LINE OAuth2 ユーザーは対象外。
       requestBody:
         required: true
         content:
@@ -751,6 +762,127 @@ paths:
         "429":
           $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
+  # ── 2要素認証（MFA）────────────────────────────────────────────
+  /user/mfa:
+    get:
+      tags: [mfa]
+      summary: 2FA 設定画面表示
+      description: |
+        ログインユーザーの 2FA 有効/無効状態を表示する設定画面。認証必須。
+        OAuth2（Google/LINE）ユーザーはこの画面にアクセスできない。
+      responses:
+        "200":
+          description: 2FA 設定画面 HTML（有効/無効状態、バックアップコード再生成ボタン）
+        "302":
+          description: 未認証 → ログインページへリダイレクト / OAuth2ユーザー → /menu へリダイレクト
+
+  /user/mfa/setup:
+    get:
+      tags: [mfa]
+      summary: 2FA セットアップ画面（QR コード表示）
+      description: |
+        TOTP の秘密鍵を生成し、QR コードをセッションに一時保存して表示する。認証必須。
+        この時点ではまだ DB に保存しない（OTP 確認後に有効化）。
+      responses:
+        "200":
+          description: QR コード・手動入力キー・OTP 確認フォームを含む HTML
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /user/mfa/enable:
+    post:
+      tags: [mfa]
+      summary: 2FA 有効化
+      description: |
+        セッションに保存した秘密鍵と入力された OTP を照合し、一致したら 2FA を有効化する。
+        有効化成功時はバックアップコード（10件）を生成して表示する（1回のみ）。
+        認証必須。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/MfaEnableRequest.yaml"
+      responses:
+        "200":
+          description: 有効化成功 → バックアップコード表示画面
+        "200 (error)":
+          description: OTP 不一致 → エラーメッセージ付きセットアップ画面再表示
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /user/mfa/disable:
+    post:
+      tags: [mfa]
+      summary: 2FA 無効化
+      description: |
+        現在のパスワードを再確認したうえで 2FA を無効化する。
+        バックアップコードも合わせて全削除する。認証必須。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/MfaDisableRequest.yaml"
+      responses:
+        "302":
+          description: 無効化成功 → /user/mfa へリダイレクト
+        "200":
+          description: パスワード不一致 → エラーメッセージ付き設定画面再表示
+        "302 (unauth)":
+          description: 未認証 → ログインページへリダイレクト
+
+  /user/mfa/backup-codes/regenerate:
+    post:
+      tags: [mfa]
+      summary: バックアップコード再生成
+      description: |
+        既存のバックアップコードを全削除し、新しい 10 件を生成して表示する。
+        再生成後は旧コードは無効になる。認証必須。
+      responses:
+        "200":
+          description: 新しいバックアップコード 10 件を表示する HTML
+        "302":
+          description: 未認証 → ログインページへリダイレクト / 2FA 未有効 → /user/mfa へリダイレクト
+
+  /auth/mfa:
+    get:
+      tags: [mfa]
+      summary: OTP 入力画面（ログイン認証フロー中）
+      description: |
+        フォームログイン成功後、2FA 有効ユーザーにリダイレクトされる OTP 入力画面。
+        セッションに MFA_PENDING_USER_ID が存在しない場合は /login へリダイレクト。
+      responses:
+        "200":
+          description: OTP 入力フォーム HTML（バックアップコード入力欄も含む）
+        "302":
+          description: MFA_PENDING セッションなし → /login へリダイレクト
+
+  /auth/mfa/verify:
+    post:
+      tags: [mfa]
+      summary: OTP / バックアップコード検証 → 認証完了
+      description: |
+        セッションの MFA_PENDING_USER_ID を使い TOTP または バックアップコードを検証する。
+        成功時: セッションに保存していた Authentication を SecurityContextHolder に設定し /menu へリダイレクト。
+        失敗時: エラーメッセージ付きで OTP 入力画面を再表示。
+        5 回失敗で既存の LoginAttemptService によりアカウントロック対象。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/MfaVerifyRequest.yaml"
+      responses:
+        "302":
+          description: 検証成功 → /menu へリダイレクト
+        "200":
+          description: OTP / バックアップコード不一致 → エラーメッセージ付き再表示
+        "302 (expired)":
+          description: セッション期限切れ → /login へリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
   # ── 管理者画面（HTML） ──────────────────────────────────────────
   /admin/users:
     get:
@@ -867,6 +999,40 @@ paths:
           description: 指定ユーザーが存在しない
         "403":
           description: 権限なし
+
+  /admin/user/{id}/mfa/reset:
+    post:
+      tags: [admin, mfa]
+      summary: ユーザーの 2FA リセット（管理者専用）
+      description: |
+        指定ユーザーの 2FA 設定（秘密鍵・バックアップコード）を削除し、無効状態に戻す。
+        会員がデバイスを紛失してログインできなくなった場合の緊急対応用。
+        ADMIN ロール必須。AJAX 呼び出しを想定（JSON レスポンス）。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: リセット対象のユーザー ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: リセット成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: reset
+        "403":
+          description: 権限なし
+        "404":
+          description: 指定ユーザーが存在しない
 
   # ── 管理者 REST API ─────────────────────────────────────────────
   /admin/training-details:
