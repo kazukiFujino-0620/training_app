@@ -19,74 +19,229 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <style>
+      .pr-page { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+      .pr-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 32px rgba(0,0,0,0.15);
+      }
+      .pr-table { width: 100%; border-collapse: collapse; }
+      .pr-table thead tr {
+        border-bottom: 1px solid var(--border-color);
+      }
+      .pr-table th {
+        padding: 14px 20px;
+        text-align: left;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+      }
+      .pr-table th.num { text-align: right; }
+      .pr-table td {
+        padding: 14px 20px;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        border-top: 1px solid var(--border-color);
+      }
+      .pr-table td.num { text-align: right; }
+      .pr-table tbody tr:nth-child(even) {
+        background: var(--bg-tertiary);
+      }
+      .val-weight { color: #34d399; font-weight: 700; font-size: 0.95rem; }
+      .val-reps   { color: #60a5fa; font-weight: 700; font-size: 0.95rem; }
+      .val-date   { color: var(--text-muted); font-size: 0.85rem; }
+      .goal-cell { min-width: 160px; }
+      .goal-target {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+      }
+      .goal-target strong { color: var(--text-primary); }
+      .progress-track {
+        height: 6px;
+        border-radius: 3px;
+        background: var(--border-color);
+        overflow: hidden;
+        margin-bottom: 2px;
+      }
+      .progress-fill {
+        height: 100%;
+        border-radius: 3px;
+        background: linear-gradient(90deg, #34d399, #059669);
+        transition: width 0.4s ease;
+      }
+      .progress-fill.over { background: linear-gradient(90deg, #f59e0b, #d97706); }
+      .goal-pct  { font-size: 0.75rem; color: #34d399; font-weight: 600; }
+      .goal-date { font-size: 0.75rem; color: var(--text-muted); }
+      .goal-reps-only { font-size: 0.8rem; color: var(--text-muted); }
+      .no-goal   { font-size: 0.8rem; color: var(--border-color); }
+
+      .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 24px 0 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .badge-goal {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: rgba(52, 211, 153, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(52, 211, 153, 0.3);
+      }
+      .goal-row-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-left: 3px solid #34d399;
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .goal-row-item { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
+      .goal-row-detail { font-size: 0.85rem; color: var(--text-muted); flex: 1; }
+      .goal-row-link {
+        font-size: 0.8rem;
+        color: #60a5fa;
+        text-decoration: none;
+        border: 1px solid rgba(96,165,250,0.3);
+        border-radius: 6px;
+        padding: 4px 10px;
+        white-space: nowrap;
+      }
+      .goal-row-link:hover { background: rgba(96,165,250,0.1); }
+      .empty-hint { padding: 64px 20px; text-align: center; }
+      .empty-hint p { color: var(--text-muted); font-size: 0.95rem; margin: 0; }
+      .empty-hint p.sub { font-size: 0.85rem; margin-top: 8px; opacity: .7; }
+    </style>
   </head>
   <body class="bg-secondary">
     <header th:replace="~{common :: headerFragment}"></header>
 
-    <main style="max-width:900px;margin:0 auto;padding:24px 16px;">
+    <main class="pr-page">
 
       <!-- タイトルエリア -->
       <div style="display:flex;align-items:center;justify-content:space-between;
                   margin-bottom:24px;flex-wrap:wrap;gap:12px;">
         <div>
-          <h1 style="color:#f1f5f9;font-size:1.5rem;font-weight:700;margin:0;">
+          <h1 style="color:var(--text-primary);font-size:1.5rem;font-weight:700;margin:0;">
             自己記録（PR）
           </h1>
-          <p style="color:#64748b;font-size:0.85rem;margin:4px 0 0;">
-            各種目の最高重量・最高回数の記録
+          <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">
+            各種目の最高重量・最高回数と目標達成率
           </p>
         </div>
-        <a th:href="@{/menu}"
-           style="background:rgba(255,255,255,0.07);color:#94a3b8;
-                  border:1px solid rgba(255,255,255,0.1);border-radius:8px;
-                  padding:8px 16px;font-size:0.85rem;text-decoration:none;">
-          ← メニューへ戻る
-        </a>
+        <div style="display:flex;gap:8px;">
+          <a th:href="@{/user/goals}"
+             style="background:rgba(52,211,153,0.1);color:#34d399;
+                    border:1px solid rgba(52,211,153,0.3);border-radius:8px;
+                    padding:8px 14px;font-size:0.85rem;text-decoration:none;">
+            目標設定
+          </a>
+          <a th:href="@{/menu}"
+             style="background:var(--border-color);color:var(--text-muted);
+                    border:1px solid var(--border-color);border-radius:8px;
+                    padding:8px 16px;font-size:0.85rem;text-decoration:none;">
+            ← メニューへ戻る
+          </a>
+        </div>
       </div>
 
-      <!-- PRカード -->
-      <div style="background:#1a1f26;border-radius:16px;overflow:hidden;
-                  box-shadow:0 4px 32px rgba(0,0,0,0.4);">
+      <!-- PRテーブル -->
+      <div class="pr-card">
 
         <!-- データあり -->
         <div th:if="${not #lists.isEmpty(records)}">
-          <table style="width:100%;border-collapse:collapse;">
+          <table class="pr-table">
             <thead>
-              <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
-                <th style="padding:14px 20px;text-align:left;color:#64748b;
-                           font-size:0.8rem;font-weight:600;letter-spacing:0.05em;">
-                  種目名
-                </th>
-                <th style="padding:14px 20px;text-align:right;color:#64748b;
-                           font-size:0.8rem;font-weight:600;letter-spacing:0.05em;">
-                  最高重量
-                </th>
-                <th style="padding:14px 20px;text-align:right;color:#64748b;
-                           font-size:0.8rem;font-weight:600;letter-spacing:0.05em;">
-                  最高回数
-                </th>
-                <th style="padding:14px 20px;text-align:right;color:#64748b;
-                           font-size:0.8rem;font-weight:600;letter-spacing:0.05em;">
-                  達成日
-                </th>
+              <tr>
+                <th>種目名</th>
+                <th class="num">最高重量</th>
+                <th class="num">最高回数</th>
+                <th class="num">達成日</th>
+                <th>目標</th>
               </tr>
             </thead>
             <tbody>
-              <tr th:each="record, stat : ${records}"
-                  th:style="${stat.odd} ? 'background:rgba(255,255,255,0.02)' : ''">
-                <td style="padding:14px 20px;color:#f1f5f9;font-size:0.9rem;font-weight:500;">
-                  <span th:text="${record.itemName}"></span>
+              <tr th:each="record : ${records}">
+                <!-- 種目名 -->
+                <td style="font-weight:500;" th:text="${record.itemName}">種目名</td>
+
+                <!-- 最高重量 -->
+                <td class="num">
+                  <span class="val-weight" th:text="${record.maxWeight + ' kg'}"></span>
                 </td>
-                <td style="padding:14px 20px;text-align:right;color:#34d399;
-                           font-size:0.95rem;font-weight:700;">
-                  <span th:text="${record.maxWeight + ' kg'}"></span>
+
+                <!-- 最高回数 -->
+                <td class="num">
+                  <span class="val-reps" th:text="${record.maxReps + ' 回'}"></span>
                 </td>
-                <td style="padding:14px 20px;text-align:right;color:#60a5fa;
-                           font-size:0.95rem;font-weight:700;">
-                  <span th:text="${record.maxReps + ' 回'}"></span>
+
+                <!-- 達成日 -->
+                <td class="num">
+                  <span class="val-date"
+                        th:text="${#temporals.format(record.achievedDate, 'yyyy-MM-dd')}"></span>
                 </td>
-                <td style="padding:14px 20px;text-align:right;color:#94a3b8;font-size:0.85rem;">
-                  <span th:text="${#temporals.format(record.achievedDate, 'yyyy-MM-dd')}"></span>
+
+                <!-- 目標列（GoalService 実装前は goalMap が null のためガード） -->
+                <td class="goal-cell">
+                  <!-- GoalService 未実装時 -->
+                  <th:block th:if="${goalMap == null}">
+                    <span class="no-goal">—</span>
+                  </th:block>
+
+                  <!-- GoalService 実装後 -->
+                  <th:block th:if="${goalMap != null}"
+                            th:with="gp=${goalMap[record.itemName]}">
+
+                    <!-- 目標あり：重量目標 -->
+                    <th:block th:if="${gp != null and gp.goal().targetWeight != null}">
+                      <div class="goal-target">
+                        目標 <strong th:text="${gp.goal().targetWeight} + ' kg'"></strong>
+                        / 現在 <strong th:text="${gp.currentWeight() != null ? gp.currentWeight() + ' kg' : '—'}"></strong>
+                      </div>
+                      <div class="progress-track">
+                        <div class="progress-fill"
+                             th:classappend="${(gp.progressPct() != null ? gp.progressPct() : 0) >= 100} ? 'over' : ''"
+                             th:style="'width:' + (${gp.progressPct() != null ? gp.progressPct() : 0}) + '%'"></div>
+                      </div>
+                      <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span class="goal-pct"
+                              th:text="${gp.progressPct() != null ? gp.progressPct() + '%' : '0%'}"></span>
+                        <span class="goal-date"
+                              th:text="'期日 ' + ${#temporals.format(gp.goal().targetDate, 'MM/dd')}"></span>
+                      </div>
+                    </th:block>
+
+                    <!-- 目標あり：回数のみ -->
+                    <th:block th:if="${gp != null and gp.goal().targetWeight == null}">
+                      <div class="goal-reps-only">
+                        目標 <strong style="color:var(--text-primary);"
+                                    th:text="${gp.goal().targetReps} + ' 回'"></strong>
+                      </div>
+                      <div class="goal-date"
+                           th:text="'期日 ' + ${#temporals.format(gp.goal().targetDate, 'MM/dd')}"></div>
+                    </th:block>
+
+                    <!-- 目標なし -->
+                    <span class="no-goal" th:if="${gp == null}">—</span>
+
+                  </th:block>
                 </td>
               </tr>
             </tbody>
@@ -94,23 +249,44 @@
         </div>
 
         <!-- データなし -->
-        <div th:if="${#lists.isEmpty(records)}"
-             style="padding:80px 20px;text-align:center;">
-          <p style="color:#475569;font-size:0.95rem;margin:0;">
-            まだPRが記録されていません
-          </p>
-          <p style="color:#334155;font-size:0.85rem;margin:8px 0 0;">
-            トレーニングを保存すると自動で記録されます
-          </p>
+        <div th:if="${#lists.isEmpty(records)}" class="empty-hint">
+          <p>まだPRが記録されていません</p>
+          <p class="sub">トレーニングを保存すると自動で記録されます</p>
         </div>
 
       </div>
 
       <!-- 件数表示 -->
       <p th:if="${not #lists.isEmpty(records)}"
-         style="text-align:right;color:#475569;font-size:0.8rem;margin-top:12px;">
+         style="text-align:right;color:var(--text-muted);font-size:0.8rem;margin-top:12px;">
         <span th:text="${#lists.size(records)}"></span> 種目
       </p>
+
+      <!-- 目標設定済み・PR未記録の種目セクション -->
+      <th:block th:if="${goalsWithoutPr != null and !#lists.isEmpty(goalsWithoutPr)}">
+        <div class="section-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="#34d399" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          目標設定済み（PR未記録の種目）
+          <span class="badge-goal" th:text="${#lists.size(goalsWithoutPr)} + ' 件'"></span>
+        </div>
+        <div th:each="gp : ${goalsWithoutPr}" class="goal-row-card">
+          <span class="goal-row-item" th:text="${gp.goal().itemName}">種目名</span>
+          <span class="goal-row-detail">
+            <th:block th:if="${gp.goal().targetWeight != null}">
+              目標 <strong th:text="${gp.goal().targetWeight} + ' kg'"></strong>
+            </th:block>
+            <th:block th:if="${gp.goal().targetReps != null}">
+              ／ <strong th:text="${gp.goal().targetReps} + ' 回'"></strong>
+            </th:block>
+            　期日 <span th:text="${#temporals.format(gp.goal().targetDate, 'yyyy/MM/dd')}"></span>
+          </span>
+          <a th:href="@{/training/register}" class="goal-row-link">記録する →</a>
+        </div>
+      </th:block>
 
     </main>
 

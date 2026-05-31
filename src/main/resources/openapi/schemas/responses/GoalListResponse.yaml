@@ -1,0 +1,27 @@
+description: 目標一覧レスポンス（達成率情報付き）
+content:
+  application/json:
+    schema:
+      type: array
+      items:
+        type: object
+        description: 目標と達成率情報
+        properties:
+          goal:
+            $ref: "../models/TrainingGoal.yaml"
+          effectiveStatus:
+            $ref: "../enums/GoalStatus.yaml"
+          currentWeight:
+            type: number
+            format: double
+            nullable: true
+            description: personal_records から取得した現在の最大重量 (kg)。target_weight が null の場合は null
+            example: 85.0
+          progressPct:
+            type: integer
+            nullable: true
+            description: 達成率 (0-100)。target_weight が null の場合は null
+            example: 85
+        required:
+          - goal
+          - effectiveStatus
