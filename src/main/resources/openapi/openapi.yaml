@@ -620,6 +620,42 @@ paths:
         "429":
           $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
+  # ── 前回記録 ─────────────────────────────────────────────────────
+  /api/previous-training:
+    get:
+      tags: [training]
+      summary: 種目別前回記録取得
+      description: |
+        指定種目の直近最大7セッション分のセット詳細と自己記録（PR）を返す。
+        今日のデータは除外され、今日以前の最新セッションが先頭（index 0）になる。
+        セッションナビゲーション（< / >）はフロントエンド側で完結する設計のため、
+        このエンドポイントは画面表示時に1回だけ呼ばれる。
+        userId はサーバーサイドで解決（IDOR防止）。認証必須。
+      parameters:
+        - name: itemName
+          in: query
+          required: true
+          description: 種目名（training_item_master に存在する値のみ有効）
+          schema:
+            type: string
+            maxLength: 50
+            example: ベンチプレス
+      responses:
+        "200":
+          $ref: "./schemas/responses/PreviousTrainingResponse.yaml"
+        "400":
+          description: itemName が空・null または 50文字超
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/models/ErrorResponse.yaml"
+              example:
+                error: "種目名は必須です"
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
   # ── 自己記録（PR） ───────────────────────────────────────────────
   /pr:
     get:

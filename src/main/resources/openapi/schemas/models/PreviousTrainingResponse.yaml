@@ -1,0 +1,83 @@
+type: object
+description: 種目の直近セッション履歴とPR情報
+properties:
+  sessions:
+    type: array
+    description: 直近最大7セッション分（最新が先頭）。今日のデータは含まない。
+    maxItems: 7
+    items:
+      type: object
+      description: 1セッション分の記録
+      properties:
+        date:
+          type: string
+          format: date
+          description: トレーニング日
+          example: "2026-05-28"
+        sets:
+          type: array
+          description: そのセッションの全セット
+          items:
+            type: object
+            properties:
+              setNumber:
+                type: integer
+                description: セット番号
+                example: 1
+              weight:
+                type: number
+                format: double
+                description: 重量（kg）
+                example: 80.0
+              reps:
+                type: integer
+                description: 回数
+                example: 8
+            required: [setNumber, weight, reps]
+      required: [date, sets]
+  pr:
+    type: object
+    nullable: true
+    description: 自己記録（PR）。未登録の場合は null。
+    properties:
+      maxWeight:
+        type: number
+        format: double
+        description: 最高重量（kg）
+        example: 90.0
+      maxReps:
+        type: integer
+        description: 最高回数
+        example: 5
+      achievedDate:
+        type: string
+        format: date
+        description: PR達成日
+        example: "2026-05-10"
+    required: [maxWeight, maxReps, achievedDate]
+required: [sessions]
+example:
+  sessions:
+    - date: "2026-05-28"
+      sets:
+        - setNumber: 1
+          weight: 80.0
+          reps: 8
+        - setNumber: 2
+          weight: 80.0
+          reps: 8
+        - setNumber: 3
+          weight: 75.0
+          reps: 6
+    - date: "2026-05-25"
+      sets:
+        - setNumber: 1
+          weight: 77.5
+          reps: 8
+        - setNumber: 2
+          weight: 77.5
+          reps: 6
+  pr:
+    maxWeight: 90.0
+    maxReps: 5
+    achievedDate: "2026-05-10"
