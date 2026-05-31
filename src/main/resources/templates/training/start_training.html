@@ -12,6 +12,51 @@
     <!-- CSS -->
     <link rel="stylesheet" th:href="@{/css/main.css}">
     <link rel="stylesheet" th:href="@{/css/training_modal.css}">
+    <style>
+      .prev-record-panel {
+        background: var(--card-bg, #fff);
+        border: 1px solid var(--border-color, #e0e0e0);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-top: 8px;
+        font-size: 0.88rem;
+      }
+      .prev-record-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+        font-weight: 600;
+        color: var(--text-primary, #333);
+      }
+      .prev-session-label { flex: 1; text-align: center; }
+      .prev-nav-btn {
+        background: none;
+        border: 1px solid var(--border-color, #ccc);
+        border-radius: 4px;
+        padding: 2px 8px;
+        cursor: pointer;
+        font-size: 1.1rem;
+        line-height: 1;
+        color: var(--text-primary, #333);
+      }
+      .prev-set-row { padding: 2px 0; color: var(--text-secondary, #555); }
+      .prev-pr {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid var(--border-color, #e0e0e0);
+        color: var(--accent, #e53e3e);
+        font-weight: 500;
+        font-size: 0.85rem;
+      }
+      .prev-record-empty {
+        padding: 8px;
+        text-align: center;
+        color: var(--text-muted, #888);
+        font-size: 0.85rem;
+        margin-top: 8px;
+      }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -116,6 +161,18 @@
                     <select name="menu" id="modalMenu" class="form-select" required disabled>
                         <option value="">部位を先に選択してください</option>
                     </select>
+                    <div id="prev-record-panel" class="prev-record-panel" style="display:none;">
+                        <div class="prev-record-header">
+                            <button id="btn-prev" type="button" class="prev-nav-btn" style="display:none;">&#8249;</button>
+                            <span id="prev-session-label" class="prev-session-label"></span>
+                            <button id="btn-next" type="button" class="prev-nav-btn" style="display:none;">&#8250;</button>
+                        </div>
+                        <div id="prev-sets-container" class="prev-sets-container"></div>
+                        <div id="prev-pr" class="prev-pr" style="display:none;"></div>
+                    </div>
+                    <div id="prev-record-empty" class="prev-record-empty" style="display:none;">
+                        この種目の記録はまだありません。今日が最初の記録です！
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -151,7 +208,114 @@
     <!-- JavaScript -->
     <script th:src="@{/js/theme.js}"></script>
     <script th:src="@{/js/training-modal.js}"></script>
-        
-        
+
+    <script>
+    // ── 前回記録表示 ─────────────────────────────────────────────────────
+    let prevSessions = [];
+    let prevPr       = null;
+    let currentIdx   = 0;
+
+    async function loadPreviousRecord(itemName) {
+        clearPreviousRecord();
+        if (!itemName) return;
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3000);
+
+        try {
+            const res = await fetch(
+                '/api/previous-training?itemName=' + encodeURIComponent(itemName),
+                { signal: controller.signal }
+            );
+            clearTimeout(timeout);
+            if (!res.ok) return;
+
+            const data = await res.json();
+            prevSessions = data.sessions || [];
+            prevPr       = data.pr || null;
+            currentIdx   = 0;
+
+            if (prevSessions.length === 0) {
+                document.getElementById('prev-record-empty').style.display = '';
+            } else {
+                document.getElementById('prev-record-panel').style.display = '';
+                renderSession();
+            }
+        } catch (e) {
+            // ネットワークエラー・タイムアウトは静かに無視
+        }
+    }
+
+    function renderSession() {
+        const session = prevSessions[currentIdx];
+        document.getElementById('prev-session-label').textContent =
+            getSessionLabel(currentIdx, session.date);
+
+        document.getElementById('prev-sets-container').innerHTML = session.sets
+            .map(s => '<div class="prev-set-row">Set' + s.setNumber + ': ' +
+                      s.weight + 'kg &times; ' + s.reps + '回</div>')
+            .join('');
+
+        const prEl = document.getElementById('prev-pr');
+        if (prevPr) {
+            prEl.textContent = 'PR: ' + prevPr.maxWeight + 'kg × ' + prevPr.maxReps +
+                               '回 (' + formatDate(prevPr.achievedDate) + ' 達成)';
+            prEl.style.display = '';
+        } else {
+            prEl.style.display = 'none';
+        }
+        updateNavButtons();
+    }
+
+    function navigateSession(direction) {
+        // direction: -1=古い方向(<), +1=新しい方向(>)
+        // currentIdx が大きいほど古いので direction*-1 で増減
+        const next = currentIdx + direction * -1;
+        if (next < 0 || next >= prevSessions.length) return;
+        currentIdx = next;
+        renderSession();
+    }
+
+    function updateNavButtons() {
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        btnPrev.style.display = (currentIdx < prevSessions.length - 1) ? '' : 'none';
+        btnNext.style.display = (currentIdx > 0) ? '' : 'none';
+    }
+
+    function getSessionLabel(idx, dateStr) {
+        const labels = ['前回', '前々回', '3回前', '4回前', '5回前', '6回前', '7回前'];
+        const label  = labels[idx] || ((idx + 1) + '回前');
+        const d = new Date(dateStr);
+        return label + ' (' + (d.getMonth() + 1) + '/' + d.getDate() + ')';
+    }
+
+    function formatDate(dateStr) {
+        const d = new Date(dateStr);
+        return (d.getMonth() + 1) + '/' + d.getDate();
+    }
+
+    function clearPreviousRecord() {
+        prevSessions = [];
+        prevPr       = null;
+        currentIdx   = 0;
+        document.getElementById('prev-record-panel').style.display = 'none';
+        document.getElementById('prev-record-empty').style.display = 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const menuSelect = document.getElementById('modalMenu');
+        if (menuSelect) {
+            menuSelect.addEventListener('change', function() {
+                loadPreviousRecord(this.value);
+            });
+        }
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        if (btnPrev) btnPrev.addEventListener('click', function() { navigateSession(-1); });
+        if (btnNext) btnNext.addEventListener('click', function() { navigateSession(1); });
+    });
+    // ─────────────────────────────────────────────────────────────────────
+    </script>
 </body>
 </html>

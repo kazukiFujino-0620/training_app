@@ -8,6 +8,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+
+import com.example.traning.pr.PersonalRecord;
+import com.example.traning.training.dto.PreviousTrainingResponse;
+import com.example.traning.training.dto.SessionRecord;
+import com.example.traning.training.dto.SetRecord;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -331,6 +337,29 @@ public class TrainingService {
 			"maxWeight",   maxWeights,
 			"totalVolume", totalVols
 		);
+	}
+
+	public PreviousTrainingResponse getPreviousTraining(Long userId, String itemName) {
+		LocalDate today = LocalDate.now();
+		List<Training> sessions = trainingDao.selectRecentSessionsByItem(userId, itemName, today, 7);
+
+		List<SessionRecord> sessionRecords = sessions.stream()
+			.map(t -> {
+				List<TrainingDetail> details = trainingDetailDao.selectByTrainingId(t.getId());
+				List<SetRecord> sets = details.stream()
+					.map(d -> new SetRecord(d.getSetNumber(), d.getWeight(), d.getReps()))
+					.toList();
+				return new SessionRecord(t.getTrainingDate().toString(), sets);
+			})
+			.toList();
+
+		Optional<PersonalRecord> prOpt = personalRecordService.getByUserIdAndItem(userId, itemName);
+		PreviousTrainingResponse.PrRecord prRecord = prOpt.map(pr ->
+			new PreviousTrainingResponse.PrRecord(
+				pr.getMaxWeight(), pr.getMaxReps(), pr.getAchievedDate().toString())
+		).orElse(null);
+
+		return new PreviousTrainingResponse(sessionRecords, prRecord);
 	}
 
 	private List<Double> getSafeVolumeData(Long userId, String partCode, List<String> labels, String startStr,

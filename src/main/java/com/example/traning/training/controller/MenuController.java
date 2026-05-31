@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.example.traning.dao.TrainingMasterDao;
+import com.example.traning.training.dto.PreviousTrainingResponse;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
 import com.example.traning.training.Training;
@@ -431,6 +432,24 @@ public class MenuController {
 		return ResponseEntity.ok()
 				.cacheControl(CacheControl.noStore())
 				.body(chartData);
+	}
+
+	@GetMapping("/api/previous-training")
+	@ResponseBody
+	public ResponseEntity<PreviousTrainingResponse> getPreviousTraining(
+			@RequestParam String itemName,
+			Principal principal) {
+
+		if (itemName == null || itemName.isBlank() || itemName.length() > 50) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		Long userId = trainingService.getUserIdByEmail(principal.getName());
+		PreviousTrainingResponse response = trainingService.getPreviousTraining(userId, itemName);
+
+		return ResponseEntity.ok()
+				.cacheControl(CacheControl.noStore())
+				.body(response);
 	}
 
 	@GetMapping("/api/training-items-grouped")
