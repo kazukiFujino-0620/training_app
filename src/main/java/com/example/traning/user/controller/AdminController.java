@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.example.traning.mfa.MfaService;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -55,13 +56,16 @@ public class AdminController {
     private final TrainingDao trainingDao;
     private final TrainingDetailDao trainingDetailDao;
     private final CalorieCalculator calorieCalculator;
+    private final MfaService mfaService;
 
     public AdminController(UserService userService, TrainingDao trainingDao,
-            TrainingDetailDao trainingDetailDao, CalorieCalculator calorieCalculator) {
+            TrainingDetailDao trainingDetailDao, CalorieCalculator calorieCalculator,
+            MfaService mfaService) {
         this.userService = userService;
         this.trainingDao = trainingDao;
         this.trainingDetailDao = trainingDetailDao;
         this.calorieCalculator = calorieCalculator;
+        this.mfaService = mfaService;
     }
 
     /**
@@ -289,6 +293,18 @@ public class AdminController {
             log.error("グラフデータ取得エラー: ユーザーID: {}", userId, e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    // ── 2FA管理 ───────────────────────────────────────────────────────────
+
+    @PostMapping("/user/{id}/mfa/reset")
+    public String mfaReset(@PathVariable("id") Integer id,
+            org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        userService.getUserById(id); // 存在確認
+        mfaService.disableMfa(id.longValue());
+        log.info("Admin MFA reset: userId={}", id);
+        redirectAttributes.addFlashAttribute("successMessage", "2段階認証をリセットしました。");
+        return "redirect:/admin/user/edit/" + id;
     }
 
     // ── private helper ────────────────────────────────────────────────────

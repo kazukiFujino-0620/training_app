@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>2段階認証設定 - トレーニング管理システム</title>
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+  <style>
+    .mfa-page { max-width: 700px; margin: 0 auto; padding: 24px 16px; }
+    .mfa-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .mfa-card-header {
+      padding: 16px 20px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mfa-card-body { padding: 20px; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .status-enabled { background: rgba(52,211,153,0.15); color: #34d399; }
+    .status-disabled { background: rgba(156,163,175,0.15); color: #9ca3af; }
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+    .alert-success { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
+    .alert-danger  { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--color-primary, #3b82f6); color: #fff; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-danger:hover { opacity: 0.9; }
+    .btn-secondary { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); }
+    .btn-secondary:hover { opacity: 0.8; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
+    .form-control {
+      width: 100%;
+      padding: 9px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    .info-text { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+    .section-divider { border: none; border-top: 1px solid var(--border-color); margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <th:block th:replace="~{common :: headerFragment}"/>
+
+  <div class="mfa-page">
+    <h1 style="font-size:1.4rem;font-weight:700;color:var(--text-primary);margin-bottom:20px;">
+      2段階認証（2FA）設定
+    </h1>
+
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}"   class="alert alert-danger"  th:text="${error}"></div>
+
+    <!-- 現在の状態 -->
+    <div class="mfa-card">
+      <div class="mfa-card-header">
+        現在の状態
+        <span th:if="${mfaEnabled}"  class="status-badge status-enabled">有効</span>
+        <span th:unless="${mfaEnabled}" class="status-badge status-disabled">無効</span>
+      </div>
+      <div class="mfa-card-body">
+        <p class="info-text" th:if="${mfaEnabled}">
+          2段階認証が有効です。ログイン時にAuthenticatorアプリのコードが必要になります。
+        </p>
+        <p class="info-text" th:unless="${mfaEnabled}">
+          2段階認証が無効です。有効にするとセキュリティが向上します。
+        </p>
+      </div>
+    </div>
+
+    <!-- 2FA有効化 -->
+    <div class="mfa-card" th:unless="${mfaEnabled}">
+      <div class="mfa-card-header">2段階認証を有効にする</div>
+      <div class="mfa-card-body">
+        <p class="info-text" style="margin-bottom:16px;">
+          Google AuthenticatorやAuthyなどのAuthenticatorアプリを使用してログインを保護します。
+        </p>
+        <a th:href="@{/user/mfa/setup}" class="btn btn-primary">セットアップを開始</a>
+      </div>
+    </div>
+
+    <!-- バックアップコード再生成（有効時のみ）-->
+    <div class="mfa-card" th:if="${mfaEnabled}">
+      <div class="mfa-card-header">バックアップコード</div>
+      <div class="mfa-card-body">
+        <p class="info-text" style="margin-bottom:16px;">
+          Authenticatorアプリが使えない場合にバックアップコードでログインできます。<br>
+          既存のコードはすべて無効になります。
+        </p>
+        <form th:action="@{/user/mfa/backup-codes/regenerate}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <button type="submit" class="btn btn-secondary">バックアップコードを再生成</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 2FA無効化（有効時のみ）-->
+    <div class="mfa-card" th:if="${mfaEnabled}">
+      <div class="mfa-card-header">2段階認証を無効にする</div>
+      <div class="mfa-card-body">
+        <p class="info-text" style="margin-bottom:16px;">
+          現在のパスワードを入力して2段階認証を無効にします。
+        </p>
+        <form th:action="@{/user/mfa/disable}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <div class="form-group">
+            <label for="disablePassword">現在のパスワード</label>
+            <input type="password" id="disablePassword" name="password" class="form-control"
+                   placeholder="パスワードを入力" autocomplete="current-password" required/>
+          </div>
+          <button type="submit" class="btn btn-danger">2段階認証を無効にする</button>
+        </form>
+      </div>
+    </div>
+
+    <a th:href="@{/menu}" class="btn btn-secondary" style="margin-top:8px;">メニューに戻る</a>
+  </div>
+
+  <script th:src="@{/js/common.js}"></script>
+</body>
+</html>

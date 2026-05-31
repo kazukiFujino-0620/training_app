@@ -13,6 +13,8 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 
 import com.example.traning.filter.RateLimitFilter;
+import com.example.traning.mfa.CustomAuthenticationSuccessHandler;
+import com.example.traning.mfa.MfaPendingFilter;
 import com.example.traning.user.service.CustomOAuth2UserService;
 
 @Configuration
@@ -49,7 +51,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
             org.springframework.security.core.userdetails.UserDetailsService userDetailsService,
             PasswordEncoder passwordEncoder,
-            RateLimitFilter rateLimitFilter) throws Exception {
+            RateLimitFilter rateLimitFilter,
+            CustomAuthenticationSuccessHandler mfaSuccessHandler,
+            MfaPendingFilter mfaPendingFilter) throws Exception {
 
         org.springframework.security.authentication.dao.DaoAuthenticationProvider provider =
                 new org.springframework.security.authentication.dao.DaoAuthenticationProvider();
@@ -77,6 +81,7 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(ADMIN_PATH).hasRole("ADMIN")
                     .requestMatchers(USER_PATH).hasAnyRole("USER", "ADMIN")
+                    .requestMatchers("/auth/mfa", "/auth/mfa/verify").authenticated()
                     .anyRequest().authenticated())
 
             // ── セキュリティヘッダー ────────────────────────────────────────
@@ -129,7 +134,7 @@ public class SecurityConfig {
                     .loginPage(LOGIN_PATH)
                     .usernameParameter("username")
                     .passwordParameter("password")
-                    .defaultSuccessUrl("/menu", true)
+                    .successHandler(mfaSuccessHandler)
                     .failureHandler((request, response, exception) -> {
                         // セッション属性からエラー理由を取得（CustomUserDetailsService が設定）
                         String reason = "bad_credentials";
@@ -162,23 +167,27 @@ public class SecurityConfig {
                     .rememberMeCookieName("remember-me-cookie"));
 
         // ── レート制限フィルター ────────────────────────────────────────────
-        // CsrfFilter より前に配置することで POST /login を含むすべてのリクエストに
-        // レート制限を適用できる。UAPF 前配置では OncePerRequestFilter が POST を
-        // スキップするため、CsrfFilter 前に配置する必要がある。
         http.addFilterBefore(rateLimitFilter,
+                org.springframework.security.web.csrf.CsrfFilter.class);
+
+        // ── 2FA ペンディングフィルター ────────────────────────────────────
+        // CsrfFilter より後に配置して認証済みリクエストのMFA完了前をブロックする
+        http.addFilterAfter(mfaPendingFilter,
                 org.springframework.security.web.csrf.CsrfFilter.class);
 
         return http.build();
     }
 
-    /**
-     * @Component が付いた RateLimitFilter を Servlet コンテナに自動登録させない。
-     * Spring Security のフィルターチェーン（addFilterBefore）経由でのみ動作させる。
-     * これにより OncePerRequestFilter の「二重実行スキップ」が起きなくなる。
-     */
     @Bean
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(RateLimitFilter filter) {
         FilterRegistrationBean<RateLimitFilter> reg = new FilterRegistrationBean<>(filter);
+        reg.setEnabled(false);
+        return reg;
+    }
+
+    @Bean
+    public FilterRegistrationBean<MfaPendingFilter> mfaPendingFilterRegistration(MfaPendingFilter filter) {
+        FilterRegistrationBean<MfaPendingFilter> reg = new FilterRegistrationBean<>(filter);
         reg.setEnabled(false);
         return reg;
     }
