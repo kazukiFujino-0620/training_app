@@ -21,6 +21,8 @@ tags:
     description: トレーニング管理（CRUD + リスト取得）
   - name: master
     description: マスターデータ取得
+  - name: personal-record
+    description: 自己記録（PR）管理
   - name: admin
     description: 管理者専用操作
 
@@ -448,6 +450,68 @@ paths:
           description: 指定したトレーニングが存在しない
         "500":
           description: 内部エラー
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 成長グラフ API ──────────────────────────────────────────────
+  /api/growth-chart:
+    get:
+      tags: [training]
+      summary: 種目別成長グラフデータ取得
+      description: |
+        指定種目・期間の週次集計データ（最高重量・ボリューム）を返す。
+        userId はサーバーサイドで解決（IDOR防止）。認証必須。
+      parameters:
+        - name: itemName
+          in: query
+          required: true
+          description: 種目名
+          schema:
+            type: string
+            maxLength: 50
+            example: ベンチプレス
+        - name: period
+          in: query
+          required: false
+          description: 集計期間（省略時は3m）
+          schema:
+            type: string
+            enum: [1m, 3m, 6m, 1y]
+            default: 3m
+      responses:
+        "200":
+          $ref: "./schemas/responses/GrowthChartResponse.yaml"
+        "400":
+          description: itemName が空・50文字超、または period が不正値
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 自己記録（PR） ───────────────────────────────────────────────
+  /pr:
+    get:
+      tags: [personal-record]
+      summary: 自己記録（PR）一覧画面
+      description: ログインユーザーの全種目PRを一覧表示する。認証必須。
+      responses:
+        "200":
+          description: PR一覧画面 HTML
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /api/pr:
+    get:
+      tags: [personal-record]
+      summary: 自己記録（PR）一覧取得 API
+      description: |
+        ログインユーザーの全種目PRをJSON配列で返す。
+        userId はサーバーサイドで解決（IDOR防止）。認証必須。
+      responses:
+        "200":
+          $ref: "./schemas/responses/PersonalRecordListResponse.yaml"
+        "302":
+          description: 未認証 → ログインページへリダイレクト
         "429":
           $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
