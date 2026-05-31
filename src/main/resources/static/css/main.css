@@ -50,6 +50,13 @@
   --transition-fast: 150ms ease-in-out;
   --transition-normal: 300ms ease-in-out;
   --transition-slow: 500ms ease-in-out;
+
+  /* 筋肉疲労マップ: 肌色 */
+  --skin-base: #d4a574;
+  --skin-outline: #b8844a;
+  --skin-shadow: #a06a30;
+  --skin-highlight: #e8c090;
+  --skin-muscle-sep: rgba(80,40,0,0.18);
 }
 
 /* CSS Variables for Dark Theme */
@@ -84,6 +91,13 @@
     0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
   --shadow-xl:
     0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+
+  /* 筋肉疲労マップ: 肌色 (ダークテーマ) */
+  --skin-base: #7a4f32;
+  --skin-outline: #5a3018;
+  --skin-shadow: #3d1e08;
+  --skin-highlight: #9a6845;
+  --skin-muscle-sep: rgba(255,200,150,0.12);
 }
 
 /* Reset and Base Styles */
