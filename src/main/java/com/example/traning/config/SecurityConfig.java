@@ -1,6 +1,7 @@
 package com.example.traning.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -11,6 +12,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 
+import com.example.traning.filter.RateLimitFilter;
 import com.example.traning.user.service.CustomOAuth2UserService;
 
 @Configuration
@@ -46,7 +48,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
             org.springframework.security.core.userdetails.UserDetailsService userDetailsService,
-            PasswordEncoder passwordEncoder) throws Exception {
+            PasswordEncoder passwordEncoder,
+            RateLimitFilter rateLimitFilter) throws Exception {
 
         org.springframework.security.authentication.dao.DaoAuthenticationProvider provider =
                 new org.springframework.security.authentication.dao.DaoAuthenticationProvider();
@@ -158,7 +161,26 @@ public class SecurityConfig {
                     .rememberMeParameter("remember-me")
                     .rememberMeCookieName("remember-me-cookie"));
 
+        // ── レート制限フィルター ────────────────────────────────────────────
+        // CsrfFilter より前に配置することで POST /login を含むすべてのリクエストに
+        // レート制限を適用できる。UAPF 前配置では OncePerRequestFilter が POST を
+        // スキップするため、CsrfFilter 前に配置する必要がある。
+        http.addFilterBefore(rateLimitFilter,
+                org.springframework.security.web.csrf.CsrfFilter.class);
+
         return http.build();
+    }
+
+    /**
+     * @Component が付いた RateLimitFilter を Servlet コンテナに自動登録させない。
+     * Spring Security のフィルターチェーン（addFilterBefore）経由でのみ動作させる。
+     * これにより OncePerRequestFilter の「二重実行スキップ」が起きなくなる。
+     */
+    @Bean
+    public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(RateLimitFilter filter) {
+        FilterRegistrationBean<RateLimitFilter> reg = new FilterRegistrationBean<>(filter);
+        reg.setEnabled(false);
+        return reg;
     }
 
     /** セッション上限（maximumSessions）を機能させるために必要 */
