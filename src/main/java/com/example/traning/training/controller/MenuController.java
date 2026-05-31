@@ -162,6 +162,7 @@ public class MenuController {
 		List<Map<String, Object>> fatigueRows = new ArrayList<>();
 		for (String p : partOrder) {
 			Map<String, Object> row = new java.util.LinkedHashMap<>();
+			row.put("partCode", p);
 			row.put("partName", partNameMap.getOrDefault(p, p));
 			row.put("volume", volumeByPart.getOrDefault(p, 0L));
 			row.put("sets", setsByPart.getOrDefault(p, 0));
