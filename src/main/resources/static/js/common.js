@@ -46,13 +46,17 @@ function initializeLogoutButton() {
                 window.close();
             };
         }
-        // Training register: close if from menu, back otherwise
+        // Training register: close tab if from menu, back otherwise
         else if (currentPath === '/training/register') {
             const fromMenu = document.referrer.includes('/menu');
             logoutButton.textContent = fromMenu ? '閉じる' : '戻る';
             logoutButton.onclick = function(e) {
                 e.preventDefault();
-                window.history.back();
+                if (fromMenu) {
+                    window.close();
+                } else {
+                    window.history.back();
+                }
             };
         }
         // Other pages: show back button
