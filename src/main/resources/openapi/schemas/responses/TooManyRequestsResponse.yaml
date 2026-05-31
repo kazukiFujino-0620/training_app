@@ -1,7 +1,18 @@
-description: レート制限超過（1分あたりのリクエスト数が上限を超えた）
+description: |
+  レート制限超過またはIPアドレスブロック。
+  以下のいずれかの条件で返される。
+  - レート制限: 1分あたりのリクエスト数が上限を超えた
+  - IPブロック: 同一IPからのログイン失敗が20回に達し30分間ブロック中（POST /login のみ）
 content:
   application/json:
     schema:
       $ref: "../models/ErrorResponse.yaml"
-    example:
-      error: "リクエストが多すぎます。しばらくしてから再試行してください。"
+    examples:
+      rateLimitExceeded:
+        summary: レート制限超過
+        value:
+          error: "リクエストが多すぎます。しばらくしてから再試行してください。"
+      ipBlocked:
+        summary: IPアドレスブロック（POST /login のみ）
+        value:
+          error: "アクセスが一時的にブロックされています。しばらくしてから再試行してください。"

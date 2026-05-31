@@ -1,0 +1,9 @@
+description: バックアップコード一覧（有効化成功時・再生成時に 1 回のみ表示）
+content:
+  text/html:
+    schema:
+      type: string
+      description: |
+        新規生成した 10 件のバックアップコードを表示する HTML ページ。
+        各コードは 8 桁英数字（例: ABC1DEF2）。
+        ページを離れると再表示不可のため、保存を促すメッセージを表示する。

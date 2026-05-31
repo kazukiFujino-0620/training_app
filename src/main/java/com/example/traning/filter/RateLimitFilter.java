@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.example.traning.user.service.CustomUserDetails;
+import com.example.traning.user.service.IpBlockService;
 
 import io.github.bucket4j.Bucket;
 import jakarta.servlet.FilterChain;
@@ -35,9 +36,11 @@ import lombok.extern.slf4j.Slf4j;
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimitBucketManager bucketManager;
+    private final IpBlockService ipBlockService;
 
-    public RateLimitFilter(RateLimitBucketManager bucketManager) {
+    public RateLimitFilter(RateLimitBucketManager bucketManager, IpBlockService ipBlockService) {
         this.bucketManager = bucketManager;
+        this.ipBlockService = ipBlockService;
     }
 
     @Override
@@ -48,9 +51,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         String path   = req.getRequestURI();
         String method = req.getMethod();
-        String ip     = resolveClientIp(req);
+        String ip     = IpUtils.resolveClientIp(req);
 
         log.debug("RateLimitFilter invoked: method={}, path={}, ip={}", method, path, ip);
+
+        // IPブロックチェック（POST /login のみ）
+        if ("POST".equals(method) && "/login".equals(path)) {
+            if (ipBlockService.isBlocked(ip)) {
+                log.warn("Blocked IP attempted login: ip={}", maskIp(ip));
+                res.setStatus(429);
+                res.setContentType("application/json;charset=UTF-8");
+                res.getWriter().write(
+                    "{\"error\":\"アクセスが一時的に"
+                    + "ブロックされています。"
+                    + "しばらくしてから再試行"
+                    + "してください。\"}");
+                return;
+            }
+        }
 
         Bucket bucket = resolveBucket(path, method, ip, req);
 
@@ -118,18 +136,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return "ip:" + ip;
     }
 
-    /**
-     * クライアントIPを解決する。
-     *
-     * GCP Cloud Run はリバースプロキシ経由のため X-Forwarded-For の先頭エントリを使用する。
-     * ヘッダーがない場合は RemoteAddr にフォールバックする。
-     */
-    private String resolveClientIp(HttpServletRequest req) {
-        String forwarded = req.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            String firstIp = forwarded.split(",")[0].trim();
-            if (!firstIp.isEmpty()) return firstIp;
-        }
-        return req.getRemoteAddr();
+    private String maskIp(String ip) {
+        int lastDot = ip.lastIndexOf('.');
+        return lastDot > 0 ? ip.substring(0, lastDot) + ".***" : ip;
     }
 }
