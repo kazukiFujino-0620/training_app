@@ -15,8 +15,12 @@ servers:
 tags:
   - name: auth
     description: 認証・ユーザー登録
+  - name: account
+    description: アカウント管理（論理削除からの復元）
   - name: password
     description: パスワードリセット
+  - name: profile
+    description: ユーザープロフィール管理
   - name: training
     description: トレーニング管理（CRUD + リスト取得）
   - name: master
@@ -32,6 +36,16 @@ tags:
 # Paths
 # ──────────────────────────────────────────────────────────────────
 paths:
+
+  # ── ルート ──────────────────────────────────────────────────────
+  /:
+    get:
+      tags: [auth]
+      summary: ルートリダイレクト
+      description: ルートへのアクセスを /login へリダイレクトする。
+      responses:
+        "302":
+          description: /login へリダイレクト
 
   # ── 認証 ────────────────────────────────────────────────────────
   /login:
@@ -100,6 +114,60 @@ paths:
         "429":
           $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
+  # ── アカウント復元 ──────────────────────────────────────────────
+  /account/restore/sent:
+    get:
+      tags: [account]
+      summary: アカウント復元メール送信完了画面
+      description: |
+        論理削除されたアカウントの復元メール送信後の案内ページ。
+        /signup で同一メールアドレスのアカウントが論理削除済みの場合にリダイレクトされる。
+      responses:
+        "200":
+          description: 復元メール送信完了案内 HTML
+
+  /account/restore:
+    get:
+      tags: [account]
+      summary: アカウント復元確認画面
+      description: メールで送付されたトークンを受け取り、復元確認ページを表示する。
+      parameters:
+        - name: token
+          in: query
+          required: true
+          description: メールで送付されたアカウント復元トークン
+          schema:
+            type: string
+      responses:
+        "200":
+          description: アカウント復元確認フォーム HTML
+
+  /account/restore/confirm:
+    post:
+      tags: [account]
+      summary: アカウント復元実行
+      description: |
+        トークンを検証してアカウントを復元（論理削除フラグを解除）する。
+        成功時は /login?restoreSuccess へリダイレクト。
+        トークンが無効または期限切れの場合はフォームにエラーを表示。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: アカウント復元トークン
+      responses:
+        "302":
+          description: 復元成功 → /login?restoreSuccess へリダイレクト
+        "200":
+          description: トークン無効または期限切れ → エラーメッセージ付きフォーム再表示
+
   # ── パスワードリセット ────────────────────────────────────────────
   /password/forget:
     get:
@@ -163,6 +231,35 @@ paths:
           description: 更新成功 → /login?resetSuccess へリダイレクト
         "200":
           description: パスワード不一致またはトークン無効 → フォーム再表示
+
+  # ── プロフィール ────────────────────────────────────────────────
+  /user/profile:
+    get:
+      tags: [profile]
+      summary: プロフィール画面表示
+      description: ログインユーザーのプロフィール情報をフォームに表示する。認証必須。
+      responses:
+        "200":
+          description: プロフィール編集フォーム HTML
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+    post:
+      tags: [profile]
+      summary: プロフィール更新
+      description: |
+        ユーザー名・身長・体重・性別・生年月日を更新する。認証必須。
+        バリデーションエラー時はフォームを再表示。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/ProfileUpdateRequest.yaml"
+      responses:
+        "302":
+          description: 更新成功 → /user/profile へリダイレクト、または未認証 → /login へリダイレクト
+        "200":
+          description: バリデーションエラー → フォーム再表示
 
   # ── メニュー（カレンダー） ──────────────────────────────────────
   /menu:
@@ -248,6 +345,28 @@ paths:
       responses:
         "200":
           description: トレーニング登録フォーム HTML
+
+  /detail:
+    get:
+      tags: [training]
+      summary: トレーニング詳細画面
+      description: |
+        指定日のトレーニング詳細（セット情報・総ボリューム・消費カロリー推定）を表示する。
+        認証必須。
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: 表示対象日（省略時は今日）
+          schema:
+            type: string
+            format: date
+            example: "2026-05-31"
+      responses:
+        "200":
+          description: トレーニング詳細画面 HTML（総ボリューム・消費カロリー・種目リスト含む）
+        "302":
+          description: 未認証 → ログインページへリダイレクト
 
   # ── マスターデータ API ──────────────────────────────────────────
   /api/training-parts:
