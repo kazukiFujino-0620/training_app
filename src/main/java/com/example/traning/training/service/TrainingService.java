@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.traning.dao.TrainingMasterDao;
+import com.example.traning.pr.service.PersonalRecordService;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -29,13 +30,16 @@ public class TrainingService {
 	private final TrainingDao trainingDao;
 	private final TrainingDetailDao trainingDetailDao;
 	private final TrainingMasterDao trainingMasterDao;
+	private final PersonalRecordService personalRecordService;
 
 	public TrainingService(TrainingServiceTransaction transaction, TrainingDao trainingDao,
-			TrainingDetailDao trainingDetailDao, TrainingMasterDao trainingMasterDao) {
+			TrainingDetailDao trainingDetailDao, TrainingMasterDao trainingMasterDao,
+			PersonalRecordService personalRecordService) {
 		this.transaction = transaction;
 		this.trainingDao = trainingDao;
 		this.trainingDetailDao = trainingDetailDao;
 		this.trainingMasterDao = trainingMasterDao;
+		this.personalRecordService = personalRecordService;
 	}
 
 	public void save(Training training, Principal principal) {
@@ -53,6 +57,17 @@ public class TrainingService {
 
 			transaction.execute(training, principal);
 			logger.info("トレーニングデータ保存完了 - ID: {}", training.getId());
+
+			// PR更新（トランザクション外・失敗してもメイン保存に影響しない）
+			for (TrainingDetail detail : training.getDetails()) {
+				personalRecordService.updateIfBetter(
+					training.getUserId(),
+					training.getMenu(),
+					detail.getWeight(),
+					detail.getReps(),
+					training.getTrainingDate()
+				);
+			}
 		} catch (Exception e) {
 			logger.error("トレーニングデータ保存中にエラー発生", e);
 			throw e;
