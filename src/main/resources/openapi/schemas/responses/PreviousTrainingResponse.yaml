@@ -1,0 +1,5 @@
+description: 前回記録取得成功
+content:
+  application/json:
+    schema:
+      $ref: "../models/PreviousTrainingResponse.yaml"
