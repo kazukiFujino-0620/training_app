@@ -3,6 +3,7 @@ package com.example.traning.training.dao;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.seasar.doma.Column;
 import org.seasar.doma.Dao;
 import org.seasar.doma.Delete;
 import org.seasar.doma.Insert;
@@ -39,4 +40,20 @@ public interface TrainingDetailDao {
 
 	@Select
 	List<TrainingDetail> selectByUserIdAndDate(Long userId, String date);
+
+	@Select
+	List<GrowthResult> selectGrowthByItemAndPeriod(
+	    Long userId, String itemName, String startDate, String endDate);
+
+	@org.seasar.doma.Entity
+	public static class GrowthResult {
+		@Column(name = "week_label")
+		public String weekLabel;
+
+		@Column(name = "max_weight")
+		public Double maxWeight;
+
+		@Column(name = "total_volume")
+		public Double totalVolume;
+	}
 }

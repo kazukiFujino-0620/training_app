@@ -145,8 +145,22 @@
           </div>
           <div class="summary-card">
             <div class="label">推定消費カロリー</div>
-            <div class="value" th:text="${estimatedCalories}">0</div>
-            <div class="unit">kcal</div>
+            <!-- ケースA: 全項目あり -->
+            <th:block th:if="${calorieEstimate.type.name() == 'FULL'}">
+              <div class="value" th:text="${calorieEstimate.calories}">0</div>
+              <div class="unit">kcal</div>
+            </th:block>
+            <!-- ケースB: 体重のみ -->
+            <th:block th:if="${calorieEstimate.type.name() == 'SIMPLE'}">
+              <div class="value" th:text="${calorieEstimate.calories}">0</div>
+              <div class="unit">kcal <span style="font-size:0.65rem;color:var(--text-muted);">※簡易計算</span></div>
+            </th:block>
+            <!-- ケースC: 未設定 -->
+            <th:block th:if="${calorieEstimate.type.name() == 'UNSET'}">
+              <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.3rem;line-height:1.4;">
+                <a href="/user/profile" style="color:var(--primary-color);">プロフィール</a>を設定するとカロリーが表示されます
+              </div>
+            </th:block>
           </div>
         </div>
 

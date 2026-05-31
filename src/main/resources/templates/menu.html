@@ -381,8 +381,11 @@
           </div>
         </div>
 
-        <!-- 筋肉疲労マップ -->
-        <div class="mt-8">
+        <!-- 筋肉疲労マップ + 成長グラフ -->
+        <div class="mt-8" style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
+
+          <!-- 筋肉疲労マップ (38%) -->
+          <div style="flex:0 0 calc(38% - 12px);min-width:0;">
           <div id="muscle-map-card" style="background:#1a1f26;border-radius:16px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,0.4);">
 
             <!-- ヘッダー -->
@@ -401,7 +404,7 @@
                   <span style="font-size:10px;color:#78909c;font-weight:600;letter-spacing:1.5px;">背 面</span>
                 </div>
                 <svg id="muscle-map-svg" viewBox="40 80 1370 1310" xmlns="http://www.w3.org/2000/svg"
-                     style="height:340px;width:auto;display:block;margin:0 auto;">
+                     style="height:280px;width:auto;display:block;margin:0 auto;">
                   <defs>
                     <clipPath id="front-half"><rect x="0" y="0" width="724" height="1448"/></clipPath>
                     <clipPath id="back-half"><rect x="724" y="0" width="724" height="1448"/></clipPath>
@@ -552,7 +555,52 @@
             </div>
 
           </div>
-        </div><!-- /muscle map -->
+          </div><!-- /筋肉疲労マップ wrapper -->
+
+          <!-- 成長グラフ (62%) -->
+          <div style="flex:1;min-width:280px;">
+            <div id="growth-chart-card" style="background:#1a1f26;border-radius:16px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,0.4);">
+
+              <!-- ヘッダー -->
+              <div style="padding:16px 20px 14px;border-bottom:1px solid rgba(255,255,255,0.07);">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                  <span style="color:#f1f5f9;font-size:1.05rem;font-weight:700;">成長グラフ</span>
+                  <select id="growth-item-select"
+                          style="background:#1e2d3d;color:#e2e8f0;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 10px;font-size:0.85rem;cursor:pointer;">
+                    <option value="">種目を選択してください</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- 期間ボタン -->
+              <div style="padding:12px 16px 8px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="growth-period-btn" data-period="1m"
+                        style="background:rgba(255,255,255,0.05);color:#94a3b8;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 14px;font-size:0.82rem;cursor:pointer;">1ヶ月</button>
+                <button class="growth-period-btn active-period" data-period="3m"
+                        style="background:#3b82f6;color:#fff;border:1px solid #3b82f6;border-radius:8px;padding:5px 14px;font-size:0.82rem;cursor:pointer;">3ヶ月</button>
+                <button class="growth-period-btn" data-period="6m"
+                        style="background:rgba(255,255,255,0.05);color:#94a3b8;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 14px;font-size:0.82rem;cursor:pointer;">6ヶ月</button>
+                <button class="growth-period-btn" data-period="1y"
+                        style="background:rgba(255,255,255,0.05);color:#94a3b8;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 14px;font-size:0.82rem;cursor:pointer;">1年</button>
+              </div>
+
+              <!-- グラフエリア -->
+              <div style="padding:8px 16px 20px;min-height:300px;display:flex;flex-direction:column;justify-content:center;">
+                <p id="growth-chart-empty"
+                   style="text-align:center;padding:60px 0;color:#475569;font-size:0.9rem;margin:0;">
+                  種目を選択するとグラフが表示されます
+                </p>
+                <p id="growth-chart-nodata"
+                   style="display:none;text-align:center;padding:60px 0;color:#475569;font-size:0.9rem;margin:0;">
+                  この期間にデータがありません
+                </p>
+                <canvas id="growthChart" style="display:none;"></canvas>
+              </div>
+
+            </div>
+          </div><!-- /成長グラフ -->
+
+        </div><!-- /筋肉疲労マップ + 成長グラフ -->
 
         <!-- Admin Section -->
         <div sec:authorize="hasRole('ADMIN')" class="mt-8">
@@ -701,6 +749,158 @@
           applyFatigueColors();
         }
       })();
+    </script>
+
+    <!-- Chart.js (成長グラフ用) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- 成長グラフ 制御スクリプト -->
+    <script>
+    (function () {
+      let growthChart = null;
+      let currentPeriod = '3m';
+      let currentItem   = '';
+
+      function initChart() {
+        const ctx = document.getElementById('growthChart').getContext('2d');
+        growthChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: [],
+            datasets: [
+              {
+                label: '最高重量 (kg)',
+                data: [],
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.3,
+                yAxisID: 'y',
+              },
+              {
+                label: 'ボリューム (kg×rep)',
+                data: [],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.3,
+                yAxisID: 'y1',
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { labels: { color: '#94a3b8' } }
+            },
+            scales: {
+              x: {
+                ticks: { color: '#64748b' },
+                grid:  { color: 'rgba(255,255,255,0.05)' }
+              },
+              y: {
+                type: 'linear', display: true, position: 'left',
+                ticks: { color: '#64748b' },
+                grid:  { color: 'rgba(255,255,255,0.05)' },
+                title: { display: true, text: '重量 (kg)', color: '#64748b' }
+              },
+              y1: {
+                type: 'linear', display: true, position: 'right',
+                ticks: { color: '#64748b' },
+                grid:  { drawOnChartArea: false },
+                title: { display: true, text: 'ボリューム', color: '#64748b' }
+              }
+            }
+          }
+        });
+      }
+
+      async function loadGrowthChart(itemName, period) {
+        if (!itemName) return;
+        try {
+          const url = '/api/growth-chart'
+                    + '?itemName=' + encodeURIComponent(itemName)
+                    + '&period='   + period;
+          const res  = await fetch(url);
+          const data = await res.json();
+
+          const isEmpty = !data.labels || data.labels.length === 0;
+          document.getElementById('growth-chart-empty').style.display  = 'none';
+          document.getElementById('growth-chart-nodata').style.display = isEmpty ? 'block' : 'none';
+          document.getElementById('growthChart').style.display          = isEmpty ? 'none'  : 'block';
+
+          if (!isEmpty) {
+            if (!growthChart) initChart();
+            growthChart.data.labels           = data.labels;
+            growthChart.data.datasets[0].data = data.maxWeight;
+            growthChart.data.datasets[1].data = data.totalVolume;
+            growthChart.update();
+          }
+        } catch (e) {
+          console.error('成長グラフ取得エラー', e);
+        }
+      }
+
+      const ACTIVE_STYLE   = { bg: '#3b82f6',                   color: '#fff',     border: '#3b82f6' };
+      const INACTIVE_STYLE = { bg: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: 'rgba(255,255,255,0.1)' };
+
+      document.querySelectorAll('.growth-period-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          currentPeriod = this.dataset.period;
+          document.querySelectorAll('.growth-period-btn').forEach(function (b) {
+            b.style.background  = INACTIVE_STYLE.bg;
+            b.style.color       = INACTIVE_STYLE.color;
+            b.style.borderColor = INACTIVE_STYLE.border;
+          });
+          this.style.background  = ACTIVE_STYLE.bg;
+          this.style.color       = ACTIVE_STYLE.color;
+          this.style.borderColor = ACTIVE_STYLE.border;
+          loadGrowthChart(currentItem, currentPeriod);
+        });
+      });
+
+      document.getElementById('growth-item-select').addEventListener('change', function () {
+        currentItem = this.value;
+        loadGrowthChart(currentItem, currentPeriod);
+      });
+
+      const PART_LABELS = {
+        CHEST: '胸', BACK: '背中', ARM: '腕', SHOULDER: '肩', LEG: '脚'
+      };
+
+      async function initItemSelect() {
+        try {
+          const res     = await fetch('/api/training-items-grouped');
+          const grouped = await res.json();
+          const select  = document.getElementById('growth-item-select');
+
+          Object.keys(grouped).sort().forEach(function (partCode) {
+            const items = grouped[partCode];
+            if (!items || items.length === 0) return;
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = PART_LABELS[partCode] || partCode;
+            items.forEach(function (item) {
+              const opt       = document.createElement('option');
+              opt.value       = item.itemName;
+              opt.textContent = item.itemName;
+              optgroup.appendChild(opt);
+            });
+            select.appendChild(optgroup);
+          });
+
+          const firstPartCode = Object.keys(grouped).sort()[0];
+          if (firstPartCode && grouped[firstPartCode].length > 0) {
+            currentItem  = grouped[firstPartCode][0].itemName;
+            select.value = currentItem;
+            initChart();
+            loadGrowthChart(currentItem, currentPeriod);
+          }
+        } catch (e) {
+          console.error('種目一覧取得エラー', e);
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', initItemSelect);
+    })();
     </script>
   </body>
 </html>

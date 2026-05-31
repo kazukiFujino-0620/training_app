@@ -26,6 +26,7 @@ import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
+import com.example.traning.training.service.CalorieCalculator;
 import com.example.traning.user.User;
 import com.example.traning.user.form.UserAdminUpdateForm;
 import com.example.traning.user.service.UserService;
@@ -53,12 +54,14 @@ public class AdminController {
     private final UserService userService;
     private final TrainingDao trainingDao;
     private final TrainingDetailDao trainingDetailDao;
+    private final CalorieCalculator calorieCalculator;
 
     public AdminController(UserService userService, TrainingDao trainingDao,
-            TrainingDetailDao trainingDetailDao) {
+            TrainingDetailDao trainingDetailDao, CalorieCalculator calorieCalculator) {
         this.userService = userService;
         this.trainingDao = trainingDao;
         this.trainingDetailDao = trainingDetailDao;
+        this.calorieCalculator = calorieCalculator;
     }
 
     /**
@@ -169,6 +172,11 @@ public class AdminController {
             log.error("グラフデータ取得エラー: ユーザーID: {}", id, e);
             model.addAttribute("volumeData", List.of());
         }
+
+        // プロフィール情報を使ったカロリー計算（管理者用: 代表トレーニング時間を使用）
+        // user オブジェクトはすでに取得済み
+        // 管理者画面はカレンダー+グラフ画面のため、カロリーは当月の平均的な値を出さずにユーザー情報のみ渡す
+        model.addAttribute("targetUser", user);
 
         return "admin/user_training_detail";
     }
