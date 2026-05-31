@@ -33,6 +33,11 @@ public class UserService {
 		return result;
 	}
 
+	public User getUserByEmail(String email) {
+		return userDao.selectByEmail(email)
+				.orElseThrow(() -> new RuntimeException("ユーザーが見つかりません email:" + email));
+	}
+
 	public User getUserById(Integer id) {
 		log.info("ユーザーID: {} の取得を開始します。", id);
 		User user = userDao.selectById(id);

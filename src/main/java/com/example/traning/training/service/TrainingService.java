@@ -286,6 +286,38 @@ public class TrainingService {
 		}
 	}
 
+	public Map<String, Object> getGrowthChartData(Long userId, String itemName, String period) {
+		LocalDate endDate   = LocalDate.now();
+		LocalDate startDate = switch (period) {
+			case "1m" -> endDate.minusMonths(1);
+			case "6m" -> endDate.minusMonths(6);
+			case "1y" -> endDate.minusYears(1);
+			default   -> endDate.minusMonths(3);
+		};
+
+		List<TrainingDetailDao.GrowthResult> results =
+			trainingDetailDao.selectGrowthByItemAndPeriod(
+				userId, itemName,
+				startDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
+				endDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
+
+		List<String> labels     = new ArrayList<>();
+		List<Double> maxWeights = new ArrayList<>();
+		List<Double> totalVols  = new ArrayList<>();
+
+		for (TrainingDetailDao.GrowthResult r : results) {
+			labels.add(r.weekLabel);
+			maxWeights.add(r.maxWeight);
+			totalVols.add(r.totalVolume);
+		}
+
+		return Map.of(
+			"labels",      labels,
+			"maxWeight",   maxWeights,
+			"totalVolume", totalVols
+		);
+	}
+
 	private List<Double> getSafeVolumeData(Long userId, String partCode, List<String> labels, String startStr,
 			String endStr) {
 		logger.debug("部位別ボリュームデータ取得開始 - ユーザーID: {}, 部位: {}", userId, partCode);

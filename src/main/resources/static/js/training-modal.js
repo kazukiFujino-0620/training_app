@@ -2,6 +2,8 @@ let myChart;
 let totalSeconds = 0;
 let timerInterval = null;
 let isTimerRunning = false;
+let timerStartTimestamp = null;  // Bug3: 壁時計ベースの補正用
+let timerBaseSeconds = 0;        // Bug3: 一時停止時点の秒数
 
 // ── Web Audio API アラーム ────────────────────────────────────────────────
 // ユーザーのタップ操作（toggleMainTimer）でAudioContextを初期化する。
@@ -331,15 +333,18 @@ function toggleMainTimer() {
     const btn = document.getElementById('startBtn');
     if (!isTimerRunning) {
         isTimerRunning = true;
+        timerStartTimestamp = Date.now();
+        timerBaseSeconds = totalSeconds;
         btn.textContent = "一時停止";
         btn.classList.add('btn-success');
         btn.classList.remove('btn-warning');
         timerInterval = setInterval(() => {
-            totalSeconds++;
+            totalSeconds = timerBaseSeconds + Math.round((Date.now() - timerStartTimestamp) / 1000);
             updateTimerDisplay();
         }, 1000);
     } else {
         isTimerRunning = false;
+        timerStartTimestamp = null;
         btn.textContent = "再開";
         btn.classList.remove('btn-success');
         btn.classList.add('btn-warning');
@@ -375,6 +380,8 @@ function setIntervalTime(seconds) {
 
 function handleCheck(el) {
     if (!el) return;
+    // チェック操作はユーザージェスチャーなのでここでAudioContextを有効化する
+    ensureAudioContext();
     el.classList.toggle('completed');
     if (!isTimerRunning) {
         toggleMainTimer();
@@ -387,26 +394,46 @@ function handleCheck(el) {
 }
 
 let intervalTimerId = null;
-let intervalRemaining = 0; // 残り時間を管理する変数を追加
+let intervalRemaining = 0;
+let intervalStartTimestamp = null;   // Bug3: 壁時計ベースの補正用
+let intervalInitialSeconds = 0;      // Bug3: 開始時/changeInterval後の基準秒数
+let intervalEndBannerTimeoutId = null; // 終了バナーの残留タイムアウト管理
 
 function startInterval(seconds) {
+    // 前回の終了バナー残留タイムアウトをキャンセルしてバナー状態をリセット
+    if (intervalEndBannerTimeoutId) {
+        clearTimeout(intervalEndBannerTimeoutId);
+        intervalEndBannerTimeoutId = null;
+    }
+
     stopInterval();
 
     const banner = document.getElementById('intervalBanner');
     const timerDisplay = document.getElementById('intervalTimer');
     if (!banner || !timerDisplay) return;
 
+    // 終了表示の残留状態をリセット（色・span表示・終了メッセージ）
+    banner.style.background = '#ff9800';
+    timerDisplay.style.visibility = '';
+    const controls = banner.querySelector('.interval-controls');
+    if (controls) controls.style.display = '';
+    const endMsg = document.getElementById('intervalEndMsg');
+    if (endMsg) endMsg.style.display = 'none';
+
     banner.style.display = 'block';
-    intervalRemaining = seconds; // 初期値をセット
-    
+    intervalRemaining = seconds;
+    intervalInitialSeconds = seconds;
+    intervalStartTimestamp = Date.now();
+
     updateIntervalDisplay(timerDisplay, intervalRemaining);
 
     intervalTimerId = setInterval(() => {
-        intervalRemaining--;
+        const prev = intervalRemaining;
+        intervalRemaining = Math.max(0, intervalInitialSeconds - Math.round((Date.now() - intervalStartTimestamp) / 1000));
 
         if (intervalRemaining > 0) {
             updateIntervalDisplay(timerDisplay, intervalRemaining);
-            if (intervalRemaining === 10) {
+            if (prev > 10 && intervalRemaining <= 10) {
                 playWarningBeep();
                 if (navigator.vibrate) navigator.vibrate(200);
             }
@@ -431,11 +458,11 @@ function changeInterval(delta) {
     const timerDisplay = document.getElementById('intervalTimer');
     if (!timerDisplay) return;
 
-    // 変数 intervalRemaining を直接操作する
-    intervalRemaining += delta;
-    if (intervalRemaining < 0) intervalRemaining = 0;
+    intervalRemaining = Math.max(0, intervalRemaining + delta);
+    // 基準点をリセットして壁時計計算がズレないようにする
+    intervalInitialSeconds = intervalRemaining;
+    intervalStartTimestamp = Date.now();
 
-    // 表示を即時更新
     updateIntervalDisplay(timerDisplay, intervalRemaining);
 }
 
@@ -444,6 +471,7 @@ function stopInterval() {
         clearInterval(intervalTimerId);
         intervalTimerId = null;
     }
+    intervalStartTimestamp = null;
     const banner = document.getElementById('intervalBanner');
     if (banner) banner.style.display = 'none';
 }
@@ -451,12 +479,33 @@ function stopInterval() {
 function showIntervalEndBanner() {
     const banner = document.getElementById('intervalBanner');
     if (!banner) return;
-    banner.style.display = 'block';
+
+    // innerHTML を上書きせず span#intervalTimer を保持したまま終了表示に切り替える（Bug1対策）
+    const timerSpan = document.getElementById('intervalTimer');
+    const controls = banner.querySelector('.interval-controls');
+    if (timerSpan) timerSpan.style.visibility = 'hidden';
+    if (controls) controls.style.display = 'none';
+
+    let endMsg = document.getElementById('intervalEndMsg');
+    if (!endMsg) {
+        endMsg = document.createElement('div');
+        endMsg.id = 'intervalEndMsg';
+        endMsg.textContent = 'インターバル終了！次のセットを開始してください';
+        banner.appendChild(endMsg);
+    } else {
+        endMsg.style.display = 'block';
+    }
+
     banner.style.background = '#4caf50';
-    banner.innerHTML = 'インターバル終了！次のセットを開始してください';
-    setTimeout(() => {
+    banner.style.display = 'block';
+
+    intervalEndBannerTimeoutId = setTimeout(() => {
+        intervalEndBannerTimeoutId = null;
         banner.style.display = 'none';
-        banner.style.background = '';
+        banner.style.background = '#ff9800';
+        if (timerSpan) timerSpan.style.visibility = '';
+        if (controls) controls.style.display = '';
+        if (endMsg) endMsg.style.display = 'none';
     }, 3000);
 }
 
@@ -880,6 +929,12 @@ function updateExistingTrainingCard(trainingData) {
     const card = document.querySelector(`.training-card[data-training-id="${trainingData.id}"]`);
     if (!card) return false;
 
+    // Bug2対策: 再描画前に既存行のcompleted状態を退避する
+    const completedStates = [];
+    card.querySelectorAll('.set-row').forEach((row, i) => {
+        completedStates[i] = row.querySelector('.btn-check')?.classList.contains('completed') || false;
+    });
+
     card.dataset.partCode = trainingData.partCode;
     card.dataset.menu = trainingData.menu;
     card.dataset.trainingDate = trainingData.trainingDate;
@@ -905,6 +960,13 @@ function updateExistingTrainingCard(trainingData) {
                 <td><button type="button" data-action="removeSet" class="btn btn-danger btn-sm">✕</button></td>
             </tr>`;
         }).join('');
+
+        // 退避したcompleted状態を復元（新規追加行はuncheckedのまま）
+        card.querySelectorAll('.set-row').forEach((row, i) => {
+            if (completedStates[i]) {
+                row.querySelector('.btn-check')?.classList.add('completed');
+            }
+        });
     }
 
     const memoArea = card.querySelector('.memo-area');
@@ -1224,3 +1286,28 @@ window.saveRegister = saveRegister;
 window.addTrainingCardLocally = addTrainingCardLocally;
 window.reindexSets = reindexSets;
 window.stopInterval = stopInterval;
+
+// Bug3対策: バックグラウンド復帰時に壁時計で両タイマーを補正する
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+
+    // メインタイマー補正
+    if (isTimerRunning && timerStartTimestamp !== null) {
+        totalSeconds = timerBaseSeconds + Math.round((Date.now() - timerStartTimestamp) / 1000);
+        updateTimerDisplay();
+    }
+
+    // インターバルタイマー補正
+    if (intervalTimerId !== null && intervalStartTimestamp !== null) {
+        const timerDisplay = document.getElementById('intervalTimer');
+        intervalRemaining = Math.max(0, intervalInitialSeconds - Math.round((Date.now() - intervalStartTimestamp) / 1000));
+        if (intervalRemaining <= 0) {
+            if (timerDisplay) updateIntervalDisplay(timerDisplay, 0);
+            stopInterval();
+            playEndAlarm();
+            showIntervalEndBanner();
+        } else if (timerDisplay) {
+            updateIntervalDisplay(timerDisplay, intervalRemaining);
+        }
+    }
+});

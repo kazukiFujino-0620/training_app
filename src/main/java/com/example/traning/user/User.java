@@ -1,5 +1,6 @@
 package com.example.traning.user;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import org.seasar.doma.Column;
@@ -57,4 +58,15 @@ public class User {
 
 	@Column(name = "deleted_at")
 	public LocalDateTime deletedAt;
+
+	@Column(name = "height_cm")
+	public Double heightCm;
+
+	@Column(name = "weight_kg")
+	public Double weightKg;
+
+	public String gender;
+
+	@Column(name = "birth_date")
+	public LocalDate birthDate;
 }

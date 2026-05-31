@@ -57,6 +57,10 @@ public class SignupServiceTransaction {
 			user.setLineId(signupForm.getLineId() != null ? signupForm.getLineId() : null);
 			user.setCreateDatetime(LocalDateTime.now());
 			user.setUpdatedDatetime(LocalDateTime.now());
+			user.setHeightCm(signupForm.getHeightCm());
+			user.setWeightKg(signupForm.getWeightKg());
+			user.setGender(signupForm.getGender() != null && !signupForm.getGender().isBlank() ? signupForm.getGender() : null);
+			user.setBirthDate(signupForm.getBirthDate());
 
 			userDao.insert(user);
 			log.info("User registered successfully - isOAuth2: {}", signupForm.isOAuth2Signup());

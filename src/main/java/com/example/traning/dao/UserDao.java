@@ -46,4 +46,7 @@ public interface UserDao {
 
 	@Update(sqlFile = true)
 	int restoreById(Integer userId);
+
+	@Update(sqlFile = true)
+	Result<User> updateProfile(User user);
 }

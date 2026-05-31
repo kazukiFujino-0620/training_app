@@ -8,8 +8,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,6 +33,7 @@ import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
+import com.example.traning.training.service.CalorieCalculator;
 import com.example.traning.training.service.TrainingService;
 import com.example.traning.user.User;
 
@@ -47,13 +50,16 @@ public class MenuController {
 	private final TrainingDetailDao trainingDetailDao;
 	private final TrainingMasterDao trainingMasterDao;
 	private final TrainingService trainingService;
+	private final CalorieCalculator calorieCalculator;
 
 	public MenuController(TrainingDao trainingDao, TrainingDetailDao trainingDetailDao,
-			TrainingMasterDao trainingMasterDao, TrainingService trainingService) {
+			TrainingMasterDao trainingMasterDao, TrainingService trainingService,
+			CalorieCalculator calorieCalculator) {
 		this.trainingDao = trainingDao;
 		this.trainingDetailDao = trainingDetailDao;
 		this.trainingMasterDao = trainingMasterDao;
 		this.trainingService = trainingService;
+		this.calorieCalculator = calorieCalculator;
 	}
 
 	@GetMapping("/menu")
@@ -405,6 +411,28 @@ public class MenuController {
 		return trainingMasterDao.selectAllParts();
 	}
 
+	@GetMapping("/api/growth-chart")
+	@ResponseBody
+	public ResponseEntity<Map<String, Object>> getGrowthChart(
+			@RequestParam String itemName,
+			@RequestParam(defaultValue = "3m") String period,
+			Principal principal) {
+
+		if (!Set.of("1m", "3m", "6m", "1y").contains(period)) {
+			return ResponseEntity.badRequest().body(Map.of("error", "不正なperiod値です"));
+		}
+		if (itemName == null || itemName.isBlank() || itemName.length() > 50) {
+			return ResponseEntity.badRequest().body(Map.of("error", "不正なitemName値です"));
+		}
+
+		Long userId = trainingService.getUserIdByEmail(principal.getName());
+		Map<String, Object> chartData = trainingService.getGrowthChartData(userId, itemName, period);
+
+		return ResponseEntity.ok()
+				.cacheControl(CacheControl.noStore())
+				.body(chartData);
+	}
+
 	@GetMapping("/api/training-items-grouped")
 	@ResponseBody
 	public Map<String, List<TrainingItemMaster>> getTrainingItemsGrouped() {
@@ -554,9 +582,9 @@ public class MenuController {
 				.findFirst()
 				.orElse("00:00:00");
 
-		// 推定消費カロリー: レジスタンストレーニング MET≈5.0、体重65kg仮定
 		int durationMinutes = parseDurationToMinutes(duration);
-		int estimatedCalories = (int) Math.round(durationMinutes * 5.4); // 5.0 MET × 65kg / 60min
+		User loginUser = trainingService.getUserByEmail(principal.getName());
+		CalorieCalculator.CalorieEstimate calorieEstimate = calorieCalculator.estimate(loginUser, durationMinutes);
 
 		// トレーニングコース（種目の順序リスト）
 		List<String> course = trainings.stream()
@@ -564,12 +592,13 @@ public class MenuController {
 				.filter(m -> m != null && !m.isEmpty())
 				.collect(Collectors.toList());
 
+		model.addAttribute("loginUser", loginUser);
 		model.addAttribute("trainings", trainings);
 		model.addAttribute("date", date);
 		model.addAttribute("today", today);
 		model.addAttribute("totalVolume", totalVolumeKg);
 		model.addAttribute("duration", duration);
-		model.addAttribute("estimatedCalories", estimatedCalories);
+		model.addAttribute("calorieEstimate", calorieEstimate);
 		model.addAttribute("isToday", date.equals(today));
 		model.addAttribute("trainingCourse", course);
 
