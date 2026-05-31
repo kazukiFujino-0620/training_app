@@ -52,6 +52,26 @@
         fill: #c4d0d6;
         stroke: #455a64;
       }
+      @media (max-width: 600px) {
+        .muscle-growth-row {
+          flex-direction: column !important;
+        }
+        .muscle-map-col {
+          flex: 1 1 100% !important;
+          width: 100% !important;
+          min-width: 0 !important;
+        }
+        .growth-chart-col {
+          flex: 1 1 100% !important;
+          min-width: 0 !important;
+          width: 100% !important;
+        }
+        #muscle-map-svg {
+          height: auto !important;
+          max-height: 240px !important;
+          width: 100% !important;
+        }
+      }
     </style>
   </head>
   <body class="bg-secondary">
@@ -392,10 +412,10 @@
         </div>
 
         <!-- 筋肉疲労マップ + 成長グラフ -->
-        <div class="mt-8" style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
+        <div class="mt-8 muscle-growth-row" style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
 
           <!-- 筋肉疲労マップ (38%) -->
-          <div style="flex:0 0 calc(38% - 12px);min-width:0;">
+          <div class="muscle-map-col" style="flex:0 0 calc(38% - 12px);min-width:0;">
           <div id="muscle-map-card" style="background:var(--bg-card);border-radius:16px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,0.2);">
 
             <!-- ヘッダー -->
@@ -568,7 +588,7 @@
           </div><!-- /筋肉疲労マップ wrapper -->
 
           <!-- 成長グラフ (62%) -->
-          <div style="flex:1;min-width:280px;">
+          <div class="growth-chart-col" style="flex:1;min-width:280px;">
             <div id="growth-chart-card" style="background:var(--bg-card);border-radius:16px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,0.2);">
 
               <!-- ヘッダー -->

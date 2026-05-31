@@ -36,15 +36,23 @@ function initializeLogoutButton() {
                 logoutForm.submit();
             };
         }
-        // Admin pages and training register: show close button
-        else if (currentPath === '/training/register' || 
-                 currentPath.startsWith('/admin/all-users-training') ||
+        // Admin pages: show close button
+        else if (currentPath.startsWith('/admin/all-users-training') ||
                  currentPath.startsWith('/admin/user/training-detail')) {
             logoutButton.textContent = '閉じる';
             logoutButton.onclick = function(e) {
                 e.preventDefault();
                 console.log('Close button clicked');
                 window.close();
+            };
+        }
+        // Training register: close if from menu, back otherwise
+        else if (currentPath === '/training/register') {
+            const fromMenu = document.referrer.includes('/menu');
+            logoutButton.textContent = fromMenu ? '閉じる' : '戻る';
+            logoutButton.onclick = function(e) {
+                e.preventDefault();
+                window.history.back();
             };
         }
         // Other pages: show back button

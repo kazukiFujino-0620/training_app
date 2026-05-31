@@ -23,6 +23,8 @@ tags:
     description: マスターデータ取得
   - name: personal-record
     description: 自己記録（PR）管理
+  - name: goal
+    description: トレーニング目標設定・達成率管理
   - name: admin
     description: 管理者専用操作
 
@@ -493,10 +495,13 @@ paths:
     get:
       tags: [personal-record]
       summary: 自己記録（PR）一覧画面
-      description: ログインユーザーの全種目PRを一覧表示する。認証必須。
+      description: |
+        ログインユーザーの全種目PRを一覧表示する。認証必須。
+        GoalService 実装後は各 PR に対応する ACTIVE 目標（goalMap）と
+        PR 未記録の ACTIVE 目標（goalsWithoutPr）も表示される。
       responses:
         "200":
-          description: PR一覧画面 HTML
+          description: PR一覧画面 HTML（目標達成率付き）
         "302":
           description: 未認証 → ログインページへリダイレクト
 
@@ -510,6 +515,118 @@ paths:
       responses:
         "200":
           $ref: "./schemas/responses/PersonalRecordListResponse.yaml"
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 目標設定 ────────────────────────────────────────────────────
+  /user/goals:
+    get:
+      tags: [goal]
+      summary: 目標一覧画面
+      description: ログインユーザーの全目標を一覧表示する。認証必須。
+      responses:
+        "200":
+          description: 目標一覧画面 HTML
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+    post:
+      tags: [goal]
+      summary: 目標登録
+      description: |
+        フォームから目標を新規登録する。認証必須。
+        targetWeight と targetReps のどちらか一方は必須。
+        バリデーションエラー時はフォームを再表示。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/GoalCreateRequest.yaml"
+      responses:
+        "302":
+          description: 登録成功 → /user/goals へリダイレクト
+        "200":
+          description: バリデーションエラー → フォーム再表示
+
+  /user/goals/{id}/achieve:
+    post:
+      tags: [goal]
+      summary: 目標を達成済みにマーク
+      description: |
+        指定目標のステータスを ACHIEVED に変更する。認証必須、所有者チェックあり。
+        AJAX 呼び出しを想定（JSON レスポンス）。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 目標 ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: 達成マーク成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ACHIEVED
+        "403":
+          description: 他ユーザーの目標へのアクセス
+        "404":
+          description: 指定目標が存在しない
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /user/goals/{id}:
+    delete:
+      tags: [goal]
+      summary: 目標削除
+      description: |
+        指定目標を削除する。認証必須、所有者チェックあり。
+        AJAX 呼び出しを想定（JSON レスポンス）。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 目標 ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: deleted
+        "403":
+          description: 他ユーザーの目標へのアクセス
+        "404":
+          description: 指定目標が存在しない
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /api/goals:
+    get:
+      tags: [goal]
+      summary: 目標一覧取得 API（達成率付き）
+      description: |
+        ログインユーザーの全目標を達成率情報とともに JSON で返す。
+        effectiveStatus は期日を考慮した実効ステータス（期日切れの ACTIVE は EXPIRED として返す）。
+        認証必須。
+      responses:
+        "200":
+          $ref: "./schemas/responses/GoalListResponse.yaml"
         "302":
           description: 未認証 → ログインページへリダイレクト
         "429":
@@ -609,6 +726,28 @@ paths:
           description: ユーザートレーニング詳細 HTML
         "404":
           description: 指定ユーザーが存在しない
+
+  /admin/user/{id}/goals:
+    get:
+      tags: [admin, goal]
+      summary: ユーザーの目標一覧確認（管理者用）
+      description: 指定ユーザーの全目標を達成率情報とともに表示する。ADMIN ロール必須。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ユーザー ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: ユーザー目標一覧 HTML
+        "404":
+          description: 指定ユーザーが存在しない
+        "403":
+          description: 権限なし
 
   # ── 管理者 REST API ─────────────────────────────────────────────
   /admin/training-details:

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.dao.PersonalRecordDao;
@@ -19,6 +20,7 @@ public class PersonalRecordService {
 
     private final PersonalRecordDao personalRecordDao;
 
+    @Transactional
     public void updateIfBetter(Long userId, String itemName,
                                Double weight, Integer reps, LocalDate date) {
         try {

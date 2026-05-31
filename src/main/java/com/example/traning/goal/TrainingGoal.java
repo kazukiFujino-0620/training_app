@@ -1,5 +1,6 @@
-package com.example.traning.pr;
+package com.example.traning.goal;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -13,9 +14,9 @@ import org.seasar.doma.Table;
 import lombok.Data;
 
 @Entity
-@Table(name = "personal_records")
+@Table(name = "training_goals")
 @Data
-public class PersonalRecord {
+public class TrainingGoal {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,18 +28,22 @@ public class PersonalRecord {
     @Column(name = "item_name")
     private String itemName;
 
-    @Column(name = "max_weight")
-    private Double maxWeight;
+    @Column(name = "target_weight")
+    private BigDecimal targetWeight;
 
-    @Column(name = "max_reps")
-    private Integer maxReps;
+    @Column(name = "target_reps")
+    private Integer targetReps;
 
-    @Column(name = "achieved_date")
-    private LocalDate achievedDate;
+    @Column(name = "target_date")
+    private LocalDate targetDate;
+
+    private String status;
+
+    private String memo;
 
     @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    private LocalDateTime updatedAt;
 }
