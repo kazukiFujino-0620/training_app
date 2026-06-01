@@ -84,9 +84,42 @@
     </header>
     
     <script th:src="@{/js/common.js}"></script>
+    <script th:src="@{/js/session-monitor.js}"></script>
+</th:block>
+
+<th:block th:fragment="sessionModalsFragment">
+    <!-- ── セッションタイムアウト警告モーダル ─────────────────────── -->
+    <div id="sessionWarningModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content" style="max-width:420px; text-align:center;">
+            <h3 style="color:var(--warning-color);">セッションの期限が近づいています</h3>
+            <p>セッションが <strong id="sessionCountdown">15:00</strong> 後に切れます。</p>
+            <p id="sessionTrainingNote" style="display:none; color:var(--danger-color); font-size:0.9rem;">
+                未保存のデータがある場合は先に保存してください。
+            </p>
+            <div style="display:flex; gap:1rem; justify-content:center; margin-top:1.5rem;">
+                <button id="sessionContinueBtn" class="btn btn-primary">続ける</button>
+                <button id="sessionLogoutBtn" class="btn btn-secondary">ログアウト</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── セッション切れモーダル ────────────────────────────────── -->
+    <div id="sessionExpiredModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content" style="max-width:420px; text-align:center;">
+            <h3 style="color:var(--danger-color);">セッションが切れました</h3>
+            <p>セッションが切れました。再ログインしてください。</p>
+            <p id="sessionExpiredTrainingNote" style="display:none; color:var(--danger-color); font-size:0.9rem;">
+                データを保存するにはログインし直してください。
+            </p>
+            <div style="margin-top:1.5rem;">
+                <a href="/login" class="btn btn-primary">ログインする</a>
+            </div>
+        </div>
+    </div>
 </th:block>
 
 <th:block th:fragment="footerFragment">
+    <div th:replace="~{common :: sessionModalsFragment}"></div>
     <footer class="bg-tertiary text-center py-4 mt-8">
         <div class="container">
             <p class="text-muted text-sm">
