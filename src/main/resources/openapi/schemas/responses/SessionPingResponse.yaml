@@ -1,0 +1,12 @@
+description: セッション生存確認レスポンス
+content:
+  application/json:
+    schema:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: ok
+          description: セッションが有効な場合に "ok" を返す
