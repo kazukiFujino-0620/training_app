@@ -109,8 +109,15 @@
 
                     <table class="table">
                         <tbody class="set-tbody">
-                            <tr th:each="detail, stat : ${item.details}" class="set-row">
-                                <td><span class="set-num font-medium" th:text="${stat.count}">1</span></td>
+                            <tr th:each="detail, stat : ${item.details}" class="set-row"
+                                th:data-set-type="${detail.setType != null ? detail.setType : 'MAIN'}">
+                                <td>
+                                    <span class="set-num font-medium" th:text="${stat.count}">1</span>
+                                    <span class="set-type-badge"
+                                          th:classappend="${detail.setType == 'WARMUP' ? ' set-type-warmup' : (detail.setType == 'DROP' ? ' set-type-drop' : ' set-type-main')}"
+                                          th:data-set-type="${detail.setType != null ? detail.setType : 'MAIN'}"
+                                          th:text="${detail.setType == 'WARMUP' ? 'WU' : (detail.setType == 'DROP' ? 'DROP' : 'SET')}">SET</span>
+                                </td>
                                 <td><input type="number" class="weight" th:value="${detail.weight != null ? detail.weight : ''}" step="0.5" placeholder="0"> kg</td>
                                 <td><input type="number" class="reps" th:value="${detail.reps != null ? detail.reps : ''}" placeholder="0"> 回</td>
                                 <td>
@@ -176,6 +183,7 @@
                         <thead>
                             <tr>
                                 <th style="width: 50px;">セット</th>
+                                <th style="width: 50px;">種別</th>
                                 <th>重量(kg)</th>
                                 <th>回数(reps)</th>
                                 <th style="width: 40px;"></th>

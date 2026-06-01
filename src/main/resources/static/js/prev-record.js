@@ -41,7 +41,13 @@ function createPrevRecordPanel(containerEl) {
         var s = sessions[idx];
         labelEl.textContent = prevRecordLabel(idx, s.date);
         setsEl.innerHTML = s.sets.map(function(set) {
-            return '<div class="prev-set-row">Set' + set.setNumber + ': ' +
+            var typePrefix = '';
+            if (set.setType === 'WARMUP') {
+                typePrefix = '<span class="prev-set-type">[WU]</span> ';
+            } else if (set.setType === 'DROP') {
+                typePrefix = '<span class="prev-set-type prev-set-type-drop">[DROP]</span> ';
+            }
+            return '<div class="prev-set-row">' + typePrefix + 'Set' + set.setNumber + ': ' +
                    set.weight + 'kg × ' + set.reps + '回</div>';
         }).join('');
         if (pr) {

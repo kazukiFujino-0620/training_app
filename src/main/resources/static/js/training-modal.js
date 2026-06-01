@@ -676,10 +676,13 @@ function openModal(date, id = null) {
             rows.forEach((r) => {
                 const weight = r.querySelector('.weight')?.value || '';
                 const reps = r.querySelector('.reps')?.value || '';
+                const st = r.querySelector('.set-type-badge')?.dataset.setType || r.dataset.setType || 'MAIN';
 
                 const tr = document.createElement('tr');
+                tr.className = 'set-row';
+                tr.dataset.setType = st;
                 tr.innerHTML = `
-                    <td>${setList.children.length + 1}</td>
+                    <td>${setList.children.length + 1} ${setTypeBadgeHtml(st)}</td>
                     <td><input type="number" class="weight" step="0.1" placeholder="0" value="${weight}"></td>
                     <td><input type="number" class="reps" placeholder="0" value="${reps}"></td>
                     <td>
@@ -823,6 +826,26 @@ function updateItems(partCode) {
         });
 }
 
+function setTypeBadgeHtml(setType) {
+    const st = setType || 'MAIN';
+    const cls = st === 'WARMUP' ? 'set-type-warmup' : st === 'DROP' ? 'set-type-drop' : 'set-type-main';
+    const label = st === 'WARMUP' ? 'WU' : st === 'DROP' ? 'DROP' : 'SET';
+    return `<span class="set-type-badge ${cls}" data-set-type="${st}">${label}</span>`;
+}
+
+function toggleSetTypeBadge(badge) {
+    if (!badge) return;
+    const current = badge.dataset.setType || 'MAIN';
+    const cycle = { 'MAIN': 'DROP', 'DROP': 'WARMUP', 'WARMUP': 'MAIN' };
+    const next = cycle[current] || 'MAIN';
+    badge.dataset.setType = next;
+    badge.textContent = next === 'WARMUP' ? 'WU' : next === 'DROP' ? 'DROP' : 'SET';
+    badge.className = 'set-type-badge ' + (next === 'WARMUP' ? 'set-type-warmup' : next === 'DROP' ? 'set-type-drop' : 'set-type-main');
+    const row = badge.closest('tr.set-row');
+    if (row) row.dataset.setType = next;
+}
+window.toggleSetTypeBadge = toggleSetTypeBadge;
+
 function addSetRow() {
     const tbody = document.getElementById('setList');
 
@@ -831,10 +854,16 @@ function addSetRow() {
         return;
     }
 
+    // 直前のセットと同じ種別を継承
+    const prevRow = tbody.lastElementChild;
+    const prevSetType = prevRow?.querySelector('.set-type-badge')?.dataset.setType || 'MAIN';
+
     const row = document.createElement('tr');
+    row.className = 'set-row';
+    row.dataset.setType = prevSetType;
 
     row.innerHTML = `
-        <td>${tbody.children.length + 1}</td>
+        <td>${tbody.children.length + 1} ${setTypeBadgeHtml(prevSetType)}</td>
         <td><input type="number" class="weight" step="0.1" placeholder="0"></td>
         <td><input type="number" class="reps" placeholder="0"></td>
         <td>
@@ -885,6 +914,8 @@ async function finishTraining() {
             const repsVal = row.querySelector('.reps')?.value ?? '';
             const checkBtn = row.querySelector('.btn-check');
             const isCompleted = checkBtn?.classList.contains('completed') ?? false;
+            const badge = row.querySelector('.set-type-badge');
+            const setType = badge?.dataset.setType || row.dataset.setType || 'MAIN';
 
             if (weightVal === '' || repsVal === '') {
                 validationErrors.push(`「${menu}」のセット ${index + 1} に未入力の項目があります。`);
@@ -894,7 +925,8 @@ async function finishTraining() {
                 weight: weightVal !== '' ? parseFloat(weightVal) : null,
                 reps: repsVal !== '' ? parseInt(repsVal, 10) : null,
                 setNumber: index + 1,
-                completed: isCompleted
+                completed: isCompleted,
+                setType: setType
             });
         });
 
@@ -964,10 +996,12 @@ function getModalTrainingData() {
     const details = Array.from(document.querySelectorAll('#setList tr')).map((row, index) => {
         const weightInput = row.querySelector('input.weight');
         const repsInput = row.querySelector('input.reps');
+        const badge = row.querySelector('.set-type-badge');
         return {
             setNumber: index + 1,
             weight: weightInput && weightInput.value !== '' ? parseFloat(weightInput.value) : 0,
             reps: repsInput && repsInput.value !== '' ? parseInt(repsInput.value, 10) : 0,
+            setType: badge?.dataset.setType || 'MAIN',
             completed: false
         };
     });
@@ -1013,9 +1047,10 @@ function updateExistingTrainingCard(trainingData) {
     const tbody = card.querySelector('.set-tbody');
     if (tbody) {
         tbody.innerHTML = trainingData.details.map((detail, index) => {
+            const st = detail.setType || 'MAIN';
             return `
-            <tr class="set-row">
-                <td><span class="set-num">${index + 1}</span></td>
+            <tr class="set-row" data-set-type="${st}">
+                <td><span class="set-num">${index + 1}</span>${setTypeBadgeHtml(st)}</td>
                 <td><input type="number" class="weight" value="${detail.weight != null ? detail.weight : ''}" step="0.5" placeholder="0"> kg</td>
                 <td><input type="number" class="reps" value="${detail.reps != null ? detail.reps : ''}" placeholder="0"> 回</td>
                 <td><button class="btn-check" data-action="handleCheck">✓</button></td>
@@ -1094,15 +1129,18 @@ async function addTrainingCardLocally() {
 }
 // 画面描画部分を切り出し
 function renderNewCard(menu, partName, partCode, trainingDate, userId, details, id) {
-    let rowsHtml = details.map(d => `
-		<tr class="set-row">
-        <td><span class="set-num">${d.setNumber}</span></td>
+    let rowsHtml = details.map(d => {
+        const st = d.setType || 'MAIN';
+        return `
+		<tr class="set-row" data-set-type="${st}">
+        <td><span class="set-num">${d.setNumber}</span>${setTypeBadgeHtml(st)}</td>
         <td><input type="number" class="weight" value="${d.weight != null ? d.weight : ''}" step="0.5" placeholder="0"> kg</td>
         <td><input type="number" class="reps" value="${d.reps != null ? d.reps : ''}" placeholder="0"> 回</td>
         <td><button class="btn-check ${(d.isCompleted || d.completed) ? 'completed' : ''}" data-action="handleCheck">✓</button></td>
         <td><button type="button" data-action="removeSet" style="color:#f44336; border:none; background:none; cursor:pointer;">✕</button></td>
     </tr>
-    `).join('');
+    `;
+    }).join('');
 
     const newCard = `
         <div class="training-card" data-training-id="${id}"
@@ -1130,6 +1168,14 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
         container.insertAdjacentHTML('beforeend', newCard);
     }
 }
+
+// バッジタップでセット種別をトグル（全ページ共通）
+document.addEventListener('click', function(e) {
+    const badge = e.target.closest('.set-type-badge');
+    if (!badge) return;
+    toggleSetTypeBadge(badge);
+    e.stopPropagation();
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeTimer();

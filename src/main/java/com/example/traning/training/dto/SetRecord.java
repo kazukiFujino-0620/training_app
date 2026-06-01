@@ -9,4 +9,5 @@ public class SetRecord {
     private Integer setNumber;
     private Double weight;
     private Integer reps;
+    private String setType;
 }
