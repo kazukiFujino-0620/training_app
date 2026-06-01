@@ -1,5 +1,6 @@
 package com.example.traning.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -75,6 +76,16 @@ public class SecurityConfig {
                     .sessionFixation().changeSessionId()
                     // 同一ユーザーのセッションを1つに制限
                     .maximumSessions(1))
+
+            // ── 未認証時の応答（AJAX → 401、ブラウザ → /login リダイレクト） ──
+            .exceptionHandling(ex -> ex
+                    .authenticationEntryPoint((request, response, authException) -> {
+                        if ("XMLHttpRequest".equals(request.getHeader("X-Requested-With"))) {
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                        } else {
+                            response.sendRedirect("/login");
+                        }
+                    }))
 
             // ── URL ベースの認可 ────────────────────────────────────────────
             .authorizeHttpRequests(auth -> auth
