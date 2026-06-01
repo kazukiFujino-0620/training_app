@@ -165,6 +165,12 @@
                 <a href="/user/profile" style="color:var(--primary-color);">プロフィール</a>を設定するとカロリーが表示されます
               </div>
             </th:block>
+            <!-- ケースD: プロフィール設定済みだがタイマー未使用 -->
+            <th:block th:if="${calorieEstimate.type.name() == 'NO_DURATION'}">
+              <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.3rem;line-height:1.4;">
+                タイマーを使用すると<br>カロリーが表示されます
+              </div>
+            </th:block>
           </div>
         </div>
 

@@ -10,7 +10,7 @@ public class CalorieCalculator {
 
     private static final double MET = 5.0;
 
-    public enum CalorieType { FULL, SIMPLE, UNSET }
+    public enum CalorieType { FULL, SIMPLE, UNSET, NO_DURATION }
 
     public static class CalorieEstimate {
         public final CalorieType type;
@@ -22,12 +22,15 @@ public class CalorieCalculator {
     }
 
     public CalorieEstimate estimate(User user, int durationMinutes) {
-        if (user == null || durationMinutes <= 0) {
+        if (user == null) {
             return new CalorieEstimate(CalorieType.UNSET, null);
         }
         Double weight = user.getWeightKg();
         if (weight == null) {
             return new CalorieEstimate(CalorieType.UNSET, null);
+        }
+        if (durationMinutes <= 0) {
+            return new CalorieEstimate(CalorieType.NO_DURATION, null);
         }
         double hours = durationMinutes / 60.0;
 

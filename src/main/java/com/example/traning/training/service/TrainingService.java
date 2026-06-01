@@ -65,7 +65,10 @@ public class TrainingService {
 			logger.info("トレーニングデータ保存完了 - ID: {}", training.getId());
 
 			// PR更新（トランザクション外・失敗してもメイン保存に影響しない）
+			// WARMUP / DROP は PR 計算から除外（MAIN のみ対象）
 			for (TrainingDetail detail : training.getDetails()) {
+				String st = detail.getSetType();
+				if ("WARMUP".equals(st) || "DROP".equals(st)) continue;
 				personalRecordService.updateIfBetter(
 					training.getUserId(),
 					training.getMenu(),
@@ -347,7 +350,7 @@ public class TrainingService {
 			.map(t -> {
 				List<TrainingDetail> details = trainingDetailDao.selectByTrainingId(t.getId());
 				List<SetRecord> sets = details.stream()
-					.map(d -> new SetRecord(d.getSetNumber(), d.getWeight(), d.getReps()))
+					.map(d -> new SetRecord(d.getSetNumber(), d.getWeight(), d.getReps(), d.getSetType()))
 					.toList();
 				return new SessionRecord(t.getTrainingDate().toString(), sets);
 			})

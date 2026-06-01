@@ -49,6 +49,9 @@ public class TrainingDetail {
 	@Column(name = "count")
 	private Integer count;
 
+	@Column(name = "set_type")
+	private String setType = "MAIN";
+
 	@Column(name = "is_completed")
 	@JsonProperty("completed")
 	private boolean isCompleted;

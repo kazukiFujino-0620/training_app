@@ -549,6 +549,10 @@ public class MenuController {
 					detail.setSetNumber(i + 1);
 					Object completedObj = detailMap.getOrDefault("isCompleted", false);
 					detail.setIsCompleted(Boolean.parseBoolean(completedObj.toString()));
+					Object setTypeObj = detailMap.get("setType");
+					if (setTypeObj instanceof String s && (s.equals("WARMUP") || s.equals("MAIN") || s.equals("DROP"))) {
+						detail.setSetType(s);
+					}
 					details.add(detail);
 				}
 
