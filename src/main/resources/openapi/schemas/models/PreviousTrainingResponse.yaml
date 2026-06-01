@@ -33,6 +33,10 @@ properties:
                 type: integer
                 description: 回数
                 example: 8
+              setType:
+                $ref: "../enums/SetType.yaml"
+                nullable: true
+                description: セット種別。過去データには存在しない場合がある（後方互換）
             required: [setNumber, weight, reps]
       required: [date, sets]
   pr:

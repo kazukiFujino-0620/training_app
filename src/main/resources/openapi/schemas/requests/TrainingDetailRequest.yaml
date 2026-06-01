@@ -27,3 +27,7 @@ properties:
       JSONキー名は "completed"。
       サーバー側では @JsonProperty("completed") により isCompleted フィールドにマッピングされる。
     default: false
+  setType:
+    $ref: "../enums/SetType.yaml"
+    description: |
+      セット種別。省略時はサーバー側で "MAIN" として扱う。
