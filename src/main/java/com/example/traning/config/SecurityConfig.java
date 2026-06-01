@@ -29,6 +29,9 @@ public class SecurityConfig {
     private static final String CSS_PATH        = "/css/**";
     private static final String JS_PATH         = "/js/**";
     private static final String IMAGES_PATH     = "/images/**";
+    private static final String ICONS_PATH      = "/icons/**";
+    private static final String SW_PATH         = "/sw.js";
+    private static final String MANIFEST_PATH   = "/manifest.json";
     private static final String ADMIN_PATH      = "/admin/**";
     private static final String USER_PATH       = "/user/**";
     // Swagger UI はローカル開発専用。本番では springdoc.swagger-ui.enabled=false で無効化する。
@@ -76,7 +79,7 @@ public class SecurityConfig {
             // ── URL ベースの認可 ────────────────────────────────────────────
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(PUBLIC_PATHS, LOGIN_PATH, PASSWORD_PATH, RESTORE_PATH,
-                            CSS_PATH, JS_PATH, IMAGES_PATH,
+                            CSS_PATH, JS_PATH, IMAGES_PATH, ICONS_PATH, SW_PATH, MANIFEST_PATH,
                             SWAGGER_UI_PATH, SWAGGER_HTML, API_DOCS_PATH, OPENAPI_YAML)
                     .permitAll()
                     .requestMatchers(ADMIN_PATH).hasRole("ADMIN")
@@ -109,6 +112,7 @@ public class SecurityConfig {
                             "font-src 'self' https://fonts.gstatic.com; " +
                             "img-src 'self' data:; " +
                             "connect-src 'self'; " +
+                            "worker-src 'self'; " +
                             "form-action 'self'; " +
                             "base-uri 'self'; " +
                             "object-src 'none'; " +

@@ -5,6 +5,59 @@ let isTimerRunning = false;
 let timerStartTimestamp = null;  // Bug3: 壁時計ベースの補正用
 let timerBaseSeconds = 0;        // Bug3: 一時停止時点の秒数
 
+// ── Service Worker / バックグラウンド通知 ────────────────────────────────
+let _swRegistration = null;
+
+async function initNotification() {
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+    try {
+        _swRegistration = await navigator.serviceWorker.register('/sw.js');
+    } catch (e) {
+        console.warn('SW登録失敗:', e);
+    }
+    if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+    }
+}
+
+async function scheduleBackgroundNotification(delayMs) {
+    if (Notification.permission !== 'granted') return;
+    if (!('serviceWorker' in navigator)) return;
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        reg.active?.postMessage({ type: 'SCHEDULE_INTERVAL_END', delayMs });
+    } catch (e) { /* SW未対応環境は無視 */ }
+}
+
+async function cancelBackgroundNotification() {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        reg.active?.postMessage({ type: 'CANCEL_INTERVAL' });
+    } catch (e) { /* 無視 */ }
+}
+
+document.addEventListener('visibilitychange', async () => {
+    if (!intervalStartTimestamp) return;
+
+    if (document.hidden) {
+        const remaining = Math.max(0, intervalInitialSeconds - Math.round((Date.now() - intervalStartTimestamp) / 1000));
+        if (remaining > 0) {
+            await scheduleBackgroundNotification(remaining * 1000);
+        }
+    } else {
+        await cancelBackgroundNotification();
+        const elapsed = Math.round((Date.now() - intervalStartTimestamp) / 1000);
+        if (elapsed >= intervalInitialSeconds && intervalTimerId !== null) {
+            updateIntervalDisplay(document.getElementById('intervalTimer'), 0);
+            stopInterval();
+            playEndAlarm();
+            showIntervalEndBanner();
+        }
+    }
+});
+// ──────────────────────────────────────────────────────────────────────────
+
 // ── Web Audio API アラーム ────────────────────────────────────────────────
 // ユーザーのタップ操作（toggleMainTimer）でAudioContextを初期化する。
 // ブラウザの自動再生ポリシー対策: ユーザー操作なしに音を鳴らすとブロックされる。
@@ -421,6 +474,7 @@ function startInterval(seconds) {
     if (endMsg) endMsg.style.display = 'none';
 
     banner.style.display = 'block';
+    updateMainPadding();
     intervalRemaining = seconds;
     intervalInitialSeconds = seconds;
     intervalStartTimestamp = Date.now();
@@ -474,6 +528,14 @@ function stopInterval() {
     intervalStartTimestamp = null;
     const banner = document.getElementById('intervalBanner');
     if (banner) banner.style.display = 'none';
+    updateMainPadding();
+}
+
+function updateMainPadding() {
+    const timerContainer = document.querySelector('.timer-container');
+    const mainContent = document.querySelector('.main-content');
+    if (!timerContainer || !mainContent) return;
+    mainContent.style.paddingTop = (64 + timerContainer.offsetHeight) + 'px';
 }
 
 function showIntervalEndBanner() {
@@ -1071,6 +1133,8 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeTimer();
+    updateMainPadding();
+    initNotification();
 
     const partSelect = document.getElementById('modalPart');
     if (partSelect) {
