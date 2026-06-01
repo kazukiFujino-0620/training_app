@@ -10,6 +10,8 @@ import java.util.Map;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -104,7 +106,14 @@ public class AdminController {
             redirectAttributes.addFlashAttribute("errorMessage", "入力内容に誤りがあります。再度ご確認ください。");
             return "redirect:/admin/user/edit/" + form.getUserId();
         }
+        // 自分自身を無効化できないよう防止
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String currentEmail = (principal instanceof UserDetails ud) ? ud.getUsername() : "";
         User existing = userService.getUserById(form.getUserId());
+        if (currentEmail.equals(existing.getEmail()) && Boolean.FALSE.equals(form.getEnabled())) {
+            redirectAttributes.addFlashAttribute("errorMessage", "自分自身のアカウントを無効にすることはできません。");
+            return "redirect:/admin/user/edit/" + form.getUserId();
+        }
         User updatedUser = existing.toBuilder()
                 .userName(form.getUserName())
                 .enabled(form.getEnabled())

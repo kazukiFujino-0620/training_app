@@ -57,15 +57,17 @@
 #setTable th, #setTable td { padding: 5px; text-align: center; border-bottom: 1px solid #eee; }
 #setTable input { width: 60px; padding: 5px; text-align: right; }
 
-.timer-container { 
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover)); 
-    color: var(--text-inverse); 
-    padding: 1.5rem; 
-    text-align: center; 
-    position: sticky; 
-    top: 0; 
-    z-index: 100; 
-    box-shadow: var(--shadow-lg); 
+.timer-container {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    color: var(--text-inverse);
+    padding: 1.5rem;
+    text-align: center;
+    position: fixed;
+    top: 4rem;
+    left: 0;
+    width: 100%;
+    z-index: 99;
+    box-shadow: var(--shadow-lg);
 }
 
 .timer-display { 
@@ -187,11 +189,6 @@
 
 .btn-finish:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 
-.interval-banner { 
-    position: fixed; top: 120px; left: 50%; transform: translateX(-50%); 
-    background: var(--warning-color); padding: 1rem 2rem; border-radius: var(--radius-full); 
-    font-weight: bold; display: none; z-index: 200; box-shadow: var(--shadow-lg); color: var(--text-inverse);
-}
 
 .timer-controls button {
     background: rgba(255, 255, 255, 0.2); color: var(--text-inverse);

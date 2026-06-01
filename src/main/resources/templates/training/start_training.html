@@ -4,6 +4,11 @@
       th:attr="data-theme=${theme}">
 <head>
     <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>トレーニング実施 - トレーニング管理システム</title>
     <meta name="_csrf" th:content="${_csrf.token}"/>
@@ -74,9 +79,7 @@
                 <input type="hidden" id="initialDuration" th:value="${restoredDuration ?: '00:00:00'}">
                 <div class="timer-display" id="totalTimer">00:00:00</div>
                 <button id="startBtn" data-action="toggleMainTimer" class="btn btn-success">開始</button>
-            </div>
-
-                <div id="intervalBanner" style="display: none; background: #ff9800; color: #ffffff; padding: 15px; margin: 10px 0; border-radius: 8px; font-weight: bold; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <div id="intervalBanner" style="display: none; background: #ff9800; color: #ffffff; padding: 15px; margin-top: 10px; border-radius: 8px; font-weight: bold; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     インターバル中: <span id="intervalTimer">02:00</span>
                     <div class="interval-controls" style="margin-top: 10px;">
                         <button data-action="changeInterval" data-delta="-60" class="btn-sm-interval">-60s</button>
@@ -85,6 +88,7 @@
                         <button data-action="changeInterval" data-delta="60" class="btn-sm-interval">+60s</button>
                     </div>
                 </div>
+            </div>
             </div>
 
             <div class="training-container">

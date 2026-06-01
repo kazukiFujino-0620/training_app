@@ -56,7 +56,7 @@ public class MasterUpdateTask {
             logger.info("CSVファイルを確認: 存在します - サイズ: {} bytes", file.length());
 
             logger.info("マスタ情報取得します");
-            List<TrainingMaster> trainingMasterList = trainingMasterDao.selectAll();
+            List<TrainingMaster> trainingMasterList = trainingMasterDao.selectAllParts();
             logger.info("既存マスタ情報取得完了 - 件数: {}", trainingMasterList.size());
 
             if (trainingMasterList.isEmpty()) {

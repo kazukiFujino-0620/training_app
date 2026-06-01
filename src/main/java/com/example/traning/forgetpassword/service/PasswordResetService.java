@@ -91,6 +91,7 @@ public class PasswordResetService {
         // パスワードをハッシュ化して更新
         User updatedUser = user.toBuilder()
                 .password(passwordEncoder.encode(newPassword))
+                .updatedDatetime(LocalDateTime.now())
                 .build();
         userDao.update(updatedUser);
 
