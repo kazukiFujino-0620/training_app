@@ -31,6 +31,8 @@ tags:
     description: トレーニング目標設定・達成率管理
   - name: mfa
     description: 2要素認証（TOTP）設定・認証フロー（メール+パスワードログインユーザーのみ対象）
+  - name: session
+    description: セッション管理（タイムアウト監視・セッション延長）
   - name: admin
     description: 管理者専用操作
 
@@ -916,6 +918,39 @@ paths:
           description: OTP / バックアップコード不一致 → エラーメッセージ付き再表示
         "302 (expired)":
           description: セッション期限切れ → /login へリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── セッション管理 ──────────────────────────────────────────────
+  /api/session/ping:
+    get:
+      tags: [session]
+      summary: セッション生存確認・延長
+      description: |
+        JavaScript から定期的に呼び出されるセッション維持エンドポイント。
+        リクエストが到達するだけで Spring がセッションの有効期限を自動リセットする。
+
+        **認証必須**: 未認証の場合は 302 リダイレクトではなく 401 を返す
+        （`X-Requested-With: XMLHttpRequest` ヘッダーを付与すること）。
+
+        **CSRF**: GET かつ副作用なし（セッション延長は Spring の自動動作）のため CSRF トークン不要。
+
+        **ping 間隔**:
+        - トレーニング実施画面 (`/start/training`): 3分ごと
+        - その他の画面: 10分ごと
+      parameters:
+        - name: X-Requested-With
+          in: header
+          required: true
+          description: AJAX リクエストであることを示すヘッダー。401 返却の条件。
+          schema:
+            type: string
+            enum: [XMLHttpRequest]
+      responses:
+        "200":
+          $ref: "./schemas/responses/SessionPingResponse.yaml"
+        "401":
+          description: 未認証（セッション切れ）。ブラウザリダイレクトなしで直接返される。
         "429":
           $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
