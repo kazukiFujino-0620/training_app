@@ -27,6 +27,8 @@ properties:
     description: 回数（0以上。入力中の暫定値として0を許容）
     minimum: 0
     example: 10
+  setType:
+    $ref: "../enums/SetType.yaml"
   count:
     type: integer
     description: 補助カウント（任意）
