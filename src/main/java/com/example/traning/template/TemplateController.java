@@ -27,6 +27,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.dao.TrainingMasterDao;
+import com.example.traning.entity.TrainingItemMaster;
+import com.example.traning.entity.TrainingMaster;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -48,6 +51,7 @@ public class TemplateController {
     private final TrainingService trainingService;
     private final TrainingDao trainingDao;
     private final TrainingDetailDao trainingDetailDao;
+    private final TrainingMasterDao trainingMasterDao;
 
     @GetMapping("/training/template")
     public String templatePage(Model model, Principal principal) {
@@ -57,6 +61,15 @@ public class TemplateController {
             t.setItems(trainingTemplateItemDao.selectByTemplateId(t.getId()));
         }
         model.addAttribute("templates", templates);
+
+        List<TrainingMaster> parts = trainingMasterDao.selectAllParts();
+        java.util.Map<String, List<TrainingItemMaster>> itemsByPart = new java.util.LinkedHashMap<>();
+        for (TrainingMaster part : parts) {
+            itemsByPart.put(part.getPartCode(), trainingMasterDao.selectItemsByPart(part.getPartCode()));
+        }
+        model.addAttribute("parts", parts);
+        model.addAttribute("itemsByPart", itemsByPart);
+
         return "training/template";
     }
 
