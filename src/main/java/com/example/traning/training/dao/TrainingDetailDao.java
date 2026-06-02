@@ -26,6 +26,9 @@ public interface TrainingDetailDao {
 	@Delete(sqlFile = true)
 	int deleteByTrainingId(Long trainingId);
 
+	@Delete(sqlFile = true)
+	int deleteByUserId(Long userId);
+
 	@Update(sqlFile = true)
 	int softDeleteByTrainingId(Long trainingId);
 

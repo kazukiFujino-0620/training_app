@@ -39,10 +39,15 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("ユーザーが見つかりません"));
 
         if (Boolean.FALSE.equals(user.getEnabled())) {
-            // 退会済みの旨をセッションに保存し、ログには userId のみ記録する
             log.warn("Login attempt for disabled account - userId: {}", user.getUserId());
             saveLoginErrorReasonToSession("withdrawn");
             throw new UsernameNotFoundException("このアカウントは無効です");
+        }
+
+        if (user.getDeletedAt() != null) {
+            log.warn("Login attempt for withdrawn account - userId: {}", user.getUserId());
+            saveLoginErrorReasonToSession("withdrawn");
+            throw new UsernameNotFoundException("このアカウントは退会済みです");
         }
 
         // OAuth2ユーザーはパスワードがないためフォームログイン不可

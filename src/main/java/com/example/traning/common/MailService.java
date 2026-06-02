@@ -1,5 +1,8 @@
 package com.example.traning.common;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -47,6 +50,45 @@ public class MailService {
                 + "有効期限は24時間です。\n\n"
                 + restoreUrl);
 
+        mailSender.send(message);
+    }
+
+    public void sendWithdrawalRequestedMail(String to, String userName, LocalDateTime requestedAt) {
+        String sanitizedTo = sanitizeHeader(to);
+        String sanitizedName = sanitizeHeader(userName);
+        String formattedAt = requestedAt.format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"));
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(sanitizedTo);
+        message.setSubject("【TraningApp】退会申請を受け付けました");
+        message.setText(
+            sanitizedName + " 様\n\n" +
+            "退会申請を受け付けました。\n" +
+            "申請日時: " + formattedAt + "\n\n" +
+            "管理者が処理するまで通常通りご利用いただけます。\n" +
+            "申請をキャンセルする場合は、ログイン後にプロフィール設定の「退会申請」からお手続きいただけます。\n\n" +
+            "【TraningApp】"
+        );
+        mailSender.send(message);
+    }
+
+    public void sendWithdrawalCompletedMail(String to, String userName, LocalDateTime completedAt) {
+        String sanitizedTo = sanitizeHeader(to);
+        String sanitizedName = sanitizeHeader(userName);
+        String formattedAt = completedAt.format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"));
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(sanitizedTo);
+        message.setSubject("【TraningApp】退会が完了しました");
+        message.setText(
+            sanitizedName + " 様\n\n" +
+            "退会手続きが完了しました。\n" +
+            "完了日時: " + formattedAt + "\n\n" +
+            "お客様の全てのトレーニングデータを削除いたしました。\n" +
+            "これまでのご利用ありがとうございました。\n\n" +
+            "再登録はいつでも可能です。\n\n" +
+            "【TraningApp】"
+        );
         mailSender.send(message);
     }
 
