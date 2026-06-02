@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.example.traning.audit.AuditLog;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -70,6 +71,7 @@ public class TemplateController {
         return ResponseEntity.ok(templates);
     }
 
+    @AuditLog(action = "TEMPLATE_CREATE", targetTable = "training_templates")
     @PostMapping("/api/templates")
     @ResponseBody
     @Transactional
@@ -92,6 +94,7 @@ public class TemplateController {
         return ResponseEntity.ok(template);
     }
 
+    @AuditLog(action = "TEMPLATE_UPDATE", targetTable = "training_templates")
     @PostMapping("/api/templates/{id}/update")
     @ResponseBody
     @Transactional
@@ -119,6 +122,7 @@ public class TemplateController {
         return ResponseEntity.ok(template);
     }
 
+    @AuditLog(action = "TEMPLATE_DELETE", targetTable = "training_templates")
     @PostMapping("/api/templates/{id}/delete")
     @ResponseBody
     @Transactional
@@ -135,6 +139,7 @@ public class TemplateController {
         return ResponseEntity.ok().build();
     }
 
+    @AuditLog(action = "TEMPLATE_APPLY", targetTable = "training_templates")
     @PostMapping("/api/templates/{id}/apply")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> applyTemplate(

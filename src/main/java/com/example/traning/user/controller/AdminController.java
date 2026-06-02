@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.example.traning.audit.AuditLog;
 import com.example.traning.mfa.MfaService;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
@@ -98,6 +99,7 @@ public class AdminController {
      * UserAdminUpdateForm を使い userName / enabled のみを更新する。
      * role / password は このエンドポイントでは変更不可（Mass Assignment 防止）。
      */
+    @AuditLog(action = "ADMIN_USER_UPDATE", targetTable = "users")
     @PostMapping("/user/update")
     public String updateUser(@Validated @ModelAttribute UserAdminUpdateForm form,
             BindingResult result,
@@ -306,6 +308,7 @@ public class AdminController {
 
     // ── 2FA管理 ───────────────────────────────────────────────────────────
 
+    @AuditLog(action = "ADMIN_MFA_RESET", targetTable = "user_mfa_settings")
     @PostMapping("/user/{id}/mfa/reset")
     public String mfaReset(@PathVariable("id") Integer id,
             org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {

@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.example.traning.audit.AuditLog;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.training.dto.PreviousTrainingResponse;
 import com.example.traning.entity.TrainingItemMaster;
@@ -197,6 +198,7 @@ public class MenuController {
 		return "menu";
 	}
 
+	@AuditLog(action = "TRAINING_SAVE", targetTable = "trainings")
 	@PostMapping("/menu/save")
 	public String save(@ModelAttribute Training training, Principal principal) {
 		Long userId = trainingService.getUserIdByEmail(principal.getName());
@@ -212,6 +214,7 @@ public class MenuController {
 		return "redirect:/menu?date=" + training.getTrainingDate();
 	}
 
+	@AuditLog(action = "TRAINING_DELETE", targetTable = "trainings")
 	@PostMapping("/menu/delete")
 	public String delete(@RequestParam("id") Long id, Principal principal) {
 		log.info("削除リクエストが来ました！ ID: {}", id);
@@ -265,6 +268,7 @@ public class MenuController {
 		return "training/start_training";
 	}
 
+	@AuditLog(action = "TRAINING_SAVE", targetTable = "trainings")
 	@PostMapping("/api/training/save")
 	@ResponseBody
 	public Long apiSaveTraining(@Valid @RequestBody Training training, Principal principal) {
@@ -280,6 +284,7 @@ public class MenuController {
 		return training.getId();
 	}
 
+	@AuditLog(action = "TRAINING_FINISH", targetTable = "trainings")
 	@PostMapping("/api/training/finish")
 	@ResponseBody
 	public ResponseEntity<String> finishTrainig(@Valid @RequestBody List<Training> trainingList, Principal principal) {
@@ -344,6 +349,7 @@ public class MenuController {
 		return ResponseEntity.ok(training);
 	}
 
+	@AuditLog(action = "TRAINING_UPDATE", targetTable = "trainings")
 	@PostMapping("/api/training/update/{id}")
 	@ResponseBody
 	public ResponseEntity<Void> updateTraining(@PathVariable Long id, @Valid @RequestBody Training training,
@@ -369,6 +375,7 @@ public class MenuController {
 		return ResponseEntity.ok().build();
 	}
 
+	@AuditLog(action = "TRAINING_DELETE", targetTable = "trainings")
 	@PostMapping("/api/training/delete/{id}")
 	@ResponseBody
 	public ResponseEntity<Void> deleteTraining(@PathVariable Long id, Principal principal) {
@@ -466,6 +473,7 @@ public class MenuController {
 		return groupedItems;
 	}
 
+	@AuditLog(action = "TRAINING_BULK", targetTable = "trainings")
 	@PostMapping("/api/training/register-bulk")
 	@ResponseBody
 	public ResponseEntity<String> registerBulkTraining(

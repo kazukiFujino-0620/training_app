@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.example.traning.audit.AuditLog;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingMaster;
 import com.example.traning.user.User;
@@ -55,6 +56,7 @@ public class GoalController {
         return "user/goals";
     }
 
+    @AuditLog(action = "GOAL_CREATE", targetTable = "training_goals")
     @PostMapping
     public String create(@Valid GoalForm goalForm, BindingResult result,
                          Model model, Principal principal,
@@ -81,6 +83,7 @@ public class GoalController {
         return "redirect:/user/goals";
     }
 
+    @AuditLog(action = "GOAL_ACHIEVE", targetTable = "training_goals")
     @PostMapping("/{id}/achieve")
     public ResponseEntity<Map<String, String>> achieve(@PathVariable Long id, Principal principal) {
         User loginUser = userService.getUserByEmail(principal.getName());
@@ -88,6 +91,7 @@ public class GoalController {
         return ResponseEntity.ok(Map.of("status", "ACHIEVED"));
     }
 
+    @AuditLog(action = "GOAL_DELETE", targetTable = "training_goals")
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> delete(@PathVariable Long id, Principal principal) {
         User loginUser = userService.getUserByEmail(principal.getName());

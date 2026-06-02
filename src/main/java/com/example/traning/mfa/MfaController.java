@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.example.traning.audit.AuditLog;
 import com.example.traning.user.User;
 import com.example.traning.user.service.LoginAttemptService;
 import com.example.traning.user.service.UserService;
@@ -71,6 +72,7 @@ public class MfaController {
         return "user/mfa/setup";
     }
 
+    @AuditLog(action = "MFA_ENABLE", targetTable = "user_mfa_settings")
     @PostMapping("/user/mfa/enable")
     public String mfaEnable(@RequestParam("otp") String otp,
             Principal principal, Model model, RedirectAttributes redirectAttributes) {
@@ -99,6 +101,7 @@ public class MfaController {
         }
     }
 
+    @AuditLog(action = "MFA_DISABLE", targetTable = "user_mfa_settings")
     @PostMapping("/user/mfa/disable")
     public String mfaDisable(@RequestParam("password") String password,
             Principal principal, RedirectAttributes redirectAttributes) {
@@ -126,6 +129,7 @@ public class MfaController {
         return "user/mfa/backup-codes";
     }
 
+    @AuditLog(action = "MFA_BACKUP_REGEN", targetTable = "mfa_backup_codes")
     @PostMapping("/user/mfa/backup-codes/regenerate")
     public String mfaRegenerateBackupCodes(Principal principal, RedirectAttributes redirectAttributes) {
         User loginUser = userService.getUserByEmail(principal.getName());

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.example.traning.audit.AuditLog;
 import com.example.traning.user.User;
 import com.example.traning.user.form.ProfileForm;
 import com.example.traning.user.service.ProfileService;
@@ -44,6 +45,7 @@ public class ProfileController {
         return "user/profile";
     }
 
+    @AuditLog(action = "PROFILE_UPDATE", targetTable = "users")
     @PostMapping
     public String updateProfile(
             @Validated @ModelAttribute("profileForm") ProfileForm form,
