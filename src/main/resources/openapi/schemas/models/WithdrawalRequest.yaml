@@ -1,0 +1,52 @@
+description: 退会申請エンティティ
+type: object
+properties:
+  id:
+    type: integer
+    format: int64
+    description: 申請ID
+    example: 1
+  userId:
+    type: integer
+    format: int64
+    description: 申請ユーザーID
+    example: 42
+  reasonType:
+    type: string
+    nullable: true
+    enum: [NO_LONGER_USED, SWITCHING_SERVICE, OTHER]
+    description: 退会理由種別
+    example: "NO_LONGER_USED"
+  reasonText:
+    type: string
+    nullable: true
+    maxLength: 500
+    description: 退会理由テキスト
+    example: "利用頻度が減ったため"
+  status:
+    type: string
+    enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+    description: 申請ステータス
+    example: "PENDING"
+  requestedAt:
+    type: string
+    format: date-time
+    description: 申請日時
+    example: "2026-06-02T10:00:00"
+  processedAt:
+    type: string
+    format: date-time
+    nullable: true
+    description: 処理日時（承認・拒否・キャンセル時）
+    example: "2026-06-03T15:30:00"
+  processedBy:
+    type: integer
+    format: int64
+    nullable: true
+    description: 処理した管理者のユーザーID
+    example: 1
+required:
+  - id
+  - userId
+  - status
+  - requestedAt

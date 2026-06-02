@@ -39,6 +39,8 @@ tags:
     description: 管理者専用操作
   - name: audit-log
     description: 監査ログ（誰がいつどのデータを操作したかの不変記録）管理者専用
+  - name: withdrawal
+    description: 退会申請フロー（ユーザー申請・管理者承認・データ削除）
 
 # ──────────────────────────────────────────────────────────────────
 # Paths
@@ -1530,6 +1532,134 @@ paths:
           description: 権限なし
         "429":
           $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 退会申請 ────────────────────────────────────────────────────
+  /user/withdrawal:
+    get:
+      tags: [withdrawal]
+      summary: 退会申請フォーム
+      description: 退会申請フォームを表示する。申請中の場合は現在の申請状態を表示する。
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          description: フォーム画面（Thymeleafレンダリング）
+        "302":
+          description: 未認証 → /login へリダイレクト
+    post:
+      tags: [withdrawal]
+      summary: 退会申請送信
+      description: |
+        退会申請を送信する。送信後、申請受付メールをユーザーへ送信する（GDPR第12条・個人情報保護法第35条）。
+        既に PENDING 申請が存在する場合はエラーを返す。
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                reasonType:
+                  type: string
+                  nullable: true
+                  enum: [NO_LONGER_USED, SWITCHING_SERVICE, OTHER]
+                reasonText:
+                  type: string
+                  nullable: true
+                  maxLength: 500
+                confirmed:
+                  type: boolean
+              required:
+                - confirmed
+      responses:
+        "302":
+          description: 申請完了 → /user/withdrawal へリダイレクト
+        "400":
+          description: 既に申請中、または確認チェック未入力
+        "302 (unauthenticated)":
+          description: 未認証 → /login へリダイレクト
+
+  /user/withdrawal/cancel:
+    post:
+      tags: [withdrawal]
+      summary: 退会申請キャンセル
+      description: PENDING 状態の退会申請をキャンセルする。PENDING 以外の場合はエラー。
+      security:
+        - sessionAuth: []
+      responses:
+        "302":
+          description: キャンセル完了 → /user/withdrawal へリダイレクト
+        "400":
+          description: キャンセル可能な申請がない
+        "302 (unauthenticated)":
+          description: 未認証 → /login へリダイレクト
+
+  /admin/withdrawal:
+    get:
+      tags: [withdrawal, admin]
+      summary: 退会申請一覧（管理者）
+      description: 全ての退会申請（PENDING を優先表示）を一覧取得する。ROLE_ADMIN 必須。
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          $ref: "./schemas/responses/WithdrawalListResponse.yaml"
+        "403":
+          description: 権限なし（ROLE_ADMIN 以外）
+
+  /admin/withdrawal/{id}/approve:
+    post:
+      tags: [withdrawal, admin]
+      summary: 退会申請を承認（データ削除）
+      description: |
+        退会申請を承認し、ユーザーの全データを削除する。処理順序は厳守。
+        1. 退会完了メールをユーザーへ送信（GDPR第12条・個人情報保護法第35条）
+        2. trainings / personal_records / training_goals / mfa データを物理削除
+        3. withdrawal_requests のステータスを APPROVED に更新
+        4. users.deleted_at を設定（論理削除）
+        メール送信失敗時はトランザクションをロールバックする。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 退会申請ID
+      responses:
+        "302":
+          description: 承認完了 → /admin/withdrawal へリダイレクト
+        "400":
+          description: 申請が見つからない、またはメール送信失敗
+        "403":
+          description: 権限なし（ROLE_ADMIN 以外）
+
+  /admin/withdrawal/{id}/reject:
+    post:
+      tags: [withdrawal, admin]
+      summary: 退会申請を拒否
+      description: 退会申請を拒否する。ユーザーのデータは削除されない。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 退会申請ID
+      responses:
+        "302":
+          description: 拒否完了 → /admin/withdrawal へリダイレクト
+        "400":
+          description: 申請が見つからない
+        "403":
+          description: 権限なし（ROLE_ADMIN 以外）
 
 # ──────────────────────────────────────────────────────────────────
 # Components（セキュリティスキームのみ。スキーマは schemas/ を参照）
