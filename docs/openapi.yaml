@@ -1,9 +1,10 @@
 openapi: "3.0.3"
 info:
-  title: Training App API
+  title: SmartTrainer API
   description: |
-    Spring Boot製トレーニング管理アプリケーションのAPI仕様書。
-    認証はSpring SecurityによるセッションベースのフォームログインおよびOAuth2（Google/LINE）に対応。
+    Spring Boot 製トレーニング管理アプリケーションの API 仕様書。
+    認証は Spring Security によるセッションベースのフォームログインおよび
+    OAuth2（Google / LINE）に対応。
     管理者専用エンドポイントは ADMIN ロールが必要。
   version: "1.0.0"
 
@@ -14,29 +15,96 @@ servers:
 tags:
   - name: auth
     description: 認証・ユーザー登録
+  - name: account
+    description: アカウント管理（論理削除からの復元）
   - name: password
     description: パスワードリセット
+  - name: profile
+    description: ユーザープロフィール管理
   - name: training
-    description: トレーニング管理（ログインユーザー）
+    description: トレーニング管理（CRUD + リスト取得）
   - name: master
     description: マスターデータ取得
+  - name: personal-record
+    description: 自己記録（PR）管理
+  - name: goal
+    description: トレーニング目標設定・達成率管理
+  - name: mfa
+    description: 2要素認証（TOTP）設定・認証フロー（メール+パスワードログインユーザーのみ対象）
+  - name: session
+    description: セッション管理（タイムアウト監視・セッション延長）
+  - name: template
+    description: トレーニングテンプレート管理（CRUD + 適用）
   - name: admin
     description: 管理者専用操作
+  - name: audit-log
+    description: 監査ログ（誰がいつどのデータを操作したかの不変記録）管理者専用
 
-# ─────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────
 # Paths
-# ─────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────
 paths:
 
-  # ── 認証 ─────────────────────────────────────────────────────
+  # ── ルート ──────────────────────────────────────────────────────
+  /:
+    get:
+      tags: [auth]
+      summary: ルートリダイレクト
+      description: ルートへのアクセスを /login へリダイレクトする。
+      responses:
+        "302":
+          description: /login へリダイレクト
+
+  # ── 認証 ────────────────────────────────────────────────────────
   /login:
     get:
       tags: [auth]
       summary: ログイン画面表示
-      description: Spring Securityが提供するフォームログイン画面を返す。
+      description: Spring Security が提供するフォームログイン画面を返す。
       responses:
         "200":
-          description: ログイン画面HTML
+          description: ログイン画面 HTML
+    post:
+      tags: [auth]
+      summary: ログイン認証
+      description: |
+        Spring Security のフォームログイン処理。
+        成功時は /menu へリダイレクト、失敗時は /login?error へリダイレクト。
+
+        **レート制限（RateLimitFilter）**: IP 単位で 10回/分。超過で 429。
+
+        **IPブロック（IpBlockService）**: 同一IPからのログイン失敗が 20回 に達すると
+        30分間ブロック。ブロック中は認証処理を実行せず即座に 429 を返す。
+        レート制限とは独立して動作する。
+
+        **2FA（TOTP）**: メール+パスワードログインユーザーが 2FA 有効の場合、
+        認証成功後に SecurityContext をクリアしセッションに MFA_PENDING フラグをセット、
+        /auth/mfa へリダイレクト。Google / LINE OAuth2 ユーザーは対象外。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: ユーザー名
+                password:
+                  type: string
+                  format: password
+                  description: パスワード
+                remember-me:
+                  type: string
+                  description: リメンバーミー（"on" を指定）
+              required:
+                - username
+                - password
+      responses:
+        "302":
+          description: 認証成功 → /menu へリダイレクト、または失敗 → /login?error へリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /signup:
     get:
@@ -44,31 +112,87 @@ paths:
       summary: 新規登録画面表示
       responses:
         "200":
-          description: 新規登録フォームHTML
+          description: 新規登録フォーム HTML
     post:
       tags: [auth]
       summary: ユーザー新規登録
-      description: フォームデータを受け取りユーザーを登録する。バリデーションエラー時はフォームを再表示する。
+      description: フォームデータを受け取りユーザーを登録する。バリデーションエラー時はフォームを再表示。
       requestBody:
         required: true
         content:
           application/x-www-form-urlencoded:
             schema:
-              $ref: "#/components/schemas/SignupForm"
+              $ref: "./schemas/requests/SignupRequest.yaml"
       responses:
         "302":
           description: 登録成功 → /login へリダイレクト
         "200":
           description: バリデーションエラー → フォーム再表示
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
-  # ── パスワードリセット ────────────────────────────────────────
+  # ── アカウント復元 ──────────────────────────────────────────────
+  /account/restore/sent:
+    get:
+      tags: [account]
+      summary: アカウント復元メール送信完了画面
+      description: |
+        論理削除されたアカウントの復元メール送信後の案内ページ。
+        /signup で同一メールアドレスのアカウントが論理削除済みの場合にリダイレクトされる。
+      responses:
+        "200":
+          description: 復元メール送信完了案内 HTML
+
+  /account/restore:
+    get:
+      tags: [account]
+      summary: アカウント復元確認画面
+      description: メールで送付されたトークンを受け取り、復元確認ページを表示する。
+      parameters:
+        - name: token
+          in: query
+          required: true
+          description: メールで送付されたアカウント復元トークン
+          schema:
+            type: string
+      responses:
+        "200":
+          description: アカウント復元確認フォーム HTML
+
+  /account/restore/confirm:
+    post:
+      tags: [account]
+      summary: アカウント復元実行
+      description: |
+        トークンを検証してアカウントを復元（論理削除フラグを解除）する。
+        成功時は /login?restoreSuccess へリダイレクト。
+        トークンが無効または期限切れの場合はフォームにエラーを表示。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: アカウント復元トークン
+      responses:
+        "302":
+          description: 復元成功 → /login?restoreSuccess へリダイレクト
+        "200":
+          description: トークン無効または期限切れ → エラーメッセージ付きフォーム再表示
+
+  # ── パスワードリセット ────────────────────────────────────────────
   /password/forget:
     get:
       tags: [password]
       summary: パスワードリセット申請画面
       responses:
         "200":
-          description: メールアドレス入力フォームHTML
+          description: メールアドレス入力フォーム HTML
     post:
       tags: [password]
       summary: パスワードリセットメール送信
@@ -78,13 +202,7 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              type: object
-              required: [email]
-              properties:
-                email:
-                  type: string
-                  format: email
-                  example: user@example.com
+              $ref: "./schemas/requests/PasswordForgetRequest.yaml"
       responses:
         "302":
           description: 送信完了 → /password/sent へリダイレクト
@@ -97,7 +215,7 @@ paths:
       summary: パスワードリセットメール送信完了画面
       responses:
         "200":
-          description: 送信完了画面HTML
+          description: 送信完了画面 HTML
 
   /password/reset:
     get:
@@ -112,7 +230,9 @@ paths:
             type: string
       responses:
         "200":
-          description: 新パスワード入力フォームHTML
+          description: 新パスワード入力フォーム HTML
+        "302":
+          description: トークン無効または期限切れ → /password/forget へリダイレクト
     post:
       tags: [password]
       summary: パスワード更新
@@ -122,24 +242,43 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              type: object
-              required: [token, password, passwordConfirm]
-              properties:
-                token:
-                  type: string
-                password:
-                  type: string
-                  format: password
-                passwordConfirm:
-                  type: string
-                  format: password
+              $ref: "./schemas/requests/PasswordResetRequest.yaml"
       responses:
         "302":
           description: 更新成功 → /login?resetSuccess へリダイレクト
         "200":
           description: パスワード不一致またはトークン無効 → フォーム再表示
 
-  # ── メニュー（カレンダー） ────────────────────────────────────
+  # ── プロフィール ────────────────────────────────────────────────
+  /user/profile:
+    get:
+      tags: [profile]
+      summary: プロフィール画面表示
+      description: ログインユーザーのプロフィール情報をフォームに表示する。認証必須。
+      responses:
+        "200":
+          description: プロフィール編集フォーム HTML
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+    post:
+      tags: [profile]
+      summary: プロフィール更新
+      description: |
+        ユーザー名・身長・体重・性別・生年月日を更新する。認証必須。
+        バリデーションエラー時はフォームを再表示。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/ProfileUpdateRequest.yaml"
+      responses:
+        "302":
+          description: 更新成功 → /user/profile へリダイレクト、または未認証 → /login へリダイレクト
+        "200":
+          description: バリデーションエラー → フォーム再表示
+
+  # ── メニュー（カレンダー） ──────────────────────────────────────
   /menu:
     get:
       tags: [training]
@@ -156,7 +295,7 @@ paths:
             example: "2026-05-01"
       responses:
         "200":
-          description: カレンダー付きメニュー画面HTML
+          description: カレンダー付きメニュー画面 HTML
         "302":
           description: 未認証 → ログインページへリダイレクト
 
@@ -170,7 +309,7 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              $ref: "#/components/schemas/TrainingForm"
+              $ref: "./schemas/requests/TrainingFormRequest.yaml"
       responses:
         "302":
           description: 保存完了 → /menu?date={trainingDate} へリダイレクト
@@ -179,18 +318,13 @@ paths:
     post:
       tags: [training]
       summary: トレーニング削除（フォーム）
-      description: 指定IDのトレーニングを削除する。所有者チェックあり。
+      description: 指定 ID のトレーニングを削除する。所有者チェックあり。
       requestBody:
         required: true
         content:
           application/x-www-form-urlencoded:
             schema:
-              type: object
-              required: [id]
-              properties:
-                id:
-                  type: integer
-                  format: int64
+              $ref: "./schemas/requests/TrainingDeleteRequest.yaml"
       responses:
         "302":
           description: 削除完了またはアクセス拒否 → /menu へリダイレクト
@@ -210,7 +344,7 @@ paths:
             example: "2026-05-26"
       responses:
         "200":
-          description: トレーニング実施画面HTML
+          description: トレーニング実施画面 HTML
 
   /training/register:
     get:
@@ -227,170 +361,129 @@ paths:
             example: "2026-05-26"
       responses:
         "200":
-          description: トレーニング登録フォームHTML
+          description: トレーニング登録フォーム HTML
 
-  # ── トレーニング REST API ──────────────────────────────────────
+  /detail:
+    get:
+      tags: [training]
+      summary: トレーニング詳細画面
+      description: |
+        指定日のトレーニング詳細（セット情報・総ボリューム・消費カロリー推定）を表示する。
+        認証必須。
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: 表示対象日（省略時は今日）
+          schema:
+            type: string
+            format: date
+            example: "2026-05-31"
+      responses:
+        "200":
+          description: トレーニング詳細画面 HTML（総ボリューム・消費カロリー・種目リスト含む）
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  # ── マスターデータ API ──────────────────────────────────────────
   /api/training-parts:
     get:
       tags: [master]
-      summary: トレーニング部位一覧取得
-      description: 部位マスター（training_part_master）の全件を返す。
+      summary: 部位マスター一覧取得
+      description: training_part_master の全件を返す。
       responses:
         "200":
-          description: 部位一覧
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/TrainingMaster"
+          $ref: "./schemas/responses/MasterListResponse.yaml"
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training-items:
     get:
       tags: [master]
-      summary: 部位別トレーニング種目一覧取得
+      summary: 部位別種目マスター一覧取得
       parameters:
         - name: partCode
           in: query
           required: true
-          description: 部位コード（CHEST / BACK / ARM / SHOULDER / LEG）
+          description: 部位コード
           schema:
-            type: string
-            example: CHEST
+            $ref: "./schemas/enums/PartCode.yaml"
       responses:
         "200":
-          description: 種目一覧
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/TrainingItemMaster"
+          $ref: "./schemas/responses/ItemMasterListResponse.yaml"
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training-items-grouped:
     get:
       tags: [master]
-      summary: 全部位のトレーニング種目をグループ別に取得
+      summary: 全部位の種目マスターをグループ別に取得
       description: 部位コードをキー、種目リストを値とするオブジェクトを返す。
       responses:
         "200":
-          description: 部位コード別種目マップ
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties:
-                  type: array
-                  items:
-                    $ref: "#/components/schemas/TrainingItemMaster"
-              example:
-                CHEST:
-                  - id: 1
-                    partCode: CHEST
-                    itemName: ベンチプレス
-                    displayOrder: 1
-                BACK:
-                  - id: 10
-                    partCode: BACK
-                    itemName: デッドリフト
-                    displayOrder: 1
+          $ref: "./schemas/responses/ItemMasterGroupedResponse.yaml"
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── トレーニング REST API（CRUD + リスト取得） ───────────────────
+  /api/training/{id}:
+    get:
+      tags: [training]
+      summary: トレーニング取得（Read）
+      description: 指定 ID のトレーニングを返す。所有者チェックあり。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          $ref: "./schemas/responses/TrainingResponse.yaml"
+        "403":
+          description: 他ユーザーのデータへのアクセス
+        "404":
+          description: 指定 ID が存在しない
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training/save:
     post:
       tags: [training]
-      summary: トレーニング保存（JSON API）
+      summary: トレーニング新規登録（Create）
       description: |
-        トレーニングを新規登録または更新する。
-        ログインユーザーのIDが自動付与される。登録成功時はトレーニングIDを返す。
+        トレーニングを新規登録する。
+        ログインユーザーの ID が自動付与される。登録成功時はトレーニング ID を返す。
+        details[].setType に WARMUP/MAIN/DROP を指定可能。省略時はサーバー側で MAIN として扱う。
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/TrainingRequest"
+              $ref: "./schemas/requests/TrainingRequest.yaml"
       responses:
         "200":
-          description: 登録・更新されたトレーニングID
+          description: 登録されたトレーニング ID
           content:
             application/json:
               schema:
                 type: integer
                 format: int64
                 example: 42
-
-  /api/training/finish:
-    post:
-      tags: [training]
-      summary: トレーニング完了処理（一括保存）
-      description: |
-        トレーニングリストを一括保存し完了状態にする。
-        所有者チェックあり。セットデータが空の場合は400を返す。
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: "#/components/schemas/TrainingRequest"
-      responses:
-        "200":
-          description: 保存成功
-          content:
-            application/json:
-              schema:
-                type: string
-                example: 保存に成功しました
         "400":
-          description: セットデータ未入力または不正なトレーニングID
-          content:
-            application/json:
-              schema:
-                type: string
-        "403":
-          description: 他ユーザーのトレーニングへのアクセス
-          content:
-            application/json:
-              schema:
-                type: string
-        "404":
-          description: 指定したトレーニングが存在しない
-        "500":
-          description: 内部エラー
-          content:
-            application/json:
-              schema:
-                type: string
-
-  /api/training/{id}:
-    get:
-      tags: [training]
-      summary: トレーニング取得
-      description: 指定IDのトレーニングを返す。所有者チェックあり。
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        "200":
-          description: トレーニング情報
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Training"
-        "403":
-          description: 他ユーザーのデータへのアクセス
-        "404":
-          description: 存在しないID
+          description: バリデーションエラー
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training/update/{id}:
     post:
       tags: [training]
-      summary: トレーニング更新
-      description: 指定IDのトレーニングを更新する。所有者チェックあり。trainerDate・partCode・userIdはサーバー側で保持する。
+      summary: トレーニング更新（Update）
+      description: |
+        指定 ID のトレーニングを更新する。所有者チェックあり。
+        trainingDate・partCode・userId はサーバー側で保持する。
+        details[].setType に WARMUP/MAIN/DROP を指定可能。省略時はサーバー側で MAIN として扱う。
       parameters:
         - name: id
           in: path
@@ -403,20 +496,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/TrainingRequest"
+              $ref: "./schemas/requests/TrainingRequest.yaml"
       responses:
         "200":
           description: 更新成功
         "403":
           description: 他ユーザーのデータへのアクセス
         "404":
-          description: 存在しないID
+          description: 指定 ID が存在しない
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training/delete/{id}:
     post:
       tags: [training]
-      summary: トレーニング削除（JSON API）
-      description: 指定IDのトレーニングを削除する。所有者チェックあり。
+      summary: トレーニング削除（Delete）
+      description: 指定 ID のトレーニングを削除する。所有者チェックあり。
       parameters:
         - name: id
           in: path
@@ -430,38 +525,24 @@ paths:
         "403":
           description: 他ユーザーのデータへのアクセス
         "404":
-          description: 存在しないID
+          description: 指定 ID が存在しない
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
   /api/training/register-bulk:
     post:
       tags: [training]
-      summary: トレーニング一括登録
+      summary: トレーニング一括登録・更新（Bulk Create/Update）
       description: |
         日付と複数のトレーニングデータをまとめて登録・更新する。
-        id が指定されている場合は既存データを更新、ない場合は新規登録する。
+        id が指定されている場合は既存データを更新、null の場合は新規登録する。
+        details[].setType に WARMUP/MAIN/DROP を指定可能。省略時はサーバー側で MAIN として扱う。
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/BulkRegisterRequest"
-            example:
-              date: "2026-05-26"
-              trainings:
-                - id: null
-                  partCode: CHEST
-                  menu: ベンチプレス
-                  details:
-                    - weight: 60.0
-                      reps: 10
-                      isCompleted: false
-                - id: 5
-                  partCode: BACK
-                  menu: デッドリフト
-                  details:
-                    - weight: 80.0
-                      reps: 5
-                      isCompleted: true
+              $ref: "./schemas/requests/BulkRegisterRequest.yaml"
       responses:
         "200":
           description: 保存成功
@@ -476,25 +557,588 @@ paths:
             application/json:
               schema:
                 type: string
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
-  # ── 管理者画面 ────────────────────────────────────────────────
+  /api/training/finish:
+    post:
+      tags: [training]
+      summary: トレーニング一括完了保存
+      description: |
+        トレーニングリストを一括保存し完了状態にする。所有者チェックあり。
+        セットデータが空の場合は 400 を返す。
+        details[].setType に WARMUP/MAIN/DROP を指定可能。省略時はサーバー側で MAIN として扱う。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "./schemas/requests/TrainingRequest.yaml"
+      responses:
+        "200":
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 保存に成功しました
+        "400":
+          description: セットデータ未入力または不正なトレーニング ID
+        "403":
+          description: 他ユーザーのトレーニングへのアクセス
+        "404":
+          description: 指定したトレーニングが存在しない
+        "500":
+          description: 内部エラー
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 成長グラフ API ──────────────────────────────────────────────
+  /api/growth-chart:
+    get:
+      tags: [training]
+      summary: 種目別成長グラフデータ取得
+      description: |
+        指定種目・期間の週次集計データ（最高重量・ボリューム）を返す。
+        userId はサーバーサイドで解決（IDOR防止）。認証必須。
+      parameters:
+        - name: itemName
+          in: query
+          required: true
+          description: 種目名
+          schema:
+            type: string
+            maxLength: 50
+            example: ベンチプレス
+        - name: period
+          in: query
+          required: false
+          description: 集計期間（省略時は3m）
+          schema:
+            type: string
+            enum: [1m, 3m, 6m, 1y]
+            default: 3m
+      responses:
+        "200":
+          $ref: "./schemas/responses/GrowthChartResponse.yaml"
+        "400":
+          description: itemName が空・50文字超、または period が不正値
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 前回記録 ─────────────────────────────────────────────────────
+  /api/previous-training:
+    get:
+      tags: [training]
+      summary: 種目別前回記録取得
+      description: |
+        指定種目の直近最大7セッション分のセット詳細と自己記録（PR）を返す。
+        今日のデータは除外され、今日以前の最新セッションが先頭（index 0）になる。
+        セッションナビゲーション（< / >）はフロントエンド側で完結する設計のため、
+        このエンドポイントは画面表示時に1回だけ呼ばれる。
+        userId はサーバーサイドで解決（IDOR防止）。認証必須。
+        レスポンスの sets[].setType にセット種別が含まれる。過去データ（set_type追加以前）の場合は null。
+      parameters:
+        - name: itemName
+          in: query
+          required: true
+          description: 種目名（training_item_master に存在する値のみ有効）
+          schema:
+            type: string
+            maxLength: 50
+            example: ベンチプレス
+      responses:
+        "200":
+          $ref: "./schemas/responses/PreviousTrainingResponse.yaml"
+        "400":
+          description: itemName が空・null または 50文字超
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/models/ErrorResponse.yaml"
+              example:
+                error: "種目名は必須です"
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 自己記録（PR） ───────────────────────────────────────────────
+  /pr:
+    get:
+      tags: [personal-record]
+      summary: 自己記録（PR）一覧画面
+      description: |
+        ログインユーザーの全種目PRを一覧表示する。認証必須。
+        GoalService 実装後は各 PR に対応する ACTIVE 目標（goalMap）と
+        PR 未記録の ACTIVE 目標（goalsWithoutPr）も表示される。
+      responses:
+        "200":
+          description: PR一覧画面 HTML（目標達成率付き）
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /api/pr:
+    get:
+      tags: [personal-record]
+      summary: 自己記録（PR）一覧取得 API
+      description: |
+        ログインユーザーの全種目PRをJSON配列で返す。
+        userId はサーバーサイドで解決（IDOR防止）。認証必須。
+      responses:
+        "200":
+          $ref: "./schemas/responses/PersonalRecordListResponse.yaml"
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 目標設定 ────────────────────────────────────────────────────
+  /user/goals:
+    get:
+      tags: [goal]
+      summary: 目標一覧画面
+      description: ログインユーザーの全目標を一覧表示する。認証必須。
+      responses:
+        "200":
+          description: 目標一覧画面 HTML
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+    post:
+      tags: [goal]
+      summary: 目標登録
+      description: |
+        フォームから目標を新規登録する。認証必須。
+        targetWeight と targetReps のどちらか一方は必須。
+        バリデーションエラー時はフォームを再表示。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/GoalCreateRequest.yaml"
+      responses:
+        "302":
+          description: 登録成功 → /user/goals へリダイレクト
+        "200":
+          description: バリデーションエラー → フォーム再表示
+
+  /user/goals/{id}/achieve:
+    post:
+      tags: [goal]
+      summary: 目標を達成済みにマーク
+      description: |
+        指定目標のステータスを ACHIEVED に変更する。認証必須、所有者チェックあり。
+        AJAX 呼び出しを想定（JSON レスポンス）。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 目標 ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: 達成マーク成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ACHIEVED
+        "403":
+          description: 他ユーザーの目標へのアクセス
+        "404":
+          description: 指定目標が存在しない
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /user/goals/{id}:
+    delete:
+      tags: [goal]
+      summary: 目標削除
+      description: |
+        指定目標を削除する。認証必須、所有者チェックあり。
+        AJAX 呼び出しを想定（JSON レスポンス）。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 目標 ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: deleted
+        "403":
+          description: 他ユーザーの目標へのアクセス
+        "404":
+          description: 指定目標が存在しない
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /api/goals:
+    get:
+      tags: [goal]
+      summary: 目標一覧取得 API（達成率付き）
+      description: |
+        ログインユーザーの全目標を達成率情報とともに JSON で返す。
+        effectiveStatus は期日を考慮した実効ステータス（期日切れの ACTIVE は EXPIRED として返す）。
+        認証必須。
+      responses:
+        "200":
+          $ref: "./schemas/responses/GoalListResponse.yaml"
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 2要素認証（MFA）────────────────────────────────────────────
+  /user/mfa:
+    get:
+      tags: [mfa]
+      summary: 2FA 設定画面表示
+      description: |
+        ログインユーザーの 2FA 有効/無効状態を表示する設定画面。認証必須。
+        OAuth2（Google/LINE）ユーザーはこの画面にアクセスできない。
+      responses:
+        "200":
+          description: 2FA 設定画面 HTML（有効/無効状態、バックアップコード再生成ボタン）
+        "302":
+          description: 未認証 → ログインページへリダイレクト / OAuth2ユーザー → /menu へリダイレクト
+
+  /user/mfa/setup:
+    get:
+      tags: [mfa]
+      summary: 2FA セットアップ画面（QR コード表示）
+      description: |
+        TOTP の秘密鍵を生成し、QR コードをセッションに一時保存して表示する。認証必須。
+        この時点ではまだ DB に保存しない（OTP 確認後に有効化）。
+      responses:
+        "200":
+          description: QR コード・手動入力キー・OTP 確認フォームを含む HTML
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /user/mfa/enable:
+    post:
+      tags: [mfa]
+      summary: 2FA 有効化
+      description: |
+        セッションに保存した秘密鍵と入力された OTP を照合し、一致したら 2FA を有効化する。
+        有効化成功時はバックアップコード（10件）を生成して表示する（1回のみ）。
+        認証必須。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/MfaEnableRequest.yaml"
+      responses:
+        "200":
+          description: 有効化成功 → バックアップコード表示画面
+        "200 (error)":
+          description: OTP 不一致 → エラーメッセージ付きセットアップ画面再表示
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /user/mfa/disable:
+    post:
+      tags: [mfa]
+      summary: 2FA 無効化
+      description: |
+        現在のパスワードを再確認したうえで 2FA を無効化する。
+        バックアップコードも合わせて全削除する。認証必須。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/MfaDisableRequest.yaml"
+      responses:
+        "302":
+          description: 無効化成功 → /user/mfa へリダイレクト
+        "200":
+          description: パスワード不一致 → エラーメッセージ付き設定画面再表示
+        "302 (unauth)":
+          description: 未認証 → ログインページへリダイレクト
+
+  /user/mfa/backup-codes/regenerate:
+    post:
+      tags: [mfa]
+      summary: バックアップコード再生成
+      description: |
+        既存のバックアップコードを全削除し、新しい 10 件を生成して表示する。
+        再生成後は旧コードは無効になる。認証必須。
+      responses:
+        "200":
+          description: 新しいバックアップコード 10 件を表示する HTML
+        "302":
+          description: 未認証 → ログインページへリダイレクト / 2FA 未有効 → /user/mfa へリダイレクト
+
+  /auth/mfa:
+    get:
+      tags: [mfa]
+      summary: OTP 入力画面（ログイン認証フロー中）
+      description: |
+        フォームログイン成功後、2FA 有効ユーザーにリダイレクトされる OTP 入力画面。
+        セッションに MFA_PENDING_USER_ID が存在しない場合は /login へリダイレクト。
+      responses:
+        "200":
+          description: OTP 入力フォーム HTML（バックアップコード入力欄も含む）
+        "302":
+          description: MFA_PENDING セッションなし → /login へリダイレクト
+
+  /auth/mfa/verify:
+    post:
+      tags: [mfa]
+      summary: OTP / バックアップコード検証 → 認証完了
+      description: |
+        セッションの MFA_PENDING_USER_ID を使い TOTP または バックアップコードを検証する。
+        成功時: セッションに保存していた Authentication を SecurityContextHolder に設定し /menu へリダイレクト。
+        失敗時: エラーメッセージ付きで OTP 入力画面を再表示。
+        5 回失敗で既存の LoginAttemptService によりアカウントロック対象。
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "./schemas/requests/MfaVerifyRequest.yaml"
+      responses:
+        "302":
+          description: 検証成功 → /menu へリダイレクト
+        "200":
+          description: OTP / バックアップコード不一致 → エラーメッセージ付き再表示
+        "302 (expired)":
+          description: セッション期限切れ → /login へリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── トレーニングテンプレート ────────────────────────────────────────────
+  /training/template:
+    get:
+      tags: [template]
+      summary: テンプレート管理画面
+      description: |
+        ログインユーザーのテンプレート一覧を表示する管理画面。認証必須。
+        Controller・Templateファイルが実装完了してからナビリンクを追加すること。
+      responses:
+        "200":
+          description: テンプレート管理画面 HTML
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /api/templates:
+    get:
+      tags: [template]
+      summary: テンプレート一覧取得
+      description: |
+        ログインユーザーのテンプレート一覧を返す。明細（items）も含む。
+        userId はサーバーサイドで解決（IDOR防止）。認証必須。
+      responses:
+        "200":
+          $ref: "./schemas/responses/TemplateListResponse.yaml"
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+    post:
+      tags: [template]
+      summary: テンプレート新規作成
+      description: |
+        テンプレートを新規作成する。作成したテンプレートのIDを返す。
+        userId はログインユーザーのIDが自動付与される。認証必須。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/requests/TemplateCreateRequest.yaml"
+      responses:
+        "200":
+          description: 作成されたテンプレートID
+          content:
+            application/json:
+              schema:
+                type: integer
+                format: int64
+                example: 1
+        "400":
+          description: バリデーションエラー
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  /api/templates/{id}:
+    put:
+      tags: [template]
+      summary: テンプレート更新
+      description: |
+        指定IDのテンプレートを更新する。所有者チェックあり（他ユーザーのテンプレートは変更不可）。
+        明細は全件削除→再INSERT（差分更新ではない）。認証必須。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: テンプレートID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/requests/TemplateCreateRequest.yaml"
+      responses:
+        "200":
+          description: 更新成功
+        "403":
+          description: 他ユーザーのテンプレートへのアクセス
+        "404":
+          description: 指定テンプレートが存在しない
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+    delete:
+      tags: [template]
+      summary: テンプレート削除（論理削除）
+      description: |
+        指定IDのテンプレートを論理削除する（deleted_at をセット）。
+        所有者チェックあり。認証必須。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: テンプレートID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: 削除成功
+        "403":
+          description: 他ユーザーのテンプレートへのアクセス
+        "404":
+          description: 指定テンプレートが存在しない
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  /api/templates/{id}/apply:
+    post:
+      tags: [template]
+      summary: テンプレート適用（トレーニング一括生成）
+      description: |
+        指定テンプレートを当日のトレーニングとして展開する。
+        種目ごとに Training + TrainingDetail を INSERT する。
+
+        **前回実績の優先**: weight/reps は「前回実績値 > テンプレートデフォルト」の優先順位で設定。
+        前回実績が存在しない場合はテンプレートの値（null なら 0）を使用する。
+
+        **set_type**: 常にテンプレート定義から引き継ぐ（前回値で上書きしない）。
+
+        **重複種目**: 当日すでに同一種目が存在しても重複登録を許可する。
+        レスポンスの duplicateItems に重複種目名を含めるので、フロント側でトースト警告を表示すること。
+
+        所有者チェックあり。認証必須。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: テンプレートID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: 適用対象日
+                  example: "2026-06-01"
+      responses:
+        "200":
+          $ref: "./schemas/responses/TemplateApplyResponse.yaml"
+        "403":
+          description: 他ユーザーのテンプレートへのアクセス
+        "404":
+          description: 指定テンプレートが存在しない
+        "500":
+          description: 内部エラー
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── セッション管理 ──────────────────────────────────────────────
+  /api/session/ping:
+    get:
+      tags: [session]
+      summary: セッション生存確認・延長
+      description: |
+        JavaScript から定期的に呼び出されるセッション維持エンドポイント。
+        リクエストが到達するだけで Spring がセッションの有効期限を自動リセットする。
+
+        **認証必須**: 未認証の場合は 302 リダイレクトではなく 401 を返す
+        （`X-Requested-With: XMLHttpRequest` ヘッダーを付与すること）。
+
+        **CSRF**: GET かつ副作用なし（セッション延長は Spring の自動動作）のため CSRF トークン不要。
+
+        **ping 間隔**:
+        - トレーニング実施画面 (`/start/training`): 3分ごと
+        - その他の画面: 10分ごと
+      parameters:
+        - name: X-Requested-With
+          in: header
+          required: true
+          description: AJAX リクエストであることを示すヘッダー。401 返却の条件。
+          schema:
+            type: string
+            enum: [XMLHttpRequest]
+      responses:
+        "200":
+          $ref: "./schemas/responses/SessionPingResponse.yaml"
+        "401":
+          description: 未認証（セッション切れ）。ブラウザリダイレクトなしで直接返される。
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 管理者画面（HTML） ──────────────────────────────────────────
   /admin/users:
     get:
       tags: [admin]
-      summary: ユーザー一覧画面
+      summary: ユーザー一覧取得・画面表示（List）
       description: 全ユーザーの一覧を表示する。ADMIN ロール必須。
       security:
         - sessionAuth: []
       responses:
         "200":
-          description: ユーザー一覧HTML
+          description: ユーザー一覧 HTML
         "403":
           description: 権限なし
 
   /admin/user/edit/{id}:
     get:
       tags: [admin]
-      summary: ユーザー編集画面
+      summary: ユーザー編集画面（Read）
       security:
         - sessionAuth: []
       parameters:
@@ -505,15 +1149,15 @@ paths:
             type: integer
       responses:
         "200":
-          description: ユーザー編集フォームHTML
+          description: ユーザー編集フォーム HTML
         "404":
           description: 指定ユーザーが存在しない
 
   /admin/user/update:
     post:
       tags: [admin]
-      summary: ユーザー情報更新
-      description: ユーザー情報を更新する（パスワードは変更しない）。
+      summary: ユーザー情報更新（Update）
+      description: ユーザー情報を更新する（パスワードは変更しない）。ADMIN ロール必須。
       security:
         - sessionAuth: []
       requestBody:
@@ -521,15 +1165,17 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              $ref: "#/components/schemas/UserUpdateForm"
+              $ref: "./schemas/requests/UserUpdateRequest.yaml"
       responses:
         "302":
           description: 更新完了 → /admin/users へリダイレクト
+        "403":
+          description: 権限なし
 
   /admin/all-users-training:
     get:
       tags: [admin]
-      summary: 全ユーザーのトレーニング一覧画面
+      summary: 全ユーザーのトレーニング一覧取得・画面表示（List）
       security:
         - sessionAuth: []
       parameters:
@@ -541,19 +1187,19 @@ paths:
             type: string
       responses:
         "200":
-          description: ユーザー一覧HTML（トレーニング状況付き）
+          description: ユーザー一覧 HTML（トレーニング状況付き）
 
   /admin/user/training-detail/{id}:
     get:
       tags: [admin]
-      summary: ユーザーのトレーニング詳細画面（カレンダー＋グラフ）
+      summary: ユーザーのトレーニング詳細・カレンダー表示（Read）
       security:
         - sessionAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          description: ユーザーID
+          description: ユーザー ID
           schema:
             type: integer
         - name: date
@@ -566,18 +1212,72 @@ paths:
             example: "2026-05-01"
       responses:
         "200":
-          description: ユーザートレーニング詳細HTML
+          description: ユーザートレーニング詳細 HTML
         "404":
           description: 指定ユーザーが存在しない
 
-  # ── 管理者 REST API ───────────────────────────────────────────
+  /admin/user/{id}/goals:
+    get:
+      tags: [admin, goal]
+      summary: ユーザーの目標一覧確認（管理者用）
+      description: 指定ユーザーの全目標を達成率情報とともに表示する。ADMIN ロール必須。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ユーザー ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: ユーザー目標一覧 HTML
+        "404":
+          description: 指定ユーザーが存在しない
+        "403":
+          description: 権限なし
+
+  /admin/user/{id}/mfa/reset:
+    post:
+      tags: [admin, mfa]
+      summary: ユーザーの 2FA リセット（管理者専用）
+      description: |
+        指定ユーザーの 2FA 設定（秘密鍵・バックアップコード）を削除し、無効状態に戻す。
+        会員がデバイスを紛失してログインできなくなった場合の緊急対応用。
+        ADMIN ロール必須。AJAX 呼び出しを想定（JSON レスポンス）。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: リセット対象のユーザー ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: リセット成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: reset
+        "403":
+          description: 権限なし
+        "404":
+          description: 指定ユーザーが存在しない
+
+  # ── 管理者 REST API ─────────────────────────────────────────────
   /admin/training-details:
     get:
       tags: [admin]
-      summary: ユーザーの指定日トレーニング詳細取得（AdminController）
-      description: |
-        指定ユーザーと日付に紐づくトレーニングリスト（セット詳細含む）をJSONで返す。
-        ユーザー存在確認を行い、存在しない場合はRuntimeExceptionが発生する。
+      summary: 指定ユーザー・日付のトレーニングリスト取得（List）
+      description: 指定ユーザーと日付に紐づくトレーニングリスト（セット詳細含む）を JSON で返す。
       security:
         - sessionAuth: []
       parameters:
@@ -589,30 +1289,24 @@ paths:
         - name: date
           in: query
           required: true
-          description: 取得対象日（ISO 8601形式）
+          description: 取得対象日（ISO 8601 形式）
           schema:
             type: string
             format: date
             example: "2026-05-26"
       responses:
         "200":
-          description: トレーニングリスト（セット詳細含む）
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Training"
+          $ref: "./schemas/responses/TrainingListResponse.yaml"
         "500":
           description: 内部エラー
 
   /admin/chart-data:
     get:
       tags: [admin]
-      summary: ユーザーのボリュームグラフデータ取得（AdminController）
+      summary: ユーザーの部位別ボリュームグラフデータ取得（List）
       description: |
-        指定ユーザーの部位別トレーニングボリューム（重量×回数）を日次集計して返す。
-        startDate/endDate省略時は過去30日間が対象になる。
+        指定ユーザーの部位別トレーニングボリューム（重量 × 回数）を日次集計して返す。
+        startDate / endDate 省略時は過去 30 日間が対象になる。
       security:
         - sessionAuth: []
       parameters:
@@ -637,28 +1331,25 @@ paths:
             example: "2026-05-26"
       responses:
         "200":
-          description: グラフ用ボリュームデータ
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ChartData"
+          $ref: "./schemas/responses/ChartDataResponse.yaml"
         "500":
           description: 内部エラー
 
   /admin/api/training-details:
     get:
       tags: [admin]
-      summary: トレーニング詳細取得（TrainingApiController）
+      summary: トレーニングセット詳細一覧取得（List）
       description: |
-        指定日付のTrainingDetailリストを返す。userId省略時は全ユーザーの指定日データを返す。
-        @PreAuthorize("hasRole('ADMIN')") によりADMINロール必須。
+        指定日付の TrainingDetail リストを返す。
+        userId 省略時は全ユーザーの指定日データを返す。
+        @PreAuthorize("hasRole('ADMIN')") により ADMIN ロール必須。
       security:
         - sessionAuth: []
       parameters:
         - name: date
           in: query
           required: true
-          description: 取得対象日（文字列形式 YYYY-MM-DD）
+          description: 取得対象日（YYYY-MM-DD 形式）
           schema:
             type: string
             example: "2026-05-26"
@@ -670,23 +1361,140 @@ paths:
             format: int64
       responses:
         "200":
-          description: トレーニング詳細一覧
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/TrainingDetail"
+          $ref: "./schemas/responses/TrainingDetailListResponse.yaml"
+        "403":
+          description: 権限なし
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 監査ログ ────────────────────────────────────────────────────
+  /admin/audit-logs:
+    get:
+      tags: [admin, audit-log]
+      summary: 監査ログ一覧表示（管理者専用）
+      description: |
+        誰がいつどのデータを操作したかの監査ログを一覧表示する。ADMIN ロール必須。
+
+        **フィルター**:
+        - `userId`: 特定ユーザーの操作に絞り込む（省略時は全ユーザー）
+        - `action`: アクションコードで絞り込む（省略時は全アクション）
+        - `from`/`to`: 日付範囲（省略時は過去30日）
+
+        **ページネーション**: 1ページ50件固定。`page` パラメータで切り替え。
+
+        **不変記録**: このエンドポイントは閲覧専用。監査ログの更新・削除は
+        アプリケーションレベルで禁止されている。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          description: ユーザーIDで絞り込み（省略時は全ユーザー）
+          schema:
+            type: integer
+            format: int64
+            example: 42
+        - name: action
+          in: query
+          required: false
+          description: |
+            アクションコードで絞り込み。指定可能な値:
+            TRAINING_SAVE, TRAINING_FINISH, TRAINING_UPDATE, TRAINING_DELETE, TRAINING_BULK,
+            TEMPLATE_CREATE, TEMPLATE_UPDATE, TEMPLATE_DELETE, TEMPLATE_APPLY,
+            GOAL_CREATE, GOAL_ACHIEVE, GOAL_DELETE,
+            PROFILE_UPDATE,
+            MFA_ENABLE, MFA_DISABLE, MFA_BACKUP_REGEN,
+            ADMIN_USER_UPDATE, ADMIN_MFA_RESET
+          schema:
+            type: string
+            example: "TRAINING_DELETE"
+        - name: from
+          in: query
+          required: false
+          description: 検索開始日（省略時は今日 -30日）
+          schema:
+            type: string
+            format: date
+            example: "2026-05-03"
+        - name: to
+          in: query
+          required: false
+          description: 検索終了日（省略時は今日）
+          schema:
+            type: string
+            format: date
+            example: "2026-06-02"
+        - name: page
+          in: query
+          required: false
+          description: ページ番号（1始まり、省略時は1）
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        "200":
+          description: 監査ログ一覧 HTML（ページネーション・フィルター付き）
+        "403":
+          description: 権限なし（ADMIN以外）
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /admin/api/audit-logs:
+    get:
+      tags: [admin, audit-log]
+      summary: 監査ログ一覧取得 API（管理者専用）
+      description: |
+        監査ログをJSON形式で返す。フィルターとページネーションは HTML 版と同仕様。
+        ADMIN ロール必須。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        "200":
+          $ref: "./schemas/responses/AuditLogListResponse.yaml"
         "403":
           description: 権限なし
 
   /admin/api/training-volume/{userId}:
     get:
       tags: [admin]
-      summary: ユーザーのボリュームデータ取得（TrainingApiController）
+      summary: ユーザーの期間別ボリュームデータ取得（List）
       description: |
         指定ユーザーの期間別トレーニングボリュームを返す。
-        @PreAuthorize("hasRole('ADMIN')") によりADMINロール必須。IDORをURLレベル＋メソッドレベルで防止。
+        @PreAuthorize("hasRole('ADMIN')") により ADMIN ロール必須。
+        IDOR を URL レベル＋メソッドレベルで防止。
       security:
         - sessionAuth: []
       parameters:
@@ -712,7 +1520,7 @@ paths:
             example: "2026-05-26"
       responses:
         "200":
-          description: ボリュームデータ（Map<String, Object>形式）
+          description: ボリュームデータ（Map<String, Object> 形式）
           content:
             application/json:
               schema:
@@ -720,420 +1528,18 @@ paths:
                 additionalProperties: true
         "403":
           description: 権限なし
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
 
-# ─────────────────────────────────────────────────────────────
-# Components
-# ─────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────
+# Components（セキュリティスキームのみ。スキーマは schemas/ を参照）
+# ──────────────────────────────────────────────────────────────────
 components:
-
   securitySchemes:
     sessionAuth:
       type: apiKey
       in: cookie
       name: JSESSIONID
-      description: Spring Securityのセッション認証。ログイン後にJSESSIONIDクッキーが付与される。
-
-  schemas:
-
-    # ── ユーザー ──────────────────────────────────────────────
-    User:
-      type: object
-      description: ユーザーエンティティ（usersテーブル）
-      properties:
-        userId:
-          type: integer
-          description: ユーザーID（主キー・自動採番）
-          example: 1
-        email:
-          type: string
-          format: email
-          example: user@example.com
-        userName:
-          type: string
-          example: 山田太郎
-        role:
-          type: string
-          description: ロール（USER / ADMIN）
-          example: USER
-        enabled:
-          type: boolean
-          description: アカウント有効フラグ
-          example: true
-        googleId:
-          type: string
-          nullable: true
-          description: Google OAuthアカウントID
-        lineId:
-          type: string
-          nullable: true
-          description: LINE OAuthアカウントID
-        createDatetime:
-          type: string
-          format: date-time
-        updatedDatetime:
-          type: string
-          format: date-time
-
-    SignupForm:
-      type: object
-      description: ユーザー新規登録フォーム
-      required: [username, email, password, password_confirm]
-      properties:
-        username:
-          type: string
-          description: ユーザー名（空白不可）
-          example: 山田太郎
-        email:
-          type: string
-          format: email
-          example: user@example.com
-        password:
-          type: string
-          format: password
-        password_confirm:
-          type: string
-          format: password
-        googleId:
-          type: string
-          nullable: true
-        lineId:
-          type: string
-          nullable: true
-
-    UserUpdateForm:
-      type: object
-      description: ユーザー情報更新フォーム（管理者用）
-      properties:
-        userId:
-          type: integer
-        email:
-          type: string
-          format: email
-        userName:
-          type: string
-        role:
-          type: string
-          enum: [USER, ADMIN]
-        enabled:
-          type: boolean
-
-    # ── トレーニング ──────────────────────────────────────────
-    Training:
-      type: object
-      description: トレーニングエンティティ（trainingsテーブル）
-      properties:
-        id:
-          type: integer
-          format: int64
-          description: トレーニングID（主キー・自動採番）
-          example: 1
-        userId:
-          type: integer
-          format: int64
-          description: ユーザーID（FK → users.id）
-          example: 1
-        trainingDate:
-          type: string
-          format: date
-          example: "2026-05-26"
-        partCode:
-          type: string
-          description: 部位コード（FK → training_part_master.part_code）
-          example: CHEST
-        menu:
-          type: string
-          description: トレーニング種目名
-          example: ベンチプレス
-        partName:
-          type: string
-          description: 部位名（表示用・非保存）
-          example: 胸
-          readOnly: true
-        memo:
-          type: string
-          nullable: true
-        duration:
-          type: string
-          nullable: true
-          description: トレーニング時間（HH:mm:ss形式）
-          example: "01:23:45"
-        isCompleted:
-          type: boolean
-          description: 種目完了フラグ
-          example: false
-        isAllCompleted:
-          type: boolean
-          description: 全セット完了フラグ
-          example: false
-        details:
-          type: array
-          description: セット詳細リスト（@Transient・JOIN取得）
-          items:
-            $ref: "#/components/schemas/TrainingDetail"
-        createDatetime:
-          type: string
-          format: date-time
-        updatedDatetime:
-          type: string
-          format: date-time
-
-    TrainingRequest:
-      type: object
-      description: トレーニング登録・更新リクエスト（JSON）
-      required: [trainingDate, partCode, menu, details]
-      properties:
-        id:
-          type: integer
-          format: int64
-          nullable: true
-          description: 更新時に指定。新規登録時はnull
-        trainingDate:
-          type: string
-          format: date
-          example: "2026-05-26"
-        partCode:
-          type: string
-          example: CHEST
-        menu:
-          type: string
-          example: ベンチプレス
-        memo:
-          type: string
-          nullable: true
-        duration:
-          type: string
-          nullable: true
-          example: "01:00:00"
-        isCompleted:
-          type: boolean
-          default: false
-        isAllCompleted:
-          type: boolean
-          default: false
-        details:
-          type: array
-          minItems: 1
-          items:
-            $ref: "#/components/schemas/TrainingDetailRequest"
-
-    TrainingForm:
-      type: object
-      description: メニュー画面フォーム送信用トレーニングデータ（application/x-www-form-urlencoded）
-      required: [trainingDate, partCode, menu]
-      properties:
-        id:
-          type: integer
-          format: int64
-          nullable: true
-        trainingDate:
-          type: string
-          format: date
-        partCode:
-          type: string
-        menu:
-          type: string
-        memo:
-          type: string
-          nullable: true
-
-    TrainingDetail:
-      type: object
-      description: トレーニングセット詳細（training_detailsテーブル）
-      properties:
-        id:
-          type: integer
-          format: int64
-          example: 1
-        trainingId:
-          type: integer
-          format: int64
-          description: FK → trainings.id
-          example: 1
-        setNumber:
-          type: integer
-          description: セット番号（1以上）
-          minimum: 1
-          example: 1
-        weight:
-          type: number
-          format: double
-          description: 重量（kg、0以上）
-          minimum: 0
-          example: 60.0
-        reps:
-          type: integer
-          description: 回数（0以上。入力中の暫定値として0を許容）
-          minimum: 0
-          example: 10
-        count:
-          type: integer
-          nullable: true
-        completed:
-          type: boolean
-          description: セット完了フラグ（JSONキー名は "completed"）
-          example: false
-        createDatetime:
-          type: string
-          format: date-time
-        updatedDatetime:
-          type: string
-          format: date-time
-
-    TrainingDetailRequest:
-      type: object
-      description: セット詳細の登録・更新リクエスト
-      required: [weight, reps]
-      properties:
-        weight:
-          type: number
-          format: double
-          minimum: 0
-          example: 60.0
-        reps:
-          type: integer
-          minimum: 0
-          description: 回数（0以上。入力中の暫定値として0を許容）
-          example: 10
-        setNumber:
-          type: integer
-          minimum: 1
-          example: 1
-        completed:
-          type: boolean
-          description: セット完了フラグ（JSONキー名は "completed"。@JsonProperty("completed") により isCompleted フィールドにマッピングされる）
-          default: false
-
-    # ── マスターデータ ─────────────────────────────────────────
-    TrainingMaster:
-      type: object
-      description: 部位マスター（training_part_masterテーブル）
-      properties:
-        id:
-          type: integer
-          format: int64
-          example: 1
-        partCode:
-          type: string
-          description: 部位コード
-          example: CHEST
-        partName:
-          type: string
-          description: 部位名
-          example: 胸
-        displayOrder:
-          type: integer
-          description: 表示順
-          example: 1
-        itemName:
-          type: string
-          nullable: true
-
-    TrainingItemMaster:
-      type: object
-      description: トレーニング種目マスター（training_item_masterテーブル）
-      properties:
-        id:
-          type: integer
-          format: int64
-          example: 1
-        partCode:
-          type: string
-          description: 部位コード（FK → training_part_master.part_code）
-          example: CHEST
-        itemName:
-          type: string
-          description: 種目名
-          example: ベンチプレス
-        displayOrder:
-          type: integer
-          description: 表示順
-          example: 1
-
-    # ── グラフデータ ──────────────────────────────────────────
-    ChartData:
-      type: object
-      description: 部位別トレーニングボリューム日次集計（グラフ表示用）
-      properties:
-        labels:
-          type: array
-          description: 日付ラベル一覧（YYYY-MM-DD形式）
-          items:
-            type: string
-          example: ["2026-04-26", "2026-04-27"]
-        chest:
-          type: array
-          description: 胸のボリューム（重量×回数の合計）
-          items:
-            type: number
-            format: double
-          example: [600.0, 0.0]
-        back:
-          type: array
-          description: 背中のボリューム
-          items:
-            type: number
-            format: double
-        arms:
-          type: array
-          description: 腕のボリューム
-          items:
-            type: number
-            format: double
-        shoulders:
-          type: array
-          description: 肩のボリューム
-          items:
-            type: number
-            format: double
-        legs:
-          type: array
-          description: 脚のボリューム
-          items:
-            type: number
-            format: double
-
-    # ── 一括登録リクエスト ─────────────────────────────────────
-    BulkRegisterRequest:
-      type: object
-      description: トレーニング一括登録リクエスト（/api/training/register-bulk）
-      required: [date, trainings]
-      properties:
-        date:
-          type: string
-          format: date
-          description: トレーニング日
-          example: "2026-05-26"
-        trainings:
-          type: array
-          description: トレーニングデータリスト
-          items:
-            type: object
-            required: [partCode, menu, details]
-            properties:
-              id:
-                type: integer
-                format: int64
-                nullable: true
-                description: 更新時に指定。新規はnullまたは空文字
-              partCode:
-                type: string
-                example: CHEST
-              menu:
-                type: string
-                example: ベンチプレス
-              details:
-                type: array
-                minItems: 1
-                items:
-                  type: object
-                  properties:
-                    weight:
-                      type: number
-                      format: double
-                      example: 60.0
-                    reps:
-                      type: integer
-                      example: 10
-                    isCompleted:
-                      type: boolean
-                      example: false
+      description: |
+        Spring Security のセッション認証。
+        ログイン後に JSESSIONID クッキーが付与される。
