@@ -47,6 +47,9 @@ public interface TrainingDao {
 	@Delete(sqlFile = true)
 	int deleteExpiredPhysically(LocalDateTime cutoff);
 
+	@Delete(sqlFile = true)
+	int deleteByUserId(Long userId);
+
 	@Select
 	List<Training> selectByUserIdAndDateRange(Integer userId, LocalDate startDate, LocalDate endDate);
 

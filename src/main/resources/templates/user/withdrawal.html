@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>退会申請 - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-secondary">
+    <header th:replace="~{common :: headerFragment}"></header>
+
+    <main class="main-content">
+        <div class="content-wrapper" style="max-width: 600px; margin: 0 auto; padding: 24px 16px;">
+
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-primary">退会申請</h1>
+                <p class="text-muted mt-2">アカウントおよび全てのデータを削除します</p>
+            </div>
+
+            <!-- フラッシュメッセージ -->
+            <div th:if="${successMessage}" class="alert alert-success mb-4" th:text="${successMessage}"></div>
+            <div th:if="${errorMessage}" class="alert alert-danger mb-4" th:text="${errorMessage}"></div>
+
+            <!-- 申請中の場合 -->
+            <div th:if="${hasPending}" class="card mb-6">
+                <div class="card-body" style="text-align: center; padding: 32px;">
+                    <div style="font-size: 2rem; margin-bottom: 12px;">申請中</div>
+                    <p class="text-muted mb-4">退会申請を受け付けています。管理者が処理するまでお待ちください。</p>
+                    <p class="text-muted mb-6" style="font-size: 0.9rem;">申請をキャンセルする場合は以下のボタンを押してください。</p>
+                    <form th:action="@{/user/withdrawal/cancel}" method="post">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button type="submit" class="btn btn-secondary"
+                                onclick="return confirm('退会申請をキャンセルしますか？')">
+                            申請をキャンセルする
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 申請フォーム -->
+            <div th:if="${!hasPending}" class="card">
+                <div class="card-body" style="padding: 32px;">
+
+                    <!-- 警告メッセージ -->
+                    <div style="background: var(--danger-bg, #fff5f5); border: 1px solid var(--danger-color, #e53e3e); border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                        <p style="color: var(--danger-color, #e53e3e); font-weight: 600; margin-bottom: 8px;">注意事項</p>
+                        <ul style="color: var(--danger-color, #e53e3e); font-size: 0.9rem; padding-left: 20px; margin: 0;">
+                            <li>退会するとアカウントおよび全てのトレーニングデータが削除されます</li>
+                            <li>管理者による承認後、データの復元はできません</li>
+                            <li>退会完了まで通常通りご利用いただけます</li>
+                        </ul>
+                    </div>
+
+                    <form th:action="@{/user/withdrawal}" method="post">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+                        <div class="form-group mb-4">
+                            <label class="form-label">退会理由（任意）</label>
+                            <select name="reasonType" class="form-select">
+                                <option value="">選択してください</option>
+                                <option value="NO_LONGER_USED">使わなくなった</option>
+                                <option value="SWITCHING_SERVICE">別のサービスに移行する</option>
+                                <option value="OTHER">その他</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label class="form-label">詳細（任意・500文字以内）</label>
+                            <textarea name="reasonText" class="form-control" rows="3"
+                                      maxlength="500" placeholder="ご意見・ご要望があればお聞かせください"></textarea>
+                        </div>
+
+                        <div class="form-group mb-6">
+                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                                <input type="checkbox" id="confirmed" name="confirmed" value="true"
+                                       style="margin-top: 3px; flex-shrink: 0;">
+                                <span style="font-size: 0.9rem; color: var(--text-primary);">
+                                    全てのデータが削除されることを理解し、退会申請します。この操作は取り消せません。
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="flex justify-between">
+                            <a href="/user/profile" class="btn btn-secondary">キャンセル</a>
+                            <button type="submit" id="submitBtn" class="btn btn-danger" disabled
+                                    onclick="return confirm('本当に退会申請しますか？管理者の承認後、全データが削除されます。')">
+                                退会を申請する
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script th:src="@{/js/theme.js}"></script>
+    <script>
+        document.getElementById('confirmed').addEventListener('change', function() {
+            document.getElementById('submitBtn').disabled = !this.checked;
+        });
+    </script>
+    <div th:replace="~{common :: sessionModalsFragment}"></div>
+</body>
+</html>

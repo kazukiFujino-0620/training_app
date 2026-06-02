@@ -28,4 +28,7 @@ public interface GoalDao {
 
     @Delete
     int delete(TrainingGoal goal);
+
+    @Delete(sqlFile = true)
+    int deleteByUserId(Long userId);
 }
