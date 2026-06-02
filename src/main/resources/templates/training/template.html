@@ -74,6 +74,20 @@
     </div>
   </main>
 
+  <!-- 種目選択スケルトン（JSでcloneして使用） -->
+  <div id="itemSelectTpl" style="display:none;">
+    <select class="tpl-input tpl-item-name">
+      <option value="">-- 種目を選択 --</option>
+      <th:block th:each="part : ${parts}">
+        <optgroup th:label="${part.partName}">
+          <th:block th:each="item : ${itemsByPart[part.partCode]}">
+            <option th:value="${item.itemName}" th:text="${item.itemName}"></option>
+          </th:block>
+        </optgroup>
+      </th:block>
+    </select>
+  </div>
+
   <!-- 作成・編集モーダル -->
   <div id="templateModal" class="template-modal-overlay hidden">
     <div class="template-modal-content">
@@ -146,18 +160,51 @@
 
   function addTplItemRow(itemName, setNum, setType, weight, reps) {
     const builder = document.getElementById('tplItemBuilder');
-    const rowCount = builder.children.length;
     const st = setType || 'MAIN';
     const div = document.createElement('div');
     div.className = 'template-item-builder-row';
-    div.innerHTML = `
-      <input type="text" class="tpl-input tpl-item-name" placeholder="種目名" value="${itemName || ''}" maxlength="100">
-      ${setTypeLabelHtml(st)}
-      <input type="number" class="tpl-input tpl-input-sm tpl-weight" placeholder="kg" step="0.5" value="${weight || ''}">
-      <span style="font-size:0.8rem; color:var(--text-muted);">×</span>
-      <input type="number" class="tpl-input tpl-input-sm tpl-reps" placeholder="回" value="${reps || ''}">
-      <button type="button" style="color:#f44336; border:none; background:none; cursor:pointer; font-size:1rem;" onclick="this.closest('.template-item-builder-row').remove()">✕</button>
-    `;
+
+    // 種目セレクト（スケルトンをクローン）
+    const select = document.querySelector('#itemSelectTpl select').cloneNode(true);
+    if (itemName) select.value = itemName;
+    div.appendChild(select);
+
+    // セット種別バッジ
+    const badgeWrap = document.createElement('span');
+    badgeWrap.innerHTML = setTypeLabelHtml(st);
+    div.appendChild(badgeWrap.firstChild);
+
+    // 重量
+    const weightInput = document.createElement('input');
+    weightInput.type = 'number';
+    weightInput.className = 'tpl-input tpl-input-sm tpl-weight';
+    weightInput.placeholder = 'kg';
+    weightInput.step = '0.5';
+    if (weight) weightInput.value = weight;
+    div.appendChild(weightInput);
+
+    // ×
+    const times = document.createElement('span');
+    times.style.cssText = 'font-size:0.8rem; color:var(--text-muted);';
+    times.textContent = '×';
+    div.appendChild(times);
+
+    // 回数
+    const repsInput = document.createElement('input');
+    repsInput.type = 'number';
+    repsInput.className = 'tpl-input tpl-input-sm tpl-reps';
+    repsInput.placeholder = '回';
+    if (reps) repsInput.value = reps;
+    div.appendChild(repsInput);
+
+    // 削除ボタン
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.style.cssText = 'color:#f44336; border:none; background:none; cursor:pointer; font-size:1rem;';
+    delBtn.textContent = '✕';
+    delBtn.onclick = () => div.remove();
+    div.appendChild(delBtn);
+
     builder.appendChild(div);
   }
 
