@@ -1,0 +1,46 @@
+description: 監査ログ一覧レスポンス（管理者専用）
+content:
+  application/json:
+    schema:
+      type: object
+      properties:
+        logs:
+          type: array
+          description: 監査ログ一覧（changed_at 降順）
+          items:
+            $ref: "../models/AuditLogEntry.yaml"
+        currentPage:
+          type: integer
+          description: 現在のページ番号（1始まり）
+          example: 1
+        totalPages:
+          type: integer
+          description: 総ページ数（1ページ50件）
+          example: 5
+        filterUserId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 適用中のユーザーIDフィルター
+          example: 42
+        filterAction:
+          type: string
+          nullable: true
+          description: 適用中のアクションフィルター
+          example: "TRAINING_DELETE"
+        filterFrom:
+          type: string
+          format: date
+          description: 検索開始日
+          example: "2026-05-03"
+        filterTo:
+          type: string
+          format: date
+          description: 検索終了日
+          example: "2026-06-02"
+      required:
+        - logs
+        - currentPage
+        - totalPages
+        - filterFrom
+        - filterTo

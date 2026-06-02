@@ -37,6 +37,8 @@ tags:
     description: トレーニングテンプレート管理（CRUD + 適用）
   - name: admin
     description: 管理者専用操作
+  - name: audit-log
+    description: 監査ログ（誰がいつどのデータを操作したかの不変記録）管理者専用
 
 # ──────────────────────────────────────────────────────────────────
 # Paths
@@ -1364,6 +1366,126 @@ paths:
           description: 権限なし
         "429":
           $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 監査ログ ────────────────────────────────────────────────────
+  /admin/audit-logs:
+    get:
+      tags: [admin, audit-log]
+      summary: 監査ログ一覧表示（管理者専用）
+      description: |
+        誰がいつどのデータを操作したかの監査ログを一覧表示する。ADMIN ロール必須。
+
+        **フィルター**:
+        - `userId`: 特定ユーザーの操作に絞り込む（省略時は全ユーザー）
+        - `action`: アクションコードで絞り込む（省略時は全アクション）
+        - `from`/`to`: 日付範囲（省略時は過去30日）
+
+        **ページネーション**: 1ページ50件固定。`page` パラメータで切り替え。
+
+        **不変記録**: このエンドポイントは閲覧専用。監査ログの更新・削除は
+        アプリケーションレベルで禁止されている。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          description: ユーザーIDで絞り込み（省略時は全ユーザー）
+          schema:
+            type: integer
+            format: int64
+            example: 42
+        - name: action
+          in: query
+          required: false
+          description: |
+            アクションコードで絞り込み。指定可能な値:
+            TRAINING_SAVE, TRAINING_FINISH, TRAINING_UPDATE, TRAINING_DELETE, TRAINING_BULK,
+            TEMPLATE_CREATE, TEMPLATE_UPDATE, TEMPLATE_DELETE, TEMPLATE_APPLY,
+            GOAL_CREATE, GOAL_ACHIEVE, GOAL_DELETE,
+            PROFILE_UPDATE,
+            MFA_ENABLE, MFA_DISABLE, MFA_BACKUP_REGEN,
+            ADMIN_USER_UPDATE, ADMIN_MFA_RESET
+          schema:
+            type: string
+            example: "TRAINING_DELETE"
+        - name: from
+          in: query
+          required: false
+          description: 検索開始日（省略時は今日 -30日）
+          schema:
+            type: string
+            format: date
+            example: "2026-05-03"
+        - name: to
+          in: query
+          required: false
+          description: 検索終了日（省略時は今日）
+          schema:
+            type: string
+            format: date
+            example: "2026-06-02"
+        - name: page
+          in: query
+          required: false
+          description: ページ番号（1始まり、省略時は1）
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        "200":
+          description: 監査ログ一覧 HTML（ページネーション・フィルター付き）
+        "403":
+          description: 権限なし（ADMIN以外）
+        "302":
+          description: 未認証 → ログインページへリダイレクト
+
+  /admin/api/audit-logs:
+    get:
+      tags: [admin, audit-log]
+      summary: 監査ログ一覧取得 API（管理者専用）
+      description: |
+        監査ログをJSON形式で返す。フィルターとページネーションは HTML 版と同仕様。
+        ADMIN ロール必須。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        "200":
+          $ref: "./schemas/responses/AuditLogListResponse.yaml"
+        "403":
+          description: 権限なし
 
   /admin/api/training-volume/{userId}:
     get:
