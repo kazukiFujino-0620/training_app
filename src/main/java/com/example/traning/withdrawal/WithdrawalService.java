@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.traning.common.MailService;
 import com.example.traning.dao.UserDao;
+import com.example.traning.forgetpassword.dao.PasswordResetTokenDao;
 import com.example.traning.goal.GoalDao;
 import com.example.traning.mfa.MfaBackupCodeDao;
 import com.example.traning.mfa.MfaSettingDao;
@@ -17,6 +18,7 @@ import com.example.traning.pr.dao.PersonalRecordDao;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.user.User;
+import com.example.traning.user.dao.AccountRestoreTokenDao;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,6 +34,8 @@ public class WithdrawalService {
     private final GoalDao goalDao;
     private final MfaSettingDao mfaSettingDao;
     private final MfaBackupCodeDao mfaBackupCodeDao;
+    private final PasswordResetTokenDao passwordResetTokenDao;
+    private final AccountRestoreTokenDao accountRestoreTokenDao;
     private final MailService mailService;
 
     public WithdrawalService(WithdrawalRequestDao withdrawalRequestDao,
@@ -42,6 +46,8 @@ public class WithdrawalService {
                              GoalDao goalDao,
                              MfaSettingDao mfaSettingDao,
                              MfaBackupCodeDao mfaBackupCodeDao,
+                             PasswordResetTokenDao passwordResetTokenDao,
+                             AccountRestoreTokenDao accountRestoreTokenDao,
                              MailService mailService) {
         this.withdrawalRequestDao = withdrawalRequestDao;
         this.userDao = userDao;
@@ -51,6 +57,8 @@ public class WithdrawalService {
         this.goalDao = goalDao;
         this.mfaSettingDao = mfaSettingDao;
         this.mfaBackupCodeDao = mfaBackupCodeDao;
+        this.passwordResetTokenDao = passwordResetTokenDao;
+        this.accountRestoreTokenDao = accountRestoreTokenDao;
         this.mailService = mailService;
     }
 
@@ -133,14 +141,18 @@ public class WithdrawalService {
         mfaBackupCodeDao.deleteByUserId(req.getUserId());
         mfaSettingDao.deleteByUserId(req.getUserId());
 
-        // ⑦ 申請ステータスを APPROVED に更新
+        // ⑦ パスワードリセット・アカウント復元トークンを物理削除
+        passwordResetTokenDao.deleteByUserId(req.getUserId().intValue());
+        accountRestoreTokenDao.deleteByUserId(req.getUserId().intValue());
+
+        // ⑨ 申請ステータスを APPROVED に更新
         req.setStatus("APPROVED");
         req.setProcessedAt(completedAt);
         req.setProcessedBy(adminUserId);
         req.setUpdatedAt(LocalDateTime.now());
         withdrawalRequestDao.update(req);
 
-        // ⑧ ユーザーを論理削除（deleted_at 設定）
+        // ⑩ ユーザーを論理削除（deleted_at 設定）
         userDao.softDeleteById(targetUser.getUserId());
 
         log.info("Withdrawal approved - userId: {}, adminId: {}", req.getUserId(), adminUserId);
