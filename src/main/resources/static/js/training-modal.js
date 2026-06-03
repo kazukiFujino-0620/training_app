@@ -534,8 +534,14 @@ function stopInterval() {
 function updateMainPadding() {
     const timerContainer = document.querySelector('.timer-container');
     const mainContent = document.querySelector('.main-content');
+    const header = document.querySelector('.header');
     if (!timerContainer || !mainContent) return;
-    mainContent.style.paddingTop = (64 + timerContainer.offsetHeight) + 'px';
+
+    const headerHeight = header ? Math.round(header.getBoundingClientRect().height) : 64;
+    document.documentElement.style.setProperty('--header-height', headerHeight + 'px');
+
+    const timerHeight = timerContainer.offsetHeight;
+    mainContent.style.paddingTop = (headerHeight + timerHeight) + 'px';
 }
 
 function showIntervalEndBanner() {
@@ -1181,6 +1187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeTimer();
     updateMainPadding();
     initNotification();
+    window.addEventListener('resize', updateMainPadding);
 
     const partSelect = document.getElementById('modalPart');
     if (partSelect) {

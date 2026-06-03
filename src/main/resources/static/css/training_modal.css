@@ -1,4 +1,7 @@
 @charset "utf-8";
+:root {
+    --header-height: 4rem;
+}
 /* モーダルの背景 — display: flex で中央配置。非表示は .hidden クラスで制御 */
 .modal-overlay {
     display: flex;
@@ -63,7 +66,7 @@
     padding: 1.5rem;
     text-align: center;
     position: fixed;
-    top: 4rem;
+    top: var(--header-height, 4rem);
     left: 0;
     width: 100%;
     z-index: 99;
