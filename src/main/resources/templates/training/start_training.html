@@ -72,26 +72,24 @@
     <header th:replace="~{common :: headerFragment}"></header>
     
     <!-- Main Content -->
-    <main class="main-content" style="padding-top: 4rem;">
-        <div class="content-wrapper">
-                <div class="timer-container">
-                <input type="hidden" id="currentUserId" th:value="${currentUserId}">
-                <input type="hidden" id="initialDuration" th:value="${restoredDuration ?: '00:00:00'}">
-                <div class="timer-display" id="totalTimer">00:00:00</div>
-                <button id="startBtn" data-action="toggleMainTimer" class="btn btn-success">開始</button>
-                <div id="intervalBanner" style="display: none; background: #ff9800; color: #ffffff; padding: 15px; margin-top: 10px; border-radius: 8px; font-weight: bold; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    インターバル中: <span id="intervalTimer">02:00</span>
-                    <div class="interval-controls" style="margin-top: 10px;">
-                        <button data-action="changeInterval" data-delta="-60" class="btn-sm-interval">-60s</button>
-                        <button data-action="changeInterval" data-delta="-30" class="btn-sm-interval">-30s</button>
-                        <button data-action="changeInterval" data-delta="30" class="btn-sm-interval">+30s</button>
-                        <button data-action="changeInterval" data-delta="60" class="btn-sm-interval">+60s</button>
-                    </div>
+    <main class="main-content">
+        <div class="timer-container">
+            <input type="hidden" id="currentUserId" th:value="${currentUserId}">
+            <input type="hidden" id="initialDuration" th:value="${restoredDuration ?: '00:00:00'}">
+            <div class="timer-display" id="totalTimer">00:00:00</div>
+            <button id="startBtn" data-action="toggleMainTimer" class="btn btn-success">開始</button>
+            <div id="intervalBanner" style="display: none; background: #ff9800; color: #ffffff; padding: 15px; margin-top: 10px; border-radius: 8px; font-weight: bold; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                インターバル中: <span id="intervalTimer">02:00</span>
+                <div class="interval-controls" style="margin-top: 10px;">
+                    <button data-action="changeInterval" data-delta="-60" class="btn-sm-interval">-60s</button>
+                    <button data-action="changeInterval" data-delta="-30" class="btn-sm-interval">-30s</button>
+                    <button data-action="changeInterval" data-delta="30" class="btn-sm-interval">+30s</button>
+                    <button data-action="changeInterval" data-delta="60" class="btn-sm-interval">+60s</button>
                 </div>
             </div>
-            </div>
+        </div>
 
-            <div class="training-container">
+        <div class="training-container">
                 <div th:each="item : ${trainingList}" class="training-card"
                      th:data-training-id="${item.id}"
                      th:data-part-code="${item.partCode}"
@@ -148,8 +146,7 @@
                     </button>
                 </div>
             </div>
-        </div>
-    </div>
+    </main>
 
     <!-- Training Modal -->
     <div id="trainingModal" class="modal-overlay hidden">

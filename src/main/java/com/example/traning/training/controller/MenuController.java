@@ -144,20 +144,25 @@ public class MenuController {
 			long daysAgo = java.time.temporal.ChronoUnit.DAYS.between(ft.getTrainingDate(), today);
 			double decay = Math.pow(0.5, daysAgo / 2.0); // 48時間で疲労50%回復
 			long vol = 0;
+			int completedSets = 0;
 			for (TrainingDetail fd : fDetails) {
+				if (!fd.getIsCompleted()) continue;
 				if (fd.getWeight() != null && fd.getReps() != null) {
 					vol += Math.round(fd.getWeight() * fd.getReps());
 				}
+				completedSets++;
 			}
 			volumeByPart.merge(pc, vol, Long::sum);
-			setsByPart.merge(pc, fDetails.size(), Integer::sum);
+			setsByPart.merge(pc, completedSets, Integer::sum);
 			rawFatigueByPart.merge(pc, vol * decay, Double::sum);
 		}
-		double maxFat = rawFatigueByPart.values().stream().mapToDouble(Double::doubleValue).max().orElse(1.0);
-		if (maxFat < 1.0) maxFat = 1.0;
+		// 各部位の生ボリューム（decay なし）で正規化 → トレーニング日=100%、日々回復
 		Map<String, Integer> fatiguePct = new java.util.LinkedHashMap<>();
 		for (String p : partOrder) {
-			fatiguePct.put(p, (int) Math.round(rawFatigueByPart.get(p) / maxFat * 100));
+			long rawVol = volumeByPart.get(p);
+			double decayed = rawFatigueByPart.get(p);
+			int pct = rawVol > 0 ? (int) Math.round(decayed / rawVol * 100) : 0;
+			fatiguePct.put(p, pct);
 		}
 		Map<String, String> partNameMap = partList.stream()
 				.collect(Collectors.toMap(TrainingMaster::getPartCode, TrainingMaster::getPartName, (a, b) -> a));
