@@ -5,14 +5,18 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 
+import com.example.traning.filter.JwtAuthenticationFilter;
 import com.example.traning.filter.RateLimitFilter;
 import com.example.traning.mfa.CustomAuthenticationSuccessHandler;
 import com.example.traning.mfa.MfaPendingFilter;
@@ -51,7 +55,38 @@ public class SecurityConfig {
         this.customOAuth2UserService = customOAuth2UserService;
     }
 
+    /**
+     * モバイルAPI用 SecurityFilterChain（優先度1）。
+     * /api/mobile/** のみを対象にJWT認証・ステートレスで処理する。
+     * 既存のWebセッション認証とは完全に独立している。
+     */
     @Bean
+    @Order(1)
+    public SecurityFilterChain mobileSecurityFilterChain(HttpSecurity http,
+            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+
+        http
+            .securityMatcher("/api/mobile/**")
+            .sessionManagement(session -> session
+                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/api/mobile/auth/login", "/api/mobile/auth/refresh")
+                    .permitAll()
+                    .anyRequest().authenticated())
+            .exceptionHandling(ex -> ex
+                    .authenticationEntryPoint((req, res, e) -> {
+                        res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        res.setContentType("application/json;charset=UTF-8");
+                        res.getWriter().write("{\"error\":\"Unauthorized\"}");
+                    }))
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
             org.springframework.security.core.userdetails.UserDetailsService userDetailsService,
             PasswordEncoder passwordEncoder,
@@ -191,6 +226,13 @@ public class SecurityConfig {
                 org.springframework.security.web.csrf.CsrfFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(JwtAuthenticationFilter filter) {
+        FilterRegistrationBean<JwtAuthenticationFilter> reg = new FilterRegistrationBean<>(filter);
+        reg.setEnabled(false);
+        return reg;
     }
 
     @Bean
