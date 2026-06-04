@@ -617,17 +617,24 @@ window.stopInterval = stopInterval;
 let groupingMode = false;
 let groupingSourceId = null;
 
-function startGrouping(btn) {
+function startGrouping(trainingIdOrBtn) {
     if (groupingMode) {
         cancelGrouping();
         return;
     }
-    const card = btn.closest('.training-card');
-    const trainingId = card?.dataset.trainingId;
+    // theme.js から data-value（文字列ID）で呼ばれる場合と、直接ボタン要素で呼ばれる場合の両方に対応
+    let trainingId;
+    if (trainingIdOrBtn && typeof trainingIdOrBtn === 'object' && trainingIdOrBtn.closest) {
+        trainingId = trainingIdOrBtn.closest('.training-card')?.dataset.trainingId;
+    } else {
+        trainingId = String(trainingIdOrBtn);
+    }
     if (!trainingId) return;
 
-    const groupId = card.dataset.supersetGroupId;
-    if (groupId) {
+    const card = document.querySelector(`.training-card[data-training-id="${trainingId}"]`);
+    if (!card) return;
+
+    if (card.dataset.supersetGroupId) {
         alert('この種目はすでにグループ化されています。先に解除してください。');
         return;
     }
@@ -750,7 +757,7 @@ function renderSupersetGroups() {
                 ungroupBtn.type = 'button';
                 ungroupBtn.className = 'btn-ungroup-superset';
                 ungroupBtn.textContent = '解除';
-                ungroupBtn.dataset.supersetGroupId = gid;
+                ungroupBtn.dataset.value = gid;
                 ungroupBtn.setAttribute('data-action', 'ungroupSuperset');
                 titleDiv?.appendChild(ungroupBtn);
             }
@@ -912,36 +919,47 @@ async function loadSupersetPairingDropdown(date) {
     document.getElementById('supersetPairingGroup')?.remove();
 
     if (!date) return;
+    const modalForm = document.querySelector('#trainingModal form');
+    if (!modalForm) return;
+
+    const group = document.createElement('div');
+    group.id = 'supersetPairingGroup';
+    group.className = 'form-group';
+
     try {
         const res = await fetch(`/api/training/superset/candidates?date=${encodeURIComponent(date)}`);
-        if (!res.ok) return;
+        if (!res.ok) throw new Error();
         const candidates = await res.json();
-        if (!candidates || candidates.length === 0) return;
 
-        const modalForm = document.querySelector('#trainingModal form');
-        if (!modalForm) return;
-
-        const group = document.createElement('div');
-        group.id = 'supersetPairingGroup';
-        group.className = 'form-group';
-        group.innerHTML = `
-            <label class="form-label" style="font-weight:600;">スーパーセットにする（任意）</label>
-            <select id="supersetPairingSelect" class="form-select">
-                <option value="">-- スーパーセットにしない --</option>
-                ${candidates.map(c => `<option value="${c.trainingId}">${c.menu}（${c.partName}）</option>`).join('')}
-            </select>
-        `;
-
-        // 保存ボタンの前に挿入
-        const saveBtn = modalForm.querySelector('[data-action="saveRegister"]')?.closest('.flex');
-        if (saveBtn) {
-            saveBtn.before(group);
+        if (!candidates || candidates.length === 0) {
+            group.innerHTML = `
+                <label class="form-label" style="font-weight:600;">スーパーセット</label>
+                <p style="font-size:0.85rem;color:var(--text-muted,#888);margin:0;">
+                    ※ 同日に他の種目を追加すると、スーパーセットに組み合わせられます
+                </p>
+            `;
         } else {
-            modalForm.appendChild(group);
+            group.innerHTML = `
+                <label class="form-label" style="font-weight:600;">スーパーセットにする（任意）</label>
+                <select id="supersetPairingSelect" class="form-select">
+                    <option value="">-- スーパーセットにしない --</option>
+                    ${candidates.map(c => `<option value="${c.trainingId}">${c.menu}（${c.partName}）</option>`).join('')}
+                </select>
+            `;
         }
     } catch (e) {
-        // ドロップダウン取得失敗は無視（任意項目）
+        // API失敗時は何も表示しない
+        return;
     }
+
+    // 保存ボタンの前に挿入
+    const saveBtn = modalForm.querySelector('[data-action="saveRegister"]')?.closest('.flex');
+    if (saveBtn) {
+        saveBtn.before(group);
+    } else {
+        modalForm.appendChild(group);
+    }
+}
 
 function closeModal() {
     const modal = document.getElementById('trainingModal');
@@ -1432,7 +1450,7 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
     }
 }
 
-// バッジタップでセット種別をトグル（全ページ共通）
+// セット種別バッジタップとグループ化対象カードのクリックを処理
 document.addEventListener('click', function(e) {
     // セット種別バッジ
     const badge = e.target.closest('.set-type-badge');
@@ -1442,52 +1460,14 @@ document.addEventListener('click', function(e) {
         return;
     }
 
-    // グループ化ボタン（btn要素自体を渡す）
-    const groupBtn = e.target.closest('[data-action="startGrouping"]');
-    if (groupBtn) {
-        e.preventDefault();
-        startGrouping(groupBtn);
-        return;
-    }
-
-    // グループ解除ボタン
-    const ungroupBtn = e.target.closest('[data-action="ungroupSuperset"]');
-    if (ungroupBtn) {
-        e.preventDefault();
-        ungroupSuperset(ungroupBtn.dataset.supersetGroupId);
-        return;
-    }
-
-    // チェックボタン（要素自体を渡す）
-    const checkBtn = e.target.closest('[data-action="handleCheck"]');
-    if (checkBtn) {
-        e.preventDefault();
-        handleCheck(checkBtn);
-        return;
-    }
-
-    // カード削除ボタン（要素自体を渡す）
-    const deleteCardBtn = e.target.closest('[data-action="deleteTrainingCard"]');
-    if (deleteCardBtn) {
-        e.preventDefault();
-        deleteTrainingCard(deleteCardBtn);
-        return;
-    }
-
-    // セット削除（テーブル行）
-    const removeSetBtn = e.target.closest('[data-action="removeSet"]');
-    if (removeSetBtn) {
-        e.preventDefault();
-        removeSet(removeSetBtn);
-        return;
-    }
-
-    // セット追加
-    const addSetBtn = e.target.closest('[data-action="addSet"]');
-    if (addSetBtn) {
-        e.preventDefault();
-        addSet(addSetBtn);
-        return;
+    // グループ化モード中：対象カードをクリックして applyGrouping
+    if (groupingMode) {
+        const targetCard = e.target.closest('.training-card.grouping-target');
+        if (targetCard) {
+            e.stopPropagation();
+            applyGrouping(targetCard);
+            return;
+        }
     }
 });
 
@@ -1499,16 +1479,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // スーパーセットグループの初期描画
     renderSupersetGroups();
-
-    // グループ化対象カードへのクリック処理（委譲）
-    document.querySelector('.training-container')?.addEventListener('click', function(e) {
-        if (!groupingMode) return;
-        const card = e.target.closest('.training-card.grouping-target');
-        if (card) {
-            e.stopPropagation();
-            applyGrouping(card);
-        }
-    });
 
     const partSelect = document.getElementById('modalPart');
     if (partSelect) {

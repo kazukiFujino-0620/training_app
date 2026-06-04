@@ -37,9 +37,6 @@ public interface TrainingDetailDao {
 	int deleteExpiredPhysically(LocalDateTime cutoff);
 
 	@Select
-	TrainingDetail selectById(Long id);
-
-	@Select
 	List<TrainingDetail> selectByTrainingId(Long trainingId);
 
 	@Select
