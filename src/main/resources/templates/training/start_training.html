@@ -104,6 +104,7 @@
                         <h3 th:text="${item.menu}" style="margin:0;">種目名</h3>
                         <span style="font-size:0.9em; color:var(--text-muted);" th:text="${item.partName}">部位</span>
                         <button type="button" data-action="startGrouping"
+                                th:data-value="${item.id}"
                                 class="btn-superset-group">グループ化</button>
                         <button type="button" data-action="deleteTrainingCard"
                                 class="btn btn-danger btn-sm">
