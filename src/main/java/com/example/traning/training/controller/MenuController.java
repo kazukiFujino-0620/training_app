@@ -183,6 +183,38 @@ public class MenuController {
 			fatigueRows.add(row);
 		}
 
+		// R1: 今月のトレーニング回数
+		int monthlyCount = trainingDao.countByUserIdAndMonth(userId, today.getYear(), today.getMonthValue());
+
+		// R2: 今週（月曜起点）の部位カバレッジ
+		LocalDate weekStart = today.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+		java.util.Set<String> weekPartsDoneSet = new java.util.HashSet<>(
+				trainingDao.selectDistinctPartsByUserIdAndDateRange(userId, weekStart, today));
+		String[][] partDefs = {{"CHEST", "胸"}, {"BACK", "背中"}, {"SHOULDER", "肩"}, {"ARM", "腕"}, {"LEG", "脚"}};
+		List<Map<String, Object>> weekParts = new ArrayList<>();
+		for (String[] pd : partDefs) {
+			Map<String, Object> pi = new java.util.LinkedHashMap<>();
+			pi.put("name", pd[1]);
+			pi.put("done", weekPartsDoneSet.contains(pd[0]));
+			weekParts.add(pi);
+		}
+
+		// R3: 前週比ボリューム
+		LocalDate prevWeekStart = weekStart.minusWeeks(1);
+		LocalDate prevWeekEnd = weekStart.minusDays(1);
+		Double thisWeekVolume = trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, weekStart, today);
+		Double prevWeekVolume = trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, prevWeekStart, prevWeekEnd);
+		String volumeChangeText;
+		boolean volumeChangePositive = true;
+		if (prevWeekVolume == null || prevWeekVolume == 0.0) {
+			volumeChangeText = "前週データなし";
+		} else {
+			double thisVol = thisWeekVolume != null ? thisWeekVolume : 0.0;
+			int pctChange = (int) Math.round((thisVol - prevWeekVolume) / prevWeekVolume * 100);
+			volumeChangePositive = pctChange >= 0;
+			volumeChangeText = pctChange >= 0 ? "+" + pctChange + "%" : pctChange + "%";
+		}
+
 		model.addAttribute("loginUser", userEntity);
 		model.addAttribute("targetMonth", yearMonth);
 		model.addAttribute("dateList", dateList);
@@ -199,6 +231,10 @@ public class MenuController {
 		model.addAttribute("dayStatusList", dayStatusList);
 		model.addAttribute("fatiguePct", fatiguePct);
 		model.addAttribute("fatigueRows", fatigueRows);
+		model.addAttribute("monthlyCount", monthlyCount);
+		model.addAttribute("weekParts", weekParts);
+		model.addAttribute("volumeChangeText", volumeChangeText);
+		model.addAttribute("volumeChangePositive", volumeChangePositive);
 
 		return "menu";
 	}
@@ -462,6 +498,61 @@ public class MenuController {
 		return ResponseEntity.ok()
 				.cacheControl(CacheControl.noStore())
 				.body(response);
+	}
+
+	@PostMapping("/api/training/superset/group")
+	@ResponseBody
+	public ResponseEntity<Map<String, Long>> groupSuperset(
+			@RequestBody Map<String, List<Long>> body, Principal principal) {
+		List<Long> trainingIds = body.get("trainingIds");
+		if (trainingIds == null || trainingIds.size() != 2) {
+			return ResponseEntity.badRequest().build();
+		}
+		try {
+			Long userId = trainingService.getUserIdByEmail(principal.getName());
+			Long groupId = trainingService.groupSuperset(trainingIds, userId);
+			return ResponseEntity.ok(Map.of("supersetGroupId", groupId));
+		} catch (IllegalArgumentException e) {
+			log.warn("スーパーセットグループ化失敗: {}", e.getMessage());
+			return ResponseEntity.badRequest().build();
+		}
+	}
+
+	@PostMapping("/api/training/superset/ungroup")
+	@ResponseBody
+	public ResponseEntity<Void> ungroupSuperset(
+			@RequestBody Map<String, Long> body, Principal principal) {
+		Long supersetGroupId = body.get("supersetGroupId");
+		if (supersetGroupId == null) {
+			return ResponseEntity.badRequest().build();
+		}
+		try {
+			Long userId = trainingService.getUserIdByEmail(principal.getName());
+			trainingService.ungroupSuperset(supersetGroupId, userId);
+			return ResponseEntity.ok().build();
+		} catch (IllegalArgumentException e) {
+			log.warn("スーパーセット解除失敗: {}", e.getMessage());
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+		}
+	}
+
+	@GetMapping("/api/training/superset/candidates")
+	@ResponseBody
+	public ResponseEntity<List<Map<String, Object>>> getSupersetCandidates(
+			@RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate date,
+			Principal principal) {
+		Long userId = trainingService.getUserIdByEmail(principal.getName());
+		List<Training> candidates = trainingService.getCandidatesForSuperset(userId, date);
+		List<Map<String, Object>> result = candidates.stream()
+				.map(t -> {
+					Map<String, Object> m = new java.util.LinkedHashMap<>();
+					m.put("trainingId", t.getId());
+					m.put("menu", t.getMenu());
+					m.put("partName", trainingMasterDao.selectNameByCode(t.getPartCode()));
+					return m;
+				})
+				.collect(Collectors.toList());
+		return ResponseEntity.ok(result);
 	}
 
 	@GetMapping("/api/training-items-grouped")

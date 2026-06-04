@@ -68,6 +68,24 @@ public interface TrainingDao {
 	@Select
 	List<Training> selectRecentSessionsByItem(Long userId, String itemName, LocalDate before, int limit);
 
+	@Select
+	int countByUserIdAndMonth(Long userId, int year, int month);
+
+	@Select
+	List<String> selectDistinctPartsByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate);
+
+	@Select
+	List<Training> selectCandidatesForSuperset(Long userId, LocalDate date);
+
+	@Select
+	List<Training> selectBySupersetGroupId(Long supersetGroupId);
+
+	@Update(sqlFile = true)
+	int updateSupersetGroupIdById(Long id, Long supersetGroupId, LocalDateTime updatedDatetime);
+
+	@Update(sqlFile = true)
+	int clearSupersetGroup(Long supersetGroupId, LocalDateTime updatedDatetime);
+
 	@org.seasar.doma.Entity
 	public static class VolumeResult {
 		@Column(name = "training_date")

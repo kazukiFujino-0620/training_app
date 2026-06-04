@@ -1,5 +1,6 @@
 package com.example.traning.training.dao;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -36,6 +37,9 @@ public interface TrainingDetailDao {
 	int deleteExpiredPhysically(LocalDateTime cutoff);
 
 	@Select
+	TrainingDetail selectById(Long id);
+
+	@Select
 	List<TrainingDetail> selectByTrainingId(Long trainingId);
 
 	@Select
@@ -43,6 +47,9 @@ public interface TrainingDetailDao {
 
 	@Select
 	List<TrainingDetail> selectByUserIdAndDate(Long userId, String date);
+
+	@Select
+	Double selectTotalVolumeByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate);
 
 	@Select
 	List<GrowthResult> selectGrowthByItemAndPeriod(

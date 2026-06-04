@@ -89,17 +89,23 @@
             </div>
         </div>
 
+        <!-- スーパーセット次のセットバナー -->
+        <div id="supersetNextBanner" style="display:none;"></div>
+
         <div class="training-container">
                 <div th:each="item : ${trainingList}" class="training-card"
                      th:data-training-id="${item.id}"
                      th:data-part-code="${item.partCode}"
                      th:data-menu="${item.menu}"
                      th:data-training-date="${item.trainingDate}"
-                     th:data-user-id="${item.userId}">
+                     th:data-user-id="${item.userId}"
+                     th:data-superset-group-id="${item.supersetGroupId != null ? item.supersetGroupId : ''}">
                     <div class="exercise-title">
                         <h3 th:text="${item.menu}" style="margin:0;">種目名</h3>
                         <span style="font-size:0.9em; color:var(--text-muted);" th:text="${item.partName}">部位</span>
-                        <button type="button" data-action="deleteTrainingCard" 
+                        <button type="button" data-action="startGrouping"
+                                class="btn-superset-group">グループ化</button>
+                        <button type="button" data-action="deleteTrainingCard"
                                 class="btn btn-danger btn-sm">
                             ✕
                         </button>
