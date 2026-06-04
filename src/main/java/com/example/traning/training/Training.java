@@ -46,6 +46,9 @@ public class Training {
 	@NotBlank(message = "部位コードは必須です")
 	private String partCode;
 
+	@Column(name = "superset_group_id")
+	private Long supersetGroupId;
+
 	@Column(name = "menu")
 	@NotBlank(message = "メニューは必須です")
 	private String menu;

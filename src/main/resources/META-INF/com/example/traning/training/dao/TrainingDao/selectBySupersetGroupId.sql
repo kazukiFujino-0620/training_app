@@ -13,4 +13,6 @@ SELECT
 FROM
   trainings
 WHERE
-  id = /* id */1
+  superset_group_id = /* supersetGroupId */0
+AND deleted_at IS NULL
+ORDER BY id ASC

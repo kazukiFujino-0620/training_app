@@ -365,6 +365,43 @@ public class TrainingService {
 		return new PreviousTrainingResponse(sessionRecords, prRecord);
 	}
 
+	@Transactional
+	public Long groupSuperset(List<Long> trainingIds, Long userId) {
+		if (trainingIds == null || trainingIds.size() != 2) {
+			throw new IllegalArgumentException("スーパーセットは2種目のみ対応しています");
+		}
+		for (Long id : trainingIds) {
+			Training t = trainingDao.selectById(id);
+			if (t == null || !t.getUserId().equals(userId)) {
+				throw new IllegalArgumentException("このトレーニングを変更する権限がありません");
+			}
+			if (t.getSupersetGroupId() != null) {
+				throw new IllegalArgumentException("すでにグループ化されている種目が含まれています");
+			}
+		}
+		long groupId = System.currentTimeMillis();
+		LocalDateTime now = LocalDateTime.now();
+		for (Long id : trainingIds) {
+			trainingDao.updateSupersetGroupIdById(id, groupId, now);
+		}
+		return groupId;
+	}
+
+	@Transactional
+	public void ungroupSuperset(Long supersetGroupId, Long userId) {
+		List<Training> trainings = trainingDao.selectBySupersetGroupId(supersetGroupId);
+		for (Training t : trainings) {
+			if (!t.getUserId().equals(userId)) {
+				throw new IllegalArgumentException("このトレーニングを変更する権限がありません");
+			}
+		}
+		trainingDao.clearSupersetGroup(supersetGroupId, LocalDateTime.now());
+	}
+
+	public List<Training> getCandidatesForSuperset(Long userId, LocalDate date) {
+		return trainingDao.selectCandidatesForSuperset(userId, date);
+	}
+
 	private List<Double> getSafeVolumeData(Long userId, String partCode, List<String> labels, String startStr,
 			String endStr) {
 		logger.debug("部位別ボリュームデータ取得開始 - ユーザーID: {}, 部位: {}", userId, partCode);
