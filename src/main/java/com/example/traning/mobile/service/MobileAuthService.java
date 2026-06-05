@@ -12,14 +12,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.traning.dao.UserDao;
+import com.example.traning.mfa.MfaService;
+import com.example.traning.mfa.UserMfaSetting;
 import com.example.traning.mobile.dao.MobileRefreshTokenDao;
 import com.example.traning.mobile.dto.LoginRequest;
+import com.example.traning.mobile.dto.MfaVerifyRequest;
 import com.example.traning.mobile.dto.RefreshRequest;
 import com.example.traning.mobile.dto.TokenResponse;
 import com.example.traning.mobile.entity.MobileRefreshToken;
 import com.example.traning.user.User;
+import com.example.traning.user.service.LoginAttemptService;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class MobileAuthService {
 
 	private static final long ACCESS_TOKEN_EXPIRES_IN_SEC = 15 * 60L;
@@ -28,48 +37,85 @@ public class MobileAuthService {
 	private final PasswordEncoder passwordEncoder;
 	private final UserDao userDao;
 	private final MobileRefreshTokenDao refreshTokenDao;
+	private final MfaService mfaService;
+	private final LoginAttemptService loginAttemptService;
 
 	public MobileAuthService(JwtService jwtService,
 			PasswordEncoder passwordEncoder,
 			UserDao userDao,
-			MobileRefreshTokenDao refreshTokenDao) {
+			MobileRefreshTokenDao refreshTokenDao,
+			MfaService mfaService,
+			LoginAttemptService loginAttemptService) {
 		this.jwtService = jwtService;
 		this.passwordEncoder = passwordEncoder;
 		this.userDao = userDao;
 		this.refreshTokenDao = refreshTokenDao;
+		this.mfaService = mfaService;
+		this.loginAttemptService = loginAttemptService;
 	}
 
 	@Transactional
 	public TokenResponse login(LoginRequest req) {
-		User user = userDao.selectByEmail(req.getEmail())
-				.orElseThrow(() -> new IllegalArgumentException("メールアドレスまたはパスワードが正しくありません"));
+		// ブルートフォース対策チェック
+		if (loginAttemptService.isBlocked(req.getEmail())) {
+			throw new IllegalArgumentException("アカウントがロックされています。しばらくしてから再試行してください。");
+		}
 
-		if (user.getPassword() == null
+		User user = userDao.selectByEmail(req.getEmail()).orElse(null);
+		if (user == null || user.getPassword() == null
 				|| !passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+			loginAttemptService.loginFailed(req.getEmail());
 			throw new IllegalArgumentException("メールアドレスまたはパスワードが正しくありません");
 		}
+		loginAttemptService.loginSucceeded(req.getEmail());
+
 		if (Boolean.FALSE.equals(user.getEnabled()) || user.getDeletedAt() != null) {
 			throw new IllegalArgumentException("アカウントが無効です");
 		}
 
 		Long userId = user.getUserId().longValue();
-		String accessToken = jwtService.generateAccessToken(userId, user.getEmail(), user.getRole());
 
-		String rawRefreshToken = UUID.randomUUID().toString();
-		String tokenHash = sha256(rawRefreshToken);
+		// MFAが有効な場合は仮トークンを返す
+		if (mfaService.isEnabled(userId)) {
+			String mfaTempToken = jwtService.generateMfaTempToken(userId, req.getDeviceId());
+			return TokenResponse.mfaPending(mfaTempToken);
+		}
 
-		// 同デバイスの古いトークンを削除してから新規保存
-		refreshTokenDao.deleteByUserIdAndDeviceId(userId, req.getDeviceId());
+		return issueFullTokens(userId, user.getEmail(), user.getRole(), req.getDeviceId());
+	}
 
-		MobileRefreshToken entity = new MobileRefreshToken();
-		entity.setUserId(userId);
-		entity.setTokenHash(tokenHash);
-		entity.setDeviceId(req.getDeviceId());
-		entity.setExpiresAt(LocalDateTime.now()
-				.plusSeconds(jwtService.getRefreshTokenValidityMs() / 1000));
-		refreshTokenDao.insert(entity);
+	@Transactional
+	public TokenResponse verifyMfa(MfaVerifyRequest req) {
+		Claims claims;
+		try {
+			claims = jwtService.parseMfaTempToken(req.getMfaTempToken());
+		} catch (JwtException e) {
+			throw new IllegalArgumentException("MFA仮トークンが無効または期限切れです");
+		}
 
-		return new TokenResponse(accessToken, rawRefreshToken, ACCESS_TOKEN_EXPIRES_IN_SEC);
+		Long userId = Long.parseLong(claims.getSubject());
+		String deviceId = claims.get("deviceId", String.class);
+
+		UserMfaSetting setting = mfaService.getSetting(userId)
+				.orElseThrow(() -> new IllegalArgumentException("MFA設定が見つかりません"));
+
+		boolean valid = false;
+		if (req.getOtp() != null && !req.getOtp().isBlank()) {
+			valid = mfaService.verifyOtp(setting.getSecretKey(), req.getOtp());
+		} else if (req.getBackupCode() != null && !req.getBackupCode().isBlank()) {
+			valid = mfaService.verifyBackupCode(userId, req.getBackupCode());
+		}
+
+		if (!valid) {
+			throw new IllegalArgumentException("認証コードが正しくありません");
+		}
+
+		User user = userDao.selectById(userId.intValue());
+		if (user == null || Boolean.FALSE.equals(user.getEnabled()) || user.getDeletedAt() != null) {
+			throw new IllegalArgumentException("ユーザーが見つかりません");
+		}
+
+		return issueFullTokens(userId, user.getEmail(), user.getRole(), deviceId);
 	}
 
 	@Transactional
@@ -88,29 +134,35 @@ public class MobileAuthService {
 			throw new IllegalArgumentException("ユーザーが見つかりません");
 		}
 
-		// 旧トークンを無効化
+		// 旧トークンを無効化してから新規発行
 		refreshTokenDao.revokeByTokenHash(stored.getTokenHash(), LocalDateTime.now());
 
-		Long userId = user.getUserId().longValue();
-		String accessToken = jwtService.generateAccessToken(userId, user.getEmail(), user.getRole());
-
-		String rawRefreshToken = UUID.randomUUID().toString();
-		String newHash = sha256(rawRefreshToken);
-
-		MobileRefreshToken newEntity = new MobileRefreshToken();
-		newEntity.setUserId(userId);
-		newEntity.setTokenHash(newHash);
-		newEntity.setDeviceId(stored.getDeviceId());
-		newEntity.setExpiresAt(LocalDateTime.now()
-				.plusSeconds(jwtService.getRefreshTokenValidityMs() / 1000));
-		refreshTokenDao.insert(newEntity);
-
-		return new TokenResponse(accessToken, rawRefreshToken, ACCESS_TOKEN_EXPIRES_IN_SEC);
+		return issueFullTokens(stored.getUserId(), user.getEmail(), user.getRole(), stored.getDeviceId());
 	}
 
 	@Transactional
 	public void logout(Long userId, String deviceId) {
 		refreshTokenDao.deleteByUserIdAndDeviceId(userId, deviceId);
+	}
+
+	/** アクセストークン + リフレッシュトークンを発行して TokenResponse を返す */
+	private TokenResponse issueFullTokens(Long userId, String email, String role, String deviceId) {
+		String accessToken = jwtService.generateAccessToken(userId, email, role);
+
+		String rawRefreshToken = UUID.randomUUID().toString();
+		String tokenHash = sha256(rawRefreshToken);
+
+		refreshTokenDao.deleteByUserIdAndDeviceId(userId, deviceId);
+
+		MobileRefreshToken entity = new MobileRefreshToken();
+		entity.setUserId(userId);
+		entity.setTokenHash(tokenHash);
+		entity.setDeviceId(deviceId);
+		entity.setExpiresAt(LocalDateTime.now()
+				.plusSeconds(jwtService.getRefreshTokenValidityMs() / 1000));
+		refreshTokenDao.insert(entity);
+
+		return TokenResponse.full(accessToken, rawRefreshToken, ACCESS_TOKEN_EXPIRES_IN_SEC);
 	}
 
 	/** SHA-256ハッシュ（リフレッシュトークンのインデックス用、BCryptと異なり決定論的） */

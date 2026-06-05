@@ -71,7 +71,10 @@ public class SecurityConfig {
                     .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/mobile/auth/login", "/api/mobile/auth/refresh")
+                    .requestMatchers(
+                            "/api/mobile/auth/login",
+                            "/api/mobile/auth/refresh",
+                            "/api/mobile/auth/mfa/verify")
                     .permitAll()
                     .anyRequest().authenticated())
             .exceptionHandling(ex -> ex
