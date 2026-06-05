@@ -62,6 +62,12 @@ public class MobileAuthService {
 		}
 
 		User user = userDao.selectByEmail(req.getEmail()).orElse(null);
+
+		// OAuthユーザー（Google/LINE）はパスワードログイン不可
+		if (user != null && (user.getGoogleId() != null || user.getLineId() != null)) {
+			throw new com.example.traning.mobile.exception.OAuthOnlyException();
+		}
+
 		if (user == null || user.getPassword() == null
 				|| !passwordEncoder.matches(req.getPassword(), user.getPassword())) {
 			loginAttemptService.loginFailed(req.getEmail());
