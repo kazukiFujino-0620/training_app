@@ -34,8 +34,15 @@ export default function LoginScreen({ navigation }: Props) {
         navigation.replace('App' as any);
       }
     } catch (e: any) {
-      const msg = e.response?.data?.message ?? e.response?.data ?? e.message ?? 'ログインに失敗しました';
-      Alert.alert('ログイン失敗', String(msg));
+      if (e.response?.data?.errorCode === 'OAUTH_ONLY_ACCOUNT') {
+        Alert.alert(
+          'Google/LINEアカウント',
+          'このアカウントはGoogle/LINEでログインしています。\n\nWebサイトの「パスワードをお忘れですか？」からパスワードを設定すると、モバイルアプリにもログインできます。',
+        );
+      } else {
+        const msg = e.response?.data?.error ?? e.message ?? 'ログインに失敗しました';
+        Alert.alert('ログイン失敗', String(msg));
+      }
     } finally {
       setLoading(false);
     }

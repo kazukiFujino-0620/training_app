@@ -9,10 +9,19 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.example.traning.mobile.exception.OAuthOnlyException;
+
 /** /api/mobile/** 向け JSON エラーレスポンス専用ハンドラー（GlobalControllerAdvice より優先） */
 @RestControllerAdvice(basePackages = "com.example.traning.mobile.controller")
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class MobileExceptionHandler {
+
+	@ExceptionHandler(OAuthOnlyException.class)
+	public ResponseEntity<Map<String, String>> handleOAuthOnly(OAuthOnlyException ex) {
+		return ResponseEntity.badRequest().body(Map.of(
+				"error", "Google/LINEアカウントです",
+				"errorCode", "OAUTH_ONLY_ACCOUNT"));
+	}
 
 	@ExceptionHandler(IllegalArgumentException.class)
 	public ResponseEntity<Map<String, String>> handleBadRequest(IllegalArgumentException ex) {
