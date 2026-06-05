@@ -11,4 +11,6 @@ public class UpdateSetRequest {
 
 	@Min(0)
 	private Integer reps;
+
+	private Boolean isCompleted;
 }

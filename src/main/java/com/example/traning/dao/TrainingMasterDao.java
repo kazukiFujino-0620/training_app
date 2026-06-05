@@ -31,4 +31,7 @@ public interface TrainingMasterDao {
 
 	@Select
 	List<TrainingMaster> selectAll();
+
+	@Select
+	List<TrainingItemMaster> selectAllItems();
 }
