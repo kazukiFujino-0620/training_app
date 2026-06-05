@@ -51,6 +51,10 @@ public class AuditLogAspect {
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
             return null;
         }
+        // JWT認証の場合、principal は Long userId（JwtAuthenticationFilter で設定）
+        if (auth.getPrincipal() instanceof Long userId) {
+            return userId;
+        }
         try {
             User user = userService.getUserByEmail(auth.getName());
             return user.getUserId().longValue();
