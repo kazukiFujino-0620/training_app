@@ -39,6 +39,10 @@ tags:
     description: 管理者専用操作
   - name: audit-log
     description: 監査ログ（誰がいつどのデータを操作したかの不変記録）管理者専用
+  - name: withdrawal
+    description: 退会申請フロー（ユーザー申請・管理者承認・データ削除）
+  - name: data-export
+    description: データエクスポート（CSV）— GDPR第20条・個人情報保護法第28条対応
 
 # ──────────────────────────────────────────────────────────────────
 # Paths
@@ -1405,7 +1409,8 @@ paths:
             GOAL_CREATE, GOAL_ACHIEVE, GOAL_DELETE,
             PROFILE_UPDATE,
             MFA_ENABLE, MFA_DISABLE, MFA_BACKUP_REGEN,
-            ADMIN_USER_UPDATE, ADMIN_MFA_RESET
+            ADMIN_USER_UPDATE, ADMIN_MFA_RESET,
+            ADMIN_DATA_EXPORT
           schema:
             type: string
             example: "TRAINING_DELETE"
@@ -1530,6 +1535,262 @@ paths:
           description: 権限なし
         "429":
           $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── 退会申請 ────────────────────────────────────────────────────
+  /user/withdrawal:
+    get:
+      tags: [withdrawal]
+      summary: 退会申請フォーム
+      description: 退会申請フォームを表示する。申請中の場合は現在の申請状態を表示する。
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          description: フォーム画面（Thymeleafレンダリング）
+        "302":
+          description: 未認証 → /login へリダイレクト
+    post:
+      tags: [withdrawal]
+      summary: 退会申請送信
+      description: |
+        退会申請を送信する。送信後、申請受付メールをユーザーへ送信する（GDPR第12条・個人情報保護法第35条）。
+        既に PENDING 申請が存在する場合はエラーを返す。
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                reasonType:
+                  type: string
+                  nullable: true
+                  enum: [NO_LONGER_USED, SWITCHING_SERVICE, OTHER]
+                reasonText:
+                  type: string
+                  nullable: true
+                  maxLength: 500
+                confirmed:
+                  type: boolean
+              required:
+                - confirmed
+      responses:
+        "302":
+          description: 申請完了 → /user/withdrawal へリダイレクト
+        "400":
+          description: 既に申請中、または確認チェック未入力
+        "302 (unauthenticated)":
+          description: 未認証 → /login へリダイレクト
+
+  /user/withdrawal/cancel:
+    post:
+      tags: [withdrawal]
+      summary: 退会申請キャンセル
+      description: PENDING 状態の退会申請をキャンセルする。PENDING 以外の場合はエラー。
+      security:
+        - sessionAuth: []
+      responses:
+        "302":
+          description: キャンセル完了 → /user/withdrawal へリダイレクト
+        "400":
+          description: キャンセル可能な申請がない
+        "302 (unauthenticated)":
+          description: 未認証 → /login へリダイレクト
+
+  /admin/withdrawal:
+    get:
+      tags: [withdrawal, admin]
+      summary: 退会申請一覧（管理者）
+      description: 全ての退会申請（PENDING を優先表示）を一覧取得する。ROLE_ADMIN 必須。
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          $ref: "./schemas/responses/WithdrawalListResponse.yaml"
+        "403":
+          description: 権限なし（ROLE_ADMIN 以外）
+
+  /admin/withdrawal/{id}/approve:
+    post:
+      tags: [withdrawal, admin]
+      summary: 退会申請を承認（データ削除）
+      description: |
+        退会申請を承認し、ユーザーの全データを削除する。処理順序は厳守。
+        1. 退会完了メールをユーザーへ送信（GDPR第12条・個人情報保護法第35条）
+        2. trainings / personal_records / training_goals / mfa データを物理削除
+        3. withdrawal_requests のステータスを APPROVED に更新
+        4. users.deleted_at を設定（論理削除）
+        メール送信失敗時はトランザクションをロールバックする。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 退会申請ID
+      responses:
+        "302":
+          description: 承認完了 → /admin/withdrawal へリダイレクト
+        "400":
+          description: 申請が見つからない、またはメール送信失敗
+        "403":
+          description: 権限なし（ROLE_ADMIN 以外）
+
+  /admin/withdrawal/{id}/reject:
+    post:
+      tags: [withdrawal, admin]
+      summary: 退会申請を拒否
+      description: 退会申請を拒否する。ユーザーのデータは削除されない。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 退会申請ID
+      responses:
+        "302":
+          description: 拒否完了 → /admin/withdrawal へリダイレクト
+        "400":
+          description: 申請が見つからない
+        "403":
+          description: 権限なし（ROLE_ADMIN 以外）
+
+  # ── データエクスポート ──────────────────────────────────────────────
+  /user/export:
+    get:
+      tags: [data-export]
+      summary: データエクスポートフォーム表示
+      description: |
+        CSV エクスポート用の期間入力フォームを表示する。認証必須。
+        設定メニューの「データエクスポート」リンクからアクセスする。
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          description: エクスポートフォーム HTML（開始日・終了日入力、CSVダウンロードボタン）
+        "302":
+          description: 未認証 → /login へリダイレクト
+
+  /user/export/csv:
+    get:
+      tags: [data-export]
+      summary: ユーザー自身のデータをCSVダウンロード
+      description: |
+        指定期間のトレーニング記録・目標設定・プロフィールを1つのCSVファイルとして返す。
+        認証必須。ログインユーザー自身のデータのみアクセス可（IDOR防止）。
+
+        **CSVファイル仕様**:
+        - ファイル名: `training_data_{userId}_{from}_{to}.csv`
+        - エンコーディング: UTF-8 with BOM（Excel 文字化け防止）
+        - セクション構成: プロフィール → トレーニング記録（期間指定） → 目標設定
+
+        **バリデーション**:
+        - from・to ともに必須
+        - from ≦ to であること
+
+        **非機能要件**:
+        - Apache Commons CSV を使用
+        - @Transactional(readOnly = true)
+        - DB 読み取りのみ（書き込みなし）
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          description: エクスポート開始日（例: 2026-01-01）
+          schema:
+            type: string
+            format: date
+            example: "2026-01-01"
+        - name: to
+          in: query
+          required: true
+          description: エクスポート終了日（例: 2026-06-06）
+          schema:
+            type: string
+            format: date
+            example: "2026-06-06"
+      responses:
+        "200":
+          description: CSVファイル（Content-Disposition: attachment）
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: |
+            バリデーションエラー。以下のいずれか:
+            - from または to が未入力
+            - from > to
+          content:
+            text/html:
+              schema:
+                type: string
+        "302":
+          description: 未認証 → /login へリダイレクト
+
+  /admin/user/{id}/export/csv:
+    get:
+      tags: [admin, data-export]
+      summary: 指定ユーザーのデータをCSVダウンロード（管理者専用）
+      description: |
+        管理者が任意ユーザーのデータを CSV でダウンロードする。ROLE_ADMIN 必須。
+        `/admin/user/edit/{id}` 画面のボタンからアクセスする。
+
+        操作は監査ログ（audit_logs）に `action = "ADMIN_DATA_EXPORT"` で記録される。
+
+        **CSVファイル仕様**: ユーザー向けと同仕様（UTF-8 BOM、セクション分け）。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: エクスポート対象ユーザーID
+          schema:
+            type: integer
+            format: int64
+        - name: from
+          in: query
+          required: true
+          description: エクスポート開始日
+          schema:
+            type: string
+            format: date
+            example: "2026-01-01"
+        - name: to
+          in: query
+          required: true
+          description: エクスポート終了日
+          schema:
+            type: string
+            format: date
+            example: "2026-06-06"
+      responses:
+        "200":
+          description: CSVファイル（Content-Disposition: attachment）
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: バリデーションエラー（from > to など）
+        "403":
+          description: 権限なし（ROLE_ADMIN 以外）
+        "404":
+          description: 指定ユーザーが存在しない
 
 # ──────────────────────────────────────────────────────────────────
 # Components（セキュリティスキームのみ。スキーマは schemas/ を参照）
