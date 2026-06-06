@@ -38,6 +38,8 @@ import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.service.CalorieCalculator;
 import com.example.traning.training.service.TrainingService;
 import com.example.traning.user.User;
+import com.example.traning.weekly.WeeklyProgram;
+import com.example.traning.weekly.WeeklyProgramService;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -53,15 +55,20 @@ public class MenuController {
 	private final TrainingMasterDao trainingMasterDao;
 	private final TrainingService trainingService;
 	private final CalorieCalculator calorieCalculator;
+	private final WeeklyProgramService weeklyProgramService;
+
+	private static final Map<String, String> PART_LABEL_MAP = Map.of(
+			"CHEST", "胸", "BACK", "背中", "SHOULDER", "肩", "ARM", "腕", "LEG", "脚");
 
 	public MenuController(TrainingDao trainingDao, TrainingDetailDao trainingDetailDao,
 			TrainingMasterDao trainingMasterDao, TrainingService trainingService,
-			CalorieCalculator calorieCalculator) {
+			CalorieCalculator calorieCalculator, WeeklyProgramService weeklyProgramService) {
 		this.trainingDao = trainingDao;
 		this.trainingDetailDao = trainingDetailDao;
 		this.trainingMasterDao = trainingMasterDao;
 		this.trainingService = trainingService;
 		this.calorieCalculator = calorieCalculator;
+		this.weeklyProgramService = weeklyProgramService;
 	}
 
 	@GetMapping("/menu")
@@ -215,6 +222,10 @@ public class MenuController {
 			volumeChangeText = pctChange >= 0 ? "+" + pctChange + "%" : pctChange + "%";
 		}
 
+		// 週間プログラム: 今日の予定
+		WeeklyProgram todayProgram = weeklyProgramService.getTodayProgram(userId).orElse(null);
+		String todayPartLabel = todayProgram != null ? PART_LABEL_MAP.getOrDefault(todayProgram.getPartCode(), "") : null;
+
 		model.addAttribute("loginUser", userEntity);
 		model.addAttribute("targetMonth", yearMonth);
 		model.addAttribute("dateList", dateList);
@@ -235,6 +246,8 @@ public class MenuController {
 		model.addAttribute("weekParts", weekParts);
 		model.addAttribute("volumeChangeText", volumeChangeText);
 		model.addAttribute("volumeChangePositive", volumeChangePositive);
+		model.addAttribute("todayProgram", todayProgram);
+		model.addAttribute("todayPartLabel", todayPartLabel);
 
 		return "menu";
 	}

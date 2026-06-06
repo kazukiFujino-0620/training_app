@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体重・体組成記録 - トレーニング管理システム</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-secondary">
+    <header th:replace="~{common :: headerFragment}"></header>
+
+    <main class="main-content">
+        <div class="content-wrapper" style="max-width: 800px; margin: 0 auto; padding: 24px 16px;">
+
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-primary">体重・体組成記録</h1>
+                <p class="text-muted mt-2">体重と体脂肪率を記録して推移を確認できます</p>
+            </div>
+
+            <!-- 入力フォーム -->
+            <div class="card mb-6">
+                <div class="card-body">
+                    <h2 class="text-lg font-semibold text-primary mb-4">記録を追加・更新</h2>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label class="form-label" for="measuredDate">日付</label>
+                            <input type="date" id="measuredDate" class="form-control"
+                                   th:attr="max=${#temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}">
+                        </div>
+                        <div>
+                            <label class="form-label" for="weightKg">体重 (kg)</label>
+                            <input type="number" id="weightKg" class="form-control"
+                                   step="0.1" min="20" max="300" placeholder="例: 70.5">
+                        </div>
+                        <div>
+                            <label class="form-label" for="bodyFatPct">体脂肪率 (%) <span class="text-muted text-sm">任意</span></label>
+                            <input type="number" id="bodyFatPct" class="form-control"
+                                   step="0.1" min="0" max="60" placeholder="例: 18.5">
+                        </div>
+                        <div>
+                            <label class="form-label" for="memo">メモ <span class="text-muted text-sm">任意</span></label>
+                            <input type="text" id="memo" class="form-control"
+                                   maxlength="200" placeholder="例: 朝食前">
+                        </div>
+                    </div>
+                    <div id="bodyFormError" class="mt-2" style="color: var(--danger-color); display: none;"></div>
+                    <button type="button" class="btn btn-primary mt-4" onclick="saveBodyData()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        保存
+                    </button>
+                </div>
+            </div>
+
+            <!-- グラフ -->
+            <div class="card mb-6">
+                <div class="card-body">
+                    <h2 class="text-lg font-semibold text-primary mb-4">推移グラフ</h2>
+                    <div style="position: relative; height: 300px;">
+                        <canvas id="bodyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 記録一覧 -->
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="text-lg font-semibold text-primary mb-4">記録一覧</h2>
+                    <div th:if="${#lists.isEmpty(measurements)}" class="text-muted text-center py-8">
+                        記録がありません。上のフォームから記録を追加してください。
+                    </div>
+                    <div th:if="${!#lists.isEmpty(measurements)}" style="overflow-x: auto;">
+                        <table class="table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border-color);">日付</th>
+                                    <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border-color);">体重 (kg)</th>
+                                    <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border-color);">体脂肪率 (%)</th>
+                                    <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border-color);">メモ</th>
+                                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid var(--border-color);">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="m : ${measurements}" style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 0.75rem;" th:text="${m.measuredDate}"></td>
+                                    <td style="padding: 0.75rem; text-align: right; font-weight: 500;" th:text="${m.weightKg}"></td>
+                                    <td style="padding: 0.75rem; text-align: right;" th:text="${m.bodyFatPct != null ? m.bodyFatPct : '-'}"></td>
+                                    <td style="padding: 0.75rem; color: var(--text-muted);" th:text="${m.memo != null ? m.memo : ''}"></td>
+                                    <td style="padding: 0.75rem; text-align: center;">
+                                        <button type="button"
+                                                class="btn btn-sm"
+                                                style="background: var(--danger-color); color: white; border: none; padding: 0.25rem 0.75rem; border-radius: 4px; cursor: pointer;"
+                                                th:attr="onclick='deleteBodyData(' + ${m.id} + ')'">
+                                            削除
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="~{common :: footerFragment}"></footer>
+    <script th:src="@{/js/theme.js}"></script>
+
+    <!-- Thymeleaf inline JS でサーバーサイドのデータを渡す -->
+    <script th:inline="javascript">
+    const BODY_DATA = /*[[${measurements}]]*/ [];
+    </script>
+
+    <script>
+        // 今日の日付をデフォルト値にセット
+        document.getElementById('measuredDate').value = new Date().toISOString().split('T')[0];
+
+        // グラフ描画
+        (function() {
+            const sorted = [...BODY_DATA].reverse();
+            const labels = sorted.map(m => m.measuredDate);
+            const weights = sorted.map(m => m.weightKg);
+            const fats = sorted.map(m => m.bodyFatPct);
+
+            const style = getComputedStyle(document.documentElement);
+            const textColor = style.getPropertyValue('--text-primary') || '#333';
+            const gridColor = style.getPropertyValue('--border-color') || '#e5e7eb';
+
+            const ctx = document.getElementById('bodyChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '体重 (kg)',
+                            data: weights,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            yAxisID: 'y',
+                            tension: 0.3,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: '体脂肪率 (%)',
+                            data: fats,
+                            borderColor: '#f97316',
+                            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                            yAxisID: 'y1',
+                            tension: 0.3,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            spanGaps: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: textColor
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: textColor },
+                            grid: { color: gridColor }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '体重 (kg)',
+                                color: '#2563eb'
+                            },
+                            ticks: { color: '#2563eb' },
+                            grid: { color: gridColor }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: '体脂肪率 (%)',
+                                color: '#f97316'
+                            },
+                            ticks: { color: '#f97316' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+        })();
+
+        // 保存
+        async function saveBodyData() {
+            const errorEl = document.getElementById('bodyFormError');
+            errorEl.style.display = 'none';
+
+            const measuredDate = document.getElementById('measuredDate').value;
+            const weightKgRaw = document.getElementById('weightKg').value;
+            const bodyFatPctRaw = document.getElementById('bodyFatPct').value;
+            const memo = document.getElementById('memo').value;
+
+            if (!measuredDate) {
+                errorEl.textContent = '日付を入力してください';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (!weightKgRaw) {
+                errorEl.textContent = '体重を入力してください';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            const payload = {
+                measuredDate: measuredDate,
+                weightKg: parseFloat(weightKgRaw),
+                bodyFatPct: bodyFatPctRaw !== '' ? parseFloat(bodyFatPctRaw) : null,
+                memo: memo !== '' ? memo : null
+            };
+
+            const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+
+            try {
+                const res = await fetch('/api/body', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        [csrfHeader]: csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const text = await res.text();
+                if (res.ok) {
+                    location.reload();
+                } else {
+                    errorEl.textContent = text;
+                    errorEl.style.display = 'block';
+                }
+            } catch (e) {
+                errorEl.textContent = '通信エラーが発生しました';
+                errorEl.style.display = 'block';
+            }
+        }
+
+        // 削除
+        async function deleteBodyData(id) {
+            if (!confirm('この記録を削除しますか？')) return;
+
+            const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+
+            try {
+                const res = await fetch('/api/body/' + id, {
+                    method: 'DELETE',
+                    headers: {
+                        [csrfHeader]: csrfToken
+                    }
+                });
+                if (res.ok) {
+                    location.reload();
+                } else {
+                    const text = await res.text();
+                    alert('削除に失敗しました: ' + text);
+                }
+            } catch (e) {
+                alert('通信エラーが発生しました');
+            }
+        }
+    </script>
+</body>
+</html>

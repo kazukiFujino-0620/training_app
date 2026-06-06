@@ -130,6 +130,14 @@
               </span>
             </div>
           </div>
+          <div class="stat-card" th:if="${todayProgram != null}">
+            <div class="stat-label">今日の予定</div>
+            <div class="stat-value" th:text="${todayPartLabel}">胸</div>
+            <a th:if="${todayProgram.templateId != null}"
+               th:href="@{/training/template}"
+               class="btn btn-sm btn-outline"
+               style="margin-top:0.25rem; font-size:0.75rem; padding:0.2rem 0.6rem;">適用</a>
+          </div>
         </div>
 
         <!-- Calendar and Summary -->

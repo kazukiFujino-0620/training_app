@@ -12,6 +12,7 @@ import org.apache.commons.csv.CSVPrinter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.traning.body.BodyMeasurement;
 import com.example.traning.goal.GoalDao;
 import com.example.traning.goal.TrainingGoal;
 import com.example.traning.training.Training;
@@ -33,7 +34,7 @@ public class DataExportService {
     private final UserDao userDao;
 
     @Transactional(readOnly = true)
-    public void writeCsv(Long userId, LocalDate from, LocalDate to, OutputStream out) throws IOException {
+    public void writeCsv(Long userId, LocalDate from, LocalDate to, List<BodyMeasurement> measurements, OutputStream out) throws IOException {
         User user = userDao.selectById(userId.intValue());
         List<Training> trainings = trainingDao.selectByDate(userId, from, to);
         List<TrainingGoal> goals = goalDao.selectByUserId(userId);
@@ -50,6 +51,7 @@ public class DataExportService {
             writeProfileSection(printer, user);
             writeTrainingSection(printer, trainings, from, to);
             writeGoalSection(printer, goals);
+            writeBodySection(printer, measurements);
         }
     }
 
@@ -100,6 +102,19 @@ public class DataExportService {
                     g.getTargetDate(),
                     g.getStatus());
         }
+    }
+
+    private void writeBodySection(CSVPrinter printer, List<BodyMeasurement> measurements) throws IOException {
+        printer.printRecord("## 体重記録");
+        printer.printRecord("日付", "体重(kg)", "体脂肪率(%)", "メモ");
+        for (BodyMeasurement m : measurements) {
+            printer.printRecord(
+                m.measuredDate,
+                m.weightKg,
+                m.bodyFatPct != null ? m.bodyFatPct : "",
+                m.memo != null ? m.memo : "");
+        }
+        printer.println();
     }
 
     private String resolvePartLabel(String partCode) {
