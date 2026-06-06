@@ -1707,7 +1707,7 @@ paths:
         - name: from
           in: query
           required: true
-          description: エクスポート開始日（例: 2026-01-01）
+          description: "エクスポート開始日（例: 2026-01-01）"
           schema:
             type: string
             format: date
@@ -1715,14 +1715,14 @@ paths:
         - name: to
           in: query
           required: true
-          description: エクスポート終了日（例: 2026-06-06）
+          description: "エクスポート終了日（例: 2026-06-06）"
           schema:
             type: string
             format: date
             example: "2026-06-06"
       responses:
         "200":
-          description: CSVファイル（Content-Disposition: attachment）
+          description: "CSVファイル（Content-Disposition: attachment）"
           content:
             text/csv:
               schema:
@@ -1779,7 +1779,7 @@ paths:
             example: "2026-06-06"
       responses:
         "200":
-          description: CSVファイル（Content-Disposition: attachment）
+          description: "CSVファイル（Content-Disposition: attachment）"
           content:
             text/csv:
               schema:
