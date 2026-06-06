@@ -1,5 +1,6 @@
 package com.example.traning.user.controller;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.export.DataExportService;
 import com.example.traning.mfa.MfaService;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
@@ -34,6 +36,8 @@ import com.example.traning.training.service.CalorieCalculator;
 import com.example.traning.user.User;
 import com.example.traning.user.form.UserAdminUpdateForm;
 import com.example.traning.user.service.UserService;
+
+import jakarta.servlet.http.HttpServletResponse;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -60,15 +64,17 @@ public class AdminController {
     private final TrainingDetailDao trainingDetailDao;
     private final CalorieCalculator calorieCalculator;
     private final MfaService mfaService;
+    private final DataExportService dataExportService;
 
     public AdminController(UserService userService, TrainingDao trainingDao,
             TrainingDetailDao trainingDetailDao, CalorieCalculator calorieCalculator,
-            MfaService mfaService) {
+            MfaService mfaService, DataExportService dataExportService) {
         this.userService = userService;
         this.trainingDao = trainingDao;
         this.trainingDetailDao = trainingDetailDao;
         this.calorieCalculator = calorieCalculator;
         this.mfaService = mfaService;
+        this.dataExportService = dataExportService;
     }
 
     /**
@@ -304,6 +310,30 @@ public class AdminController {
             log.error("グラフデータ取得エラー: ユーザーID: {}", userId, e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    // ── データエクスポート ─────────────────────────────────────────────────
+
+    @AuditLog(action = "ADMIN_DATA_EXPORT", targetTable = "users")
+    @GetMapping("/user/{id}/export/csv")
+    public void exportUserCsv(
+            @PathVariable("id") Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            HttpServletResponse response) throws IOException {
+
+        userService.getUserById(id.intValue()); // ユーザー存在確認
+
+        if (from.isAfter(to)) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "開始日は終了日以前の日付を指定してください");
+            return;
+        }
+
+        String filename = String.format("training_data_%d_%s_%s.csv", id, from, to);
+        response.setContentType("text/csv; charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+
+        dataExportService.writeCsv(id, from, to, response.getOutputStream());
     }
 
     // ── 2FA管理 ───────────────────────────────────────────────────────────
