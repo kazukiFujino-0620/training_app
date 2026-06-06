@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.traning.audit.AuditLog;
 import com.example.traning.mobile.dto.AddTrainingRequest;
+import com.example.traning.mobile.dto.CompleteTrainingRequest;
 import com.example.traning.mobile.dto.SetUpdateResponse;
 import com.example.traning.mobile.dto.UpdateSetRequest;
 import com.example.traning.pr.PersonalRecord;
@@ -176,23 +177,48 @@ public class MobileTrainingController {
 		return ResponseEntity.ok(new SetUpdateResponse(id, completed, isPR, prMessage));
 	}
 
-	/** トレーニング全体を完了済みにする */
+	/**
+	 * トレーニング全体を完了済みにする。
+	 * durationSec が指定された場合、対象トレーニングと同じ日付・同一ユーザーの
+	 * 全トレーニングの duration カラムに秒数の文字列を保存する。
+	 * これによりモバイル側は再開時に MAX(duration) を読み出して経過時間を復元できる。
+	 */
 	@PostMapping("/complete")
 	@Transactional
 	@AuditLog(action = "MOBILE_TRAINING_COMPLETE", targetTable = "trainings")
 	public ResponseEntity<Void> completeTraining(
 			@AuthenticationPrincipal Long userId,
-			@RequestBody java.util.Map<String, Long> body) {
+			@RequestBody CompleteTrainingRequest body) {
 
-		Long trainingId = body.get("trainingId");
+		Long trainingId = body.getTrainingId();
 		if (trainingId == null) return ResponseEntity.badRequest().build();
 
 		Training training = trainingDao.selectById(trainingId);
 		if (training == null) return ResponseEntity.notFound().build();
 		if (!userId.equals(training.getUserId())) return ResponseEntity.status(403).build();
 
+		LocalDateTime now = LocalDateTime.now();
 		training.setIsAllCompleted(true);
-		training.setUpdatedDatetime(LocalDateTime.now());
+		training.setUpdatedDatetime(now);
+
+		Integer durationSec = body.getDurationSec();
+		if (durationSec != null) {
+			// 当日の自分のトレーニング全件に経過秒数を保存（MAX(duration)で復元できるように）
+			LocalDate targetDate = training.getTrainingDate();
+			String durationStr = String.valueOf(durationSec);
+			List<Training> todays = trainingDao.selectByDate(userId, targetDate, targetDate);
+			for (Training t : todays) {
+				if (trainingId.equals(t.getId())) {
+					// 完了対象は上で更新したインスタンスを使う
+					training.setDuration(durationStr);
+					continue;
+				}
+				t.setDuration(durationStr);
+				t.setUpdatedDatetime(now);
+				trainingDao.update(t);
+			}
+		}
+
 		trainingDao.update(training);
 		return ResponseEntity.noContent().build();
 	}
