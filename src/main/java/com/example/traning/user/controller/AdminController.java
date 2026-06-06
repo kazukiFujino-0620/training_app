@@ -26,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.body.BodyMeasurement;
+import com.example.traning.body.BodyMeasurementService;
 import com.example.traning.export.DataExportService;
 import com.example.traning.mfa.MfaService;
 import com.example.traning.training.Training;
@@ -65,16 +67,19 @@ public class AdminController {
     private final CalorieCalculator calorieCalculator;
     private final MfaService mfaService;
     private final DataExportService dataExportService;
+    private final BodyMeasurementService bodyMeasurementService;
 
     public AdminController(UserService userService, TrainingDao trainingDao,
             TrainingDetailDao trainingDetailDao, CalorieCalculator calorieCalculator,
-            MfaService mfaService, DataExportService dataExportService) {
+            MfaService mfaService, DataExportService dataExportService,
+            BodyMeasurementService bodyMeasurementService) {
         this.userService = userService;
         this.trainingDao = trainingDao;
         this.trainingDetailDao = trainingDetailDao;
         this.calorieCalculator = calorieCalculator;
         this.mfaService = mfaService;
         this.dataExportService = dataExportService;
+        this.bodyMeasurementService = bodyMeasurementService;
     }
 
     /**
@@ -333,7 +338,8 @@ public class AdminController {
         response.setContentType("text/csv; charset=UTF-8");
         response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
 
-        dataExportService.writeCsv(id, from, to, response.getOutputStream());
+        List<BodyMeasurement> measurements = bodyMeasurementService.getForDateRange(id, from, to);
+        dataExportService.writeCsv(id, from, to, measurements, response.getOutputStream());
     }
 
     // ── 2FA管理 ───────────────────────────────────────────────────────────

@@ -49,4 +49,7 @@ public interface UserDao {
 
 	@Update(sqlFile = true)
 	Result<User> updateProfile(User user);
+
+	@Update(sqlFile = true)
+	int updateEmail(Long userId, String newEmail);
 }

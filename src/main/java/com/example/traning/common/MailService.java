@@ -92,6 +92,24 @@ public class MailService {
         mailSender.send(message);
     }
 
+    public void sendEmailChangeMail(String newEmail, String token) {
+        String sanitizedTo = sanitizeHeader(newEmail);
+        String sanitizedToken = sanitizeHeader(token);
+
+        String link = baseUrl + "/user/email/confirm?token=" + sanitizedToken;
+        String body = "メールアドレス変更のご確認\n\n"
+                + "以下のリンクをクリックして変更を確定してください（24時間有効）:\n"
+                + link + "\n\n"
+                + "このメールに心当たりがない場合は無視してください。\n\n"
+                + "【TraningApp】";
+
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setTo(sanitizedTo);
+        msg.setSubject("【TraningApp】メールアドレス変更の確認");
+        msg.setText(body);
+        mailSender.send(msg);
+    }
+
     /** ヘッダーインジェクションに使われる CR・LF・NUL を除去する */
     private static String sanitizeHeader(String value) {
         if (value == null) {
