@@ -49,6 +49,8 @@ tags:
     description: 体重・体組成記録（日別手入力・時系列グラフ）
   - name: email-change
     description: メールアドレス変更（トークンベース2ステップ確認フロー・パスワードログインユーザーのみ）
+  - name: summary-report
+    description: 週次・月次サマリーレポート（バッチによる自動メール送信 + 任意の画面閲覧）
 
 # ──────────────────────────────────────────────────────────────────
 # Paths
@@ -2054,6 +2056,57 @@ paths:
         "200":
           description: トークン無効・期限切れ・メール重複 → エラーメッセージ付きページ表示
         "302 (unauthenticated)":
+          description: 未認証 → /login へリダイレクト
+
+  # ── 週次・月次サマリーレポート ──────────────────────────────────────
+  /user/summary:
+    get:
+      tags: [summary-report]
+      summary: サマリーレポート閲覧（任意実装）
+      description: |
+        週次または月次のトレーニングサマリーをブラウザで閲覧する画面。
+        メールバッチ（WeeklySummaryTask / MonthlySummaryTask）の閲覧UI版。
+
+        **クエリパラメータ**:
+        - `type`: `weekly`（先週）または `monthly`（先月）
+        - `offset`: 遡る週数/月数（0=直近、1=その前、最大11）
+
+        **表示内容**:
+        - トレーニング回数
+        - 総ボリューム（kg）
+        - 前週/前月比変化率（%）
+        - 実施部位一覧（週次）または部位別セッション数（月次）
+        - 目標達成状況（月次のみ）
+
+        > **注意**: R3（画面閲覧）は任意実装。バッチメール（R1/R2）が主機能。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          description: "`weekly`（週次）または `monthly`（月次）。デフォルト: `weekly`"
+          schema:
+            type: string
+            enum: [weekly, monthly]
+            default: weekly
+        - name: offset
+          in: query
+          required: false
+          description: "遡る週数/月数。0=直近、最大11。デフォルト: 0"
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 11
+            default: 0
+      responses:
+        "200":
+          description: サマリーレポート HTML
+          content:
+            text/html:
+              schema:
+                type: string
+        "302":
           description: 未認証 → /login へリダイレクト
 
 # ──────────────────────────────────────────────────────────────────
