@@ -1,6 +1,7 @@
 package com.example.traning.training.dao;
 
 import com.example.traning.training.TrainingDetail;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,6 +49,10 @@ public interface TrainingDetailDao {
 
   @Select
   Double selectTotalVolumeByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate);
+
+  @Select
+  BigDecimal selectMaxWeightByUserIdAndItemAndDateRange(
+      Long userId, String itemName, LocalDate startDate, LocalDate endDate);
 
   @Select
   List<GrowthResult> selectGrowthByItemAndPeriod(
