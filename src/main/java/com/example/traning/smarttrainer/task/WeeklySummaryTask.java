@@ -41,8 +41,7 @@ public class WeeklySummaryTask {
       try {
         Long userId = user.getUserId().longValue();
 
-        int sessionCount =
-            trainingDao.countByUserIdAndDateRange(userId, weekStart, weekEnd);
+        int sessionCount = trainingDao.countByUserIdAndDateRange(userId, weekStart, weekEnd);
         Double volume =
             trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, weekStart, weekEnd);
         Double prevVolume =

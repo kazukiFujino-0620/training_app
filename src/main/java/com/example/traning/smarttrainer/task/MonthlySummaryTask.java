@@ -50,8 +50,7 @@ public class MonthlySummaryTask {
       try {
         Long userId = user.getUserId().longValue();
 
-        int sessionCount =
-            trainingDao.countByUserIdAndDateRange(userId, monthStart, monthEnd);
+        int sessionCount = trainingDao.countByUserIdAndDateRange(userId, monthStart, monthEnd);
         Double volume =
             trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, monthStart, monthEnd);
         Double prevVolume =
@@ -61,14 +60,11 @@ public class MonthlySummaryTask {
         List<TrainingDao.PartSessionCount> partCounts =
             trainingDao.countSessionsByPartAndDateRange(userId, monthStart, monthEnd);
         Map<String, Integer> partMap =
-            partCounts.stream()
-                .collect(Collectors.toMap(p -> p.partCode, p -> p.sessionCount));
+            partCounts.stream().collect(Collectors.toMap(p -> p.partCode, p -> p.sessionCount));
 
         List<TrainingGoal> goals = goalDao.selectByUserId(userId);
         List<GoalAchievementResult> goalResults =
-            goals.stream()
-                .map(g -> checkGoalAchievement(g, userId, monthStart, monthEnd))
-                .toList();
+            goals.stream().map(g -> checkGoalAchievement(g, userId, monthStart, monthEnd)).toList();
 
         summaryMailService.sendMonthlySummary(
             user.email,
@@ -101,10 +97,10 @@ public class MonthlySummaryTask {
         trainingDetailDao.selectMaxWeightByUserIdAndItemAndDateRange(
             userId, goal.getItemName(), start, end);
 
-    boolean achieved =
-        maxWeight != null && maxWeight.compareTo(goal.getTargetWeight()) >= 0;
+    boolean achieved = maxWeight != null && maxWeight.compareTo(goal.getTargetWeight()) >= 0;
 
-    return new GoalAchievementResult(goal.getItemName(), goal.getTargetWeight(), maxWeight, achieved);
+    return new GoalAchievementResult(
+        goal.getItemName(), goal.getTargetWeight(), maxWeight, achieved);
   }
 
   private Double calcChangePercent(Double current, Double prev) {
