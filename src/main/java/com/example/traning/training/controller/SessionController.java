@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/session")
 public class SessionController {
 
-    @GetMapping("/ping")
-    public ResponseEntity<Map<String, String>> ping() {
-        return ResponseEntity.ok(Map.of("status", "ok"));
-    }
+  @GetMapping("/ping")
+  public ResponseEntity<Map<String, String>> ping() {
+    return ResponseEntity.ok(Map.of("status", "ok"));
+  }
 }

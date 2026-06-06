@@ -1,5 +1,16 @@
 package com.example.traning.training.service;
 
+import com.example.traning.dao.TrainingMasterDao;
+import com.example.traning.pr.PersonalRecord;
+import com.example.traning.pr.service.PersonalRecordService;
+import com.example.traning.training.Training;
+import com.example.traning.training.TrainingDetail;
+import com.example.traning.training.dao.TrainingDao;
+import com.example.traning.training.dao.TrainingDetailDao;
+import com.example.traning.training.dto.PreviousTrainingResponse;
+import com.example.traning.training.dto.SessionRecord;
+import com.example.traning.training.dto.SetRecord;
+import com.example.traning.user.User;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -9,422 +20,426 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import com.example.traning.pr.PersonalRecord;
-import com.example.traning.training.dto.PreviousTrainingResponse;
-import com.example.traning.training.dto.SessionRecord;
-import com.example.traning.training.dto.SetRecord;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.traning.dao.TrainingMasterDao;
-import com.example.traning.pr.service.PersonalRecordService;
-import com.example.traning.training.Training;
-import com.example.traning.training.TrainingDetail;
-import com.example.traning.training.dao.TrainingDao;
-import com.example.traning.training.dao.TrainingDetailDao;
-import com.example.traning.user.User;
-
 @Service
 public class TrainingService {
-	private static final Logger logger = LoggerFactory.getLogger(TrainingService.class);
+  private static final Logger logger = LoggerFactory.getLogger(TrainingService.class);
 
-	private final TrainingServiceTransaction transaction;
-	private final TrainingDao trainingDao;
-	private final TrainingDetailDao trainingDetailDao;
-	private final TrainingMasterDao trainingMasterDao;
-	private final PersonalRecordService personalRecordService;
+  private final TrainingServiceTransaction transaction;
+  private final TrainingDao trainingDao;
+  private final TrainingDetailDao trainingDetailDao;
+  private final TrainingMasterDao trainingMasterDao;
+  private final PersonalRecordService personalRecordService;
 
-	public TrainingService(TrainingServiceTransaction transaction, TrainingDao trainingDao,
-			TrainingDetailDao trainingDetailDao, TrainingMasterDao trainingMasterDao,
-			PersonalRecordService personalRecordService) {
-		this.transaction = transaction;
-		this.trainingDao = trainingDao;
-		this.trainingDetailDao = trainingDetailDao;
-		this.trainingMasterDao = trainingMasterDao;
-		this.personalRecordService = personalRecordService;
-	}
+  public TrainingService(
+      TrainingServiceTransaction transaction,
+      TrainingDao trainingDao,
+      TrainingDetailDao trainingDetailDao,
+      TrainingMasterDao trainingMasterDao,
+      PersonalRecordService personalRecordService) {
+    this.transaction = transaction;
+    this.trainingDao = trainingDao;
+    this.trainingDetailDao = trainingDetailDao;
+    this.trainingMasterDao = trainingMasterDao;
+    this.personalRecordService = personalRecordService;
+  }
 
-	public void save(Training training, Principal principal) {
-		logger.info("トレーニングデータ保存開始 - ユーザー: {}", principal != null ? principal.getName() : "unknown");
+  public void save(Training training, Principal principal) {
+    logger.info("トレーニングデータ保存開始 - ユーザー: {}", principal != null ? principal.getName() : "unknown");
 
-		try {
-			if (training.getMenu() == null || training.getMenu().isEmpty()) {
-				logger.error("トレーニング保存失敗: 種目が未選択");
-				throw new IllegalArgumentException("種目を選択してください");
-			}
-			if (training.getDetails() == null || training.getDetails().isEmpty()) {
-				logger.error("トレーニング保存失敗: セット内容が未入力");
-				throw new IllegalArgumentException("セット内容を入力してください");
-			}
+    try {
+      if (training.getMenu() == null || training.getMenu().isEmpty()) {
+        logger.error("トレーニング保存失敗: 種目が未選択");
+        throw new IllegalArgumentException("種目を選択してください");
+      }
+      if (training.getDetails() == null || training.getDetails().isEmpty()) {
+        logger.error("トレーニング保存失敗: セット内容が未入力");
+        throw new IllegalArgumentException("セット内容を入力してください");
+      }
 
-			transaction.execute(training, principal);
-			logger.info("トレーニングデータ保存完了 - ID: {}", training.getId());
+      transaction.execute(training, principal);
+      logger.info("トレーニングデータ保存完了 - ID: {}", training.getId());
 
-			// PR更新（トランザクション外・失敗してもメイン保存に影響しない）
-			// WARMUP / DROP は PR 計算から除外（MAIN のみ対象）
-			for (TrainingDetail detail : training.getDetails()) {
-				String st = detail.getSetType();
-				if ("WARMUP".equals(st) || "DROP".equals(st)) continue;
-				personalRecordService.updateIfBetter(
-					training.getUserId(),
-					training.getMenu(),
-					detail.getWeight(),
-					detail.getReps(),
-					training.getTrainingDate()
-				);
-			}
-		} catch (Exception e) {
-			logger.error("トレーニングデータ保存中にエラー発生", e);
-			throw e;
-		}
-	}
+      // PR更新（トランザクション外・失敗してもメイン保存に影響しない）
+      // WARMUP / DROP は PR 計算から除外（MAIN のみ対象）
+      for (TrainingDetail detail : training.getDetails()) {
+        String st = detail.getSetType();
+        if ("WARMUP".equals(st) || "DROP".equals(st)) continue;
+        personalRecordService.updateIfBetter(
+            training.getUserId(),
+            training.getMenu(),
+            detail.getWeight(),
+            detail.getReps(),
+            training.getTrainingDate());
+      }
+    } catch (Exception e) {
+      logger.error("トレーニングデータ保存中にエラー発生", e);
+      throw e;
+    }
+  }
 
-	public Training getTrainingById(Long id) {
-		logger.debug("トレーニングデータ取得開始 - ID: {}", id);
+  public Training getTrainingById(Long id) {
+    logger.debug("トレーニングデータ取得開始 - ID: {}", id);
 
-		try {
-			Training training = trainingDao.selectById(id);
-			if (training != null) {
-				logger.debug("トレーニングデータ取得成功 - ID: {}", id);
-			} else {
-				logger.warn("トレーニングデータが見つかりません - ID: {}", id);
-			}
-			return training;
-		} catch (Exception e) {
-			logger.error("トレーニングデータ取得中にエラー発生 - ID: {}", id, e);
-			throw e;
-		}
-	}
+    try {
+      Training training = trainingDao.selectById(id);
+      if (training != null) {
+        logger.debug("トレーニングデータ取得成功 - ID: {}", id);
+      } else {
+        logger.warn("トレーニングデータが見つかりません - ID: {}", id);
+      }
+      return training;
+    } catch (Exception e) {
+      logger.error("トレーニングデータ取得中にエラー発生 - ID: {}", id, e);
+      throw e;
+    }
+  }
 
-	@Transactional
-	public void deleteTraining(Long id) {
-		logger.info("トレーニングデータ論理削除開始 - ID: {}", id);
+  @Transactional
+  public void deleteTraining(Long id) {
+    logger.info("トレーニングデータ論理削除開始 - ID: {}", id);
 
-		try {
-			trainingDetailDao.softDeleteByTrainingId(id);
-			logger.debug("トレーニング詳細データ論理削除完了 - ID: {}", id);
+    try {
+      trainingDetailDao.softDeleteByTrainingId(id);
+      logger.debug("トレーニング詳細データ論理削除完了 - ID: {}", id);
 
-			trainingDao.softDeleteById(id);
-			logger.info("トレーニングデータ論理削除完了 - ID: {}", id);
-		} catch (Exception e) {
-			logger.error("トレーニングデータ論理削除中にエラー発生 - ID: {}", id, e);
-			throw e;
-		}
-	}
+      trainingDao.softDeleteById(id);
+      logger.info("トレーニングデータ論理削除完了 - ID: {}", id);
+    } catch (Exception e) {
+      logger.error("トレーニングデータ論理削除中にエラー発生 - ID: {}", id, e);
+      throw e;
+    }
+  }
 
-	public List<Training> getFullTrainingData(Long userId, LocalDate date) {
-		logger.debug("フルトレーニングデータ取得開始 - ユーザーID: {}, 日付: {}", userId, date);
+  public List<Training> getFullTrainingData(Long userId, LocalDate date) {
+    logger.debug("フルトレーニングデータ取得開始 - ユーザーID: {}, 日付: {}", userId, date);
 
-		try {
-			List<Training> trainingList = trainingDao.selectByDate(userId, date, date);
-			logger.debug("トレーニングリスト取得完了 - 件数: {}", trainingList.size());
+    try {
+      List<Training> trainingList = trainingDao.selectByDate(userId, date, date);
+      logger.debug("トレーニングリスト取得完了 - 件数: {}", trainingList.size());
 
-			for (Training t : trainingList) {
-				t.setDetails(trainingDetailDao.selectByTrainingId(t.getId()));
-				t.setPartName(trainingMasterDao.selectNameByCode(t.getPartCode()));
-			}
+      for (Training t : trainingList) {
+        t.setDetails(trainingDetailDao.selectByTrainingId(t.getId()));
+        t.setPartName(trainingMasterDao.selectNameByCode(t.getPartCode()));
+      }
 
-			logger.debug("フルトレーニングデータ取得完了 - ユーザーID: {}, 日付: {}", userId, date);
-			return trainingList;
-		} catch (Exception e) {
-			logger.error("フルトレーニングデータ取得中にエラー発生 - ユーザーID: {}, 日付: {}", userId, date, e);
-			throw e;
-		}
-	}
+      logger.debug("フルトレーニングデータ取得完了 - ユーザーID: {}, 日付: {}", userId, date);
+      return trainingList;
+    } catch (Exception e) {
+      logger.error("フルトレーニングデータ取得中にエラー発生 - ユーザーID: {}, 日付: {}", userId, date, e);
+      throw e;
+    }
+  }
 
-	@Transactional
-	public void saveAll(List<Training> trainingList) {
-		logger.info("一括トレーニングデータ保存開始 - 件数: {}", trainingList.size());
+  @Transactional
+  public void saveAll(List<Training> trainingList) {
+    logger.info("一括トレーニングデータ保存開始 - 件数: {}", trainingList.size());
 
-		try {
-			for (Training training : trainingList) {
-				Training currentDbData = trainingDao.selectById(training.getId());
+    try {
+      for (Training training : trainingList) {
+        Training currentDbData = trainingDao.selectById(training.getId());
 
-				if (currentDbData != null) {
-					currentDbData.setMemo(training.getMemo());
-					currentDbData.setUpdatedDatetime(LocalDateTime.now());
-					currentDbData.setDuration(training.getDuration());
+        if (currentDbData != null) {
+          currentDbData.setMemo(training.getMemo());
+          currentDbData.setUpdatedDatetime(LocalDateTime.now());
+          currentDbData.setDuration(training.getDuration());
 
-					if (training.getDetails() != null && !training.getDetails().isEmpty()) {
-						boolean allDone = training.getDetails().stream().allMatch(detail -> detail.getIsCompleted());
-						currentDbData.setIsAllCompleted(allDone);
-					} else {
-						currentDbData.setIsAllCompleted(false);
-					}
+          if (training.getDetails() != null && !training.getDetails().isEmpty()) {
+            boolean allDone =
+                training.getDetails().stream().allMatch(detail -> detail.getIsCompleted());
+            currentDbData.setIsAllCompleted(allDone);
+          } else {
+            currentDbData.setIsAllCompleted(false);
+          }
 
-					trainingDao.update(currentDbData);
-					logger.debug("トレーニングデータ更新完了 - ID: {}", training.getId());
-				}
+          trainingDao.update(currentDbData);
+          logger.debug("トレーニングデータ更新完了 - ID: {}", training.getId());
+        }
 
-				// Delete existing details and insert new ones in batch for better performance
-				trainingDetailDao.deleteByTrainingId(training.getId());
-				if (training.getDetails() != null && !training.getDetails().isEmpty()) {
-					// Prepare details for batch insert
-					List<TrainingDetail> detailsToInsert = new ArrayList<>();
-					for (TrainingDetail detail : training.getDetails()) {
-						detail.setTrainingId(training.getId());
-						detail.setIsCompleted(detail.getIsCompleted());
-						detailsToInsert.add(detail);
-					}
-					// Batch insert for better performance
-					for (TrainingDetail detail : detailsToInsert) {
-						trainingDetailDao.insert(detail);
-					}
-					logger.debug("トレーニング詳細データ一括挿入完了 - トレーニングID: {}, 詳細件数: {}",
-							training.getId(), detailsToInsert.size());
-				}
-			}
+        // Delete existing details and insert new ones in batch for better performance
+        trainingDetailDao.deleteByTrainingId(training.getId());
+        if (training.getDetails() != null && !training.getDetails().isEmpty()) {
+          // Prepare details for batch insert
+          List<TrainingDetail> detailsToInsert = new ArrayList<>();
+          for (TrainingDetail detail : training.getDetails()) {
+            detail.setTrainingId(training.getId());
+            detail.setIsCompleted(detail.getIsCompleted());
+            detailsToInsert.add(detail);
+          }
+          // Batch insert for better performance
+          for (TrainingDetail detail : detailsToInsert) {
+            trainingDetailDao.insert(detail);
+          }
+          logger.debug(
+              "トレーニング詳細データ一括挿入完了 - トレーニングID: {}, 詳細件数: {}",
+              training.getId(),
+              detailsToInsert.size());
+        }
+      }
 
-			logger.info("一括トレーニングデータ保存完了 - 件数: {}", trainingList.size());
-		} catch (Exception e) {
-			logger.error("一括トレーニングデータ保存中にエラー発生 - 件数: {}", trainingList.size(), e);
-			throw e;
-		}
-	}
+      logger.info("一括トレーニングデータ保存完了 - 件数: {}", trainingList.size());
+    } catch (Exception e) {
+      logger.error("一括トレーニングデータ保存中にエラー発生 - 件数: {}", trainingList.size(), e);
+      throw e;
+    }
+  }
 
-	public Long getUserIdByName(String username) {
-		logger.debug("ユーザーID取得開始 - ユーザー名: {}", username);
+  public Long getUserIdByName(String username) {
+    logger.debug("ユーザーID取得開始 - ユーザー名: {}", username);
 
-		try {
-			Long userId = trainingDao.selectIdByUsername(username);
-			if (userId == null) {
-				logger.warn("ユーザーが見つかりません - ユーザー名: {}", username);
-				throw new org.springframework.security.core.userdetails.UsernameNotFoundException(
-						"ユーザーが見つかりません: " + username);
-			}
-			logger.debug("ユーザーID取得完了 - ユーザー名: {}, ID: {}", username, userId);
-			return userId;
-		} catch (Exception e) {
-			logger.error("ユーザーID取得中にエラー発生 - ユーザー名: {}", username, e);
-			throw e;
-		}
-	}
+    try {
+      Long userId = trainingDao.selectIdByUsername(username);
+      if (userId == null) {
+        logger.warn("ユーザーが見つかりません - ユーザー名: {}", username);
+        throw new org.springframework.security.core.userdetails.UsernameNotFoundException(
+            "ユーザーが見つかりません: " + username);
+      }
+      logger.debug("ユーザーID取得完了 - ユーザー名: {}, ID: {}", username, userId);
+      return userId;
+    } catch (Exception e) {
+      logger.error("ユーザーID取得中にエラー発生 - ユーザー名: {}", username, e);
+      throw e;
+    }
+  }
 
-	public Long getUserIdByEmail(String email) {
-		logger.debug("ユーザーID取得開始（メール）");
+  public Long getUserIdByEmail(String email) {
+    logger.debug("ユーザーID取得開始（メール）");
 
-		try {
-			Long userId = trainingDao.selectIdByEmail(email);
-			if (userId == null) {
-				logger.warn("ユーザーが見つかりません - メール: [PROTECTED]");
-				throw new org.springframework.security.core.userdetails.UsernameNotFoundException(
-						"ユーザーが見つかりません");
-			}
-			logger.debug("ユーザーID取得完了（メール） - ID: {}", userId);
-			return userId;
-		} catch (Exception e) {
-			logger.error("ユーザーID取得中にエラー発生（メール）", e);
-			throw e;
-		}
-	}
+    try {
+      Long userId = trainingDao.selectIdByEmail(email);
+      if (userId == null) {
+        logger.warn("ユーザーが見つかりません - メール: [PROTECTED]");
+        throw new org.springframework.security.core.userdetails.UsernameNotFoundException(
+            "ユーザーが見つかりません");
+      }
+      logger.debug("ユーザーID取得完了（メール） - ID: {}", userId);
+      return userId;
+    } catch (Exception e) {
+      logger.error("ユーザーID取得中にエラー発生（メール）", e);
+      throw e;
+    }
+  }
 
-	public List<TrainingDetail> findByDate(String date) {
-		logger.debug("日付別トレーニング詳細取得開始 - 日付: {}", date);
+  public List<TrainingDetail> findByDate(String date) {
+    logger.debug("日付別トレーニング詳細取得開始 - 日付: {}", date);
 
-		try {
-			List<TrainingDetail> details = trainingDetailDao.selectByDate(date);
-			logger.debug("日付別トレーニング詳細取得完了 - 日付: {}, 件数: {}", date, details.size());
-			return details;
-		} catch (Exception e) {
-			logger.error("日付別トレーニング詳細取得中にエラー発生 - 日付: {}", date, e);
-			throw e;
-		}
-	}
+    try {
+      List<TrainingDetail> details = trainingDetailDao.selectByDate(date);
+      logger.debug("日付別トレーニング詳細取得完了 - 日付: {}, 件数: {}", date, details.size());
+      return details;
+    } catch (Exception e) {
+      logger.error("日付別トレーニング詳細取得中にエラー発生 - 日付: {}", date, e);
+      throw e;
+    }
+  }
 
-	public List<TrainingDetail> findByUserIdAndDate(Long userId, String date) {
-		logger.debug("ユーザーID・日付別トレーニング詳細取得開始 - ユーザーID: {}, 日付: {}", userId, date);
+  public List<TrainingDetail> findByUserIdAndDate(Long userId, String date) {
+    logger.debug("ユーザーID・日付別トレーニング詳細取得開始 - ユーザーID: {}, 日付: {}", userId, date);
 
-		try {
-			List<TrainingDetail> details = trainingDetailDao.selectByUserIdAndDate(userId, date);
-			logger.debug("ユーザーID・日付別トレーニング詳細取得完了 - ユーザーID: {}, 日付: {}, 件数: {}", userId, date, details.size());
-			return details;
-		} catch (Exception e) {
-			logger.error("ユーザーID・日付別トレーニング詳細取得中にエラー発生 - ユーザーID: {}, 日付: {}", userId, date, e);
-			throw e;
-		}
-	}
+    try {
+      List<TrainingDetail> details = trainingDetailDao.selectByUserIdAndDate(userId, date);
+      logger.debug(
+          "ユーザーID・日付別トレーニング詳細取得完了 - ユーザーID: {}, 日付: {}, 件数: {}", userId, date, details.size());
+      return details;
+    } catch (Exception e) {
+      logger.error("ユーザーID・日付別トレーニング詳細取得中にエラー発生 - ユーザーID: {}, 日付: {}", userId, date, e);
+      throw e;
+    }
+  }
 
-	public User getUserByName(String userName) {
-		logger.debug("ユーザー情報取得開始 - ユーザー名: {}", userName);
+  public User getUserByName(String userName) {
+    logger.debug("ユーザー情報取得開始 - ユーザー名: {}", userName);
 
-		try {
-			User user = trainingDao.selectByUserName(userName);
-			if (user != null) {
-				logger.debug("ユーザー情報取得完了 - ユーザー名: {}, ユーザーID: {}", userName, user.getUserId());
-			} else {
-				logger.warn("ユーザー情報が見つかりません - ユーザー名: {}", userName);
-			}
-			return user;
-		} catch (Exception e) {
-			logger.error("ユーザー情報取得中にエラー発生 - ユーザー名: {}", userName, e);
-			throw e;
-		}
-	}
+    try {
+      User user = trainingDao.selectByUserName(userName);
+      if (user != null) {
+        logger.debug("ユーザー情報取得完了 - ユーザー名: {}, ユーザーID: {}", userName, user.getUserId());
+      } else {
+        logger.warn("ユーザー情報が見つかりません - ユーザー名: {}", userName);
+      }
+      return user;
+    } catch (Exception e) {
+      logger.error("ユーザー情報取得中にエラー発生 - ユーザー名: {}", userName, e);
+      throw e;
+    }
+  }
 
-	public User getUserByEmail(String email) {
-		logger.debug("ユーザー情報取得開始（メール） - メール: {}", email);
+  public User getUserByEmail(String email) {
+    logger.debug("ユーザー情報取得開始（メール） - メール: {}", email);
 
-		try {
-			User user = trainingDao.selectByEmail(email);
-			if (user != null) {
-				logger.debug("ユーザー情報取得完了（メール） - メール: {}, ユーザーID: {}", email, user.getUserId());
-			} else {
-				logger.warn("ユーザー情報が見つかりません（メール） - メール: {}", email);
-			}
-			return user;
-		} catch (Exception e) {
-			logger.error("ユーザー情報取得中にエラー発生（メール） - メール: {}", email, e);
-			throw e;
-		}
-	}
+    try {
+      User user = trainingDao.selectByEmail(email);
+      if (user != null) {
+        logger.debug("ユーザー情報取得完了（メール） - メール: {}, ユーザーID: {}", email, user.getUserId());
+      } else {
+        logger.warn("ユーザー情報が見つかりません（メール） - メール: {}", email);
+      }
+      return user;
+    } catch (Exception e) {
+      logger.error("ユーザー情報取得中にエラー発生（メール） - メール: {}", email, e);
+      throw e;
+    }
+  }
 
-	public Map<String, Object> makeChartDataCustom(Long userId, String startStr, String endStr) {
-		logger.info("チャートデータ生成開始 - ユーザーID: {}, 開始日: {}, 終了日: {}", userId, startStr, endStr);
+  public Map<String, Object> makeChartDataCustom(Long userId, String startStr, String endStr) {
+    logger.info("チャートデータ生成開始 - ユーザーID: {}, 開始日: {}, 終了日: {}", userId, startStr, endStr);
 
-		try {
-			LocalDate start = LocalDate.parse(startStr);
-			LocalDate end = LocalDate.parse(endStr);
+    try {
+      LocalDate start = LocalDate.parse(startStr);
+      LocalDate end = LocalDate.parse(endStr);
 
-			List<String> labels = new ArrayList<>();
-			for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
-				labels.add(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
-			}
+      List<String> labels = new ArrayList<>();
+      for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+        labels.add(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+      }
 
-			Map<String, Object> chartData = new HashMap<>();
-			chartData.put("labels", labels);
-			chartData.put("chest", getSafeVolumeData(userId, "CHEST", labels, startStr, endStr));
-			chartData.put("back", getSafeVolumeData(userId, "BACK", labels, startStr, endStr));
-			chartData.put("arms", getSafeVolumeData(userId, "ARM", labels, startStr, endStr));
-			chartData.put("shoulders", getSafeVolumeData(userId, "SHOULDER", labels, startStr, endStr));
-			chartData.put("legs", getSafeVolumeData(userId, "LEG", labels, startStr, endStr));
+      Map<String, Object> chartData = new HashMap<>();
+      chartData.put("labels", labels);
+      chartData.put("chest", getSafeVolumeData(userId, "CHEST", labels, startStr, endStr));
+      chartData.put("back", getSafeVolumeData(userId, "BACK", labels, startStr, endStr));
+      chartData.put("arms", getSafeVolumeData(userId, "ARM", labels, startStr, endStr));
+      chartData.put("shoulders", getSafeVolumeData(userId, "SHOULDER", labels, startStr, endStr));
+      chartData.put("legs", getSafeVolumeData(userId, "LEG", labels, startStr, endStr));
 
-			logger.info("チャートデータ生成完了 - ユーザーID: {}, データ件数: {}", userId, labels.size());
-			return chartData;
-		} catch (Exception e) {
-			logger.error("チャートデータ生成中にエラー発生 - ユーザーID: {}, 開始日: {}, 終了日: {}", userId, startStr, endStr, e);
-			throw e;
-		}
-	}
+      logger.info("チャートデータ生成完了 - ユーザーID: {}, データ件数: {}", userId, labels.size());
+      return chartData;
+    } catch (Exception e) {
+      logger.error("チャートデータ生成中にエラー発生 - ユーザーID: {}, 開始日: {}, 終了日: {}", userId, startStr, endStr, e);
+      throw e;
+    }
+  }
 
-	public Map<String, Object> getGrowthChartData(Long userId, String itemName, String period) {
-		LocalDate endDate   = LocalDate.now();
-		LocalDate startDate = switch (period) {
-			case "1m" -> endDate.minusMonths(1);
-			case "6m" -> endDate.minusMonths(6);
-			case "1y" -> endDate.minusYears(1);
-			default   -> endDate.minusMonths(3);
-		};
+  public Map<String, Object> getGrowthChartData(Long userId, String itemName, String period) {
+    LocalDate endDate = LocalDate.now();
+    LocalDate startDate =
+        switch (period) {
+          case "1m" -> endDate.minusMonths(1);
+          case "6m" -> endDate.minusMonths(6);
+          case "1y" -> endDate.minusYears(1);
+          default -> endDate.minusMonths(3);
+        };
 
-		List<TrainingDetailDao.GrowthResult> results =
-			trainingDetailDao.selectGrowthByItemAndPeriod(
-				userId, itemName,
-				startDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
-				endDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
+    List<TrainingDetailDao.GrowthResult> results =
+        trainingDetailDao.selectGrowthByItemAndPeriod(
+            userId,
+            itemName,
+            startDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
+            endDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
 
-		List<String> labels     = new ArrayList<>();
-		List<Double> maxWeights = new ArrayList<>();
-		List<Double> totalVols  = new ArrayList<>();
+    List<String> labels = new ArrayList<>();
+    List<Double> maxWeights = new ArrayList<>();
+    List<Double> totalVols = new ArrayList<>();
 
-		for (TrainingDetailDao.GrowthResult r : results) {
-			labels.add(r.weekLabel);
-			maxWeights.add(r.maxWeight);
-			totalVols.add(r.totalVolume);
-		}
+    for (TrainingDetailDao.GrowthResult r : results) {
+      labels.add(r.weekLabel);
+      maxWeights.add(r.maxWeight);
+      totalVols.add(r.totalVolume);
+    }
 
-		return Map.of(
-			"labels",      labels,
-			"maxWeight",   maxWeights,
-			"totalVolume", totalVols
-		);
-	}
+    return Map.of(
+        "labels", labels,
+        "maxWeight", maxWeights,
+        "totalVolume", totalVols);
+  }
 
-	public PreviousTrainingResponse getPreviousTraining(Long userId, String itemName) {
-		LocalDate today = LocalDate.now();
-		List<Training> sessions = trainingDao.selectRecentSessionsByItem(userId, itemName, today, 7);
+  public PreviousTrainingResponse getPreviousTraining(Long userId, String itemName) {
+    LocalDate today = LocalDate.now();
+    List<Training> sessions = trainingDao.selectRecentSessionsByItem(userId, itemName, today, 7);
 
-		List<SessionRecord> sessionRecords = sessions.stream()
-			.map(t -> {
-				List<TrainingDetail> details = trainingDetailDao.selectByTrainingId(t.getId());
-				List<SetRecord> sets = details.stream()
-					.map(d -> new SetRecord(d.getSetNumber(), d.getWeight(), d.getReps(), d.getSetType()))
-					.toList();
-				return new SessionRecord(t.getTrainingDate().toString(), sets);
-			})
-			.toList();
+    List<SessionRecord> sessionRecords =
+        sessions.stream()
+            .map(
+                t -> {
+                  List<TrainingDetail> details = trainingDetailDao.selectByTrainingId(t.getId());
+                  List<SetRecord> sets =
+                      details.stream()
+                          .map(
+                              d ->
+                                  new SetRecord(
+                                      d.getSetNumber(), d.getWeight(), d.getReps(), d.getSetType()))
+                          .toList();
+                  return new SessionRecord(t.getTrainingDate().toString(), sets);
+                })
+            .toList();
 
-		Optional<PersonalRecord> prOpt = personalRecordService.getByUserIdAndItem(userId, itemName);
-		PreviousTrainingResponse.PrRecord prRecord = prOpt.map(pr ->
-			new PreviousTrainingResponse.PrRecord(
-				pr.getMaxWeight(), pr.getMaxReps(), pr.getAchievedDate().toString())
-		).orElse(null);
+    Optional<PersonalRecord> prOpt = personalRecordService.getByUserIdAndItem(userId, itemName);
+    PreviousTrainingResponse.PrRecord prRecord =
+        prOpt
+            .map(
+                pr ->
+                    new PreviousTrainingResponse.PrRecord(
+                        pr.getMaxWeight(), pr.getMaxReps(), pr.getAchievedDate().toString()))
+            .orElse(null);
 
-		return new PreviousTrainingResponse(sessionRecords, prRecord);
-	}
+    return new PreviousTrainingResponse(sessionRecords, prRecord);
+  }
 
-	@Transactional
-	public Long groupSuperset(List<Long> trainingIds, Long userId) {
-		if (trainingIds == null || trainingIds.size() != 2) {
-			throw new IllegalArgumentException("スーパーセットは2種目のみ対応しています");
-		}
-		for (Long id : trainingIds) {
-			Training t = trainingDao.selectById(id);
-			if (t == null || !t.getUserId().equals(userId)) {
-				throw new IllegalArgumentException("このトレーニングを変更する権限がありません");
-			}
-			if (t.getSupersetGroupId() != null) {
-				throw new IllegalArgumentException("すでにグループ化されている種目が含まれています");
-			}
-		}
-		long groupId = System.currentTimeMillis();
-		LocalDateTime now = LocalDateTime.now();
-		for (Long id : trainingIds) {
-			trainingDao.updateSupersetGroupIdById(id, groupId, now);
-		}
-		return groupId;
-	}
+  @Transactional
+  public Long groupSuperset(List<Long> trainingIds, Long userId) {
+    if (trainingIds == null || trainingIds.size() != 2) {
+      throw new IllegalArgumentException("スーパーセットは2種目のみ対応しています");
+    }
+    for (Long id : trainingIds) {
+      Training t = trainingDao.selectById(id);
+      if (t == null || !t.getUserId().equals(userId)) {
+        throw new IllegalArgumentException("このトレーニングを変更する権限がありません");
+      }
+      if (t.getSupersetGroupId() != null) {
+        throw new IllegalArgumentException("すでにグループ化されている種目が含まれています");
+      }
+    }
+    long groupId = System.currentTimeMillis();
+    LocalDateTime now = LocalDateTime.now();
+    for (Long id : trainingIds) {
+      trainingDao.updateSupersetGroupIdById(id, groupId, now);
+    }
+    return groupId;
+  }
 
-	@Transactional
-	public void ungroupSuperset(Long supersetGroupId, Long userId) {
-		List<Training> trainings = trainingDao.selectBySupersetGroupId(supersetGroupId);
-		for (Training t : trainings) {
-			if (!t.getUserId().equals(userId)) {
-				throw new IllegalArgumentException("このトレーニングを変更する権限がありません");
-			}
-		}
-		trainingDao.clearSupersetGroup(supersetGroupId, LocalDateTime.now());
-	}
+  @Transactional
+  public void ungroupSuperset(Long supersetGroupId, Long userId) {
+    List<Training> trainings = trainingDao.selectBySupersetGroupId(supersetGroupId);
+    for (Training t : trainings) {
+      if (!t.getUserId().equals(userId)) {
+        throw new IllegalArgumentException("このトレーニングを変更する権限がありません");
+      }
+    }
+    trainingDao.clearSupersetGroup(supersetGroupId, LocalDateTime.now());
+  }
 
-	public List<Training> getCandidatesForSuperset(Long userId, LocalDate date) {
-		return trainingDao.selectCandidatesForSuperset(userId, date);
-	}
+  public List<Training> getCandidatesForSuperset(Long userId, LocalDate date) {
+    return trainingDao.selectCandidatesForSuperset(userId, date);
+  }
 
-	private List<Double> getSafeVolumeData(Long userId, String partCode, List<String> labels, String startStr,
-			String endStr) {
-		logger.debug("部位別ボリュームデータ取得開始 - ユーザーID: {}, 部位: {}", userId, partCode);
+  private List<Double> getSafeVolumeData(
+      Long userId, String partCode, List<String> labels, String startStr, String endStr) {
+    logger.debug("部位別ボリュームデータ取得開始 - ユーザーID: {}, 部位: {}", userId, partCode);
 
-		try {
-			List<TrainingDao.VolumeResult> list = trainingDao.selectVolumeList(userId, partCode, startStr, endStr);
+    try {
+      List<TrainingDao.VolumeResult> list =
+          trainingDao.selectVolumeList(userId, partCode, startStr, endStr);
 
-			Map<String, Double> dbData = list.stream()
-					.collect(java.util.stream.Collectors.toMap(
-							res -> res.trainingDate,
-							res -> res.totalVolume,
-							(v1, v2) -> v1));
+      Map<String, Double> dbData =
+          list.stream()
+              .collect(
+                  java.util.stream.Collectors.toMap(
+                      res -> res.trainingDate, res -> res.totalVolume, (v1, v2) -> v1));
 
-			List<Double> result = new ArrayList<>();
-			for (String label : labels) {
-				result.add(dbData.getOrDefault(label, 0.0));
-			}
+      List<Double> result = new ArrayList<>();
+      for (String label : labels) {
+        result.add(dbData.getOrDefault(label, 0.0));
+      }
 
-			logger.debug("部位別ボリュームデータ取得完了 - ユーザーID: {}, 部位: {}, データ件数: {}", userId, partCode, result.size());
-			return result;
-		} catch (Exception e) {
-			logger.error("部位別ボリュームデータ取得中にエラー発生 - ユーザーID: {}, 部位: {}", userId, partCode, e);
-			throw e;
-		}
-	}
+      logger.debug(
+          "部位別ボリュームデータ取得完了 - ユーザーID: {}, 部位: {}, データ件数: {}", userId, partCode, result.size());
+      return result;
+    } catch (Exception e) {
+      logger.error("部位別ボリュームデータ取得中にエラー発生 - ユーザーID: {}, 部位: {}", userId, partCode, e);
+      throw e;
+    }
+  }
 }

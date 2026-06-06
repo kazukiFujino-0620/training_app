@@ -2,7 +2,6 @@ package com.example.traning.emailchange;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
-
 import org.seasar.doma.Dao;
 import org.seasar.doma.Delete;
 import org.seasar.doma.Insert;
@@ -13,15 +12,15 @@ import org.seasar.doma.boot.ConfigAutowireable;
 @ConfigAutowireable
 public interface EmailChangeTokenDao {
 
-    @Insert
-    int insert(EmailChangeToken token);
+  @Insert
+  int insert(EmailChangeToken token);
 
-    @Select
-    Optional<EmailChangeToken> selectByToken(String token);
+  @Select
+  Optional<EmailChangeToken> selectByToken(String token);
 
-    @Delete(sqlFile = true)
-    int deleteByUserId(Long userId);
+  @Delete(sqlFile = true)
+  int deleteByUserId(Long userId);
 
-    @Delete(sqlFile = true)
-    int deleteExpiredTokens(LocalDateTime now);
+  @Delete(sqlFile = true)
+  int deleteExpiredTokens(LocalDateTime now);
 }
