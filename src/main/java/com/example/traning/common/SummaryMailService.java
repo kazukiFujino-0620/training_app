@@ -45,8 +45,7 @@ public class SummaryMailService {
     DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy/MM/dd");
     String subject =
         String.format(
-            "【TraningApp】先週のトレーニングサマリー（%s〜%s）",
-            weekStart.format(fmt), weekEnd.format(fmt));
+            "【TraningApp】先週のトレーニングサマリー（%s〜%s）", weekStart.format(fmt), weekEnd.format(fmt));
 
     String body =
         sanitizedName
@@ -194,8 +193,5 @@ public class SummaryMailService {
   }
 
   public record GoalAchievementResult(
-      String itemName,
-      BigDecimal targetWeight,
-      BigDecimal maxWeightInPeriod,
-      boolean achieved) {}
+      String itemName, BigDecimal targetWeight, BigDecimal maxWeightInPeriod, boolean achieved) {}
 }
