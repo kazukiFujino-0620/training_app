@@ -53,6 +53,8 @@ jobs:
 
   dependency-check:
     name: OWASP Dependency-Check
+    # NVD DBダウンロードに時間がかかるため PR では実行しない
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
