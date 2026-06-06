@@ -76,6 +76,13 @@ public interface TrainingDao {
       Long userId, LocalDate startDate, LocalDate endDate);
 
   @Select
+  int countByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate);
+
+  @Select
+  List<PartSessionCount> countSessionsByPartAndDateRange(
+      Long userId, LocalDate startDate, LocalDate endDate);
+
+  @Select
   List<Training> selectCandidatesForSuperset(Long userId, LocalDate date);
 
   @Select
@@ -86,6 +93,15 @@ public interface TrainingDao {
 
   @Update(sqlFile = true)
   int clearSupersetGroup(Long supersetGroupId, LocalDateTime updatedDatetime);
+
+  @org.seasar.doma.Entity
+  public static class PartSessionCount {
+    @Column(name = "part_code")
+    public String partCode;
+
+    @Column(name = "session_count")
+    public int sessionCount;
+  }
 
   @org.seasar.doma.Entity
   public static class VolumeResult {
