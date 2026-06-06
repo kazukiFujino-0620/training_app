@@ -2,7 +2,6 @@ package com.example.traning.goal;
 
 import java.util.List;
 import java.util.Optional;
-
 import org.seasar.doma.Dao;
 import org.seasar.doma.Delete;
 import org.seasar.doma.Insert;
@@ -14,21 +13,21 @@ import org.seasar.doma.boot.ConfigAutowireable;
 @ConfigAutowireable
 public interface GoalDao {
 
-    @Select
-    List<TrainingGoal> selectByUserId(Long userId);
+  @Select
+  List<TrainingGoal> selectByUserId(Long userId);
 
-    @Select
-    Optional<TrainingGoal> selectById(Long id);
+  @Select
+  Optional<TrainingGoal> selectById(Long id);
 
-    @Insert
-    int insert(TrainingGoal goal);
+  @Insert
+  int insert(TrainingGoal goal);
 
-    @Update
-    int update(TrainingGoal goal);
+  @Update
+  int update(TrainingGoal goal);
 
-    @Delete
-    int delete(TrainingGoal goal);
+  @Delete
+  int delete(TrainingGoal goal);
 
-    @Delete(sqlFile = true)
-    int deleteByUserId(Long userId);
+  @Delete(sqlFile = true)
+  int deleteByUserId(Long userId);
 }

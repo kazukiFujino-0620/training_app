@@ -7,14 +7,14 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.retention")
 public class DataRetentionProperties {
 
-    /** データ保護期間（年）。デフォルト 7 年。 */
-    private int retentionYears = 7;
+  /** データ保護期間（年）。デフォルト 7 年。 */
+  private int retentionYears = 7;
 
-    public int getRetentionYears() {
-        return retentionYears;
-    }
+  public int getRetentionYears() {
+    return retentionYears;
+  }
 
-    public void setRetentionYears(int retentionYears) {
-        this.retentionYears = retentionYears;
-    }
+  public void setRetentionYears(int retentionYears) {
+    this.retentionYears = retentionYears;
+  }
 }

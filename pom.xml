@@ -24,6 +24,7 @@
 			<maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
 			<owasp-dependency-check.version>10.0.4</owasp-dependency-check.version>
 			<cyclonedx-maven-plugin.version>2.9.0</cyclonedx-maven-plugin.version>
+			<spotless.version>2.43.0</spotless.version>
 		</properties>
 
 		<profiles>
@@ -284,6 +285,20 @@
 					<outputFormat>json</outputFormat>
 					<outputName>bom</outputName>
 					<skipNotDeployed>false</skipNotDeployed>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>${spotless.version}</version>
+				<configuration>
+					<java>
+						<googleJavaFormat>
+							<version>1.22.0</version>
+							<style>GOOGLE</style>
+						</googleJavaFormat>
+					</java>
 				</configuration>
 			</plugin>
 		</plugins>
