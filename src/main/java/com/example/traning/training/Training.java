@@ -14,6 +14,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Entity(immutable = false)
@@ -54,6 +55,7 @@ public class Training {
 	private String menu;
 
 	@Column(name = "memo")
+	@Size(max = 500, message = "メモは500文字以内で入力してください")
 	private String memo;
 
 	@Column(name = "duration")
