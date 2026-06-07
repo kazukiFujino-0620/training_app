@@ -65,6 +65,9 @@ public class Training {
   @Column(name = "updated_datetime")
   private LocalDateTime updatedDatetime = LocalDateTime.now();
 
+  @Column(name = "display_order")
+  private int displayOrder;
+
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
 

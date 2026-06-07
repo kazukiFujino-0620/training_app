@@ -19,4 +19,4 @@ AND
 AND
   deleted_at IS NULL
 ORDER BY
-  id ASC
+  display_order ASC, id ASC

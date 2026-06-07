@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -270,6 +271,7 @@ public class MenuController {
     model.addAttribute("volumeChangePositive", volumeChangePositive);
     model.addAttribute("todayProgram", todayProgram);
     model.addAttribute("todayPartLabel", todayPartLabel);
+    model.addAttribute("showReorderMenu", true);
 
     return "menu";
   }
@@ -343,6 +345,7 @@ public class MenuController {
     model.addAttribute("trainingList", trainingList);
     model.addAttribute("partList", partList);
     model.addAttribute("restoredDuration", restoredDuration);
+    model.addAttribute("showReorderMenu", true);
 
     return "training/start_training";
   }
@@ -484,9 +487,41 @@ public class MenuController {
 
     List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
 
+    // 同日の既存トレーニングを取得（画面初期表示用）
+    // Thymeleaf の JS インライン展開で使うため Map のネスト構造で渡す
+    List<Training> existingList = trainingDao.selectByUserIdAndDate(userId.intValue(), selectedDate);
+    for (Training t : existingList) {
+      t.setDetails(trainingDetailDao.selectByTrainingId(t.getId()));
+      t.setPartName(trainingMasterDao.selectNameByCode(t.getPartCode()));
+    }
+    List<Map<String, Object>> existingTrainings = existingList.stream()
+        .map(t -> {
+          Map<String, Object> tm = new LinkedHashMap<>();
+          tm.put("id", t.getId());
+          tm.put("menu", t.getMenu());
+          tm.put("partCode", t.getPartCode());
+          tm.put("partName", t.getPartName() != null ? t.getPartName() : "");
+          tm.put("memo", t.getMemo() != null ? t.getMemo() : "");
+          List<Map<String, Object>> details = t.getDetails() == null
+              ? new ArrayList<>()
+              : t.getDetails().stream().map(d -> {
+                  Map<String, Object> dm = new LinkedHashMap<>();
+                  dm.put("setNumber", d.getSetNumber());
+                  dm.put("weight", d.getWeight() != null ? d.getWeight() : 0.0);
+                  dm.put("reps", d.getReps() != null ? d.getReps() : 0);
+                  dm.put("isCompleted", d.getIsCompleted());
+                  dm.put("setType", d.getSetType() != null ? d.getSetType() : "MAIN");
+                  return dm;
+                }).toList();
+          tm.put("details", details);
+          return tm;
+        }).toList();
+
     model.addAttribute("selectedDate", selectedDate);
     model.addAttribute("userId", userId);
     model.addAttribute("partList", partList);
+    model.addAttribute("showReorderMenu", true);
+    model.addAttribute("existingTrainings", existingTrainings);
 
     return "training/training-register";
   }
@@ -606,6 +641,48 @@ public class MenuController {
     return groupedItems;
   }
 
+  @GetMapping("/api/training/by-date")
+  @ResponseBody
+  public ResponseEntity<List<Map<String, Object>>> getTrainingsByDate(
+      @RequestParam
+          @org.springframework.format.annotation.DateTimeFormat(
+              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+          LocalDate date,
+      Principal principal) {
+    Long userId = trainingService.getUserIdByEmail(principal.getName());
+    List<Training> trainings = trainingDao.selectByUserIdAndDate(userId.intValue(), date);
+    List<Map<String, Object>> result =
+        trainings.stream()
+            .map(
+                t -> {
+                  Map<String, Object> m = new LinkedHashMap<>();
+                  m.put("id", t.getId());
+                  m.put("menu", t.getMenu());
+                  m.put("partCode", t.getPartCode());
+                  m.put("displayOrder", t.getDisplayOrder());
+                  return m;
+                })
+            .toList();
+    return ResponseEntity.ok(result);
+  }
+
+  @PostMapping("/api/training/reorder")
+  @ResponseBody
+  public ResponseEntity<Void> reorderTrainings(
+      @RequestBody List<Long> orderedIds, Principal principal) {
+    Long userId = trainingService.getUserIdByEmail(principal.getName());
+    for (int i = 0; i < orderedIds.size(); i++) {
+      Long id = orderedIds.get(i);
+      Training t = trainingService.getTrainingById(id);
+      if (t == null || !t.getUserId().equals(userId)) {
+        log.warn("不正な順序変更リクエスト: ユーザー {} がトレーニング {} を操作しようとしました", userId, id);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+      }
+      trainingDao.updateDisplayOrder(id, i, LocalDateTime.now());
+    }
+    return ResponseEntity.ok().build();
+  }
+
   @AuditLog(action = "TRAINING_BULK", targetTable = "trainings")
   @PostMapping("/api/training/register-bulk")
   @ResponseBody
@@ -625,7 +702,8 @@ public class MenuController {
       LocalDate trainingDate = LocalDate.parse(dateStr);
       Long userId = trainingService.getUserIdByEmail(principal.getName());
 
-      for (Map<String, Object> trainingMap : trainingsData) {
+      for (int arrayIdx = 0; arrayIdx < trainingsData.size(); arrayIdx++) {
+        Map<String, Object> trainingMap = trainingsData.get(arrayIdx);
         Training training;
 
         if (trainingMap.get("id") != null && !trainingMap.get("id").toString().isEmpty()) {
@@ -656,6 +734,8 @@ public class MenuController {
         training.setMenu((String) trainingMap.get("menu"));
         training.setPartCode((String) trainingMap.get("partCode"));
         training.setUpdatedDatetime(LocalDateTime.now());
+        // 配列インデックスを display_order として設定（新規・既存共通）
+        training.setDisplayOrder(arrayIdx);
 
         // 新規登録の時だけ完了フラグを初期化
         if (training.getId() == null) {
