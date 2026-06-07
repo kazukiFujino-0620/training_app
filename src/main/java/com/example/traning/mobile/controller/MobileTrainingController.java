@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.mobile.dto.AddSetRequest;
 import com.example.traning.mobile.dto.AddTrainingRequest;
 import com.example.traning.mobile.dto.SetUpdateResponse;
 import com.example.traning.mobile.dto.UpdateSetRequest;
@@ -117,6 +118,62 @@ public class MobileTrainingController {
 
 		trainingDetailDao.softDeleteByTrainingId(id);
 		trainingDao.softDeleteById(id);
+		return ResponseEntity.noContent().build();
+	}
+
+	/** 既存トレーニングにセットを1件追加する */
+	@PostMapping("/{trainingId}/sets")
+	@Transactional
+	@AuditLog(action = "MOBILE_SET_ADD", targetTable = "training_details")
+	public ResponseEntity<TrainingDetail> addSet(
+			@AuthenticationPrincipal Long userId,
+			@PathVariable Long trainingId,
+			@Valid @RequestBody AddSetRequest req) {
+
+		Training training = trainingDao.selectById(trainingId);
+		if (training == null) return ResponseEntity.notFound().build();
+		if (!userId.equals(training.getUserId())) return ResponseEntity.status(403).build();
+
+		List<TrainingDetail> existing = trainingDetailDao.selectByTrainingId(trainingId);
+		int nextSetNumber = existing.stream()
+				.mapToInt(TrainingDetail::getSetNumber)
+				.max()
+				.orElse(0) + 1;
+
+		TrainingDetail detail = new TrainingDetail();
+		detail.setTrainingId(trainingId);
+		detail.setSetNumber(nextSetNumber);
+		detail.setWeight(req.getWeight());
+		detail.setReps(req.getReps());
+		detail.setCount(req.getReps());
+		detail.setSetType(req.getSetType() != null ? req.getSetType() : "MAIN");
+		trainingDetailDao.insert(detail);
+
+		return ResponseEntity.status(201).body(detail);
+	}
+
+	/** セットを1件削除する（ソフトデリート・最後の1セットは削除不可） */
+	@DeleteMapping("/sets/{id}")
+	@Transactional
+	@AuditLog(action = "MOBILE_SET_DELETE", targetTable = "training_details")
+	public ResponseEntity<Void> deleteSet(
+			@AuthenticationPrincipal Long userId,
+			@PathVariable Long id) {
+
+		TrainingDetail detail = trainingDetailDao.selectById(id);
+		if (detail == null) return ResponseEntity.notFound().build();
+
+		Training training = trainingDao.selectById(detail.getTrainingId());
+		if (training == null || !userId.equals(training.getUserId())) {
+			return ResponseEntity.status(403).build();
+		}
+
+		List<TrainingDetail> existing = trainingDetailDao.selectByTrainingId(detail.getTrainingId());
+		if (existing.size() <= 1) {
+			throw new IllegalArgumentException("最後のセットは削除できません");
+		}
+
+		trainingDetailDao.softDeleteById(id);
 		return ResponseEntity.noContent().build();
 	}
 
