@@ -489,33 +489,43 @@ public class MenuController {
 
     // 同日の既存トレーニングを取得（画面初期表示用）
     // Thymeleaf の JS インライン展開で使うため Map のネスト構造で渡す
-    List<Training> existingList = trainingDao.selectByUserIdAndDate(userId.intValue(), selectedDate);
+    List<Training> existingList =
+        trainingDao.selectByUserIdAndDate(userId.intValue(), selectedDate);
     for (Training t : existingList) {
       t.setDetails(trainingDetailDao.selectByTrainingId(t.getId()));
       t.setPartName(trainingMasterDao.selectNameByCode(t.getPartCode()));
     }
-    List<Map<String, Object>> existingTrainings = existingList.stream()
-        .map(t -> {
-          Map<String, Object> tm = new LinkedHashMap<>();
-          tm.put("id", t.getId());
-          tm.put("menu", t.getMenu());
-          tm.put("partCode", t.getPartCode());
-          tm.put("partName", t.getPartName() != null ? t.getPartName() : "");
-          tm.put("memo", t.getMemo() != null ? t.getMemo() : "");
-          List<Map<String, Object>> details = t.getDetails() == null
-              ? new ArrayList<>()
-              : t.getDetails().stream().map(d -> {
-                  Map<String, Object> dm = new LinkedHashMap<>();
-                  dm.put("setNumber", d.getSetNumber());
-                  dm.put("weight", d.getWeight() != null ? d.getWeight() : 0.0);
-                  dm.put("reps", d.getReps() != null ? d.getReps() : 0);
-                  dm.put("isCompleted", d.getIsCompleted());
-                  dm.put("setType", d.getSetType() != null ? d.getSetType() : "MAIN");
-                  return dm;
-                }).toList();
-          tm.put("details", details);
-          return tm;
-        }).toList();
+    List<Map<String, Object>> existingTrainings =
+        existingList.stream()
+            .map(
+                t -> {
+                  Map<String, Object> tm = new LinkedHashMap<>();
+                  tm.put("id", t.getId());
+                  tm.put("menu", t.getMenu());
+                  tm.put("partCode", t.getPartCode());
+                  tm.put("partName", t.getPartName() != null ? t.getPartName() : "");
+                  tm.put("memo", t.getMemo() != null ? t.getMemo() : "");
+                  List<Map<String, Object>> details =
+                      t.getDetails() == null
+                          ? new ArrayList<>()
+                          : t.getDetails().stream()
+                              .map(
+                                  d -> {
+                                    Map<String, Object> dm = new LinkedHashMap<>();
+                                    dm.put("setNumber", d.getSetNumber());
+                                    dm.put("weight", d.getWeight() != null ? d.getWeight() : 0.0);
+                                    dm.put("reps", d.getReps() != null ? d.getReps() : 0);
+                                    dm.put("isCompleted", d.getIsCompleted());
+                                    dm.put(
+                                        "setType",
+                                        d.getSetType() != null ? d.getSetType() : "MAIN");
+                                    return dm;
+                                  })
+                              .toList();
+                  tm.put("details", details);
+                  return tm;
+                })
+            .toList();
 
     model.addAttribute("selectedDate", selectedDate);
     model.addAttribute("userId", userId);
