@@ -256,3 +256,113 @@
 .btn-sm-interval:hover {
     background: rgba(255, 255, 255, 0.4);
 }
+
+/* ── スーパーセット ────────────────────────────────────────────────── */
+
+/* SUPER A / SUPER B バッジ */
+.superset-badge {
+    background: #7c3aed;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+/* グループ全体を包むラッパー */
+.superset-group-wrapper {
+    border: 2px dashed #7c3aed;
+    border-radius: 12px;
+    padding: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.superset-group-wrapper .training-card {
+    margin-bottom: 0;
+    box-shadow: none;
+}
+
+/* A と B カードの区切り */
+.superset-divider {
+    text-align: center;
+    color: #7c3aed;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 6px 0;
+    user-select: none;
+}
+
+/* グループ化ボタン（カード右上） */
+.btn-superset-group {
+    background: none;
+    border: 1px solid #7c3aed;
+    color: #7c3aed;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.btn-superset-group:hover {
+    background: #7c3aed;
+    color: #fff;
+}
+
+/* グループ化モードで選択対象カードをハイライト */
+.training-card.grouping-target {
+    outline: 2px dashed #7c3aed;
+    cursor: pointer;
+    opacity: 0.85;
+}
+
+.training-card.grouping-source {
+    outline: 2px solid #7c3aed;
+}
+
+/* グループ化ヒントバナー */
+.grouping-hint {
+    background: #ede9fe;
+    color: #5b21b6;
+    border: 1px solid #7c3aed;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* 解除ボタン */
+.btn-ungroup-superset {
+    background: none;
+    border: 1px solid #dc2626;
+    color: #dc2626;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    margin-left: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.btn-ungroup-superset:hover {
+    background: #dc2626;
+    color: #fff;
+}
+
+/* スーパーセット次のセットバナー */
+#supersetNextBanner {
+    background: #7c3aed;
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    text-align: center;
+    font-size: 1rem;
+    margin: 0 1rem 8px;
+}
+/* ──────────────────────────────────────────────────────────────────── */

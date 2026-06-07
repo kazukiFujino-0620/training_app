@@ -7,14 +7,10 @@ import lombok.Data;
 @Data
 public class LoginRequest {
 
-	@Email
-	@NotBlank
-	private String email;
+  @Email @NotBlank private String email;
 
-	@NotBlank
-	private String password;
+  @NotBlank private String password;
 
-	/** デバイス固有ID（UUIDなど）。リフレッシュトークンの紐付けに使用。 */
-	@NotBlank
-	private String deviceId;
+  /** デバイス固有ID（UUIDなど）。リフレッシュトークンの紐付けに使用。 */
+  @NotBlank private String deviceId;
 }

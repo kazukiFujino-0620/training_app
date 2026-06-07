@@ -108,6 +108,38 @@
           <span th:text="${error}"></span>
         </div>
 
+        <!-- Stats Summary Bar -->
+        <div class="stats-bar">
+          <div class="stat-card">
+            <div class="stat-label">今月</div>
+            <div class="stat-value" th:text="${monthlyCount} + ' 回'">0 回</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">先週比</div>
+            <div class="stat-value"
+                 th:classappend="${volumeChangePositive} ? ' positive' : ' negative'"
+                 th:text="${volumeChangeText}">+0%</div>
+          </div>
+          <div class="stat-card stat-card-wide">
+            <div class="stat-label">今週の部位</div>
+            <div class="stat-parts">
+              <span th:each="part : ${weekParts}"
+                    class="part-badge"
+                    th:classappend="${part.done} ? ' done' : ' undone'">
+                <span th:text="${part.name}">胸</span><span th:if="${part.done}">✓</span><span th:unless="${part.done}">✗</span>
+              </span>
+            </div>
+          </div>
+          <div class="stat-card" th:if="${todayProgram != null}">
+            <div class="stat-label">今日の予定</div>
+            <div class="stat-value" th:text="${todayPartLabel}">胸</div>
+            <a th:if="${todayProgram.templateId != null}"
+               th:href="@{/training/template}"
+               class="btn btn-sm btn-outline"
+               style="margin-top:0.25rem; font-size:0.75rem; padding:0.2rem 0.6rem;">適用</a>
+          </div>
+        </div>
+
         <!-- Calendar and Summary -->
         <div class="flex gap-6">
           <!-- Calendar Section -->

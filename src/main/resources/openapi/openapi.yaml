@@ -41,6 +41,16 @@ tags:
     description: 監査ログ（誰がいつどのデータを操作したかの不変記録）管理者専用
   - name: withdrawal
     description: 退会申請フロー（ユーザー申請・管理者承認・データ削除）
+  - name: data-export
+    description: データエクスポート（CSV）— GDPR第20条・個人情報保護法第28条対応
+  - name: weekly-program
+    description: 週間プログラム設計（曜日ごとの部位・テンプレート設定）
+  - name: body-measurement
+    description: 体重・体組成記録（日別手入力・時系列グラフ）
+  - name: email-change
+    description: メールアドレス変更（トークンベース2ステップ確認フロー・パスワードログインユーザーのみ）
+  - name: summary-report
+    description: 週次・月次サマリーレポート（バッチによる自動メール送信 + 任意の画面閲覧）
 
 # ──────────────────────────────────────────────────────────────────
 # Paths
@@ -1407,7 +1417,11 @@ paths:
             GOAL_CREATE, GOAL_ACHIEVE, GOAL_DELETE,
             PROFILE_UPDATE,
             MFA_ENABLE, MFA_DISABLE, MFA_BACKUP_REGEN,
-            ADMIN_USER_UPDATE, ADMIN_MFA_RESET
+            ADMIN_USER_UPDATE, ADMIN_MFA_RESET,
+            ADMIN_DATA_EXPORT,
+            WEEKLY_PROGRAM_SAVE,
+            BODY_MEASUREMENT_SAVE, BODY_MEASUREMENT_DELETE,
+            EMAIL_CHANGE_REQUEST, EMAIL_CHANGE_CONFIRM
           schema:
             type: string
             example: "TRAINING_DELETE"
@@ -1660,6 +1674,440 @@ paths:
           description: 申請が見つからない
         "403":
           description: 権限なし（ROLE_ADMIN 以外）
+
+  # ── データエクスポート ──────────────────────────────────────────────
+  /user/export:
+    get:
+      tags: [data-export]
+      summary: データエクスポートフォーム表示
+      description: |
+        CSV エクスポート用の期間入力フォームを表示する。認証必須。
+        設定メニューの「データエクスポート」リンクからアクセスする。
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          description: エクスポートフォーム HTML（開始日・終了日入力、CSVダウンロードボタン）
+        "302":
+          description: 未認証 → /login へリダイレクト
+
+  /user/export/csv:
+    get:
+      tags: [data-export]
+      summary: ユーザー自身のデータをCSVダウンロード
+      description: |
+        指定期間のトレーニング記録・目標設定・プロフィールを1つのCSVファイルとして返す。
+        認証必須。ログインユーザー自身のデータのみアクセス可（IDOR防止）。
+
+        **CSVファイル仕様**:
+        - ファイル名: `training_data_{userId}_{from}_{to}.csv`
+        - エンコーディング: UTF-8 with BOM（Excel 文字化け防止）
+        - セクション構成: プロフィール → トレーニング記録（期間指定） → 目標設定
+
+        **バリデーション**:
+        - from・to ともに必須
+        - from ≦ to であること
+
+        **非機能要件**:
+        - Apache Commons CSV を使用
+        - @Transactional(readOnly = true)
+        - DB 読み取りのみ（書き込みなし）
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          description: "エクスポート開始日（例: 2026-01-01）"
+          schema:
+            type: string
+            format: date
+            example: "2026-01-01"
+        - name: to
+          in: query
+          required: true
+          description: "エクスポート終了日（例: 2026-06-06）"
+          schema:
+            type: string
+            format: date
+            example: "2026-06-06"
+      responses:
+        "200":
+          description: "CSVファイル（Content-Disposition: attachment）"
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: |
+            バリデーションエラー。以下のいずれか:
+            - from または to が未入力
+            - from > to
+          content:
+            text/html:
+              schema:
+                type: string
+        "302":
+          description: 未認証 → /login へリダイレクト
+
+  /admin/user/{id}/export/csv:
+    get:
+      tags: [admin, data-export]
+      summary: 指定ユーザーのデータをCSVダウンロード（管理者専用）
+      description: |
+        管理者が任意ユーザーのデータを CSV でダウンロードする。ROLE_ADMIN 必須。
+        `/admin/user/edit/{id}` 画面のボタンからアクセスする。
+
+        操作は監査ログ（audit_logs）に `action = "ADMIN_DATA_EXPORT"` で記録される。
+
+        **CSVファイル仕様**: ユーザー向けと同仕様（UTF-8 BOM、セクション分け）。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: エクスポート対象ユーザーID
+          schema:
+            type: integer
+            format: int64
+        - name: from
+          in: query
+          required: true
+          description: エクスポート開始日
+          schema:
+            type: string
+            format: date
+            example: "2026-01-01"
+        - name: to
+          in: query
+          required: true
+          description: エクスポート終了日
+          schema:
+            type: string
+            format: date
+            example: "2026-06-06"
+      responses:
+        "200":
+          description: "CSVファイル（Content-Disposition: attachment）"
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: バリデーションエラー（from > to など）
+        "403":
+          description: 権限なし（ROLE_ADMIN 以外）
+        "404":
+          description: 指定ユーザーが存在しない
+
+  # ── 週間プログラム設計 ──────────────────────────────────────────────
+  /user/weekly-program:
+    get:
+      tags: [weekly-program]
+      summary: 週間プログラム設定画面表示
+      description: |
+        ログインユーザーの週間プログラム設定画面を表示する。認証必須。
+        月〜日の各曜日に部位コードと適用テンプレートを設定できる。
+        部位未設定の曜日は休養日扱い。
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          description: 週間プログラム設定フォーム HTML（7曜日 × 部位セレクト + テンプレートセレクト）
+        "302":
+          description: 未認証 → /login へリダイレクト
+    post:
+      tags: [weekly-program]
+      summary: 週間プログラム設定保存
+      description: |
+        各曜日の部位コードとテンプレートIDを保存する。認証必須。
+        保存は全件削除 → 再 INSERT（差分更新ではない）。
+        部位コードが空の曜日は INSERT しない（休養日）。
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              description: 曜日コード（MON〜SUN）をサフィックスにしたパラメータ群
+              example:
+                partCode_MON: CHEST
+                templateId_MON: "1"
+                partCode_TUE: BACK
+                templateId_TUE: "2"
+                partCode_WED: ""
+      responses:
+        "302":
+          description: 保存完了 → /user/weekly-program へリダイレクト
+        "302 (unauthenticated)":
+          description: 未認証 → /login へリダイレクト
+
+  # ── 体重・体組成記録 ────────────────────────────────────────────────
+  /user/body:
+    get:
+      tags: [body-measurement]
+      summary: 体重記録画面表示
+      description: |
+        ログインユーザーの体重記録一覧とChart.js折れ線グラフを表示する。認証必須。
+        記録一覧（日付・体重・体脂肪率・メモ）＋入力フォーム＋グラフで構成。
+        グラフデータはサーバーサイドで生成して `<script>` タグに埋め込む。
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          description: 体重記録画面 HTML（一覧・グラフ・入力フォーム）
+        "302":
+          description: 未認証 → /login へリダイレクト
+
+  /api/body:
+    post:
+      tags: [body-measurement]
+      summary: 体重データ保存（新規登録・上書き）
+      description: |
+        指定日付の体重データを保存する。認証必須。
+        同一日付が既に存在する場合は上書き（UPSERT）。
+        userId はサーバーサイドで解決（IDOR防止）。
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [measuredDate, weightKg]
+              properties:
+                measuredDate:
+                  type: string
+                  format: date
+                  description: 計測日
+                  example: "2026-06-06"
+                weightKg:
+                  type: number
+                  format: double
+                  description: 体重（kg）。20.0〜300.0の範囲
+                  example: 72.5
+                bodyFatPct:
+                  type: number
+                  format: double
+                  description: 体脂肪率（%）。0.0〜60.0の範囲。任意
+                  example: 18.5
+                  nullable: true
+                memo:
+                  type: string
+                  description: メモ（200文字以内）。任意
+                  maxLength: 200
+                  nullable: true
+      responses:
+        "200":
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: ok
+        "400":
+          description: バリデーションエラー（体重未入力・範囲外・日付不正）
+        "302":
+          description: 未認証 → /login へリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  /api/body/{id}:
+    delete:
+      tags: [body-measurement]
+      summary: 体重データ削除
+      description: |
+        指定IDの体重記録を削除する。所有者チェックあり。認証必須。
+        userId はサーバーサイドで解決（IDOR防止）。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 体重記録 ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: deleted
+        "403":
+          description: 他ユーザーの記録へのアクセス
+        "404":
+          description: 指定記録が存在しない
+        "302":
+          description: 未認証 → /login へリダイレクト
+        "429":
+          $ref: "./schemas/responses/TooManyRequestsResponse.yaml"
+
+  # ── メールアドレス変更 ──────────────────────────────────────────────
+  /user/email:
+    get:
+      tags: [email-change]
+      summary: メールアドレス変更フォーム表示
+      description: |
+        ログインユーザーのメールアドレス変更フォームを表示する。認証必須。
+        Google/LINE OAuth2 ユーザー（password=NULL）は変更不可。
+        UI に「OAuth2ログインユーザーはメールアドレスを変更できません」と表示する。
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          description: |
+            メールアドレス変更フォーム HTML。
+            パスワードログインユーザー: 新メールアドレス + 現パスワード入力フォームを表示。
+            OAuth2ユーザー: 変更不可メッセージを表示（フォームなし）。
+        "302":
+          description: 未認証 → /login へリダイレクト
+    post:
+      tags: [email-change]
+      summary: メールアドレス変更申請
+      description: |
+        新メールアドレスへの確認メールを送信する。認証必須。パスワードログインユーザーのみ。
+
+        **処理フロー**:
+        1. 現在のパスワードを照合（本人確認）
+        2. 新メールアドレスの重複チェック
+        3. トークンを生成し `email_change_tokens` テーブルに保存（有効期限24時間）
+        4. 新メールアドレスへ確認メールを送信
+
+        **エラー**:
+        - 現パスワード不一致 → フォーム再表示
+        - 新メールアドレス重複 → フォーム再表示
+        - OAuth2ユーザー → 400
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [newEmail, currentPassword]
+              properties:
+                newEmail:
+                  type: string
+                  format: email
+                  description: 新しいメールアドレス
+                  maxLength: 255
+                currentPassword:
+                  type: string
+                  format: password
+                  description: 現在のパスワード（本人確認用）
+      responses:
+        "302":
+          description: 申請完了（確認メール送信済み） → /user/email?sent=true へリダイレクト
+        "200":
+          description: バリデーションエラー（パスワード不一致・メール重複）→ フォーム再表示
+        "400":
+          description: OAuth2ユーザーによるアクセス（変更不可）
+        "302 (unauthenticated)":
+          description: 未認証 → /login へリダイレクト
+
+  /user/email/confirm:
+    get:
+      tags: [email-change]
+      summary: メールアドレス変更確認（トークン検証・確定）
+      description: |
+        確認メールのリンクをクリックした際にアクセスされるエンドポイント。
+        トークンを検証し、メールアドレスを更新する。認証必須。
+
+        **処理フロー**:
+        1. トークンの存在確認
+        2. 有効期限チェック（24時間）
+        3. 新メールアドレスの重複再チェック（他ユーザーが先に同じアドレスを取得していないか）
+        4. users.email を新メールアドレスに更新
+        5. email_change_tokens から削除
+
+        **エラー**:
+        - トークン不存在・期限切れ → エラーページ表示
+        - メール重複 → エラーページ表示
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          description: 確認メールに含まれるトークン（UUID）
+          schema:
+            type: string
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        "302":
+          description: 変更成功 → /user/email?changed=true へリダイレクト
+        "200":
+          description: トークン無効・期限切れ・メール重複 → エラーメッセージ付きページ表示
+        "302 (unauthenticated)":
+          description: 未認証 → /login へリダイレクト
+
+  # ── 週次・月次サマリーレポート ──────────────────────────────────────
+  /user/summary:
+    get:
+      tags: [summary-report]
+      summary: サマリーレポート閲覧（任意実装）
+      description: |
+        週次または月次のトレーニングサマリーをブラウザで閲覧する画面。
+        メールバッチ（WeeklySummaryTask / MonthlySummaryTask）の閲覧UI版。
+
+        **クエリパラメータ**:
+        - `type`: `weekly`（先週）または `monthly`（先月）
+        - `offset`: 遡る週数/月数（0=直近、1=その前、最大11）
+
+        **表示内容**:
+        - トレーニング回数
+        - 総ボリューム（kg）
+        - 前週/前月比変化率（%）
+        - 実施部位一覧（週次）または部位別セッション数（月次）
+        - 目標達成状況（月次のみ）
+
+        > **注意**: R3（画面閲覧）は任意実装。バッチメール（R1/R2）が主機能。
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          description: "`weekly`（週次）または `monthly`（月次）。デフォルト: `weekly`"
+          schema:
+            type: string
+            enum: [weekly, monthly]
+            default: weekly
+        - name: offset
+          in: query
+          required: false
+          description: "遡る週数/月数。0=直近、最大11。デフォルト: 0"
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 11
+            default: 0
+      responses:
+        "200":
+          description: サマリーレポート HTML
+          content:
+            text/html:
+              schema:
+                type: string
+        "302":
+          description: 未認証 → /login へリダイレクト
 
 # ──────────────────────────────────────────────────────────────────
 # Components（セキュリティスキームのみ。スキーマは schemas/ を参照）

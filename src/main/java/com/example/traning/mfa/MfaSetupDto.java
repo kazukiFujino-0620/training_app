@@ -6,6 +6,6 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class MfaSetupDto {
-    private String secret;
-    private String qrDataUri;
+  private String secret;
+  private String qrDataUri;
 }
