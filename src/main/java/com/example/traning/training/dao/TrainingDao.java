@@ -1,9 +1,11 @@
 package com.example.traning.training.dao;
 
+import com.example.traning.training.Training;
+import com.example.traning.training.dao.TrainingDao.VolumeResult;
+import com.example.traning.user.User;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-
 import org.seasar.doma.Column;
 import org.seasar.doma.Dao;
 import org.seasar.doma.Delete;
@@ -12,68 +14,107 @@ import org.seasar.doma.Select;
 import org.seasar.doma.Update;
 import org.seasar.doma.boot.ConfigAutowireable;
 
-import com.example.traning.training.Training;
-import com.example.traning.training.dao.TrainingDao.VolumeResult;
-import com.example.traning.user.User;
-
 @Dao
 @ConfigAutowireable
 public interface TrainingDao {
 
-	@Select
-	List<Training> selectByDate(Long userId, LocalDate startDate, LocalDate endDate);
+  @Select
+  List<Training> selectByDate(Long userId, LocalDate startDate, LocalDate endDate);
 
-	@Select
-	Training selectById(Long id);
+  @Select
+  Training selectById(Long id);
 
-	@Select
-	Long selectIdByUsername(String username);
+  @Select
+  Long selectIdByUsername(String username);
 
-	@Select
-	Long selectIdByEmail(String email);
+  @Select
+  Long selectIdByEmail(String email);
 
-	@Insert
-	int insert(Training training);
+  @Insert
+  int insert(Training training);
 
-	@Update
-	int update(Training training);
+  @Update
+  int update(Training training);
 
-	@Delete
-	int delete(Training training);
+  @Delete
+  int delete(Training training);
 
-	@Update(sqlFile = true)
-	int softDeleteById(Long id);
+  @Update(sqlFile = true)
+  int softDeleteById(Long id);
 
-	@Delete(sqlFile = true)
-	int deleteExpiredPhysically(LocalDateTime cutoff);
+  @Delete(sqlFile = true)
+  int deleteExpiredPhysically(LocalDateTime cutoff);
 
-	@Delete(sqlFile = true)
-	int deleteByUserId(Long userId);
+  @Delete(sqlFile = true)
+  int deleteByUserId(Long userId);
 
-	@Select
-	List<Training> selectByUserIdAndDateRange(Integer userId, LocalDate startDate, LocalDate endDate);
+  @Select
+  List<Training> selectByUserIdAndDateRange(Integer userId, LocalDate startDate, LocalDate endDate);
 
-	@Select
-	List<Training> selectByUserIdAndDate(Integer userId, LocalDate date);
+  @Select
+  List<Training> selectByUserIdAndDate(Integer userId, LocalDate date);
 
-	@Select
-	User selectByUserName(String userName);
+  @Select
+  User selectByUserName(String userName);
 
-	@Select
-	User selectByEmail(String email);
+  @Select
+  User selectByEmail(String email);
 
-	@Select
-	List<VolumeResult> selectVolumeList(Long userId, String partCode, String startDate, String endDate);
+  @Select
+  List<VolumeResult> selectVolumeList(
+      Long userId, String partCode, String startDate, String endDate);
 
-	@Select
-	List<Training> selectRecentSessionsByItem(Long userId, String itemName, LocalDate before, int limit);
+  @Select
+  List<Training> selectRecentSessionsByItem(
+      Long userId, String itemName, LocalDate before, int limit);
 
-	@org.seasar.doma.Entity
-	public static class VolumeResult {
-		@Column(name = "training_date")
-		public String trainingDate;
+  @Select
+  int countByUserIdAndMonth(Long userId, int year, int month);
 
-		@Column(name = "total_volume")
-		public Double totalVolume;
-	}
+  @Select
+  List<String> selectDistinctPartsByUserIdAndDateRange(
+      Long userId, LocalDate startDate, LocalDate endDate);
+
+  @Select
+  int selectMaxDisplayOrderByUserIdAndDate(Long userId, LocalDate date);
+
+  @Update(sqlFile = true)
+  int updateDisplayOrder(Long id, int displayOrder, LocalDateTime updatedDatetime);
+
+  @Select
+  int countByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate);
+
+  @Select
+  List<PartSessionCount> countSessionsByPartAndDateRange(
+      Long userId, LocalDate startDate, LocalDate endDate);
+
+  @Select
+  List<Training> selectCandidatesForSuperset(Long userId, LocalDate date);
+
+  @Select
+  List<Training> selectBySupersetGroupId(Long supersetGroupId);
+
+  @Update(sqlFile = true)
+  int updateSupersetGroupIdById(Long id, Long supersetGroupId, LocalDateTime updatedDatetime);
+
+  @Update(sqlFile = true)
+  int clearSupersetGroup(Long supersetGroupId, LocalDateTime updatedDatetime);
+
+  @org.seasar.doma.Entity
+  public static class PartSessionCount {
+    @Column(name = "part_code")
+    public String partCode;
+
+    @Column(name = "session_count")
+    public int sessionCount;
+  }
+
+  @org.seasar.doma.Entity
+  public static class VolumeResult {
+    @Column(name = "training_date")
+    public String trainingDate;
+
+    @Column(name = "total_volume")
+    public Double totalVolume;
+  }
 }

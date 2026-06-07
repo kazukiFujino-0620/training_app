@@ -78,6 +78,11 @@
             <input type="hidden" id="initialDuration" th:value="${restoredDuration ?: '00:00:00'}">
             <div class="timer-display" id="totalTimer">00:00:00</div>
             <button id="startBtn" data-action="toggleMainTimer" class="btn btn-success">開始</button>
+            <div style="text-align:center; margin-top:0.5rem;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="window.openReorderModal && window.openReorderModal()">
+                    ↕ トレーニング順変更
+                </button>
+            </div>
             <div id="intervalBanner" style="display: none; background: #ff9800; color: #ffffff; padding: 15px; margin-top: 10px; border-radius: 8px; font-weight: bold; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 インターバル中: <span id="intervalTimer">02:00</span>
                 <div class="interval-controls" style="margin-top: 10px;">
@@ -89,17 +94,24 @@
             </div>
         </div>
 
+        <!-- スーパーセット次のセットバナー -->
+        <div id="supersetNextBanner" style="display:none;"></div>
+
         <div class="training-container">
                 <div th:each="item : ${trainingList}" class="training-card"
                      th:data-training-id="${item.id}"
                      th:data-part-code="${item.partCode}"
                      th:data-menu="${item.menu}"
                      th:data-training-date="${item.trainingDate}"
-                     th:data-user-id="${item.userId}">
+                     th:data-user-id="${item.userId}"
+                     th:data-superset-group-id="${item.supersetGroupId != null ? item.supersetGroupId : ''}">
                     <div class="exercise-title">
                         <h3 th:text="${item.menu}" style="margin:0;">種目名</h3>
                         <span style="font-size:0.9em; color:var(--text-muted);" th:text="${item.partName}">部位</span>
-                        <button type="button" data-action="deleteTrainingCard" 
+                        <button type="button" data-action="startGrouping"
+                                th:data-value="${item.id}"
+                                class="btn-superset-group">グループ化</button>
+                        <button type="button" data-action="deleteTrainingCard"
                                 class="btn btn-danger btn-sm">
                             ✕
                         </button>
@@ -230,5 +242,6 @@
     });
     </script>
     <div th:replace="~{common :: sessionModalsFragment}"></div>
+    <div th:replace="~{common :: reorderModalFragment}"></div>
 </body>
 </html>

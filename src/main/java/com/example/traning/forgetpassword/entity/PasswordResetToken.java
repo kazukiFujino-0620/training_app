@@ -1,7 +1,6 @@
 package com.example.traning.forgetpassword.entity;
 
 import java.time.LocalDateTime;
-
 import org.seasar.doma.Column;
 import org.seasar.doma.Entity;
 import org.seasar.doma.GeneratedValue;
@@ -13,16 +12,16 @@ import org.seasar.doma.Table;
 @Table(name = "password_reset_tokens")
 public class PasswordResetToken {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    public Integer id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  public Integer id;
 
-    @Column(name = "user_id")
-    public Integer userId;
+  @Column(name = "user_id")
+  public Integer userId;
 
-    @Column(name = "token")
-    public String token;
+  @Column(name = "token")
+  public String token;
 
-    @Column(name = "expiry_date")
-    public LocalDateTime expiryDate;
+  @Column(name = "expiry_date")
+  public LocalDateTime expiryDate;
 }

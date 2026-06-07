@@ -6,11 +6,11 @@ import lombok.Data;
 @Data
 public class UpdateSetRequest {
 
-	@Min(0)
-	private Double weight;
+  @Min(0)
+  private Double weight;
 
-	@Min(0)
-	private Integer reps;
+  @Min(0)
+  private Integer reps;
 
-	private Boolean isCompleted;
+  private Boolean isCompleted;
 }

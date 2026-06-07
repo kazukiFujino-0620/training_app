@@ -35,10 +35,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const initialState = document.getElementById("initialState");
       const registerContent = document.getElementById("registerContent");
       const actionButtons = document.getElementById("actionButtons");
-      
+
       if (initialState) initialState.style.display = "none";
       if (registerContent) registerContent.style.display = "block";
-      if (actionButtons) actionButtons.style.display = "flex"; 
+      if (actionButtons) actionButtons.style.display = "flex";
 
       setTimeout(() => {
         renderTrainingBlocks();
@@ -47,6 +47,34 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) {
       console.error("URLデータの復元に失敗しました:", e);
     }
+  } else if (window.existingTrainings && window.existingTrainings.length > 0) {
+    // 同日の既存トレーニングをサーバーから受け取って初期表示
+    selectedTrainings = window.existingTrainings.map(t => ({
+      id: t.id,
+      menu: t.menu,
+      partCode: t.partCode,
+      partName: t.partName || "",
+      memo: t.memo || "",
+      details: (t.details || []).map(d => ({
+        setNumber: d.setNumber,
+        weight: (d.weight !== null && d.weight !== undefined) ? parseFloat(d.weight) : 0,
+        reps: (d.reps !== null && d.reps !== undefined) ? parseInt(d.reps, 10) : 0,
+        isCompleted: d.isCompleted || false,
+        setType: d.setType || "MAIN"
+      }))
+    }));
+
+    const initialState = document.getElementById("initialState");
+    const registerContent = document.getElementById("registerContent");
+    const actionButtons = document.getElementById("actionButtons");
+
+    if (initialState) initialState.style.display = "none";
+    if (registerContent) registerContent.style.display = "block";
+    if (actionButtons) actionButtons.style.display = "flex";
+
+    setTimeout(() => {
+      renderTrainingBlocks();
+    }, 100);
   }
 
   // ⭕ 独自の属性「data-vol-action」だけを監視するように変更（干渉を100%回避）
@@ -229,7 +257,6 @@ function confirmSelection() {
     return;
   }
 
-  selectedTrainings = [];
   checkedBoxes.forEach((checkbox) => {
     const itemData = JSON.parse(checkbox.value);
     const partData = partsData.find((p) => p.partCode === itemData.partCode);
@@ -632,4 +659,28 @@ function closeSuccessPopup() {
 function cancelRegister() {
   const selectedDate = document.getElementById("selectedDate").value;
   window.location.href = `/menu?date=${encodeURIComponent(selectedDate)}`;
+}
+
+// training/register 専用の順変更モーダルを開く
+// 保存済み + 未保存の selectedTrainings 全件を対象にクライアントサイドで並び替え
+function openRegisterReorderModal() {
+  if (!window.openReorderModal) return;
+  if (selectedTrainings.length === 0) {
+    alert('並び替える種目がありません。');
+    return;
+  }
+
+  window.openReorderModal({
+    items: selectedTrainings.map(t => ({
+      id: t.id,
+      menu: t.menu,
+      partCode: t.partCode
+    })),
+    onSave: function (newOrder) {
+      // newOrder は { _origIdx, id, menu, partCode } の並べ替え後配列
+      // _origIdx を使って selectedTrainings を同じ順序に再構成する
+      selectedTrainings = newOrder.map(item => selectedTrainings[item._origIdx]).filter(Boolean);
+      renderTrainingBlocks();
+    }
+  });
 }

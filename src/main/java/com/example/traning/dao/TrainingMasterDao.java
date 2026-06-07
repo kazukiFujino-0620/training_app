@@ -1,37 +1,35 @@
 package com.example.traning.dao;
 
+import com.example.traning.entity.TrainingItemMaster;
+import com.example.traning.entity.TrainingMaster;
 import java.util.List;
-
 import org.seasar.doma.BatchInsert;
 import org.seasar.doma.Dao;
 import org.seasar.doma.Insert;
 import org.seasar.doma.Select;
 import org.seasar.doma.boot.ConfigAutowireable;
 
-import com.example.traning.entity.TrainingItemMaster;
-import com.example.traning.entity.TrainingMaster;
-
 @Dao
 @ConfigAutowireable
 public interface TrainingMasterDao {
-	@Insert
-	int insert(TrainingMaster trainingMaster);
+  @Insert
+  int insert(TrainingMaster trainingMaster);
 
-	@Select
-	List<TrainingMaster> selectAllParts();
+  @Select
+  List<TrainingMaster> selectAllParts();
 
-	@Select
-	List<TrainingItemMaster> selectItemsByPart(String partCode);
+  @Select
+  List<TrainingItemMaster> selectItemsByPart(String partCode);
 
-	@Select
-	String selectNameByCode(String partCode);
+  @Select
+  String selectNameByCode(String partCode);
 
-	@BatchInsert
-	int[] batchUpsert(List<TrainingItemMaster> entities);
+  @BatchInsert
+  int[] batchUpsert(List<TrainingItemMaster> entities);
 
-	@Select
-	List<TrainingMaster> selectAll();
+  @Select
+  List<TrainingMaster> selectAll();
 
-	@Select
-	List<TrainingItemMaster> selectAllItems();
+  @Select
+  List<TrainingItemMaster> selectAllItems();
 }

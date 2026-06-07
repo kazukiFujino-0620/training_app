@@ -105,7 +105,11 @@ window.selectedTrainings = selectedTrainings;
 
 // タイマー用の経過時間をパース
 function parseTimeToSeconds(timeString) {
-    const [h, m, s] = (timeString || '00:00:00').split(':').map(Number);
+    const parts = (timeString || '00:00:00').split(':').map(Number);
+    const h = parts[0] || 0;
+    const m = parts[1] || 0;
+    const s = parts[2] || 0;
+    if (isNaN(h) || isNaN(m) || isNaN(s)) return 0;
     return h * 3600 + m * 60 + s;
 }
 
@@ -433,17 +437,48 @@ function setIntervalTime(seconds) {
 
 function handleCheck(el) {
     if (!el) return;
-    // チェック操作はユーザージェスチャーなのでここでAudioContextを有効化する
     ensureAudioContext();
     el.classList.toggle('completed');
     if (!isTimerRunning) {
         toggleMainTimer();
     }
     if (el.classList.contains('completed')) {
-        startInterval(120); // 120秒開始
+        const card = el.closest('.training-card');
+        const groupId = card?.dataset.supersetGroupId;
+
+        if (groupId) {
+            const groupCards = Array.from(
+                document.querySelectorAll(`.training-card[data-superset-group-id="${groupId}"]`)
+            );
+            if (groupCards.length === 2) {
+                const isCardA = groupCards[0] === card;
+                if (isCardA) {
+                    // A種目セット完了 → インターバル開始しない、Bへ誘導バナー表示
+                    showSupersetNextBanner(groupCards[1].dataset.menu);
+                    return;
+                } else {
+                    // B種目セット完了 → バナー消す、インターバル開始
+                    hideSupersetNextBanner();
+                }
+            }
+        }
+
+        startInterval(120);
     } else {
         stopInterval();
     }
+}
+
+function showSupersetNextBanner(nextMenu) {
+    const banner = document.getElementById('supersetNextBanner');
+    if (!banner) return;
+    banner.textContent = `次: ${nextMenu} のセットへ ▶`;
+    banner.style.display = 'block';
+}
+
+function hideSupersetNextBanner() {
+    const banner = document.getElementById('supersetNextBanner');
+    if (banner) banner.style.display = 'none';
 }
 
 let intervalTimerId = null;
@@ -582,6 +617,172 @@ window.handleCheck = handleCheck;
 window.startInterval = startInterval;
 window.stopInterval = stopInterval;
 
+// ── スーパーセット グループ化 ────────────────────────────────────────────────
+let groupingMode = false;
+let groupingSourceId = null;
+
+function startGrouping(trainingIdOrBtn) {
+    if (groupingMode) {
+        cancelGrouping();
+        return;
+    }
+    // theme.js から data-value（文字列ID）で呼ばれる場合と、直接ボタン要素で呼ばれる場合の両方に対応
+    let trainingId;
+    if (trainingIdOrBtn && typeof trainingIdOrBtn === 'object' && trainingIdOrBtn.closest) {
+        trainingId = trainingIdOrBtn.closest('.training-card')?.dataset.trainingId;
+    } else {
+        trainingId = String(trainingIdOrBtn);
+    }
+    if (!trainingId) return;
+
+    const card = document.querySelector(`.training-card[data-training-id="${trainingId}"]`);
+    if (!card) return;
+
+    if (card.dataset.supersetGroupId) {
+        alert('この種目はすでにグループ化されています。先に解除してください。');
+        return;
+    }
+
+    groupingMode = true;
+    groupingSourceId = trainingId;
+
+    document.querySelectorAll('.training-card').forEach(c => {
+        if (c.dataset.trainingId !== trainingId && !c.dataset.supersetGroupId) {
+            c.classList.add('grouping-target');
+        }
+    });
+    card.classList.add('grouping-source');
+
+    const hint = document.createElement('div');
+    hint.id = 'groupingHint';
+    hint.className = 'grouping-hint';
+    hint.textContent = 'グループ化する種目カードをタップしてください（もう一度タップでキャンセル）';
+    document.querySelector('.training-container')?.prepend(hint);
+}
+
+function cancelGrouping() {
+    groupingMode = false;
+    groupingSourceId = null;
+    document.querySelectorAll('.grouping-target, .grouping-source').forEach(c => {
+        c.classList.remove('grouping-target', 'grouping-source');
+    });
+    document.getElementById('groupingHint')?.remove();
+}
+
+async function applyGrouping(targetCard) {
+    const targetId = targetCard.dataset.trainingId;
+    const token = document.querySelector('meta[name="_csrf"]')?.content;
+    const header = document.querySelector('meta[name="_csrf_header"]')?.content;
+
+    try {
+        const res = await fetch('/api/training/superset/group', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', [header]: token },
+            body: JSON.stringify({ trainingIds: [parseInt(groupingSourceId), parseInt(targetId)] })
+        });
+        if (!res.ok) throw new Error('グループ化に失敗しました');
+        const data = await res.json();
+        const gid = String(data.supersetGroupId);
+
+        const sourceCard = document.querySelector(`.training-card[data-training-id="${groupingSourceId}"]`);
+        if (sourceCard) sourceCard.dataset.supersetGroupId = gid;
+        targetCard.dataset.supersetGroupId = gid;
+
+        cancelGrouping();
+        renderSupersetGroups();
+    } catch (e) {
+        alert(e.message);
+        cancelGrouping();
+    }
+}
+
+async function ungroupSuperset(supersetGroupId) {
+    if (!confirm('スーパーセットグループを解除しますか？')) return;
+    const token = document.querySelector('meta[name="_csrf"]')?.content;
+    const header = document.querySelector('meta[name="_csrf_header"]')?.content;
+
+    try {
+        const res = await fetch('/api/training/superset/ungroup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', [header]: token },
+            body: JSON.stringify({ supersetGroupId: parseInt(supersetGroupId) })
+        });
+        if (!res.ok) throw new Error('解除に失敗しました');
+
+        document.querySelectorAll(`.training-card[data-superset-group-id="${supersetGroupId}"]`).forEach(c => {
+            c.dataset.supersetGroupId = '';
+        });
+        renderSupersetGroups();
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
+function renderSupersetGroups() {
+    const container = document.querySelector('.training-container');
+    if (!container) return;
+
+    // 既存のスーパーセット装飾を解除
+    container.querySelectorAll('.superset-group-wrapper').forEach(wrapper => {
+        Array.from(wrapper.querySelectorAll('.training-card')).forEach(card => wrapper.before(card));
+        wrapper.remove();
+    });
+    container.querySelectorAll('.superset-badge, .superset-divider, .btn-ungroup-superset').forEach(el => el.remove());
+
+    // group_id ごとにカードをグループ化
+    const groupMap = {};
+    container.querySelectorAll('.training-card[data-superset-group-id]').forEach(card => {
+        const gid = card.dataset.supersetGroupId;
+        if (!gid) return;
+        if (!groupMap[gid]) groupMap[gid] = [];
+        groupMap[gid].push(card);
+    });
+
+    Object.entries(groupMap).forEach(([gid, cards]) => {
+        if (cards.length < 2) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'superset-group-wrapper';
+        cards[0].before(wrapper);
+
+        cards.forEach((card, i) => {
+            const label = i === 0 ? 'A' : 'B';
+            const titleDiv = card.querySelector('.exercise-title');
+
+            // SUPER A / SUPER B バッジ
+            const badge = document.createElement('span');
+            badge.className = 'superset-badge';
+            badge.textContent = `SUPER ${label}`;
+            titleDiv?.insertBefore(badge, titleDiv.firstChild);
+
+            // 解除ボタンはカードAにのみ付ける
+            if (i === 0) {
+                const ungroupBtn = document.createElement('button');
+                ungroupBtn.type = 'button';
+                ungroupBtn.className = 'btn-ungroup-superset';
+                ungroupBtn.textContent = '解除';
+                ungroupBtn.dataset.value = gid;
+                ungroupBtn.setAttribute('data-action', 'ungroupSuperset');
+                titleDiv?.appendChild(ungroupBtn);
+            }
+
+            wrapper.appendChild(card);
+
+            // A と B の間に区切りを挿入
+            if (i === 0) {
+                const divider = document.createElement('div');
+                divider.className = 'superset-divider';
+                divider.textContent = '↕ スーパーセット';
+                wrapper.appendChild(divider);
+            }
+        });
+    });
+}
+
+window.startGrouping = startGrouping;
+window.ungroupSuperset = ungroupSuperset;
+// ──────────────────────────────────────────────────────────────────────────
+
 // 3. セット操作（実技・モーダル共通）
 function addSet(btn) {
     // 既存のインライン追加はやめ、モーダルでセット追加する UX に変更
@@ -711,6 +912,56 @@ function openModal(date, id = null) {
                 addSetRow();
             }
         }, 10);
+
+        // ペアリングドロップダウンを構築
+        loadSupersetPairingDropdown(date);
+    }
+}
+
+async function loadSupersetPairingDropdown(date) {
+    // 既存のドロップダウンを削除
+    document.getElementById('supersetPairingGroup')?.remove();
+
+    if (!date) return;
+    const modalForm = document.querySelector('#trainingModal form');
+    if (!modalForm) return;
+
+    const group = document.createElement('div');
+    group.id = 'supersetPairingGroup';
+    group.className = 'form-group';
+
+    try {
+        const res = await fetch(`/api/training/superset/candidates?date=${encodeURIComponent(date)}`);
+        if (!res.ok) throw new Error();
+        const candidates = await res.json();
+
+        if (!candidates || candidates.length === 0) {
+            group.innerHTML = `
+                <label class="form-label" style="font-weight:600;">スーパーセット</label>
+                <p style="font-size:0.85rem;color:var(--text-muted,#888);margin:0;">
+                    ※ 同日に他の種目を追加すると、スーパーセットに組み合わせられます
+                </p>
+            `;
+        } else {
+            group.innerHTML = `
+                <label class="form-label" style="font-weight:600;">スーパーセットにする（任意）</label>
+                <select id="supersetPairingSelect" class="form-select">
+                    <option value="">-- スーパーセットにしない --</option>
+                    ${candidates.map(c => `<option value="${c.trainingId}">${c.menu}（${c.partName}）</option>`).join('')}
+                </select>
+            `;
+        }
+    } catch (e) {
+        // API失敗時は何も表示しない
+        return;
+    }
+
+    // 保存ボタンの前に挿入
+    const saveBtn = modalForm.querySelector('[data-action="saveRegister"]')?.closest('.flex');
+    if (saveBtn) {
+        saveBtn.before(group);
+    } else {
+        modalForm.appendChild(group);
     }
 }
 
@@ -1125,6 +1376,34 @@ async function addTrainingCardLocally() {
             renderNewCard(trainingData.menu, trainingData.partName, trainingData.partCode, trainingData.trainingDate, trainingData.userId, trainingData.details, trainingData.id);
         }
 
+        // スーパーセットペアリング（新規登録時のみ）
+        if (isNew && trainingData.id) {
+            const pairingSelect = document.getElementById('supersetPairingSelect');
+            const pairId = pairingSelect?.value;
+            if (pairId) {
+                const token2 = document.querySelector('meta[name="_csrf"]')?.content;
+                const header2 = document.querySelector('meta[name="_csrf_header"]')?.content;
+                try {
+                    const gRes = await fetch('/api/training/superset/group', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', [header2]: token2 },
+                        body: JSON.stringify({ trainingIds: [parseInt(pairId), trainingData.id] })
+                    });
+                    if (gRes.ok) {
+                        const gData = await gRes.json();
+                        const gid = String(gData.supersetGroupId);
+                        const newCard = document.querySelector(`.training-card[data-training-id="${trainingData.id}"]`);
+                        const pairCard = document.querySelector(`.training-card[data-training-id="${pairId}"]`);
+                        if (newCard) newCard.dataset.supersetGroupId = gid;
+                        if (pairCard) pairCard.dataset.supersetGroupId = gid;
+                        renderSupersetGroups();
+                    }
+                } catch (e) {
+                    // グループ化失敗は無視（種目は保存済み）
+                }
+            }
+        }
+
         closeModal();
     } catch (error) {
         alert("エラーが発生しました: " + error.message);
@@ -1175,12 +1454,25 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
     }
 }
 
-// バッジタップでセット種別をトグル（全ページ共通）
+// セット種別バッジタップとグループ化対象カードのクリックを処理
 document.addEventListener('click', function(e) {
+    // セット種別バッジ
     const badge = e.target.closest('.set-type-badge');
-    if (!badge) return;
-    toggleSetTypeBadge(badge);
-    e.stopPropagation();
+    if (badge) {
+        toggleSetTypeBadge(badge);
+        e.stopPropagation();
+        return;
+    }
+
+    // グループ化モード中：対象カードをクリックして applyGrouping
+    if (groupingMode) {
+        const targetCard = e.target.closest('.training-card.grouping-target');
+        if (targetCard) {
+            e.stopPropagation();
+            applyGrouping(targetCard);
+            return;
+        }
+    }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1188,6 +1480,9 @@ document.addEventListener('DOMContentLoaded', () => {
     updateMainPadding();
     initNotification();
     window.addEventListener('resize', updateMainPadding);
+
+    // スーパーセットグループの初期描画
+    renderSupersetGroups();
 
     const partSelect = document.getElementById('modalPart');
     if (partSelect) {
