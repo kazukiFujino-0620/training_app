@@ -47,6 +47,10 @@
                             <span>テンプレート管理</span>
                         </a>
 
+                        <div th:if="${showReorderMenu}" class="settings-item" id="openReorderModal" style="cursor:pointer;">
+                            <span>トレーニング順変更</span>
+                        </div>
+
                         <a class="settings-item" href="/pr" style="text-decoration:none;display:block;">
                             <span>自己記録（PR）</span>
                         </a>
@@ -142,8 +146,36 @@
     </div>
 </th:block>
 
+<th:block th:fragment="reorderModalFragment">
+    <div id="reorderModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content" style="max-width:480px; width:90%;">
+            <h3 style="margin-bottom:1rem;">トレーニング順変更</h3>
+            <div id="reorderList" style="min-height:60px;"></div>
+            <div style="display:flex; gap:0.75rem; justify-content:flex-end; margin-top:1.5rem;">
+                <button id="reorderCancelBtn" class="btn btn-secondary">キャンセル</button>
+                <button id="reorderSaveBtn" class="btn btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+    <script th:src="@{/js/reorder-modal.js}"></script>
+</th:block>
+
 <th:block th:fragment="footerFragment">
     <div th:replace="~{common :: sessionModalsFragment}"></div>
+
+    <!-- ── トレーニング順変更モーダル ──────────────────────────────── -->
+    <div id="reorderModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-content" style="max-width:480px; width:90%;">
+            <h3 style="margin-bottom:1rem;">トレーニング順変更</h3>
+            <div id="reorderList" style="min-height:60px;"></div>
+            <div style="display:flex; gap:0.75rem; justify-content:flex-end; margin-top:1.5rem;">
+                <button id="reorderCancelBtn" class="btn btn-secondary">キャンセル</button>
+                <button id="reorderSaveBtn" class="btn btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+    <script th:src="@{/js/reorder-modal.js}"></script>
+
     <footer class="bg-tertiary text-center py-4 mt-8">
         <div class="container">
             <p class="text-muted text-sm">

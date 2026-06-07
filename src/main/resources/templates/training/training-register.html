@@ -536,6 +536,11 @@
                 <div class="date-header" th:text="${selectedDate} + ' のトレーニング登録'">
                     2026-05-10 のトレーニング登録
                 </div>
+                <div style="text-align:right; margin-bottom:1rem;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openRegisterReorderModal()">
+                        ↕ トレーニング順変更
+                    </button>
+                </div>
 
                 <!-- Initial state: large button only -->
                 <div class="initial-state" id="initialState">
@@ -550,6 +555,11 @@
                 <!-- After exercise selection: block display -->
                 <div class="register-content" id="registerContent">
                     <div id="trainingBlocksContainer"></div>
+                    <div style="text-align:center; margin-top:1rem; margin-bottom:0.5rem;">
+                        <button class="btn-register-main" style="padding:1rem 2.5rem; font-size:1.1em;" data-action="openExerciseModal">
+                            ＋ 種目を追加
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -589,10 +599,16 @@
 
     <input type="hidden" id="selectedDate" th:value="${selectedDate}" />
     <input type="hidden" id="partListData" th:value="${partList}" />
-    
+
+    <!-- 既存トレーニングデータ（初期表示用） -->
+    <script th:inline="javascript">
+        window.existingTrainings = /*[[${existingTrainings}]]*/ [];
+    </script>
+
     <!-- JavaScript -->
     <script th:src="@{/js/theme.js}"></script>
     <script th:src="@{/js/prev-record.js}"></script>
     <script th:src="@{/js/training-register.js}"></script>
+    <div th:replace="~{common :: reorderModalFragment}"></div>
 </body>
 </html>

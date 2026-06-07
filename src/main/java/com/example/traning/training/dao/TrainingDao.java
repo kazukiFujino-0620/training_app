@@ -76,6 +76,12 @@ public interface TrainingDao {
       Long userId, LocalDate startDate, LocalDate endDate);
 
   @Select
+  int selectMaxDisplayOrderByUserIdAndDate(Long userId, LocalDate date);
+
+  @Update(sqlFile = true)
+  int updateDisplayOrder(Long id, int displayOrder, LocalDateTime updatedDatetime);
+
+  @Select
   int countByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate);
 
   @Select

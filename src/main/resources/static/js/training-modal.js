@@ -105,7 +105,11 @@ window.selectedTrainings = selectedTrainings;
 
 // タイマー用の経過時間をパース
 function parseTimeToSeconds(timeString) {
-    const [h, m, s] = (timeString || '00:00:00').split(':').map(Number);
+    const parts = (timeString || '00:00:00').split(':').map(Number);
+    const h = parts[0] || 0;
+    const m = parts[1] || 0;
+    const s = parts[2] || 0;
+    if (isNaN(h) || isNaN(m) || isNaN(s)) return 0;
     return h * 3600 + m * 60 + s;
 }
 
