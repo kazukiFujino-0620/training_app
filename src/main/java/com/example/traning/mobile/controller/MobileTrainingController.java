@@ -126,10 +126,8 @@ public class MobileTrainingController {
     if (!userId.equals(training.getUserId())) return ResponseEntity.status(403).build();
 
     List<TrainingDetail> existing = trainingDetailDao.selectByTrainingId(trainingId);
-    int nextSetNumber = existing.stream()
-        .mapToInt(TrainingDetail::getSetNumber)
-        .max()
-        .orElse(0) + 1;
+    int nextSetNumber =
+        existing.stream().mapToInt(TrainingDetail::getSetNumber).max().orElse(0) + 1;
 
     TrainingDetail detail = new TrainingDetail();
     detail.setTrainingId(trainingId);
@@ -148,8 +146,7 @@ public class MobileTrainingController {
   @Transactional
   @AuditLog(action = "MOBILE_SET_DELETE", targetTable = "training_details")
   public ResponseEntity<Void> deleteSet(
-      @AuthenticationPrincipal Long userId,
-      @PathVariable Long id) {
+      @AuthenticationPrincipal Long userId, @PathVariable Long id) {
 
     TrainingDetail detail = trainingDetailDao.selectById(id);
     if (detail == null) return ResponseEntity.notFound().build();
