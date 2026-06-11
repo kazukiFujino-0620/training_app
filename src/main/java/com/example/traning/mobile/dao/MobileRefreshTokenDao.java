@@ -2,6 +2,7 @@ package com.example.traning.mobile.dao;
 
 import com.example.traning.mobile.entity.MobileRefreshToken;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.seasar.doma.Dao;
 import org.seasar.doma.Delete;
@@ -19,6 +20,9 @@ public interface MobileRefreshTokenDao {
 
   @Select
   Optional<MobileRefreshToken> selectByTokenHash(String tokenHash);
+
+  @Select
+  List<MobileRefreshToken> selectActiveByDeviceId(String deviceId);
 
   @Update(sqlFile = true)
   int revokeByTokenHash(String tokenHash, LocalDateTime revokedAt);

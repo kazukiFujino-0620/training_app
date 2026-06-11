@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.security.Principal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -40,6 +41,11 @@ public class DataExportController {
 
     if (from.isAfter(to)) {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST, "開始日は終了日以前の日付を指定してください");
+      return;
+    }
+
+    if (ChronoUnit.DAYS.between(from, to) > 90) {
+      response.sendError(HttpServletResponse.SC_BAD_REQUEST, "エクスポート期間は90日以内で指定してください");
       return;
     }
 

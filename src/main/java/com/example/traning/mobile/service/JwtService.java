@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 public class JwtService {
 
   private static final long ACCESS_TOKEN_VALIDITY_MS = 15L * 60 * 1000; // 15分
-  private static final long REFRESH_TOKEN_VALIDITY_MS = 30L * 24 * 60 * 60 * 1000; // 30日
+  private static final long REFRESH_TOKEN_VALIDITY_MS = 7L * 24 * 60 * 60 * 1000; // 7日
   private static final long MFA_TEMP_TOKEN_VALIDITY_MS = 5L * 60 * 1000; // 5分
 
   @Value("${app.jwt.secret}")
@@ -29,11 +29,12 @@ public class JwtService {
     Date now = new Date();
     return Jwts.builder()
         .subject(String.valueOf(userId))
+        .claim("type", "access")
         .claim("email", email)
         .claim("role", role)
         .issuedAt(now)
         .expiration(new Date(now.getTime() + ACCESS_TOKEN_VALIDITY_MS))
-        .signWith(signingKey())
+        .signWith(signingKey(), Jwts.SIG.HS256)
         .compact();
   }
 
@@ -46,7 +47,7 @@ public class JwtService {
         .claim("deviceId", deviceId)
         .issuedAt(now)
         .expiration(new Date(now.getTime() + MFA_TEMP_TOKEN_VALIDITY_MS))
-        .signWith(signingKey())
+        .signWith(signingKey(), Jwts.SIG.HS256)
         .compact();
   }
 
@@ -61,7 +62,12 @@ public class JwtService {
   }
 
   public Claims parseAccessToken(String token) throws JwtException {
-    return Jwts.parser().verifyWith(signingKey()).build().parseSignedClaims(token).getPayload();
+    Claims claims =
+        Jwts.parser().verifyWith(signingKey()).build().parseSignedClaims(token).getPayload();
+    if (!"access".equals(claims.get("type", String.class))) {
+      throw new JwtException("Invalid token type");
+    }
+    return claims;
   }
 
   public Long extractUserId(String token) {

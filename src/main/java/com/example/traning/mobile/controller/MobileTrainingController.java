@@ -188,7 +188,10 @@ public class MobileTrainingController {
     if (durationSec != null) {
       // 当日の自分のトレーニング全件に経過秒数を保存（MAX(duration)で復元できるように）
       LocalDate targetDate = training.getTrainingDate();
-      String durationStr = String.valueOf(durationSec);
+      int h = durationSec / 3600;
+      int m = (durationSec % 3600) / 60;
+      int s = durationSec % 60;
+      String durationStr = String.format("%02d:%02d:%02d", h, m, s);
       List<Training> todays = trainingDao.selectByDate(userId, targetDate, targetDate);
       for (Training t : todays) {
         if (trainingId.equals(t.getId())) {

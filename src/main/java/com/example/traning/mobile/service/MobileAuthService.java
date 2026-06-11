@@ -127,10 +127,10 @@ public class MobileAuthService {
 
   @Transactional
   public TokenResponse refresh(RefreshRequest req) {
-    String tokenHash = sha256(req.getRefreshToken());
     MobileRefreshToken stored =
-        refreshTokenDao
-            .selectByTokenHash(tokenHash)
+        refreshTokenDao.selectActiveByDeviceId(req.getDeviceId()).stream()
+            .filter(t -> passwordEncoder.matches(req.getRefreshToken(), t.getTokenHash()))
+            .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("リフレッシュトークンが無効です"));
 
     if (stored.getRevokedAt() != null || stored.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -159,7 +159,7 @@ public class MobileAuthService {
     String accessToken = jwtService.generateAccessToken(userId, email, role);
 
     String rawRefreshToken = UUID.randomUUID().toString();
-    String tokenHash = sha256(rawRefreshToken);
+    String tokenHash = passwordEncoder.encode(rawRefreshToken);
 
     refreshTokenDao.deleteByUserIdAndDeviceId(userId, deviceId);
 
