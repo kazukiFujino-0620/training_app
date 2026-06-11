@@ -34,7 +34,6 @@ build/
 .vscode/
 
 *.log
-*.gitignore
 
 ### Environment Variables ###
 .env
@@ -42,12 +41,9 @@ build/
 .env.production
 Obcidian/
 Obcidian
-*.md
-*.json
-.git*
+HELP.md
 src/main/resources/.DS_Store
 .DS_Store
-.gitignore
 logs/trainingapp-batch.log
 logs/trainingapp-error.log
 logs/trainingapp.log
