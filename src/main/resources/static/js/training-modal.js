@@ -2,6 +2,61 @@ let myChart;
 let totalSeconds = 0;
 let timerInterval = null;
 let isTimerRunning = false;
+let timerStartTimestamp = null;  // Bug3: 壁時計ベースの補正用
+let timerBaseSeconds = 0;        // Bug3: 一時停止時点の秒数
+
+// ── Service Worker / バックグラウンド通知 ────────────────────────────────
+let _swRegistration = null;
+
+async function initNotification() {
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+    try {
+        _swRegistration = await navigator.serviceWorker.register('/sw.js');
+    } catch (e) {
+        console.warn('SW登録失敗:', e);
+    }
+    if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+    }
+}
+
+async function scheduleBackgroundNotification(delayMs) {
+    if (Notification.permission !== 'granted') return;
+    if (!('serviceWorker' in navigator)) return;
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        reg.active?.postMessage({ type: 'SCHEDULE_INTERVAL_END', delayMs });
+    } catch (e) { /* SW未対応環境は無視 */ }
+}
+
+async function cancelBackgroundNotification() {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        reg.active?.postMessage({ type: 'CANCEL_INTERVAL' });
+    } catch (e) { /* 無視 */ }
+}
+
+document.addEventListener('visibilitychange', async () => {
+    if (!intervalStartTimestamp) return;
+
+    if (document.hidden) {
+        const remaining = Math.max(0, intervalInitialSeconds - Math.round((Date.now() - intervalStartTimestamp) / 1000));
+        if (remaining > 0) {
+            await scheduleBackgroundNotification(remaining * 1000);
+        }
+    } else {
+        await cancelBackgroundNotification();
+        const elapsed = Math.round((Date.now() - intervalStartTimestamp) / 1000);
+        if (elapsed >= intervalInitialSeconds && intervalTimerId !== null) {
+            updateIntervalDisplay(document.getElementById('intervalTimer'), 0);
+            stopInterval();
+            playEndAlarm();
+            showIntervalEndBanner();
+        }
+    }
+});
+// ──────────────────────────────────────────────────────────────────────────
 
 // ── Web Audio API アラーム ────────────────────────────────────────────────
 // ユーザーのタップ操作（toggleMainTimer）でAudioContextを初期化する。
@@ -50,7 +105,11 @@ window.selectedTrainings = selectedTrainings;
 
 // タイマー用の経過時間をパース
 function parseTimeToSeconds(timeString) {
-    const [h, m, s] = (timeString || '00:00:00').split(':').map(Number);
+    const parts = (timeString || '00:00:00').split(':').map(Number);
+    const h = parts[0] || 0;
+    const m = parts[1] || 0;
+    const s = parts[2] || 0;
+    if (isNaN(h) || isNaN(m) || isNaN(s)) return 0;
     return h * 3600 + m * 60 + s;
 }
 
@@ -331,15 +390,18 @@ function toggleMainTimer() {
     const btn = document.getElementById('startBtn');
     if (!isTimerRunning) {
         isTimerRunning = true;
+        timerStartTimestamp = Date.now();
+        timerBaseSeconds = totalSeconds;
         btn.textContent = "一時停止";
         btn.classList.add('btn-success');
         btn.classList.remove('btn-warning');
         timerInterval = setInterval(() => {
-            totalSeconds++;
+            totalSeconds = timerBaseSeconds + Math.round((Date.now() - timerStartTimestamp) / 1000);
             updateTimerDisplay();
         }, 1000);
     } else {
         isTimerRunning = false;
+        timerStartTimestamp = null;
         btn.textContent = "再開";
         btn.classList.remove('btn-success');
         btn.classList.add('btn-warning');
@@ -375,38 +437,92 @@ function setIntervalTime(seconds) {
 
 function handleCheck(el) {
     if (!el) return;
+    ensureAudioContext();
     el.classList.toggle('completed');
     if (!isTimerRunning) {
         toggleMainTimer();
     }
     if (el.classList.contains('completed')) {
-        startInterval(120); // 120秒開始
+        const card = el.closest('.training-card');
+        const groupId = card?.dataset.supersetGroupId;
+
+        if (groupId) {
+            const groupCards = Array.from(
+                document.querySelectorAll(`.training-card[data-superset-group-id="${groupId}"]`)
+            );
+            if (groupCards.length === 2) {
+                const isCardA = groupCards[0] === card;
+                if (isCardA) {
+                    // A種目セット完了 → インターバル開始しない、Bへ誘導バナー表示
+                    showSupersetNextBanner(groupCards[1].dataset.menu);
+                    return;
+                } else {
+                    // B種目セット完了 → バナー消す、インターバル開始
+                    hideSupersetNextBanner();
+                }
+            }
+        }
+
+        startInterval(120);
     } else {
         stopInterval();
     }
 }
 
+function showSupersetNextBanner(nextMenu) {
+    const banner = document.getElementById('supersetNextBanner');
+    if (!banner) return;
+    banner.textContent = `次: ${nextMenu} のセットへ ▶`;
+    banner.style.display = 'block';
+}
+
+function hideSupersetNextBanner() {
+    const banner = document.getElementById('supersetNextBanner');
+    if (banner) banner.style.display = 'none';
+}
+
 let intervalTimerId = null;
-let intervalRemaining = 0; // 残り時間を管理する変数を追加
+let intervalRemaining = 0;
+let intervalStartTimestamp = null;   // Bug3: 壁時計ベースの補正用
+let intervalInitialSeconds = 0;      // Bug3: 開始時/changeInterval後の基準秒数
+let intervalEndBannerTimeoutId = null; // 終了バナーの残留タイムアウト管理
 
 function startInterval(seconds) {
+    // 前回の終了バナー残留タイムアウトをキャンセルしてバナー状態をリセット
+    if (intervalEndBannerTimeoutId) {
+        clearTimeout(intervalEndBannerTimeoutId);
+        intervalEndBannerTimeoutId = null;
+    }
+
     stopInterval();
 
     const banner = document.getElementById('intervalBanner');
     const timerDisplay = document.getElementById('intervalTimer');
     if (!banner || !timerDisplay) return;
 
+    // 終了表示の残留状態をリセット（色・span表示・終了メッセージ）
+    banner.style.background = '#ff9800';
+    timerDisplay.style.visibility = '';
+    const controls = banner.querySelector('.interval-controls');
+    if (controls) controls.style.display = '';
+    const endMsg = document.getElementById('intervalEndMsg');
+    if (endMsg) endMsg.style.display = 'none';
+
     banner.style.display = 'block';
-    intervalRemaining = seconds; // 初期値をセット
-    
+    updateMainPadding();
+    intervalRemaining = seconds;
+    intervalInitialSeconds = seconds;
+    intervalStartTimestamp = Date.now();
+
     updateIntervalDisplay(timerDisplay, intervalRemaining);
 
     intervalTimerId = setInterval(() => {
-        intervalRemaining--;
+        const prev = intervalRemaining;
+        intervalRemaining = Math.max(0, intervalInitialSeconds - Math.round((Date.now() - intervalStartTimestamp) / 1000));
 
         if (intervalRemaining > 0) {
             updateIntervalDisplay(timerDisplay, intervalRemaining);
-            if (intervalRemaining === 10) {
+            if (prev > 10 && intervalRemaining <= 10) {
                 playWarningBeep();
                 if (navigator.vibrate) navigator.vibrate(200);
             }
@@ -431,11 +547,11 @@ function changeInterval(delta) {
     const timerDisplay = document.getElementById('intervalTimer');
     if (!timerDisplay) return;
 
-    // 変数 intervalRemaining を直接操作する
-    intervalRemaining += delta;
-    if (intervalRemaining < 0) intervalRemaining = 0;
+    intervalRemaining = Math.max(0, intervalRemaining + delta);
+    // 基準点をリセットして壁時計計算がズレないようにする
+    intervalInitialSeconds = intervalRemaining;
+    intervalStartTimestamp = Date.now();
 
-    // 表示を即時更新
     updateIntervalDisplay(timerDisplay, intervalRemaining);
 }
 
@@ -444,19 +560,55 @@ function stopInterval() {
         clearInterval(intervalTimerId);
         intervalTimerId = null;
     }
+    intervalStartTimestamp = null;
     const banner = document.getElementById('intervalBanner');
     if (banner) banner.style.display = 'none';
+    updateMainPadding();
+}
+
+function updateMainPadding() {
+    const timerContainer = document.querySelector('.timer-container');
+    const mainContent = document.querySelector('.main-content');
+    const header = document.querySelector('.header');
+    if (!timerContainer || !mainContent) return;
+
+    const headerHeight = header ? Math.round(header.getBoundingClientRect().height) : 64;
+    document.documentElement.style.setProperty('--header-height', headerHeight + 'px');
+
+    const timerHeight = timerContainer.offsetHeight;
+    mainContent.style.paddingTop = (headerHeight + timerHeight) + 'px';
 }
 
 function showIntervalEndBanner() {
     const banner = document.getElementById('intervalBanner');
     if (!banner) return;
-    banner.style.display = 'block';
+
+    // innerHTML を上書きせず span#intervalTimer を保持したまま終了表示に切り替える（Bug1対策）
+    const timerSpan = document.getElementById('intervalTimer');
+    const controls = banner.querySelector('.interval-controls');
+    if (timerSpan) timerSpan.style.visibility = 'hidden';
+    if (controls) controls.style.display = 'none';
+
+    let endMsg = document.getElementById('intervalEndMsg');
+    if (!endMsg) {
+        endMsg = document.createElement('div');
+        endMsg.id = 'intervalEndMsg';
+        endMsg.textContent = 'インターバル終了！次のセットを開始してください';
+        banner.appendChild(endMsg);
+    } else {
+        endMsg.style.display = 'block';
+    }
+
     banner.style.background = '#4caf50';
-    banner.innerHTML = 'インターバル終了！次のセットを開始してください';
-    setTimeout(() => {
+    banner.style.display = 'block';
+
+    intervalEndBannerTimeoutId = setTimeout(() => {
+        intervalEndBannerTimeoutId = null;
         banner.style.display = 'none';
-        banner.style.background = '';
+        banner.style.background = '#ff9800';
+        if (timerSpan) timerSpan.style.visibility = '';
+        if (controls) controls.style.display = '';
+        if (endMsg) endMsg.style.display = 'none';
     }, 3000);
 }
 
@@ -464,6 +616,172 @@ function showIntervalEndBanner() {
 window.handleCheck = handleCheck;
 window.startInterval = startInterval;
 window.stopInterval = stopInterval;
+
+// ── スーパーセット グループ化 ────────────────────────────────────────────────
+let groupingMode = false;
+let groupingSourceId = null;
+
+function startGrouping(trainingIdOrBtn) {
+    if (groupingMode) {
+        cancelGrouping();
+        return;
+    }
+    // theme.js から data-value（文字列ID）で呼ばれる場合と、直接ボタン要素で呼ばれる場合の両方に対応
+    let trainingId;
+    if (trainingIdOrBtn && typeof trainingIdOrBtn === 'object' && trainingIdOrBtn.closest) {
+        trainingId = trainingIdOrBtn.closest('.training-card')?.dataset.trainingId;
+    } else {
+        trainingId = String(trainingIdOrBtn);
+    }
+    if (!trainingId) return;
+
+    const card = document.querySelector(`.training-card[data-training-id="${trainingId}"]`);
+    if (!card) return;
+
+    if (card.dataset.supersetGroupId) {
+        alert('この種目はすでにグループ化されています。先に解除してください。');
+        return;
+    }
+
+    groupingMode = true;
+    groupingSourceId = trainingId;
+
+    document.querySelectorAll('.training-card').forEach(c => {
+        if (c.dataset.trainingId !== trainingId && !c.dataset.supersetGroupId) {
+            c.classList.add('grouping-target');
+        }
+    });
+    card.classList.add('grouping-source');
+
+    const hint = document.createElement('div');
+    hint.id = 'groupingHint';
+    hint.className = 'grouping-hint';
+    hint.textContent = 'グループ化する種目カードをタップしてください（もう一度タップでキャンセル）';
+    document.querySelector('.training-container')?.prepend(hint);
+}
+
+function cancelGrouping() {
+    groupingMode = false;
+    groupingSourceId = null;
+    document.querySelectorAll('.grouping-target, .grouping-source').forEach(c => {
+        c.classList.remove('grouping-target', 'grouping-source');
+    });
+    document.getElementById('groupingHint')?.remove();
+}
+
+async function applyGrouping(targetCard) {
+    const targetId = targetCard.dataset.trainingId;
+    const token = document.querySelector('meta[name="_csrf"]')?.content;
+    const header = document.querySelector('meta[name="_csrf_header"]')?.content;
+
+    try {
+        const res = await fetch('/api/training/superset/group', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', [header]: token },
+            body: JSON.stringify({ trainingIds: [parseInt(groupingSourceId), parseInt(targetId)] })
+        });
+        if (!res.ok) throw new Error('グループ化に失敗しました');
+        const data = await res.json();
+        const gid = String(data.supersetGroupId);
+
+        const sourceCard = document.querySelector(`.training-card[data-training-id="${groupingSourceId}"]`);
+        if (sourceCard) sourceCard.dataset.supersetGroupId = gid;
+        targetCard.dataset.supersetGroupId = gid;
+
+        cancelGrouping();
+        renderSupersetGroups();
+    } catch (e) {
+        alert(e.message);
+        cancelGrouping();
+    }
+}
+
+async function ungroupSuperset(supersetGroupId) {
+    if (!confirm('スーパーセットグループを解除しますか？')) return;
+    const token = document.querySelector('meta[name="_csrf"]')?.content;
+    const header = document.querySelector('meta[name="_csrf_header"]')?.content;
+
+    try {
+        const res = await fetch('/api/training/superset/ungroup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', [header]: token },
+            body: JSON.stringify({ supersetGroupId: parseInt(supersetGroupId) })
+        });
+        if (!res.ok) throw new Error('解除に失敗しました');
+
+        document.querySelectorAll(`.training-card[data-superset-group-id="${supersetGroupId}"]`).forEach(c => {
+            c.dataset.supersetGroupId = '';
+        });
+        renderSupersetGroups();
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
+function renderSupersetGroups() {
+    const container = document.querySelector('.training-container');
+    if (!container) return;
+
+    // 既存のスーパーセット装飾を解除
+    container.querySelectorAll('.superset-group-wrapper').forEach(wrapper => {
+        Array.from(wrapper.querySelectorAll('.training-card')).forEach(card => wrapper.before(card));
+        wrapper.remove();
+    });
+    container.querySelectorAll('.superset-badge, .superset-divider, .btn-ungroup-superset').forEach(el => el.remove());
+
+    // group_id ごとにカードをグループ化
+    const groupMap = {};
+    container.querySelectorAll('.training-card[data-superset-group-id]').forEach(card => {
+        const gid = card.dataset.supersetGroupId;
+        if (!gid) return;
+        if (!groupMap[gid]) groupMap[gid] = [];
+        groupMap[gid].push(card);
+    });
+
+    Object.entries(groupMap).forEach(([gid, cards]) => {
+        if (cards.length < 2) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'superset-group-wrapper';
+        cards[0].before(wrapper);
+
+        cards.forEach((card, i) => {
+            const label = i === 0 ? 'A' : 'B';
+            const titleDiv = card.querySelector('.exercise-title');
+
+            // SUPER A / SUPER B バッジ
+            const badge = document.createElement('span');
+            badge.className = 'superset-badge';
+            badge.textContent = `SUPER ${label}`;
+            titleDiv?.insertBefore(badge, titleDiv.firstChild);
+
+            // 解除ボタンはカードAにのみ付ける
+            if (i === 0) {
+                const ungroupBtn = document.createElement('button');
+                ungroupBtn.type = 'button';
+                ungroupBtn.className = 'btn-ungroup-superset';
+                ungroupBtn.textContent = '解除';
+                ungroupBtn.dataset.value = gid;
+                ungroupBtn.setAttribute('data-action', 'ungroupSuperset');
+                titleDiv?.appendChild(ungroupBtn);
+            }
+
+            wrapper.appendChild(card);
+
+            // A と B の間に区切りを挿入
+            if (i === 0) {
+                const divider = document.createElement('div');
+                divider.className = 'superset-divider';
+                divider.textContent = '↕ スーパーセット';
+                wrapper.appendChild(divider);
+            }
+        });
+    });
+}
+
+window.startGrouping = startGrouping;
+window.ungroupSuperset = ungroupSuperset;
+// ──────────────────────────────────────────────────────────────────────────
 
 // 3. セット操作（実技・モーダル共通）
 function addSet(btn) {
@@ -565,10 +883,13 @@ function openModal(date, id = null) {
             rows.forEach((r) => {
                 const weight = r.querySelector('.weight')?.value || '';
                 const reps = r.querySelector('.reps')?.value || '';
+                const st = r.querySelector('.set-type-badge')?.dataset.setType || r.dataset.setType || 'MAIN';
 
                 const tr = document.createElement('tr');
+                tr.className = 'set-row';
+                tr.dataset.setType = st;
                 tr.innerHTML = `
-                    <td>${setList.children.length + 1}</td>
+                    <td>${setList.children.length + 1} ${setTypeBadgeHtml(st)}</td>
                     <td><input type="number" class="weight" step="0.1" placeholder="0" value="${weight}"></td>
                     <td><input type="number" class="reps" placeholder="0" value="${reps}"></td>
                     <td>
@@ -591,6 +912,56 @@ function openModal(date, id = null) {
                 addSetRow();
             }
         }, 10);
+
+        // ペアリングドロップダウンを構築
+        loadSupersetPairingDropdown(date);
+    }
+}
+
+async function loadSupersetPairingDropdown(date) {
+    // 既存のドロップダウンを削除
+    document.getElementById('supersetPairingGroup')?.remove();
+
+    if (!date) return;
+    const modalForm = document.querySelector('#trainingModal form');
+    if (!modalForm) return;
+
+    const group = document.createElement('div');
+    group.id = 'supersetPairingGroup';
+    group.className = 'form-group';
+
+    try {
+        const res = await fetch(`/api/training/superset/candidates?date=${encodeURIComponent(date)}`);
+        if (!res.ok) throw new Error();
+        const candidates = await res.json();
+
+        if (!candidates || candidates.length === 0) {
+            group.innerHTML = `
+                <label class="form-label" style="font-weight:600;">スーパーセット</label>
+                <p style="font-size:0.85rem;color:var(--text-muted,#888);margin:0;">
+                    ※ 同日に他の種目を追加すると、スーパーセットに組み合わせられます
+                </p>
+            `;
+        } else {
+            group.innerHTML = `
+                <label class="form-label" style="font-weight:600;">スーパーセットにする（任意）</label>
+                <select id="supersetPairingSelect" class="form-select">
+                    <option value="">-- スーパーセットにしない --</option>
+                    ${candidates.map(c => `<option value="${c.trainingId}">${c.menu}（${c.partName}）</option>`).join('')}
+                </select>
+            `;
+        }
+    } catch (e) {
+        // API失敗時は何も表示しない
+        return;
+    }
+
+    // 保存ボタンの前に挿入
+    const saveBtn = modalForm.querySelector('[data-action="saveRegister"]')?.closest('.flex');
+    if (saveBtn) {
+        saveBtn.before(group);
+    } else {
+        modalForm.appendChild(group);
     }
 }
 
@@ -712,6 +1083,26 @@ function updateItems(partCode) {
         });
 }
 
+function setTypeBadgeHtml(setType) {
+    const st = setType || 'MAIN';
+    const cls = st === 'WARMUP' ? 'set-type-warmup' : st === 'DROP' ? 'set-type-drop' : 'set-type-main';
+    const label = st === 'WARMUP' ? 'WU' : st === 'DROP' ? 'DROP' : 'SET';
+    return `<span class="set-type-badge ${cls}" data-set-type="${st}">${label}</span>`;
+}
+
+function toggleSetTypeBadge(badge) {
+    if (!badge) return;
+    const current = badge.dataset.setType || 'MAIN';
+    const cycle = { 'MAIN': 'DROP', 'DROP': 'WARMUP', 'WARMUP': 'MAIN' };
+    const next = cycle[current] || 'MAIN';
+    badge.dataset.setType = next;
+    badge.textContent = next === 'WARMUP' ? 'WU' : next === 'DROP' ? 'DROP' : 'SET';
+    badge.className = 'set-type-badge ' + (next === 'WARMUP' ? 'set-type-warmup' : next === 'DROP' ? 'set-type-drop' : 'set-type-main');
+    const row = badge.closest('tr.set-row');
+    if (row) row.dataset.setType = next;
+}
+window.toggleSetTypeBadge = toggleSetTypeBadge;
+
 function addSetRow() {
     const tbody = document.getElementById('setList');
 
@@ -720,10 +1111,16 @@ function addSetRow() {
         return;
     }
 
+    // 直前のセットと同じ種別を継承
+    const prevRow = tbody.lastElementChild;
+    const prevSetType = prevRow?.querySelector('.set-type-badge')?.dataset.setType || 'MAIN';
+
     const row = document.createElement('tr');
+    row.className = 'set-row';
+    row.dataset.setType = prevSetType;
 
     row.innerHTML = `
-        <td>${tbody.children.length + 1}</td>
+        <td>${tbody.children.length + 1} ${setTypeBadgeHtml(prevSetType)}</td>
         <td><input type="number" class="weight" step="0.1" placeholder="0"></td>
         <td><input type="number" class="reps" placeholder="0"></td>
         <td>
@@ -774,6 +1171,8 @@ async function finishTraining() {
             const repsVal = row.querySelector('.reps')?.value ?? '';
             const checkBtn = row.querySelector('.btn-check');
             const isCompleted = checkBtn?.classList.contains('completed') ?? false;
+            const badge = row.querySelector('.set-type-badge');
+            const setType = badge?.dataset.setType || row.dataset.setType || 'MAIN';
 
             if (weightVal === '' || repsVal === '') {
                 validationErrors.push(`「${menu}」のセット ${index + 1} に未入力の項目があります。`);
@@ -783,7 +1182,8 @@ async function finishTraining() {
                 weight: weightVal !== '' ? parseFloat(weightVal) : null,
                 reps: repsVal !== '' ? parseInt(repsVal, 10) : null,
                 setNumber: index + 1,
-                completed: isCompleted
+                completed: isCompleted,
+                setType: setType
             });
         });
 
@@ -853,10 +1253,12 @@ function getModalTrainingData() {
     const details = Array.from(document.querySelectorAll('#setList tr')).map((row, index) => {
         const weightInput = row.querySelector('input.weight');
         const repsInput = row.querySelector('input.reps');
+        const badge = row.querySelector('.set-type-badge');
         return {
             setNumber: index + 1,
             weight: weightInput && weightInput.value !== '' ? parseFloat(weightInput.value) : 0,
             reps: repsInput && repsInput.value !== '' ? parseInt(repsInput.value, 10) : 0,
+            setType: badge?.dataset.setType || 'MAIN',
             completed: false
         };
     });
@@ -880,6 +1282,12 @@ function updateExistingTrainingCard(trainingData) {
     const card = document.querySelector(`.training-card[data-training-id="${trainingData.id}"]`);
     if (!card) return false;
 
+    // Bug2対策: 再描画前に既存行のcompleted状態を退避する
+    const completedStates = [];
+    card.querySelectorAll('.set-row').forEach((row, i) => {
+        completedStates[i] = row.querySelector('.btn-check')?.classList.contains('completed') || false;
+    });
+
     card.dataset.partCode = trainingData.partCode;
     card.dataset.menu = trainingData.menu;
     card.dataset.trainingDate = trainingData.trainingDate;
@@ -896,15 +1304,23 @@ function updateExistingTrainingCard(trainingData) {
     const tbody = card.querySelector('.set-tbody');
     if (tbody) {
         tbody.innerHTML = trainingData.details.map((detail, index) => {
+            const st = detail.setType || 'MAIN';
             return `
-            <tr class="set-row">
-                <td><span class="set-num">${index + 1}</span></td>
+            <tr class="set-row" data-set-type="${st}">
+                <td><span class="set-num">${index + 1}</span>${setTypeBadgeHtml(st)}</td>
                 <td><input type="number" class="weight" value="${detail.weight != null ? detail.weight : ''}" step="0.5" placeholder="0"> kg</td>
                 <td><input type="number" class="reps" value="${detail.reps != null ? detail.reps : ''}" placeholder="0"> 回</td>
                 <td><button class="btn-check" data-action="handleCheck">✓</button></td>
                 <td><button type="button" data-action="removeSet" class="btn btn-danger btn-sm">✕</button></td>
             </tr>`;
         }).join('');
+
+        // 退避したcompleted状態を復元（新規追加行はuncheckedのまま）
+        card.querySelectorAll('.set-row').forEach((row, i) => {
+            if (completedStates[i]) {
+                row.querySelector('.btn-check')?.classList.add('completed');
+            }
+        });
     }
 
     const memoArea = card.querySelector('.memo-area');
@@ -960,6 +1376,34 @@ async function addTrainingCardLocally() {
             renderNewCard(trainingData.menu, trainingData.partName, trainingData.partCode, trainingData.trainingDate, trainingData.userId, trainingData.details, trainingData.id);
         }
 
+        // スーパーセットペアリング（新規登録時のみ）
+        if (isNew && trainingData.id) {
+            const pairingSelect = document.getElementById('supersetPairingSelect');
+            const pairId = pairingSelect?.value;
+            if (pairId) {
+                const token2 = document.querySelector('meta[name="_csrf"]')?.content;
+                const header2 = document.querySelector('meta[name="_csrf_header"]')?.content;
+                try {
+                    const gRes = await fetch('/api/training/superset/group', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', [header2]: token2 },
+                        body: JSON.stringify({ trainingIds: [parseInt(pairId), trainingData.id] })
+                    });
+                    if (gRes.ok) {
+                        const gData = await gRes.json();
+                        const gid = String(gData.supersetGroupId);
+                        const newCard = document.querySelector(`.training-card[data-training-id="${trainingData.id}"]`);
+                        const pairCard = document.querySelector(`.training-card[data-training-id="${pairId}"]`);
+                        if (newCard) newCard.dataset.supersetGroupId = gid;
+                        if (pairCard) pairCard.dataset.supersetGroupId = gid;
+                        renderSupersetGroups();
+                    }
+                } catch (e) {
+                    // グループ化失敗は無視（種目は保存済み）
+                }
+            }
+        }
+
         closeModal();
     } catch (error) {
         alert("エラーが発生しました: " + error.message);
@@ -970,15 +1414,18 @@ async function addTrainingCardLocally() {
 }
 // 画面描画部分を切り出し
 function renderNewCard(menu, partName, partCode, trainingDate, userId, details, id) {
-    let rowsHtml = details.map(d => `
-		<tr class="set-row">
-        <td><span class="set-num">${d.setNumber}</span></td>
+    let rowsHtml = details.map(d => {
+        const st = d.setType || 'MAIN';
+        return `
+		<tr class="set-row" data-set-type="${st}">
+        <td><span class="set-num">${d.setNumber}</span>${setTypeBadgeHtml(st)}</td>
         <td><input type="number" class="weight" value="${d.weight != null ? d.weight : ''}" step="0.5" placeholder="0"> kg</td>
         <td><input type="number" class="reps" value="${d.reps != null ? d.reps : ''}" placeholder="0"> 回</td>
         <td><button class="btn-check ${(d.isCompleted || d.completed) ? 'completed' : ''}" data-action="handleCheck">✓</button></td>
         <td><button type="button" data-action="removeSet" style="color:#f44336; border:none; background:none; cursor:pointer;">✕</button></td>
     </tr>
-    `).join('');
+    `;
+    }).join('');
 
     const newCard = `
         <div class="training-card" data-training-id="${id}"
@@ -1007,8 +1454,35 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
     }
 }
 
+// セット種別バッジタップとグループ化対象カードのクリックを処理
+document.addEventListener('click', function(e) {
+    // セット種別バッジ
+    const badge = e.target.closest('.set-type-badge');
+    if (badge) {
+        toggleSetTypeBadge(badge);
+        e.stopPropagation();
+        return;
+    }
+
+    // グループ化モード中：対象カードをクリックして applyGrouping
+    if (groupingMode) {
+        const targetCard = e.target.closest('.training-card.grouping-target');
+        if (targetCard) {
+            e.stopPropagation();
+            applyGrouping(targetCard);
+            return;
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeTimer();
+    updateMainPadding();
+    initNotification();
+    window.addEventListener('resize', updateMainPadding);
+
+    // スーパーセットグループの初期描画
+    renderSupersetGroups();
 
     const partSelect = document.getElementById('modalPart');
     if (partSelect) {
@@ -1224,3 +1698,28 @@ window.saveRegister = saveRegister;
 window.addTrainingCardLocally = addTrainingCardLocally;
 window.reindexSets = reindexSets;
 window.stopInterval = stopInterval;
+
+// Bug3対策: バックグラウンド復帰時に壁時計で両タイマーを補正する
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+
+    // メインタイマー補正
+    if (isTimerRunning && timerStartTimestamp !== null) {
+        totalSeconds = timerBaseSeconds + Math.round((Date.now() - timerStartTimestamp) / 1000);
+        updateTimerDisplay();
+    }
+
+    // インターバルタイマー補正
+    if (intervalTimerId !== null && intervalStartTimestamp !== null) {
+        const timerDisplay = document.getElementById('intervalTimer');
+        intervalRemaining = Math.max(0, intervalInitialSeconds - Math.round((Date.now() - intervalStartTimestamp) / 1000));
+        if (intervalRemaining <= 0) {
+            if (timerDisplay) updateIntervalDisplay(timerDisplay, 0);
+            stopInterval();
+            playEndAlarm();
+            showIntervalEndBanner();
+        } else if (timerDisplay) {
+            updateIntervalDisplay(timerDisplay, intervalRemaining);
+        }
+    }
+});

@@ -4,6 +4,7 @@ SELECT
     trainings.user_id,
     trainings.training_date,
     trainings.part_code,
+    trainings.superset_group_id,
     trainings.menu,
     trainings.memo,
     trainings.duration,

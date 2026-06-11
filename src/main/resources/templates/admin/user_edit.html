@@ -5,6 +5,11 @@
       th:attr="data-theme=${theme}">
 <head>
     <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ユーザー編集 - トレーニング管理システム</title>
     <meta name="_csrf" th:content="${_csrf.token}"/>
@@ -107,11 +112,51 @@
                             </a>
                         </div>
                     </form>
+
+                    <!-- 2FA リセット -->
+                    <div class="mt-6 pt-6" style="border-top: 1px solid var(--border-color);">
+                        <h3 class="text-sm font-semibold text-muted mb-3">2段階認証管理</h3>
+                        <form th:action="@{/admin/user/{id}/mfa/reset(id=${user.userId})}" method="post"
+                              onsubmit="return confirm('このユーザーの2段階認証をリセットしますか？');">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                            <button type="submit" class="btn btn-danger btn-sm">
+                                2段階認証をリセット
+                            </button>
+                        </form>
+                        <p class="text-muted text-xs mt-2">リセットすると、ユーザーは次回ログイン時に2FA不要になります。</p>
+                    </div>
+
+                    <!-- データエクスポート -->
+                    <div class="mt-6 pt-6" style="border-top: 1px solid var(--border-color);">
+                        <h3 class="text-sm font-semibold text-muted mb-3">データエクスポート（GDPR第20条対応）</h3>
+                        <form th:action="@{/admin/user/{id}/export/csv(id=${user.userId})}" method="get"
+                              class="space-y-3">
+                            <div class="flex gap-3">
+                                <div class="form-group" style="flex:1;">
+                                    <label class="form-label text-xs">開始日</label>
+                                    <input type="date" name="from" class="form-control form-control-sm" required>
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label class="form-label text-xs">終了日</label>
+                                    <input type="date" name="to" class="form-control form-control-sm" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-outline btn-sm">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-1">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                CSV をダウンロード
+                            </button>
+                        </form>
+                        <p class="text-muted text-xs mt-2">操作は監査ログに記録されます。</p>
+                    </div>
                 </div>
             </div>
         </div>
     </main>
-    
+
     <!-- Footer -->
     <footer th:replace="~{common :: footerFragment}"></footer>
     

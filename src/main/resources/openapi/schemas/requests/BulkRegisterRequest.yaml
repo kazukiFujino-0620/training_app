@@ -1,0 +1,18 @@
+type: object
+description: トレーニング一括登録リクエスト（/api/training/register-bulk）
+required:
+  - date
+  - trainings
+properties:
+  date:
+    type: string
+    format: date
+    description: トレーニング日
+    example: "2026-05-26"
+  trainings:
+    type: array
+    description: |
+      トレーニングデータリスト。
+      id を指定した場合は既存データを更新、null の場合は新規登録。
+    items:
+      $ref: "./TrainingRequest.yaml"

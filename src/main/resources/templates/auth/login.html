@@ -2,6 +2,11 @@
 <html lang="ja" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ログイン - トレーニング管理システム</title>
     <meta name="_csrf" th:content="${_csrf.token}"/>
@@ -55,9 +60,15 @@
                 このアカウントは退会済みです。<br>
                 再度ご利用の場合は新規登録をお願いします。
             </span>
-            
-            <!-- パターン3: 通常の入力ミス（reasonが無い、またはそれ以外の場合） -->
-            <span th:if="${param.reason == null || (!#strings.contains(param.reason, 'oauth2_user') && !#strings.contains(param.reason, 'withdrawn'))}">
+
+            <!-- パターン3: アカウントロック（ログイン失敗が続いた場合） -->
+            <span th:if="${param.reason != null && #strings.contains(param.reason, 'account_locked')}">
+                ログイン試行が規定回数を超えたため、アカウントが一時的にロックされました。<br>
+                15分後に再度お試しください。
+            </span>
+
+            <!-- パターン4: 通常の入力ミス（reasonが無い、またはそれ以外の場合） -->
+            <span th:if="${param.reason == null || (!#strings.contains(param.reason, 'oauth2_user') && !#strings.contains(param.reason, 'withdrawn') && !#strings.contains(param.reason, 'account_locked'))}">
                 ユーザー名またはパスワードが正しくありません
             </span>
             </div>

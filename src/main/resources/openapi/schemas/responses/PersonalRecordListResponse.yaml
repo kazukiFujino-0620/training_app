@@ -1,0 +1,24 @@
+description: 自己記録（PR）一覧
+content:
+  application/json:
+    schema:
+      type: array
+      items:
+        $ref: "../models/PersonalRecord.yaml"
+      example:
+        - id: 1
+          userId: 42
+          itemName: ベンチプレス
+          maxWeight: 85.0
+          maxReps: 8
+          achievedDate: "2026-05-30"
+          createdAt: "2026-05-01T10:00:00"
+          updatedAt: "2026-05-30T20:00:00"
+        - id: 2
+          userId: 42
+          itemName: スクワット
+          maxWeight: 100.0
+          maxReps: 10
+          achievedDate: "2026-05-28"
+          createdAt: "2026-05-01T10:00:00"
+          updatedAt: "2026-05-28T19:00:00"

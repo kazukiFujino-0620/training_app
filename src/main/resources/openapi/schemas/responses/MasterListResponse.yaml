@@ -1,0 +1,28 @@
+description: 部位マスター一覧
+content:
+  application/json:
+    schema:
+      type: array
+      items:
+        $ref: "../models/TrainingMaster.yaml"
+    example:
+      - id: 1
+        partCode: CHEST
+        partName: 胸
+        displayOrder: 1
+      - id: 2
+        partCode: BACK
+        partName: 背中
+        displayOrder: 2
+      - id: 3
+        partCode: SHOULDER
+        partName: 肩
+        displayOrder: 3
+      - id: 4
+        partCode: ARM
+        partName: 腕
+        displayOrder: 4
+      - id: 5
+        partCode: LEG
+        partName: 脚
+        displayOrder: 5

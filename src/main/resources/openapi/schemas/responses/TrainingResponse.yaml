@@ -1,0 +1,23 @@
+description: トレーニング情報（1件）
+content:
+  application/json:
+    schema:
+      $ref: "../models/Training.yaml"
+    example:
+      id: 1
+      userId: 1
+      trainingDate: "2026-05-26"
+      partCode: CHEST
+      menu: ベンチプレス
+      partName: 胸
+      memo: null
+      duration: "01:00:00"
+      isCompleted: true
+      isAllCompleted: true
+      details:
+        - id: 1
+          trainingId: 1
+          setNumber: 1
+          weight: 60.0
+          reps: 10
+          completed: true

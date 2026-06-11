@@ -1,0 +1,20 @@
+description: テンプレート適用結果レスポンス
+content:
+  application/json:
+    schema:
+      type: object
+      properties:
+        trainingIds:
+          type: array
+          description: 生成されたトレーニングIDリスト（種目単位）
+          items:
+            type: integer
+            format: int64
+          example: [101, 102, 103]
+        duplicateItems:
+          type: array
+          description: 当日すでに追加済みだった種目名リスト（フロント側でトースト表示用）
+          items:
+            type: string
+          example: ["ベンチプレス"]
+      required: [trainingIds, duplicateItems]

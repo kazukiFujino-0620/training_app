@@ -1,0 +1,42 @@
+type: object
+description: テンプレート明細（training_template_items テーブル）
+properties:
+  id:
+    type: integer
+    format: int64
+    readOnly: true
+    example: 1
+  templateId:
+    type: integer
+    format: int64
+    description: FK → training_templates.id
+    example: 1
+  itemName:
+    type: string
+    maxLength: 100
+    description: 種目名
+    example: "ベンチプレス"
+  setNumber:
+    type: integer
+    minimum: 1
+    description: セット番号（1始まり）
+    example: 1
+  setType:
+    $ref: "../enums/SetType.yaml"
+  weight:
+    type: number
+    format: double
+    nullable: true
+    description: 目安重量（kg）。null の場合は前回実績または空欄
+    example: 80.0
+  reps:
+    type: integer
+    nullable: true
+    description: 目安回数。null の場合は前回実績または空欄
+    example: 8
+  displayOrder:
+    type: integer
+    description: 種目の表示順（昇順）
+    default: 0
+    example: 0
+required: [itemName, setNumber, setType]

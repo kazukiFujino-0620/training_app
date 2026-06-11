@@ -1,0 +1,23 @@
+description: 退会申請一覧レスポンス（管理者用、ユーザー情報付き）
+content:
+  application/json:
+    schema:
+      type: array
+      items:
+        type: object
+        properties:
+          request:
+            $ref: "../models/WithdrawalRequest.yaml"
+          userName:
+            type: string
+            description: 申請者名
+            example: "山田太郎"
+          userEmail:
+            type: string
+            format: email
+            description: 申請者メールアドレス
+            example: "yamada@example.com"
+        required:
+          - request
+          - userName
+          - userEmail

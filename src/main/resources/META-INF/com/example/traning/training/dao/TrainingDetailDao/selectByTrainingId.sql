@@ -4,6 +4,7 @@ SELECT
     training_details.set_number,
     training_details.weight,
     training_details.reps,
+    training_details.set_type,
     training_details.count,
     training_details.is_completed,
     training_details.create_datetime,

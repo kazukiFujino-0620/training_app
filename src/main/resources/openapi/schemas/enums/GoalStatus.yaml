@@ -1,0 +1,11 @@
+type: string
+description: |
+  目標のステータス。
+  - ACTIVE: 進行中（期日前）
+  - ACHIEVED: 達成済み
+  - EXPIRED: 期限切れ（期日を過ぎた ACTIVE 目標）
+enum:
+  - ACTIVE
+  - ACHIEVED
+  - EXPIRED
+example: ACTIVE

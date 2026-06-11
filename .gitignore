@@ -18,6 +18,7 @@ target/
 *.iws
 *.iml
 *.ipr
+*.DS_Store
 
 ### NetBeans ###
 /nbproject/private/
@@ -32,7 +33,41 @@ build/
 ### VS Code ###
 .vscode/
 
+*.log
+*.gitignore
+
 ### Environment Variables ###
 .env
 .env.local
 .env.production
+Obcidian/
+Obcidian
+*.md
+*.json
+.git*
+src/main/resources/.DS_Store
+.DS_Store
+.gitignore
+logs/trainingapp-batch.log
+logs/trainingapp-error.log
+logs/trainingapp.log
+src/.DS_Store
+src/main/.DS_Store
+src/main/resources/.DS_Store
+
+### Secrets / Sensitive Configuration ###
+# ローカル開発用の認証情報を含む設定ファイル。本番は環境変数で注入。
+src/main/resources/application-local.properties
+src/main/resources/application-secret.properties
+# OWASP Dependency-Check のレポート出力
+**/dependency-check-report.*
+# CycloneDX SBOM 出力
+**/bom.json
+# GitHub Action 用キャッシュ
+.gha-cache/
+# Java キーストア・PEM ファイル
+*.jks
+*.p12
+*.pem
+*.key
+*.pfx

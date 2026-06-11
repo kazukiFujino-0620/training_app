@@ -1,0 +1,55 @@
+type: object
+description: テンプレート新規作成・更新リクエスト
+required:
+  - name
+  - partCode
+  - items
+properties:
+  name:
+    type: string
+    maxLength: 100
+    description: テンプレート名
+    example: "胸の日A"
+  partCode:
+    $ref: "../enums/PartCode.yaml"
+  memo:
+    type: string
+    maxLength: 500
+    nullable: true
+    description: メモ（任意）
+  items:
+    type: array
+    description: テンプレート明細リスト（1件以上必須）
+    minItems: 1
+    items:
+      type: object
+      required: [itemName, setNumber, setType]
+      properties:
+        itemName:
+          type: string
+          maxLength: 100
+          description: 種目名
+          example: "ベンチプレス"
+        setNumber:
+          type: integer
+          minimum: 1
+          description: セット番号
+          example: 1
+        setType:
+          $ref: "../enums/SetType.yaml"
+        weight:
+          type: number
+          format: double
+          nullable: true
+          description: 目安重量。null = 毎回入力
+          example: 80.0
+        reps:
+          type: integer
+          nullable: true
+          description: 目安回数。null = 毎回入力
+          example: 8
+        displayOrder:
+          type: integer
+          description: 種目の表示順
+          default: 0
+          example: 0

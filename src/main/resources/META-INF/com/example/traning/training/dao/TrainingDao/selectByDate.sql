@@ -4,6 +4,7 @@ SELECT
   user_id,
   training_date,
   part_code,
+  superset_group_id,
   menu,
   memo,
   duration,
@@ -18,4 +19,4 @@ AND
 AND
   deleted_at IS NULL
 ORDER BY
-  id ASC
+  display_order ASC, id ASC

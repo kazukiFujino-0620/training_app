@@ -1,0 +1,8 @@
+description: 2FA セットアップ情報（QR コード + 手動入力キー）
+content:
+  text/html:
+    schema:
+      type: string
+      description: |
+        QR コード画像（data URI）と手動入力キー（Base32 秘密鍵）、
+        OTP 確認フォームを含む HTML ページ

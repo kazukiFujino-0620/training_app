@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+  <meta charset="UTF-8"/>    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>目標設定 - トレーニング管理システム</title>
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    .goals-page { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+    .goals-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .goals-card-header {
+      padding: 16px 20px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      user-select: none;
+    }
+    .goals-card-body { padding: 20px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
+    .form-control {
+      width: 100%;
+      padding: 9px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    .form-control:focus { outline: none; border-color: var(--color-primary, #3b82f6); }
+    .text-error { color: #f87171; font-size: 0.8rem; margin-top: 2px; }
+    .text-required { color: #f87171; }
+    .btn-primary {
+      background: var(--color-primary, #3b82f6);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+    .alert-success { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
+    .alert-info    { background: rgba(96,165,250,0.12); color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); }
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 28px 0 12px;
+    }
+    .goal-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 10px;
+    }
+    .goal-item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .goal-item-name { font-weight: 600; color: var(--text-primary); font-size: 0.95rem; }
+    .goal-item-date { font-size: 0.8rem; color: var(--text-muted); }
+    .goal-target { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px; }
+    .goal-target strong { color: var(--text-primary); }
+    .progress-track {
+      height: 7px;
+      border-radius: 4px;
+      background: var(--border-color);
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #34d399, #059669);
+    }
+    .goal-pct { font-size: 0.75rem; color: #34d399; font-weight: 600; }
+    .goal-memo { font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; }
+    .goal-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-achieve {
+      background: rgba(52,211,153,0.15);
+      color: #34d399;
+      border: 1px solid rgba(52,211,153,0.3);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .btn-del {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .badge-achieved { background: rgba(52,211,153,0.1); color: #34d399; border: 1px solid rgba(52,211,153,0.2); border-radius: 20px; padding: 2px 10px; font-size: 0.75rem; }
+    .badge-expired  { background: rgba(248,113,113,0.1); color: #f87171; border: 1px solid rgba(248,113,113,0.2); border-radius: 20px; padding: 2px 10px; font-size: 0.75rem; }
+    .empty-state { padding: 48px 20px; text-align: center; color: var(--text-muted); font-size: 0.9rem; }
+    details > summary { list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+  </style>
+</head>
+<body class="bg-secondary">
+  <header th:replace="~{common :: headerFragment}"></header>
+
+  <main class="goals-page">
+
+    <!-- タイトル -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h1 style="color:var(--text-primary);font-size:1.5rem;font-weight:700;margin:0;">目標設定</h1>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">種目別の重量・回数目標を管理</p>
+      </div>
+      <a th:href="@{/menu}"
+         style="background:var(--border-color);color:var(--text-muted);
+                border:1px solid var(--border-color);border-radius:8px;
+                padding:8px 16px;font-size:0.85rem;text-decoration:none;">
+        ← メニューへ
+      </a>
+    </div>
+
+    <!-- 成功メッセージ -->
+    <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+    <div th:if="${infoMessage}"    class="alert alert-info"    th:text="${infoMessage}"></div>
+
+    <!-- 登録フォーム -->
+    <details open>
+      <summary class="goals-card-header goals-card" style="border-radius:16px;">
+        ＋ 新規目標を登録
+      </summary>
+      <div class="goals-card-body goals-card" style="border-top:none;border-radius:0 0 16px 16px;margin-top:-16px;">
+        <form th:action="@{/user/goals}" method="post" th:object="${goalForm}">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+          <!-- グローバルエラー（targetWeight・targetReps どちらも未入力） -->
+          <div th:if="${#fields.hasGlobalErrors()}"
+               style="background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.3);
+                      border-radius:8px;padding:10px 14px;margin-bottom:14px;">
+            <p th:each="err : ${#fields.globalErrors()}" class="text-error"
+               style="margin:0;" th:text="${err}"></p>
+          </div>
+
+          <div class="form-group">
+            <label>種目名 <span class="text-required">*</span></label>
+            <select th:field="*{itemName}" class="form-control">
+              <option value="">-- 種目を選択してください --</option>
+              <th:block th:each="part : ${parts}">
+                <optgroup th:label="${part.partName}">
+                  <th:block th:each="item : ${itemsByPart[part.partCode]}">
+                    <option th:value="${item.itemName}" th:text="${item.itemName}"></option>
+                  </th:block>
+                </optgroup>
+              </th:block>
+            </select>
+            <div th:if="${#fields.hasErrors('itemName')}" class="text-error" th:errors="*{itemName}"></div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>目標重量 (kg)</label>
+              <input type="number" th:field="*{targetWeight}" class="form-control"
+                     step="0.5" min="0.5" max="999.99" placeholder="例：100"/>
+            </div>
+            <div class="form-group">
+              <label>目標回数 (回)</label>
+              <input type="number" th:field="*{targetReps}" class="form-control"
+                     min="1" max="9999" placeholder="例：10"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>目標期日 <span class="text-required">*</span></label>
+            <input type="date" th:field="*{targetDate}" class="form-control"/>
+            <div th:if="${#fields.hasErrors('targetDate')}" class="text-error" th:errors="*{targetDate}"></div>
+          </div>
+
+          <div class="form-group">
+            <label>メモ</label>
+            <textarea th:field="*{memo}" class="form-control" rows="2"
+                      placeholder="目標に関するメモ"></textarea>
+          </div>
+
+          <button type="submit" class="btn-primary">登録する</button>
+        </form>
+      </div>
+    </details>
+
+    <!-- 進行中 -->
+    <div class="section-title">進行中</div>
+    <th:block th:each="gp : ${goals}" th:if="${gp.effectiveStatus == 'ACTIVE'}">
+      <div class="goal-item">
+        <div class="goal-item-header">
+          <span class="goal-item-name" th:text="${gp.goal.itemName}"></span>
+          <span class="goal-item-date"
+                th:text="'期日: ' + ${#temporals.format(gp.goal.targetDate, 'yyyy/MM/dd')}"></span>
+        </div>
+        <div th:if="${gp.goal.targetWeight != null}" class="goal-target">
+          目標 <strong th:text="${gp.goal.targetWeight} + ' kg'"></strong>
+          / 現在 <strong th:text="${gp.currentWeight != null ? gp.currentWeight + ' kg' : '記録なし'}"></strong>
+        </div>
+        <div th:if="${gp.goal.targetWeight != null}" class="progress-track">
+          <div class="progress-fill"
+               th:style="'width:' + (${gp.progressPct != null ? gp.progressPct : 0}) + '%'"></div>
+        </div>
+        <div th:if="${gp.goal.targetWeight != null}" class="goal-pct"
+             th:text="${gp.progressPct != null ? gp.progressPct + '%' : '0%'}"></div>
+        <div th:if="${gp.goal.targetReps != null}" class="goal-target">
+          目標回数 <strong th:text="${gp.goal.targetReps} + ' 回'"></strong>
+        </div>
+        <div th:if="${gp.goal.memo}" class="goal-memo" th:text="${gp.goal.memo}"></div>
+        <div class="goal-actions">
+          <button class="btn-achieve btn-achieve-js" th:attr="data-id=${gp.goal.id}">✓ 達成</button>
+          <button class="btn-del btn-delete-js" th:attr="data-id=${gp.goal.id}">削除</button>
+        </div>
+      </div>
+    </th:block>
+    <div th:if="${#lists.isEmpty(goals)}" class="empty-state">
+      進行中の目標はありません。上のフォームから目標を登録してください。
+    </div>
+
+    <!-- 達成済み -->
+    <div class="section-title">達成済み</div>
+    <th:block th:each="gp : ${goals}" th:if="${gp.effectiveStatus == 'ACHIEVED'}">
+      <div class="goal-item" style="opacity:0.75;">
+        <div class="goal-item-header">
+          <span class="goal-item-name" th:text="'✅ ' + ${gp.goal.itemName}"></span>
+          <span class="badge-achieved">達成</span>
+        </div>
+        <div th:if="${gp.goal.targetWeight != null}" class="goal-target"
+             th:text="'目標: ' + ${gp.goal.targetWeight} + ' kg'"></div>
+        <div th:if="${gp.goal.targetReps != null}" class="goal-target"
+             th:text="'目標: ' + ${gp.goal.targetReps} + ' 回'"></div>
+        <div class="goal-actions">
+          <button class="btn-del btn-delete-js" th:attr="data-id=${gp.goal.id}">削除</button>
+        </div>
+      </div>
+    </th:block>
+
+    <!-- 期限切れ -->
+    <div class="section-title">期限切れ</div>
+    <th:block th:each="gp : ${goals}" th:if="${gp.effectiveStatus == 'EXPIRED'}">
+      <div class="goal-item" style="opacity:0.5;">
+        <div class="goal-item-header">
+          <span class="goal-item-name" th:text="${gp.goal.itemName}"></span>
+          <span class="badge-expired">期限切れ</span>
+        </div>
+        <div class="goal-item-date"
+             th:text="'期限: ' + ${#temporals.format(gp.goal.targetDate, 'yyyy/MM/dd')}"></div>
+        <div class="goal-actions">
+          <button class="btn-del btn-delete-js" th:attr="data-id=${gp.goal.id}">削除</button>
+        </div>
+      </div>
+    </th:block>
+
+  </main>
+
+  <footer th:replace="~{common :: footerFragment}"></footer>
+
+  <script th:inline="javascript">
+    const CSRF_TOKEN  = /*[[${_csrf.token}]]*/ '';
+    const CSRF_HEADER = /*[[${_csrf.headerName}]]*/ '';
+
+    document.querySelectorAll('.btn-achieve-js').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const res = await fetch(`/user/goals/${id}/achieve`, {
+          method: 'POST',
+          headers: { [CSRF_HEADER]: CSRF_TOKEN }
+        });
+        if (res.ok) location.reload();
+      });
+    });
+
+    document.querySelectorAll('.btn-delete-js').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('この目標を削除しますか？')) return;
+        const id = btn.dataset.id;
+        const res = await fetch(`/user/goals/${id}`, {
+          method: 'DELETE',
+          headers: { [CSRF_HEADER]: CSRF_TOKEN }
+        });
+        if (res.ok) location.reload();
+      });
+    });
+  </script>
+</body>
+</html>

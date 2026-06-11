@@ -1,0 +1,32 @@
+description: トレーニングリスト（セット詳細含む）
+content:
+  application/json:
+    schema:
+      type: array
+      items:
+        $ref: "../models/Training.yaml"
+    example:
+      - id: 1
+        userId: 1
+        trainingDate: "2026-05-26"
+        partCode: CHEST
+        menu: ベンチプレス
+        isCompleted: true
+        isAllCompleted: true
+        details:
+          - setNumber: 1
+            weight: 60.0
+            reps: 10
+            completed: true
+      - id: 2
+        userId: 1
+        trainingDate: "2026-05-26"
+        partCode: BACK
+        menu: デッドリフト
+        isCompleted: false
+        isAllCompleted: false
+        details:
+          - setNumber: 1
+            weight: 80.0
+            reps: 5
+            completed: false

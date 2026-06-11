@@ -1,0 +1,32 @@
+type: object
+description: ユーザー新規登録リクエスト（application/x-www-form-urlencoded）
+required:
+  - username
+  - email
+  - password
+  - password_confirm
+properties:
+  username:
+    type: string
+    description: ユーザー名（空白不可）
+    example: 山田太郎
+  email:
+    type: string
+    format: email
+    example: user@example.com
+  password:
+    type: string
+    format: password
+    description: パスワード（大文字・小文字・数字・記号を含む8文字以上）
+  password_confirm:
+    type: string
+    format: password
+    description: パスワード（確認用）
+  googleId:
+    type: string
+    nullable: true
+    description: Google OAuth 連携用ID（OAuth経由登録時のみ）
+  lineId:
+    type: string
+    nullable: true
+    description: LINE OAuth 連携用ID（OAuth経由登録時のみ）

@@ -8,7 +8,11 @@ SELECT
     google_id,
     line_id,
     create_datetime,
-    update_datetime
+    update_datetime,
+    height_cm,
+    weight_kg,
+    gender,
+    birth_date
 FROM
     users
 WHERE

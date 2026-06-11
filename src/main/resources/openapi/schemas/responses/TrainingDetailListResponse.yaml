@@ -1,0 +1,20 @@
+description: トレーニングセット詳細一覧
+content:
+  application/json:
+    schema:
+      type: array
+      items:
+        $ref: "../models/TrainingDetail.yaml"
+    example:
+      - id: 1
+        trainingId: 1
+        setNumber: 1
+        weight: 60.0
+        reps: 10
+        completed: true
+      - id: 2
+        trainingId: 1
+        setNumber: 2
+        weight: 65.0
+        reps: 8
+        completed: true

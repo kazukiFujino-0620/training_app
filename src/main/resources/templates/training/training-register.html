@@ -4,6 +4,11 @@
       th:attr="data-theme=${theme}">
 <head>
     <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>トレーニング登録 - トレーニング管理システム</title>
     <meta name="_csrf" th:content="${_csrf.token}"/>
@@ -451,6 +456,44 @@
             cursor: not-allowed;
         }
         
+        /* 前回記録パネル */
+        .prev-record-container { margin-top: 12px; }
+        .prev-record-panel-inner {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color, #e0e0e0);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.88rem;
+        }
+        .prev-record-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: var(--text-primary, #333);
+        }
+        .prev-session-label { flex: 1; text-align: center; }
+        .prev-nav-btn {
+            background: none;
+            border: 1px solid var(--border-color, #ccc);
+            border-radius: 4px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+            color: var(--text-primary, #333);
+        }
+        .prev-set-row { padding: 2px 0; color: var(--text-secondary, #555); }
+        .prev-pr-inner {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid var(--border-color, #e0e0e0);
+            color: var(--danger-color, #e53e3e);
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .register-container {
@@ -493,6 +536,11 @@
                 <div class="date-header" th:text="${selectedDate} + ' のトレーニング登録'">
                     2026-05-10 のトレーニング登録
                 </div>
+                <div style="text-align:right; margin-bottom:1rem;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openRegisterReorderModal()">
+                        ↕ トレーニング順変更
+                    </button>
+                </div>
 
                 <!-- Initial state: large button only -->
                 <div class="initial-state" id="initialState">
@@ -507,6 +555,11 @@
                 <!-- After exercise selection: block display -->
                 <div class="register-content" id="registerContent">
                     <div id="trainingBlocksContainer"></div>
+                    <div style="text-align:center; margin-top:1rem; margin-bottom:0.5rem;">
+                        <button class="btn-register-main" style="padding:1rem 2.5rem; font-size:1.1em;" data-action="openExerciseModal">
+                            ＋ 種目を追加
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -546,9 +599,16 @@
 
     <input type="hidden" id="selectedDate" th:value="${selectedDate}" />
     <input type="hidden" id="partListData" th:value="${partList}" />
-    
+
+    <!-- 既存トレーニングデータ（初期表示用） -->
+    <script th:inline="javascript">
+        window.existingTrainings = /*[[${existingTrainings}]]*/ [];
+    </script>
+
     <!-- JavaScript -->
     <script th:src="@{/js/theme.js}"></script>
+    <script th:src="@{/js/prev-record.js}"></script>
     <script th:src="@{/js/training-register.js}"></script>
+    <div th:replace="~{common :: reorderModalFragment}"></div>
 </body>
 </html>

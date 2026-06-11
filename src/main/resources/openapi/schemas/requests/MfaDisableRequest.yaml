@@ -1,0 +1,9 @@
+type: object
+required:
+  - password
+properties:
+  password:
+    type: string
+    format: password
+    description: 現在のパスワード（再確認用）
+    example: "MyPassword123!"

@@ -1,0 +1,39 @@
+type: object
+description: |
+  目標登録リクエスト。
+  targetWeight と targetReps はどちらか一方は必須。
+properties:
+  itemName:
+    type: string
+    maxLength: 100
+    description: 種目名
+    example: ベンチプレス
+  targetWeight:
+    type: number
+    format: double
+    minimum: 0.5
+    maximum: 999.99
+    nullable: true
+    description: 目標重量 (kg)。省略時は null
+    example: 100.0
+  targetReps:
+    type: integer
+    minimum: 1
+    maximum: 9999
+    nullable: true
+    description: 目標回数。省略時は null
+    example: 10
+  targetDate:
+    type: string
+    format: date
+    description: 達成目標期日（今日より未来の日付）
+    example: "2026-08-01"
+  memo:
+    type: string
+    maxLength: 500
+    nullable: true
+    description: メモ
+    example: 夏までに達成したい
+required:
+  - itemName
+  - targetDate

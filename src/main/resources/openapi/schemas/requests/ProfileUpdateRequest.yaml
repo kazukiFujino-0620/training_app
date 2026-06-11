@@ -1,0 +1,31 @@
+type: object
+properties:
+  userName:
+    type: string
+    maxLength: 50
+    description: ユーザー名（50文字以内）
+    example: 田中太郎
+  heightCm:
+    type: number
+    format: double
+    minimum: 100.0
+    maximum: 250.0
+    description: 身長（cm）
+    example: 175.0
+  weightKg:
+    type: number
+    format: double
+    minimum: 20.0
+    maximum: 300.0
+    description: 体重（kg）
+    example: 70.0
+  gender:
+    type: string
+    enum: [MALE, FEMALE, OTHER]
+    description: 性別
+    example: MALE
+  birthDate:
+    type: string
+    format: date
+    description: 生年月日（過去の日付）
+    example: "1995-04-15"

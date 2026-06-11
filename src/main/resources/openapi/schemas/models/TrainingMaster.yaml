@@ -1,0 +1,21 @@
+type: object
+description: 部位マスター（training_part_master テーブル）
+properties:
+  id:
+    type: integer
+    format: int64
+    example: 1
+  partCode:
+    $ref: "../enums/PartCode.yaml"
+  partName:
+    type: string
+    description: 部位名
+    example: 胸
+  displayOrder:
+    type: integer
+    description: 表示順
+    example: 1
+  itemName:
+    type: string
+    nullable: true
+    description: 種目名（結合取得時のみ）

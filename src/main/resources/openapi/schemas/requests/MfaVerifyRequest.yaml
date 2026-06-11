@@ -1,0 +1,11 @@
+type: object
+properties:
+  otp:
+    type: string
+    pattern: '^\d{6}$'
+    description: Authenticator アプリが生成した 6 桁の TOTP コード（otp か backupCode のどちらか必須）
+    example: "123456"
+  backupCode:
+    type: string
+    description: バックアップコード（otp が入力されない場合に使用）
+    example: "ABC1DEF2"

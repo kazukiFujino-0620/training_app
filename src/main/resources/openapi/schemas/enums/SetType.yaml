@@ -1,0 +1,12 @@
+type: string
+description: |
+  セット種別。
+  - WARMUP: ウォームアップセット。PR計算・ボリューム集計から除外。
+  - MAIN: メインセット（デフォルト）。PR計算・ボリューム集計に含める。
+  - DROP: ドロップセット。PR計算から除外。ボリューム集計には含める。
+enum:
+  - WARMUP
+  - MAIN
+  - DROP
+default: MAIN
+example: MAIN

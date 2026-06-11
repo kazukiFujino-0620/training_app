@@ -1,10 +1,8 @@
-name: Deploy OpenAPI Docs to GitHub Pages
+name: Deploy GitHub Pages (紹介ページ & API ドキュメント)
 
 on:
   push:
     branches: [master]
-    paths:
-      - 'src/main/resources/openapi.yaml'
   workflow_dispatch:
 
 permissions:
@@ -27,19 +25,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build Swagger UI site
+      - name: Build site
         run: |
-          mkdir -p _site
-          cp src/main/resources/openapi.yaml _site/openapi.yaml
-          cat > _site/index.html << 'HTML'
+          mkdir -p _site/api
+
+          # メインページ: システム紹介ページ
+          cp docs/index.html _site/index.html
+
+          # API ドキュメント: openapi/ ディレクトリ全体（マルチファイル）を /api/ にコピー
+          cp -r src/main/resources/openapi/. _site/api/
+          cat > _site/api/index.html << 'HTML'
           <!DOCTYPE html>
           <html lang="ja">
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Training App API ドキュメント</title>
+            <title>SmartTrainer API ドキュメント</title>
             <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
-            <style>body{margin:0}.topbar{display:none}</style>
+            <style>
+              body { margin: 0; }
+              .topbar { display: none; }
+              .swagger-ui .info .title { color: #4f46e5; }
+            </style>
           </head>
           <body>
             <div id="swagger-ui"></div>

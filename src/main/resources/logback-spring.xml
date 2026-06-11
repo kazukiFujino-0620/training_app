@@ -100,39 +100,105 @@
         </root>
     </springProfile>
 
-    <!-- GCP 本番向け: ファイル出力を行わずコンソールのみ -->
+    <!-- GCP 本番向け: ファイル出力 + WARN レベル以上のみ -->
     <springProfile name="gcp">
-        <!-- 主要なロガーはコンソールへ出力 -->
-        <logger name="org.seasar.doma.jdbc.UtilLoggingJdbcLogger" level="DEBUG" additivity="false">
-            <appender-ref ref="CONSOLE" />
+
+        <!-- アプリケーションログ（14日保持・200MB上限） -->
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOGS_PATH}/trainingapp.log</file>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOGS_PATH}/trainingapp.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                    <maxFileSize>10MB</maxFileSize>
+                </timeBasedFileNamingAndTriggeringPolicy>
+                <maxHistory>14</maxHistory>
+                <totalSizeCap>200MB</totalSizeCap>
+            </rollingPolicy>
+        </appender>
+
+        <!-- エラーログ（14日保持・100MB上限） -->
+        <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOGS_PATH}/trainingapp-error.log</file>
+            <filter class="ch.qos.logback.classic.filter.LevelFilter">
+                <level>ERROR</level>
+                <onMatch>ACCEPT</onMatch>
+                <onMismatch>DENY</onMismatch>
+            </filter>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOGS_PATH}/trainingapp-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                    <maxFileSize>10MB</maxFileSize>
+                </timeBasedFileNamingAndTriggeringPolicy>
+                <maxHistory>14</maxHistory>
+                <totalSizeCap>100MB</totalSizeCap>
+            </rollingPolicy>
+        </appender>
+
+        <!-- バッチログ（14日保持・50MB上限） -->
+        <appender name="BATCH_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOGS_PATH}/trainingapp-batch.log</file>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOGS_PATH}/trainingapp-batch.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                    <maxFileSize>10MB</maxFileSize>
+                </timeBasedFileNamingAndTriggeringPolicy>
+                <maxHistory>14</maxHistory>
+                <totalSizeCap>50MB</totalSizeCap>
+            </rollingPolicy>
+        </appender>
+
+        <!-- Doma SQL: 本番では WARN のみ（SQLの内容・パラメータ値をログに残さない） -->
+        <logger name="org.seasar.doma.jdbc.UtilLoggingJdbcLogger" level="WARN" additivity="false">
+            <appender-ref ref="FILE" />
+            <appender-ref ref="ERROR_FILE" />
         </logger>
 
-        <logger name="org.springframework" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE" />
+        <!-- Hibernate SQL: 本番では WARN のみ -->
+        <logger name="org.hibernate.SQL" level="WARN" additivity="false">
+            <appender-ref ref="FILE" />
         </logger>
 
-        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
-            <appender-ref ref="CONSOLE" />
+        <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="WARN" additivity="false">
+            <appender-ref ref="FILE" />
         </logger>
 
-        <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
-            <appender-ref ref="CONSOLE" />
+        <!-- Spring Framework: WARN（application-gcp.properties の設定と一致） -->
+        <logger name="org.springframework" level="WARN" additivity="false">
+            <appender-ref ref="FILE" />
+            <appender-ref ref="ERROR_FILE" />
         </logger>
 
+        <!-- アプリケーション: INFO（業務ログは残す） -->
         <logger name="com.example.traning" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="FILE" />
+            <appender-ref ref="ERROR_FILE" />
         </logger>
 
+        <!-- バッチ処理: INFO -->
         <logger name="com.example.traning.smarttrainer.task" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="BATCH_FILE" />
+            <appender-ref ref="ERROR_FILE" />
         </logger>
 
         <logger name="com.example.traning.smarttrainer.service" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="BATCH_FILE" />
+            <appender-ref ref="ERROR_FILE" />
         </logger>
 
-        <root level="INFO">
+        <!-- root: WARN（想定外のライブラリのログを最小化） -->
+        <root level="WARN">
             <appender-ref ref="CONSOLE" />
+            <appender-ref ref="FILE" />
+            <appender-ref ref="ERROR_FILE" />
         </root>
     </springProfile>
 

@@ -1,0 +1,27 @@
+type: object
+description: メニュー画面フォーム送信用トレーニングデータ（application/x-www-form-urlencoded）
+required:
+  - trainingDate
+  - partCode
+  - menu
+properties:
+  id:
+    type: integer
+    format: int64
+    nullable: true
+    description: 更新時に指定。新規登録時は null
+  trainingDate:
+    type: string
+    format: date
+    description: トレーニング日
+    example: "2026-05-26"
+  partCode:
+    $ref: "../enums/PartCode.yaml"
+  menu:
+    type: string
+    description: トレーニング種目名
+    example: ベンチプレス
+  memo:
+    type: string
+    nullable: true
+    description: メモ（任意）

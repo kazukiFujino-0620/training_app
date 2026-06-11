@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+  <meta charset="UTF-8"/>    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>バックアップコード - トレーニング管理システム</title>
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+  <style>
+    .codes-page { max-width: 600px; margin: 0 auto; padding: 24px 16px; }
+    .codes-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .codes-card-header {
+      padding: 16px 20px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border-color);
+    }
+    .codes-card-body { padding: 20px; }
+    .warning-box {
+      background: rgba(251,191,36,0.12);
+      border: 1px solid rgba(251,191,36,0.4);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #fbbf24;
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+    .codes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .code-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-align: center;
+      letter-spacing: 0.1em;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--color-primary, #3b82f6); color: #fff; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-secondary { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); }
+    .info-text { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+    .alert-success { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.3); padding: 12px 16px; border-radius: 10px; font-size: 0.9rem; margin-bottom: 16px; }
+    .no-codes { color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 20px 0; }
+  </style>
+</head>
+<body>
+  <th:block th:replace="~{common :: headerFragment}"/>
+
+  <div class="codes-page">
+    <h1 style="font-size:1.4rem;font-weight:700;color:var(--text-primary);margin-bottom:20px;">
+      バックアップコード
+    </h1>
+
+    <div th:if="${success}" class="alert-success" th:text="${success}"></div>
+
+    <div class="codes-card">
+      <div class="codes-card-header">バックアップコード一覧</div>
+      <div class="codes-card-body">
+
+        <div th:if="${backupCodes != null and !backupCodes.isEmpty()}">
+          <div class="warning-box">
+            このページを離れるとコードは二度と表示されません。<br>
+            安全な場所（パスワードマネージャーや紙など）に保存してください。
+          </div>
+          <div class="codes-grid">
+            <div class="code-item" th:each="code : ${backupCodes}" th:text="${code}"></div>
+          </div>
+          <p class="info-text">
+            各コードは1回のみ使用できます。使用済みのコードは無効になります。
+          </p>
+        </div>
+
+        <div th:unless="${backupCodes != null and !backupCodes.isEmpty()}">
+          <p class="no-codes">バックアップコードは表示されません。<br>「バックアップコードを再生成」から新しいコードを作成してください。</p>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <a th:href="@{/user/mfa}" class="btn btn-primary">2FA設定に戻る</a>
+      <a th:href="@{/menu}" class="btn btn-secondary">メニューへ</a>
+    </div>
+  </div>
+
+  <script th:src="@{/js/common.js}"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+ALTER TABLE users
+  ADD COLUMN height_cm  DECIMAL(5,1) NULL COMMENT '身長(cm)',
+  ADD COLUMN weight_kg  DECIMAL(5,1) NULL COMMENT '体重(kg)',
+  ADD COLUMN gender     VARCHAR(10)  NULL COMMENT '性別: MALE/FEMALE/UNSPECIFIED',
+  ADD COLUMN birth_date DATE         NULL COMMENT '生年月日';

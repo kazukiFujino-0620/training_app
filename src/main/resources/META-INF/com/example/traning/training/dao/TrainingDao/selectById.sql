@@ -4,6 +4,7 @@ SELECT
   user_id,
   training_date,
   part_code,
+  superset_group_id,
   menu,
   memo,
   duration,

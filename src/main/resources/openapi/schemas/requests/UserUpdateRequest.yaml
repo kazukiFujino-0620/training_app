@@ -1,0 +1,22 @@
+type: object
+description: ユーザー情報更新リクエスト（管理者用、application/x-www-form-urlencoded）
+required:
+  - userId
+properties:
+  userId:
+    type: integer
+    description: 更新対象ユーザーID
+    example: 1
+  email:
+    type: string
+    format: email
+    example: user@example.com
+  userName:
+    type: string
+    example: 山田太郎
+  role:
+    $ref: "../enums/UserRole.yaml"
+  enabled:
+    type: boolean
+    description: アカウント有効フラグ（false にするとログイン不可）
+    example: true

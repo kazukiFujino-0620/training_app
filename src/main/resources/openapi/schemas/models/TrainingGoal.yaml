@@ -1,0 +1,51 @@
+type: object
+description: ユーザーの種目別トレーニング目標
+properties:
+  id:
+    type: integer
+    format: int64
+    example: 1
+  userId:
+    type: integer
+    format: int64
+    example: 42
+  itemName:
+    type: string
+    description: 種目名
+    example: ベンチプレス
+  targetWeight:
+    type: number
+    format: double
+    nullable: true
+    description: 目標重量 (kg)。回数のみ目標の場合は null
+    example: 100.0
+  targetReps:
+    type: integer
+    nullable: true
+    description: 目標回数。重量のみ目標の場合は null
+    example: 10
+  targetDate:
+    type: string
+    format: date
+    description: 達成目標期日
+    example: "2026-08-01"
+  status:
+    $ref: "../enums/GoalStatus.yaml"
+  memo:
+    type: string
+    nullable: true
+    description: メモ（500文字以内）
+    example: 夏までに達成したい
+  createdAt:
+    type: string
+    format: date-time
+    example: "2026-05-31T10:00:00"
+  updatedAt:
+    type: string
+    format: date-time
+    example: "2026-05-31T10:00:00"
+required:
+  - userId
+  - itemName
+  - targetDate
+  - status
