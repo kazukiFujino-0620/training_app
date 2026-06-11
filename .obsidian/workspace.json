@@ -1,0 +1,227 @@
+{
+  "main": {
+    "id": "69b630345aecee20",
+    "type": "split",
+    "children": [
+      {
+        "id": "f976bc8c592733e3",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ee104562c3424ed1",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "新規タブ"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "ccc9cdece679d5ba",
+    "type": "split",
+    "children": [
+      {
+        "id": "07c1969569091e40",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "fdd18dab8a235b17",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "ファイルエクスプローラ"
+            }
+          },
+          {
+            "id": "f80a9e74c195968c",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "検索"
+            }
+          },
+          {
+            "id": "48e0331ae8b13826",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "ブックマーク"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "2fb4555381c7d8be",
+    "type": "split",
+    "children": [
+      {
+        "id": "8c79ba79e5447224",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "e3fc41d86f03e0a0",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Obsidian/Knowledge/requirements-template-settype.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "requirements-template-settypeへのバックリンク"
+            }
+          },
+          {
+            "id": "00e964e788273b60",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Obsidian/Knowledge/requirements-template-settype.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "requirements-template-settypeからのアウトゴーイングリンク"
+            }
+          },
+          {
+            "id": "9798c8d7211a304b",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "タグ"
+            }
+          },
+          {
+            "id": "90d333fdc4cfa854",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "すべてのプロパティ"
+            }
+          },
+          {
+            "id": "fd8f8858d5ed3c6c",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Obsidian/Knowledge/requirements-template-settype.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "requirements-template-settypeのアウトライン"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:クイックスイッチャーを開く": false,
+      "graph:グラフビューを開く": false,
+      "canvas:新規キャンバスを作成": false,
+      "daily-notes:今日のデイリーノートを開く": false,
+      "templates:テンプレートを挿入": false,
+      "command-palette:コマンドパレットを開く": false,
+      "bases:新規ベースを作成": false
+    }
+  },
+  "active": "fdd18dab8a235b17",
+  "lastOpenFiles": [
+    "target/test-classes/com/example/training/util/EncryptTool.class",
+    "target/classes/com/example/traning/withdrawal/WithdrawalController.class",
+    "target/classes/com/example/traning/user/service/CustomUserDetailsService.class",
+    "target/classes/com/example/traning/user/service/CustomUserDetails.class",
+    "target/classes/com/example/traning/user/service/AuthenticationEventListener.class",
+    "target/classes/com/example/traning/user/service/AccountRestoreRequiredException.class",
+    "target/classes/com/example/traning/user/service/SignupService.class",
+    "target/classes/com/example/traning/user/controller/UserController.class",
+    "target/classes/com/example/traning/user/form/ProfileForm.class",
+    "target/classes/com/example/traning/user/service/ProfileService.class",
+    "target/classes/com/example/traning/user/controller/ProfileController.class",
+    "target/classes/static/icons/icon-512.png",
+    "target/classes/static/icons/icon-192.png",
+    "Obsidian/Projects/2026-06-03-dashboard-stats-requirements.md",
+    "Obsidian/Knowledge/requirements-template-settype.md",
+    "Obsidian/Knowledge/local-admin-credentials.md",
+    "Obsidian/Knowledge/requirements-superset.md",
+    "Obsidian/Knowledge/登録専用アプリ.md",
+    "Obsidian/Knowledge/feature-gap-analysis.md",
+    "Obsidian/Knowledge/spring-boot-security.md",
+    "Obsidian/Decisions/2026-05-28-openapi-github-actions-deploy.md",
+    "Obsidian/Projects/2026-06-02-withdrawal-requirements.md",
+    "Obsidian/Projects/詳細設計/機能_退会申請フロー_設計書.md",
+    "Obsidian/Projects/2026-06-02-audit-log-detailed-design.md",
+    "Obsidian/Projects/2026-06-02-audit-log-requirements.md",
+    "Obsidian/Projects/詳細設計/機能10_テンプレート+セット種別_設計書.md",
+    "Obsidian/Projects/詳細設計/機能9_セッションタイムアウト通知_設計書.md",
+    "Obsidian/Projects/data-retention-requirements.md",
+    "Obsidian/Projects/2026-06-01-session-timeout-requirements.md",
+    "Obsidian/Projects/詳細設計/機能8_前回記録表示_設計書.md",
+    "Obsidian/Projects/詳細設計/2026-05-31-rate-limit-design.md",
+    "Obsidian/Projects/詳細設計/機能7_IPブロック_設計書.md",
+    "src/main/resources/static/icons/icon-512.png",
+    "src/main/resources/static/icons/icon-192.png",
+    "Obsidian/Projects/2026-05-31-previous-record-requirements.md",
+    "Obsidian/Projects/2026-05-31-機能2-ミステイク.md",
+    "Obsidian/Projects/DB移行検討_CloudSQL.md",
+    "Obsidian/Projects/詳細設計/機能6_2要素認証_設計書.md",
+    "Obsidian/Projects/2026-05-31-ip-block-requirements.md",
+    "Obsidian/Projects/2026-05-28-training-detail-page.md",
+    "無題のファイル.canvas",
+    "Obsidian/Assets/muscle-map-preview.svg"
+  ]
+}

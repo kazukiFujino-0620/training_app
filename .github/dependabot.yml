@@ -1,0 +1,48 @@
+# Dependabot による依存関係の自動更新と脆弱性パッチ追従。
+# - Maven (pom.xml) の依存関係を毎週月曜にチェック
+# - GitHub Actions のバージョンも追従
+# 詳細: https://docs.github.com/en/code-security/dependabot
+version: 2
+updates:
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    reviewers:
+      - "kazukiFujino"
+    # Spring Boot / Spring 関連はまとめて 1 PR に集約してレビュー負荷を下げる
+    groups:
+      spring-boot:
+        patterns:
+          - "org.springframework.boot:*"
+          - "org.springframework:*"
+          - "org.springframework.security:*"
+      doma:
+        patterns:
+          - "org.seasar.doma*:*"
+      test-libraries:
+        dependency-type: "development"
+    # メジャーバージョン更新は破壊的変更を伴うため手動レビュー対象。
+    # Dependabot からは出さず、必要時に手動で対応する。
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "github-actions"
+      - "security"

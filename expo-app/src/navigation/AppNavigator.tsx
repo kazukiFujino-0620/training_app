@@ -25,6 +25,7 @@ export type AppStackParamList = {
     totalSets?: number;
     completedSets?: number;
     totalVolume?: number;
+    sessionElapsed?: number;
   };
 };
 
