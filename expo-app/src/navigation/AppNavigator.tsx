@@ -7,6 +7,7 @@ import MfaScreen from '../screens/MfaScreen';
 import TrainingListScreen from '../screens/TrainingListScreen';
 import ExerciseScreen from '../screens/ExerciseScreen';
 import AddExerciseScreen from '../screens/AddExerciseScreen';
+import TrainingStartScreen from '../screens/TrainingStartScreen';
 import GoalScreen from '../screens/GoalScreen';
 
 export type AuthStackParamList = {
@@ -16,6 +17,7 @@ export type AuthStackParamList = {
 
 export type AppStackParamList = {
   TrainingList: undefined;
+  TrainingStart: undefined;
   Exercise: { trainingId: number; menu: string };
   AddExercise: undefined;
   Goal: {
@@ -60,6 +62,11 @@ function AppNavigator() {
         name="Exercise"
         component={ExerciseScreen}
         options={({ route }) => ({ title: route.params.menu })}
+      />
+      <AppStack.Screen
+        name="TrainingStart"
+        component={TrainingStartScreen}
+        options={{ title: 'トレーニング中' }}
       />
       <AppStack.Screen
         name="AddExercise"

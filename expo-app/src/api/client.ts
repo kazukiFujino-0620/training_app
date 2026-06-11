@@ -70,6 +70,8 @@ import type {
   MfaVerifyRequest,
   TokenResponse,
   Training,
+  TrainingDetail,
+  AddSetRequest,
   AddTrainingRequest,
   SetUpdateRequest,
   SetUpdateResponse,
@@ -99,6 +101,10 @@ export const trainingApi = {
     client.patch<SetUpdateResponse>(`/training/sets/${id}`, req),
   completeTraining: (trainingId: number) =>
     client.post('/training/complete', { trainingId }),
+  addSet: (trainingId: number, req: AddSetRequest) =>
+    client.post<TrainingDetail>(`/training/${trainingId}/sets`, req),
+  deleteSet: (id: number) =>
+    client.delete(`/training/sets/${id}`),
 };
 
 export const masterApi = {

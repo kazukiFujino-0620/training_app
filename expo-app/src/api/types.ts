@@ -69,8 +69,10 @@ export interface SetUpdateRequest {
 
 export interface SetUpdateResponse {
   id: number;
-  isCompleted: boolean;
-  isPR: boolean;
+  /** primitive boolean → Lombok/Jackson が "is" を剥がして JSON キー "completed" になる */
+  completed: boolean;
+  /** primitive boolean isPR → "PR"（2文字目も大文字のため decapitalize されない） */
+  PR: boolean;
   prMessage?: string;
 }
 
