@@ -50,7 +50,11 @@
       "Bash(git -C /Users/fujinoikki/Desktop/training_app/master/training_app ls-files expo-app/)",
       "Bash(git -C /Users/fujinoikki/Desktop/training_app/mobile-app ls-files expo-app/)",
       "Bash(git -C /Users/fujinoikki/Desktop/training_app/master/training_app ls-files)",
-      "Bash(grep -E \"\\\\.json$|\\\\.md$\")"
+      "Bash(grep -E \"\\\\.json$|\\\\.md$\")",
+      "Bash(npm audit *)",
+      "Bash(xcode-select --version)",
+      "Bash(xcodebuild *)",
+      "Bash(git push *)"
     ]
   }
 }
