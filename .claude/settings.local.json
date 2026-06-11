@@ -53,7 +53,8 @@
       "Bash(grep -E \"\\\\.json$|\\\\.md$\")",
       "Bash(npm audit *)",
       "Bash(xcode-select --version)",
-      "Bash(xcodebuild *)"
+      "Bash(xcodebuild *)",
+      "Bash(git push *)"
     ]
   }
 }
