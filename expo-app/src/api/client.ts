@@ -99,8 +99,8 @@ export const trainingApi = {
     client.delete(`/training/${id}`),
   updateSet: (id: number, req: SetUpdateRequest) =>
     client.patch<SetUpdateResponse>(`/training/sets/${id}`, req),
-  completeTraining: (trainingId: number) =>
-    client.post('/training/complete', { trainingId }),
+  completeTraining: (trainingId: number, durationSec?: number) =>
+    client.post('/training/complete', { trainingId, durationSec }),
   addSet: (trainingId: number, req: AddSetRequest) =>
     client.post<TrainingDetail>(`/training/${trainingId}/sets`, req),
   deleteSet: (id: number) =>
