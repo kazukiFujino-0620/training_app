@@ -7,7 +7,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "jp.mydns.trainingapp"
+      "bundleIdentifier": "jp.mydns.trainingapp",
+      "entitlements": {}
     },
     "android": {
       "package": "jp.mydns.trainingapp"
@@ -15,8 +16,7 @@
     "plugins": [
       "expo-asset",
       "expo-font",
-      "expo-secure-store",
-      "expo-notifications"
+      "expo-secure-store"
     ]
   }
 }
