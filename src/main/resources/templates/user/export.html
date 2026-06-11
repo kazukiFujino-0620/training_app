@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>データエクスポート - トレーニング管理システム</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-secondary">
+    <header th:replace="~{common :: headerFragment}"></header>
+
+    <main class="main-content">
+        <div class="content-wrapper" style="max-width: 600px; margin: 0 auto; padding: 24px 16px;">
+
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-primary">データエクスポート</h1>
+                <p class="text-muted mt-2">トレーニング記録・目標・プロフィールを CSV でダウンロードします</p>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <form th:action="@{/user/export/csv}" method="get" class="space-y-6">
+
+                        <div class="form-group">
+                            <label for="from" class="form-label">開始日</label>
+                            <input type="date" id="from" name="from" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="to" class="form-label">終了日</label>
+                            <input type="date" id="to" name="to" class="form-control" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-full">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            CSV をダウンロード
+                        </button>
+                    </form>
+
+                    <div class="mt-6 pt-6" style="border-top: 1px solid var(--border-color);">
+                        <p class="text-muted text-sm">
+                            個人データが含まれます。ダウンロードしたファイルの取り扱いにご注意ください。
+                        </p>
+                        <p class="text-muted text-xs mt-2">
+                            出力内容: プロフィール・指定期間のトレーニング記録・目標設定（CSV形式・UTF-8）
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="~{common :: footerFragment}"></footer>
+    <script th:src="@{/js/theme.js}"></script>
+</body>
+</html>

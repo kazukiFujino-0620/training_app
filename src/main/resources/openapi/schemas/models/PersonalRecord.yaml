@@ -1,0 +1,43 @@
+type: object
+description: ユーザーの種目別自己記録（Personal Record）
+properties:
+  id:
+    type: integer
+    format: int64
+    example: 1
+  userId:
+    type: integer
+    format: int64
+    example: 42
+  itemName:
+    type: string
+    description: 種目名
+    example: ベンチプレス
+  maxWeight:
+    type: number
+    format: double
+    description: 最高重量 (kg)
+    example: 85.0
+  maxReps:
+    type: integer
+    description: 最高回数
+    example: 8
+  achievedDate:
+    type: string
+    format: date
+    description: PR達成日
+    example: "2026-05-30"
+  createdAt:
+    type: string
+    format: date-time
+    example: "2026-05-01T10:00:00"
+  updatedAt:
+    type: string
+    format: date-time
+    example: "2026-05-30T20:00:00"
+required:
+  - userId
+  - itemName
+  - maxWeight
+  - maxReps
+  - achievedDate

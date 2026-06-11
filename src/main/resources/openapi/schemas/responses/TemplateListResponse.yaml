@@ -1,0 +1,32 @@
+description: テンプレート一覧レスポンス
+content:
+  application/json:
+    schema:
+      type: array
+      items:
+        $ref: "../models/TrainingTemplate.yaml"
+    example:
+      - id: 1
+        userId: 10
+        name: "胸の日A"
+        partCode: "CHEST"
+        memo: "ベンチ→フライ→ディップス"
+        items:
+          - id: 1
+            templateId: 1
+            itemName: "ベンチプレス"
+            setNumber: 1
+            setType: "WARMUP"
+            weight: 40.0
+            reps: 15
+            displayOrder: 0
+          - id: 2
+            templateId: 1
+            itemName: "ベンチプレス"
+            setNumber: 2
+            setType: "MAIN"
+            weight: 80.0
+            reps: 8
+            displayOrder: 0
+        createdAt: "2026-06-01T10:00:00"
+        updatedAt: "2026-06-01T10:00:00"

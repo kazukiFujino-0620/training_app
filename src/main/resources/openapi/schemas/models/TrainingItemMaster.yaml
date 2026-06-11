@@ -1,0 +1,17 @@
+type: object
+description: トレーニング種目マスター（training_item_master テーブル）
+properties:
+  id:
+    type: integer
+    format: int64
+    example: 1
+  partCode:
+    $ref: "../enums/PartCode.yaml"
+  itemName:
+    type: string
+    description: 種目名
+    example: ベンチプレス
+  displayOrder:
+    type: integer
+    description: 表示順
+    example: 1

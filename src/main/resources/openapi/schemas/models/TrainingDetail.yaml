@@ -1,0 +1,47 @@
+type: object
+description: トレーニングセット詳細（training_details テーブル）
+properties:
+  id:
+    type: integer
+    format: int64
+    description: セット詳細ID（主キー・自動採番）
+    example: 1
+  trainingId:
+    type: integer
+    format: int64
+    description: FK → trainings.id
+    example: 1
+  setNumber:
+    type: integer
+    description: セット番号（1以上）
+    minimum: 1
+    example: 1
+  weight:
+    type: number
+    format: double
+    description: 重量（kg、0以上）
+    minimum: 0
+    example: 60.0
+  reps:
+    type: integer
+    description: 回数（0以上。入力中の暫定値として0を許容）
+    minimum: 0
+    example: 10
+  setType:
+    $ref: "../enums/SetType.yaml"
+  count:
+    type: integer
+    description: 補助カウント（任意）
+    nullable: true
+  completed:
+    type: boolean
+    description: セット完了フラグ。JSONキー名は "completed"（@JsonProperty によりサーバー側の isCompleted フィールドにマッピング）
+    example: false
+  createDatetime:
+    type: string
+    format: date-time
+    readOnly: true
+  updatedDatetime:
+    type: string
+    format: date-time
+    readOnly: true

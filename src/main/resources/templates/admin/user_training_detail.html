@@ -5,6 +5,11 @@
       th:attr="data-theme=${theme}">
 <head>
     <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>トレーニング詳細 - トレーニング管理システム</title>
     <meta name="_csrf" th:content="${_csrf.token}"/>
@@ -35,6 +40,17 @@
                     <div>
                         <h1 class="text-3xl font-bold text-primary" th:text="${user.userName} + 'さんのトレーニング詳細'">ユーザーのトレーニング詳細</h1>
                         <p class="text-muted mt-2">トレーニング履歴と進捗管理</p>
+                        <!-- ユーザープロフィール情報 -->
+                        <div class="flex flex-wrap gap-2 mt-2" th:if="${targetUser != null}">
+                            <span class="badge" th:if="${targetUser.weightKg != null}"
+                                  th:text="'体重: ' + ${targetUser.weightKg} + 'kg'" style="background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:12px;padding:0.2rem 0.6rem;font-size:0.78rem;color:var(--text-secondary);"></span>
+                            <span class="badge" th:if="${targetUser.heightCm != null}"
+                                  th:text="'身長: ' + ${targetUser.heightCm} + 'cm'" style="background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:12px;padding:0.2rem 0.6rem;font-size:0.78rem;color:var(--text-secondary);"></span>
+                            <span class="badge" th:if="${targetUser.gender != null && targetUser.gender != 'UNSPECIFIED'}"
+                                  th:text="${targetUser.gender == 'MALE' ? '男性' : '女性'}" style="background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:12px;padding:0.2rem 0.6rem;font-size:0.78rem;color:var(--text-secondary);"></span>
+                            <span class="badge" th:if="${targetUser.weightKg == null && targetUser.heightCm == null}"
+                                  style="background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:12px;padding:0.2rem 0.6rem;font-size:0.78rem;color:var(--text-muted);">プロフィール未設定</span>
+                        </div>
                     </div>
                 </div>
             </div>

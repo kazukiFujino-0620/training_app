@@ -3,7 +3,11 @@
       th:with="theme=${session.theme ?: 'light'}"
       th:attr="data-theme=${theme}">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8" />    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>トレーニング詳細 - トレーニング管理システム</title>
   <meta name="_csrf" th:content="${_csrf.token}" />
@@ -145,8 +149,28 @@
           </div>
           <div class="summary-card">
             <div class="label">推定消費カロリー</div>
-            <div class="value" th:text="${estimatedCalories}">0</div>
-            <div class="unit">kcal</div>
+            <!-- ケースA: 全項目あり -->
+            <th:block th:if="${calorieEstimate.type.name() == 'FULL'}">
+              <div class="value" th:text="${calorieEstimate.calories}">0</div>
+              <div class="unit">kcal</div>
+            </th:block>
+            <!-- ケースB: 体重のみ -->
+            <th:block th:if="${calorieEstimate.type.name() == 'SIMPLE'}">
+              <div class="value" th:text="${calorieEstimate.calories}">0</div>
+              <div class="unit">kcal <span style="font-size:0.65rem;color:var(--text-muted);">※簡易計算</span></div>
+            </th:block>
+            <!-- ケースC: 未設定 -->
+            <th:block th:if="${calorieEstimate.type.name() == 'UNSET'}">
+              <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.3rem;line-height:1.4;">
+                <a href="/user/profile" style="color:var(--primary-color);">プロフィール</a>を設定するとカロリーが表示されます
+              </div>
+            </th:block>
+            <!-- ケースD: プロフィール設定済みだがタイマー未使用 -->
+            <th:block th:if="${calorieEstimate.type.name() == 'NO_DURATION'}">
+              <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.3rem;line-height:1.4;">
+                タイマーを使用すると<br>カロリーが表示されます
+              </div>
+            </th:block>
           </div>
         </div>
 

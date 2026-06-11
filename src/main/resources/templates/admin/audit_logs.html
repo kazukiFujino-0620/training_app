@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>監査ログ - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .audit-table td { font-size: 0.82rem; word-break: break-all; }
+        .audit-table th { font-size: 0.8rem; white-space: nowrap; }
+        .action-badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+        .action-badge.delete { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+        .action-badge.admin  { background: #fffbeb; color: #d97706; border-color: #fcd34d; }
+        .action-badge.mfa    { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+        .filter-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; margin-bottom: 1.5rem; }
+        .filter-group { display: flex; flex-direction: column; gap: 0.25rem; }
+        .filter-group label { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+        .filter-group input, .filter-group select { font-size: 0.85rem; padding: 0.4rem 0.6rem; }
+        .pagination { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; justify-content: center; }
+    </style>
+</head>
+<body class="bg-secondary">
+    <header th:replace="~{common :: headerFragment}"></header>
+
+    <main class="main-content">
+        <div class="content-wrapper">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-primary">監査ログ</h1>
+                <p class="text-muted mt-2">誰がいつどのデータを操作したかの不変記録</p>
+            </div>
+
+            <!-- フィルターフォーム -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" th:action="@{/admin/audit-logs}" class="filter-form">
+                        <div class="filter-group">
+                            <label>ユーザーID</label>
+                            <input type="number" name="userId" class="form-input"
+                                   th:value="${filterUserId}" placeholder="例: 42" style="width:110px;">
+                        </div>
+                        <div class="filter-group">
+                            <label>アクション</label>
+                            <select name="action" class="form-select" style="width:200px;">
+                                <option value="">すべて</option>
+                                <option value="TRAINING_SAVE"   th:selected="${filterAction == 'TRAINING_SAVE'}">TRAINING_SAVE</option>
+                                <option value="TRAINING_FINISH" th:selected="${filterAction == 'TRAINING_FINISH'}">TRAINING_FINISH</option>
+                                <option value="TRAINING_UPDATE" th:selected="${filterAction == 'TRAINING_UPDATE'}">TRAINING_UPDATE</option>
+                                <option value="TRAINING_DELETE" th:selected="${filterAction == 'TRAINING_DELETE'}">TRAINING_DELETE</option>
+                                <option value="TRAINING_BULK"   th:selected="${filterAction == 'TRAINING_BULK'}">TRAINING_BULK</option>
+                                <option value="TEMPLATE_CREATE" th:selected="${filterAction == 'TEMPLATE_CREATE'}">TEMPLATE_CREATE</option>
+                                <option value="TEMPLATE_UPDATE" th:selected="${filterAction == 'TEMPLATE_UPDATE'}">TEMPLATE_UPDATE</option>
+                                <option value="TEMPLATE_DELETE" th:selected="${filterAction == 'TEMPLATE_DELETE'}">TEMPLATE_DELETE</option>
+                                <option value="TEMPLATE_APPLY"  th:selected="${filterAction == 'TEMPLATE_APPLY'}">TEMPLATE_APPLY</option>
+                                <option value="GOAL_CREATE"     th:selected="${filterAction == 'GOAL_CREATE'}">GOAL_CREATE</option>
+                                <option value="GOAL_ACHIEVE"    th:selected="${filterAction == 'GOAL_ACHIEVE'}">GOAL_ACHIEVE</option>
+                                <option value="GOAL_DELETE"     th:selected="${filterAction == 'GOAL_DELETE'}">GOAL_DELETE</option>
+                                <option value="PROFILE_UPDATE"  th:selected="${filterAction == 'PROFILE_UPDATE'}">PROFILE_UPDATE</option>
+                                <option value="MFA_ENABLE"      th:selected="${filterAction == 'MFA_ENABLE'}">MFA_ENABLE</option>
+                                <option value="MFA_DISABLE"     th:selected="${filterAction == 'MFA_DISABLE'}">MFA_DISABLE</option>
+                                <option value="MFA_BACKUP_REGEN" th:selected="${filterAction == 'MFA_BACKUP_REGEN'}">MFA_BACKUP_REGEN</option>
+                                <option value="ADMIN_USER_UPDATE" th:selected="${filterAction == 'ADMIN_USER_UPDATE'}">ADMIN_USER_UPDATE</option>
+                                <option value="ADMIN_MFA_RESET" th:selected="${filterAction == 'ADMIN_MFA_RESET'}">ADMIN_MFA_RESET</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>開始日</label>
+                            <input type="date" name="from" class="form-input"
+                                   th:value="${filterFrom}" style="width:145px;">
+                        </div>
+                        <div class="filter-group">
+                            <label>終了日</label>
+                            <input type="date" name="to" class="form-input"
+                                   th:value="${filterTo}" style="width:145px;">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="height:38px;">検索</button>
+                        <a th:href="@{/admin/audit-logs}" class="btn btn-secondary" style="height:38px; line-height:1.5;">リセット</a>
+                    </form>
+                    <p class="text-muted" style="font-size:0.8rem;">
+                        検索結果: <strong th:text="${total}">0</strong> 件（1ページ50件）
+                    </p>
+                </div>
+            </div>
+
+            <!-- ログテーブル -->
+            <div class="card">
+                <div class="card-body" style="overflow-x:auto;">
+                    <div th:if="${#lists.isEmpty(logs)}" style="text-align:center; padding:2rem; color:var(--text-muted);">
+                        対象期間のログがありません。
+                    </div>
+                    <table class="table audit-table" th:unless="${#lists.isEmpty(logs)}">
+                        <thead>
+                            <tr>
+                                <th>日時</th>
+                                <th>ユーザーID</th>
+                                <th>アクション</th>
+                                <th>対象テーブル</th>
+                                <th>対象ID</th>
+                                <th>IPアドレス</th>
+                                <th>パス</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="log : ${logs}">
+                                <td th:text="${#temporals.format(log.changedAt, 'yyyy-MM-dd HH:mm:ss')}"></td>
+                                <td th:text="${log.userId != null ? log.userId : '-'}"></td>
+                                <td>
+                                    <span class="action-badge"
+                                          th:classappend="${#strings.contains(log.action, 'DELETE') ? ' delete' : (#strings.startsWith(log.action, 'ADMIN') ? ' admin' : (#strings.startsWith(log.action, 'MFA') ? ' mfa' : ''))}"
+                                          th:text="${log.action}"></span>
+                                </td>
+                                <td th:text="${log.targetTable}"></td>
+                                <td th:text="${log.targetId != null ? log.targetId : '-'}"></td>
+                                <td th:text="${log.ipAddress}"></td>
+                                <td th:text="${log.requestPath}"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ページネーション -->
+            <div class="pagination" th:if="${totalPages > 1}">
+                <a th:if="${currentPage > 1}"
+                   th:href="@{/admin/audit-logs(page=${currentPage - 1}, userId=${filterUserId}, action=${filterAction}, from=${filterFrom}, to=${filterTo})}"
+                   class="btn btn-secondary btn-sm">前へ</a>
+                <span style="font-size:0.85rem; color:var(--text-muted);"
+                      th:text="'ページ ' + ${currentPage} + ' / ' + ${totalPages}"></span>
+                <a th:if="${currentPage < totalPages}"
+                   th:href="@{/admin/audit-logs(page=${currentPage + 1}, userId=${filterUserId}, action=${filterAction}, from=${filterFrom}, to=${filterTo})}"
+                   class="btn btn-secondary btn-sm">次へ</a>
+            </div>
+
+            <div style="margin-top:1.5rem;">
+                <a th:href="@{/admin/users}" class="btn btn-secondary">← ユーザー管理に戻る</a>
+            </div>
+        </div>
+    </main>
+
+    <div th:replace="~{common :: sessionModalsFragment}"></div>
+    <script th:src="@{/js/theme.js}"></script>
+</body>
+</html>

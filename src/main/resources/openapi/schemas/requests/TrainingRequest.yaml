@@ -1,0 +1,48 @@
+type: object
+description: トレーニング登録・更新リクエスト（JSON API）
+required:
+  - trainingDate
+  - partCode
+  - menu
+  - details
+properties:
+  id:
+    type: integer
+    format: int64
+    nullable: true
+    description: 更新時に指定。新規登録時は null
+    example: null
+  trainingDate:
+    type: string
+    format: date
+    description: トレーニング日
+    example: "2026-05-26"
+  partCode:
+    $ref: "../enums/PartCode.yaml"
+  menu:
+    type: string
+    description: トレーニング種目名
+    example: ベンチプレス
+  memo:
+    type: string
+    nullable: true
+    description: メモ（任意）
+  duration:
+    type: string
+    nullable: true
+    description: トレーニング時間（HH:mm:ss 形式）
+    example: "01:00:00"
+  isCompleted:
+    type: boolean
+    description: 種目完了フラグ
+    default: false
+  isAllCompleted:
+    type: boolean
+    description: 全セット完了フラグ
+    default: false
+  details:
+    type: array
+    description: セット詳細リスト（1件以上必須）
+    minItems: 1
+    items:
+      $ref: "./TrainingDetailRequest.yaml"

@@ -1,0 +1,15 @@
+type: string
+description: |
+  トレーニング部位コード。
+  - CHEST: 胸
+  - BACK: 背中
+  - ARM: 腕
+  - SHOULDER: 肩
+  - LEG: 脚
+enum:
+  - CHEST
+  - BACK
+  - ARM
+  - SHOULDER
+  - LEG
+example: CHEST

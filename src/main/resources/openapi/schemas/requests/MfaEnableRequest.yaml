@@ -1,0 +1,9 @@
+type: object
+required:
+  - otp
+properties:
+  otp:
+    type: string
+    pattern: '^\d{6}$'
+    description: Authenticator アプリが生成した 6 桁の TOTP コード
+    example: "123456"

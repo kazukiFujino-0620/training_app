@@ -1,0 +1,60 @@
+type: object
+description: 監査ログエントリー
+properties:
+  id:
+    type: integer
+    format: int64
+    description: 監査ログID
+    example: 1001
+  userId:
+    type: integer
+    format: int64
+    nullable: true
+    description: 操作を行ったユーザーID。未認証時は null
+    example: 42
+  action:
+    type: string
+    description: |
+      アクションコード。以下のいずれか:
+      - TRAINING_SAVE / TRAINING_FINISH / TRAINING_UPDATE / TRAINING_DELETE / TRAINING_BULK
+      - TEMPLATE_CREATE / TEMPLATE_UPDATE / TEMPLATE_DELETE / TEMPLATE_APPLY
+      - GOAL_CREATE / GOAL_ACHIEVE / GOAL_DELETE
+      - PROFILE_UPDATE
+      - MFA_ENABLE / MFA_DISABLE / MFA_BACKUP_REGEN
+      - ADMIN_USER_UPDATE / ADMIN_MFA_RESET
+    example: "TRAINING_DELETE"
+  targetTable:
+    type: string
+    description: 操作対象テーブル名
+    example: "trainings"
+  targetId:
+    type: integer
+    format: int64
+    nullable: true
+    description: 操作対象レコードのID。一括操作・新規作成時は null
+    example: 123
+  ipAddress:
+    type: string
+    description: クライアントIPアドレス（IPv4/IPv6）
+    example: "203.0.113.1"
+  requestPath:
+    type: string
+    description: リクエストURLのパス部分（クエリパラメータ除外）
+    example: "/api/training/delete/123"
+  changedAt:
+    type: string
+    format: date-time
+    description: 操作日時（ミリ秒精度）
+    example: "2026-06-02T10:32:01.123"
+  extra:
+    type: string
+    nullable: true
+    description: JSON形式の補足情報（現時点では常にnull）
+    example: null
+required:
+  - id
+  - action
+  - targetTable
+  - ipAddress
+  - requestPath
+  - changedAt

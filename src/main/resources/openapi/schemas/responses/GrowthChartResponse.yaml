@@ -1,0 +1,31 @@
+description: 種目別成長グラフデータ
+content:
+  application/json:
+    schema:
+      type: object
+      properties:
+        labels:
+          type: array
+          description: 週開始日（YYYY-MM-DD形式）
+          items:
+            type: string
+            format: date
+          example: ["2026-03-03", "2026-03-10", "2026-03-17"]
+        maxWeight:
+          type: array
+          description: 週ごとの最高重量 (kg)
+          items:
+            type: number
+            format: double
+          example: [80.0, 82.5, 85.0]
+        totalVolume:
+          type: array
+          description: 週ごとのボリューム (重量 × 回数)
+          items:
+            type: number
+            format: double
+          example: [3200.0, 3500.0, 3600.0]
+      required:
+        - labels
+        - maxWeight
+        - totalVolume
