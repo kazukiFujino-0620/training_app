@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity,
+  View, Text, StyleSheet, Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,7 +27,7 @@ export default function GoalScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
+      <Pressable style={styles.container} onPress={() => navigation.replace('TrainingList' as any)}>
         <Text style={styles.trophy}>🏆</Text>
         <Text style={styles.title}>トレーニング完了！</Text>
         <Text style={styles.subtitle}>お疲れさまでした</Text>
@@ -40,13 +40,8 @@ export default function GoalScreen({ navigation, route }: Props) {
           )}
         </View>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate('TrainingList')}
-        >
-          <Text style={styles.buttonText}>ホームに戻る</Text>
-        </TouchableOpacity>
-      </View>
+        <Text style={styles.tapHint}>タップしてホームへ戻る</Text>
+      </Pressable>
     </SafeAreaView>
   );
 }
@@ -81,9 +76,5 @@ const styles = StyleSheet.create({
     width: '100%', backgroundColor: '#f9f9f9', borderRadius: 16,
     padding: 20, marginBottom: 32,
   },
-  button: {
-    width: '100%', backgroundColor: '#4CAF50', borderRadius: 12,
-    padding: 16, alignItems: 'center',
-  },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  tapHint: { fontSize: 13, color: '#bbb', marginTop: 8 },
 });
