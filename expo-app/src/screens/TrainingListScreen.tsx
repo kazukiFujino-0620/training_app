@@ -170,6 +170,21 @@ export default function TrainingListScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.completeButton} onPress={handleComplete}>
             <Text style={styles.completeButtonText}>🎉 トレーニング完了！</Text>
           </TouchableOpacity>
+        ) : trainings.length > 0 ? (
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={styles.addButtonOutline}
+              onPress={() => navigation.navigate('AddExercise')}
+            >
+              <Text style={styles.addButtonOutlineText}>＋ 種目を追加</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={() => navigation.navigate('TrainingStart')}
+            >
+              <Text style={styles.startButtonText}>▶ トレーニング開始</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <TouchableOpacity
             style={styles.addButton}
@@ -212,4 +227,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF9800', borderRadius: 12, padding: 16, alignItems: 'center',
   },
   completeButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  buttonRow: { flexDirection: 'row', gap: 10 },
+  addButtonOutline: {
+    flex: 1, borderRadius: 12, padding: 16, alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#4CAF50', backgroundColor: '#fff',
+  },
+  addButtonOutlineText: { color: '#4CAF50', fontSize: 15, fontWeight: '700' },
+  startButton: {
+    flex: 1, backgroundColor: '#4CAF50', borderRadius: 12, padding: 16, alignItems: 'center',
+  },
+  startButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
