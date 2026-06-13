@@ -29,7 +29,7 @@ export default function TrainingListScreen({ navigation }: Props) {
   const load = useCallback(async () => {
     try {
       const { data } = await trainingApi.getToday();
-      setTrainings(data);
+      setTrainings(data.filter((t) => !t.isAllCompleted));
     } catch (e: any) {
       if (e.response?.status === 401) {
         await clearTokens();
