@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Vibration,
-  SectionList, Alert, ActivityIndicator,
+  SectionList, Alert, ActivityIndicator, AppState, AppStateStatus,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -11,9 +11,9 @@ import SetRow from '../components/SetRow';
 import { trainingApi } from '../api/client';
 import { clearTokens } from '../auth/tokenStore';
 import type { Training, TrainingDetail } from '../api/types';
+import * as Notifications from 'expo-notifications';
 
 const DEFAULT_INTERVAL = 120;
-const ADJUST_STEP = 30;
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'TrainingStart'>;
@@ -47,7 +47,10 @@ export default function TrainingStartScreen({ navigation }: Props) {
 
   // セッションタイマー（カウントアップ）
   const [sessionElapsed, setSessionElapsed] = useState(0);
-  const sessionStartRef = useRef(Date.now());
+  // 修正1: 初期値を null にしてボタン押下で開始
+  const sessionStartRef = useRef<number | null>(null);
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const sessionStartedRef = useRef(false); // AppStateコールバック内参照用
 
   // インターバルタイマー
   const [intervalDuration, setIntervalDuration] = useState(DEFAULT_INTERVAL);
@@ -56,6 +59,10 @@ export default function TrainingStartScreen({ navigation }: Props) {
   const [showInterval, setShowInterval]         = useState(false);
   const intervalDurationRef = useRef(DEFAULT_INTERVAL);
   const intervalStartRef    = useRef<number>(0);
+
+  // 修正3: バックグラウンド通知用
+  const notificationIdRef = useRef<string | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   // ── データ取得 ──────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -76,13 +83,37 @@ export default function TrainingStartScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // ── セッションタイマー tick ─────────────────────────────────────────────────
+  // 修正5: ホーム遷移防止
   useEffect(() => {
+    return navigation.addListener('beforeRemove', (e) => {
+      if (trainings.length === 0) return;
+      e.preventDefault();
+      Alert.alert(
+        'トレーニングを中断しますか？',
+        'ホームに戻るとトレーニングが中断されます。',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: '中断する', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+        ],
+      );
+    });
+  }, [navigation, trainings.length]);
+
+  // 修正3: 通知パーミッションリクエスト
+  useEffect(() => {
+    Notifications.requestPermissionsAsync();
+  }, []);
+
+  // 修正1: セッションタイマー tick（sessionStarted が true の時のみ動作）
+  useEffect(() => {
+    if (!sessionStarted) return;
     const id = setInterval(() => {
-      setSessionElapsed(Math.floor((Date.now() - sessionStartRef.current) / 1000));
+      if (sessionStartRef.current !== null) {
+        setSessionElapsed(Math.floor((Date.now() - sessionStartRef.current) / 1000));
+      }
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [sessionStarted]);
 
   // ── インターバルタイマー tick ───────────────────────────────────────────────
   useEffect(() => {
@@ -93,6 +124,7 @@ export default function TrainingStartScreen({ navigation }: Props) {
       if (left <= 0) {
         setIntervalRunning(false);
         setIntervalRemaining(0);
+        notificationIdRef.current = null; // 修正3: タイマー完了時に通知IDをクリア
         Vibration.vibrate([0, 400, 150, 400, 150, 800]);
       } else {
         setIntervalRemaining(left);
@@ -101,8 +133,61 @@ export default function TrainingStartScreen({ navigation }: Props) {
     return () => clearInterval(id);
   }, [intervalRunning]);
 
+  // 修正3 + 修正4: AppState 監視
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextState: AppStateStatus) => {
+      const prevState = appStateRef.current;
+      appStateRef.current = nextState;
+
+      if ((nextState === 'background' || nextState === 'inactive') && prevState === 'active') {
+        // バックグラウンド移行時: インターバル実行中なら通知をスケジュール
+        if (intervalRunning) {
+          const elapsed = (Date.now() - intervalStartRef.current) / 1000;
+          const left = Math.max(1, Math.ceil(intervalDurationRef.current - elapsed));
+          const id = await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'インターバル終了！',
+              body: '次のセットを開始してください',
+              sound: true,
+            },
+            trigger: { seconds: left } as any,
+          });
+          notificationIdRef.current = id;
+        }
+      } else if (nextState === 'active' && prevState !== 'active') {
+        // フォアグラウンド復帰時: スケジュール済み通知をキャンセル
+        if (notificationIdRef.current) {
+          await Notifications.cancelScheduledNotificationAsync(notificationIdRef.current);
+          notificationIdRef.current = null;
+        }
+
+        // 修正4: UIを強制更新
+        if (sessionStartedRef.current && sessionStartRef.current !== null) {
+          setSessionElapsed(Math.floor((Date.now() - sessionStartRef.current) / 1000));
+        }
+        if (intervalRunning) {
+          const elapsed = (Date.now() - intervalStartRef.current) / 1000;
+          const left = Math.ceil(intervalDurationRef.current - elapsed);
+          if (left <= 0) {
+            setIntervalRunning(false);
+            setIntervalRemaining(0);
+          } else {
+            setIntervalRemaining(left);
+          }
+        }
+      }
+    });
+    return () => subscription.remove();
+  }, [intervalRunning]);
+
   // ── インターバル操作 ────────────────────────────────────────────────────────
   function startInterval() {
+    // 修正1: 初セット完了時にセッションタイマーを自動開始
+    if (!sessionStartedRef.current) {
+      sessionStartRef.current = Date.now();
+      sessionStartedRef.current = true;
+      setSessionStarted(true);
+    }
     intervalDurationRef.current = intervalDuration;
     intervalStartRef.current = Date.now();
     setIntervalRemaining(intervalDuration);
@@ -242,11 +327,26 @@ export default function TrainingStartScreen({ navigation }: Props) {
         // ── ヘッダー：セッションタイマー + インターバルタイマー ──────────────
         ListHeaderComponent={
           <View>
-            {/* セッションタイマー */}
+            {/* 修正1: セッションタイマー */}
             <View style={styles.sessionBlock}>
               <Text style={styles.sessionLabel}>トレーニング時間</Text>
-              <Text style={styles.sessionTime}>{fmtTime(sessionElapsed)}</Text>
+              <Text style={styles.sessionTime}>
+                {sessionStarted ? fmtTime(sessionElapsed) : '--:--'}
+              </Text>
             </View>
+            {/* 修正1: タイマー開始ボタン（未開始時のみ表示） */}
+            {!sessionStarted && (
+              <TouchableOpacity
+                style={styles.sessionStartBtn}
+                onPress={() => {
+                  sessionStartRef.current = Date.now();
+                  sessionStartedRef.current = true;
+                  setSessionStarted(true);
+                }}
+              >
+                <Text style={styles.sessionStartBtnText}>▶ タイマー開始</Text>
+              </TouchableOpacity>
+            )}
 
             {/* インターバルタイマー（折りたたみ） */}
             <View style={styles.intervalCard}>
@@ -275,14 +375,26 @@ export default function TrainingStartScreen({ navigation }: Props) {
                     <Text style={styles.intervalFinishedText}>終了！次のセットへ</Text>
                   )}
 
-                  {/* ±調整 */}
+                  {/* 修正2: ±5s・±10s・±30s の6ボタン */}
                   <View style={styles.adjustRow}>
-                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(-ADJUST_STEP)}>
-                      <Text style={styles.adjBtnText}>-{ADJUST_STEP}s</Text>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(-30)}>
+                      <Text style={styles.adjBtnText}>-30s</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(-10)}>
+                      <Text style={styles.adjBtnText}>-10s</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(-5)}>
+                      <Text style={styles.adjBtnText}>-5s</Text>
                     </TouchableOpacity>
                     <Text style={styles.adjLabel}>{fmtTime(intervalDuration)}</Text>
-                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(ADJUST_STEP)}>
-                      <Text style={styles.adjBtnText}>+{ADJUST_STEP}s</Text>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(5)}>
+                      <Text style={styles.adjBtnText}>+5s</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(10)}>
+                      <Text style={styles.adjBtnText}>+10s</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(30)}>
+                      <Text style={styles.adjBtnText}>+30s</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -387,6 +499,11 @@ const styles = StyleSheet.create({
   },
   sessionLabel: { fontSize: 11, color: '#888', letterSpacing: 2, marginBottom: 6 },
   sessionTime:  { fontSize: 52, fontWeight: '200', color: '#fff', letterSpacing: 4 },
+  sessionStartBtn: {
+    backgroundColor: '#1a1a2e', paddingVertical: 12,
+    alignItems: 'center', borderTopWidth: 1, borderTopColor: '#2a2a4e',
+  },
+  sessionStartBtnText: { fontSize: 14, color: '#4CAF50', fontWeight: '700' },
 
   // ── インターバルタイマー ────────────────────────────────────────────────────
   intervalCard: {
@@ -411,9 +528,9 @@ const styles = StyleSheet.create({
   intervalBigTime:     { fontSize: 64, fontWeight: '200', letterSpacing: 3, marginBottom: 4 },
   intervalFinishedText:{ fontSize: 14, color: '#F44336', fontWeight: '700', marginBottom: 8 },
 
-  adjustRow: { flexDirection: 'row', alignItems: 'center', gap: 20, marginVertical: 14 },
+  adjustRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 14, flexWrap: 'wrap', justifyContent: 'center' },
   adjBtn: {
-    backgroundColor: '#f0f0f0', paddingHorizontal: 18, paddingVertical: 9, borderRadius: 18,
+    backgroundColor: '#f0f0f0', paddingHorizontal: 10, paddingVertical: 9, borderRadius: 18,
   },
   adjBtnText: { fontSize: 14, fontWeight: '600', color: '#444' },
   adjLabel:   { fontSize: 17, fontWeight: '600', color: '#555', minWidth: 50, textAlign: 'center' },
