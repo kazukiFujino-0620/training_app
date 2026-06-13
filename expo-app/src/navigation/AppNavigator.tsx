@@ -67,7 +67,7 @@ function AppNavigator() {
       <AppStack.Screen
         name="TrainingStart"
         component={TrainingStartScreen}
-        options={{ title: 'トレーニング中' }}
+        options={{ title: 'トレーニング中', gestureEnabled: false }}
       />
       <AppStack.Screen
         name="AddExercise"
