@@ -54,7 +54,8 @@
       "Bash(npm audit *)",
       "Bash(xcode-select --version)",
       "Bash(xcodebuild *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "mcp__obsidian-vault__read_file"
     ]
   }
 }

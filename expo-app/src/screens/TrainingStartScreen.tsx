@@ -15,6 +15,9 @@ import * as Notifications from 'expo-notifications';
 
 const DEFAULT_INTERVAL = 120;
 
+// アプリセッション内でコンポーネントが再マウントされてもタイマーを保持する
+let _savedSessionStartTime: number | null = null;
+
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'TrainingStart'>;
 };
@@ -46,11 +49,18 @@ export default function TrainingStartScreen({ navigation }: Props) {
   const [loading, setLoading]     = useState(true);
 
   // セッションタイマー（カウントアップ）
-  const [sessionElapsed, setSessionElapsed] = useState(0);
-  // 修正1: 初期値を null にしてボタン押下で開始
-  const sessionStartRef = useRef<number | null>(null);
-  const [sessionStarted, setSessionStarted] = useState(false);
-  const sessionStartedRef = useRef(false); // AppStateコールバック内参照用
+  // Bug2修正: _savedSessionStartTime から復元することで再マウント後も継続
+  const [sessionElapsed, setSessionElapsed] = useState(() =>
+    _savedSessionStartTime !== null
+      ? Math.floor((Date.now() - _savedSessionStartTime) / 1000)
+      : 0
+  );
+  const sessionStartRef = useRef<number | null>(_savedSessionStartTime);
+  const [sessionStarted, setSessionStarted] = useState(_savedSessionStartTime !== null);
+  const sessionStartedRef = useRef(_savedSessionStartTime !== null);
+
+  // Bug1修正: 完了ナビゲーション時は beforeRemove を素通りさせるフラグ
+  const isCompletingRef = useRef(false);
 
   // インターバルタイマー
   const [intervalDuration, setIntervalDuration] = useState(DEFAULT_INTERVAL);
@@ -83,10 +93,10 @@ export default function TrainingStartScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // 修正5: ホーム遷移防止
+  // Bug1・Bug3修正: ホーム遷移防止（完了時と trainings 空は素通り）
   useEffect(() => {
     return navigation.addListener('beforeRemove', (e) => {
-      if (trainings.length === 0) return;
+      if (trainings.length === 0 || isCompletingRef.current) return;
       e.preventDefault();
       Alert.alert(
         'トレーニングを中断しますか？',
@@ -184,8 +194,10 @@ export default function TrainingStartScreen({ navigation }: Props) {
   function startInterval() {
     // 修正1: 初セット完了時にセッションタイマーを自動開始
     if (!sessionStartedRef.current) {
-      sessionStartRef.current = Date.now();
+      const now = Date.now();
+      sessionStartRef.current = now;
       sessionStartedRef.current = true;
+      _savedSessionStartTime = now; // Bug2: モジュール変数にも保存
       setSessionStarted(true);
     }
     intervalDurationRef.current = intervalDuration;
@@ -281,6 +293,8 @@ export default function TrainingStartScreen({ navigation }: Props) {
             for (const t of trainings) {
               await trainingApi.completeTraining(t.id);
             }
+            isCompletingRef.current = true; // Bug1: beforeRemove を素通りさせる
+            _savedSessionStartTime = null;   // Bug2: 完了時はタイマーをリセット
             navigation.replace('Goal' as any, {
               date: new Date().toISOString().slice(0, 10),
               totalSets,
@@ -339,8 +353,10 @@ export default function TrainingStartScreen({ navigation }: Props) {
               <TouchableOpacity
                 style={styles.sessionStartBtn}
                 onPress={() => {
-                  sessionStartRef.current = Date.now();
+                  const now = Date.now();
+                  sessionStartRef.current = now;
                   sessionStartedRef.current = true;
+                  _savedSessionStartTime = now; // Bug2: モジュール変数にも保存
                   setSessionStarted(true);
                 }}
               >
