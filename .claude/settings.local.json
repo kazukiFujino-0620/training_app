@@ -59,7 +59,19 @@
       "Bash(npx tsc *)",
       "Bash(./node_modules/.bin/tsc --noEmit)",
       "Bash(npm install *)",
-      "Bash(node_modules/.bin/tsc --noEmit)"
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(npx expo *)",
+      "Read(//private/tmp/resign_build/training/Build/Products/Release-iphoneos/**)",
+      "Bash(xcrun devicectl *)",
+      "Read(//private/tmp/**)",
+      "Bash(/usr/libexec/PlistBuddy *)",
+      "Bash(md5 /tmp/resign_build/training/Build/Products/Release-iphoneos/app.app/main.jsbundle)",
+      "Bash(md5 /tmp/resign_build/training/Build/Products/Release-iphoneos/main.jsbundle)",
+      "Bash(xxd /tmp/resign_build/training/Build/Products/Release-iphoneos/app.app/main.jsbundle)",
+      "Bash(xxd /tmp/resign_build/training/Build/Products/Release-iphoneos/main.jsbundle)",
+      "Read(//tmp/**)",
+      "Bash(ideviceinstaller -l)",
+      "Bash(ios-deploy --list-bundle-id)"
     ]
   }
 }
