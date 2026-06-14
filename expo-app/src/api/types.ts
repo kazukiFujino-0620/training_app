@@ -44,6 +44,7 @@ export interface Training {
   partName?: string;
   isAllCompleted: boolean;
   trainingDate: string;
+  duration?: string;
   details: TrainingDetail[];
 }
 
