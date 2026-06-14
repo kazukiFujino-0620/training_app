@@ -54,8 +54,7 @@ type TrainingSection = {
 
 const PART_LABELS: Record<string, string> = {
   CHEST: '胸', BACK: '背中', SHOULDER: '肩',
-  BICEPS: '上腕二頭筋', TRICEPS: '上腕三頭筋',
-  ABS: '腹筋', LEG: '脚', CALVES: 'ふくらはぎ',
+  ARM: '腕', LEG: '脚',
 };
 
 function fmtTime(sec: number) {
@@ -410,9 +409,18 @@ export default function TrainingStartScreen({ navigation }: Props) {
           } else {
             // 途中完了：isAllCompleted を変えない（ホームでボタンを表示し続ける）
             // completeTraining は呼ばない（呼ぶと isAllCompleted=true になってボタンが消える）
-            // ※ duration の DB 保存はバックエンドの専用エンドポイント追加後に対応
-            isCompletingRef.current = true;
-            navigation.goBack();
+            // duration のみ PATCH /training/{id}/duration で保存する
+            try {
+              for (const t of trainings) {
+                await trainingApi.saveDuration(t.id, elapsed);
+              }
+              isCompletingRef.current = true;
+              // _savedSessionStartTime / _savedSessionDate はリセットしない（タイマー保持）
+              navigation.goBack();
+            } catch {
+              isCompletingRef.current = false;
+              Alert.alert('エラー', '時間の保存に失敗しました');
+            }
           }
         },
       },

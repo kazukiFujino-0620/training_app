@@ -71,7 +71,8 @@
       "Bash(xxd /tmp/resign_build/training/Build/Products/Release-iphoneos/main.jsbundle)",
       "Read(//tmp/**)",
       "Bash(ideviceinstaller -l)",
-      "Bash(ios-deploy --list-bundle-id)"
+      "Bash(ios-deploy --list-bundle-id)",
+      "Bash(git *)"
     ]
   }
 }
