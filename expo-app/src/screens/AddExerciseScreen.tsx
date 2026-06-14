@@ -18,11 +18,8 @@ const PARTS = [
   { code: 'CHEST', label: '胸' },
   { code: 'BACK', label: '背中' },
   { code: 'SHOULDER', label: '肩' },
-  { code: 'BICEPS', label: '上腕二頭筋' },
-  { code: 'TRICEPS', label: '上腕三頭筋' },
-  { code: 'ABS', label: '腹筋' },
+  { code: 'ARM', label: '腕' },
   { code: 'LEG', label: '脚' },
-  { code: 'CALVES', label: 'ふくらはぎ' },
 ];
 
 interface SetConfig {
