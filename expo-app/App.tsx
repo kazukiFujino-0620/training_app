@@ -2,8 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Notifications from 'expo-notifications';
 import { getTokens } from './src/auth/tokenStore';
 import RootNavigator from './src/navigation/AppNavigator';
+
+// フォアグラウンド時の通知表示設定（これがないと通知が無視される）
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function App() {
   const [initialRoute, setInitialRoute] = useState<'Auth' | 'App' | null>(null);

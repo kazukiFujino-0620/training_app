@@ -55,7 +55,11 @@
       "Bash(xcode-select --version)",
       "Bash(xcodebuild *)",
       "Bash(git push *)",
-      "mcp__obsidian-vault__read_file"
+      "mcp__obsidian-vault__read_file",
+      "Bash(npx tsc *)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(npm install *)",
+      "Bash(node_modules/.bin/tsc --noEmit)"
     ]
   }
 }
