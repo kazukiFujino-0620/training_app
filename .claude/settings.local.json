@@ -72,7 +72,8 @@
       "Read(//tmp/**)",
       "Bash(ideviceinstaller -l)",
       "Bash(ios-deploy --list-bundle-id)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(xargs cat)"
     ]
   }
 }

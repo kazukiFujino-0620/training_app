@@ -29,7 +29,7 @@ export default function TrainingListScreen({ navigation }: Props) {
   const load = useCallback(async () => {
     try {
       const { data } = await trainingApi.getToday();
-      setTrainings(data.filter((t) => !t.allCompleted));
+      setTrainings(data);
     } catch (e: any) {
       if (e.response?.status === 401) {
         await clearTokens();
@@ -80,6 +80,8 @@ export default function TrainingListScreen({ navigation }: Props) {
   const completedSets = trainings.reduce(
     (s, t) => s + t.details.filter((d) => d.completed).length, 0,
   );
+  // 全種目が完了済みのとき「▶ トレーニング開始」を非表示にする
+  const isAllTrainingsCompleted = trainings.length > 0 && trainings.every((t) => t.allCompleted);
 
   if (loading) {
     return (
@@ -139,20 +141,31 @@ export default function TrainingListScreen({ navigation }: Props) {
       {/* フッター */}
       <View style={styles.footer}>
         {trainings.length > 0 ? (
-          <View style={styles.buttonRow}>
+          isAllTrainingsCompleted ? (
+            // 全種目完了済み：「トレーニング開始」を非表示、「種目追加」のみ全幅
             <TouchableOpacity
-              style={styles.addButtonOutline}
+              style={styles.addButton}
               onPress={() => navigation.navigate('AddExercise')}
             >
-              <Text style={styles.addButtonOutlineText}>＋ 種目を追加</Text>
+              <Text style={styles.addButtonText}>＋ 種目を追加</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.startButton}
-              onPress={() => navigation.navigate('TrainingStart')}
-            >
-              <Text style={styles.startButtonText}>▶ トレーニング開始</Text>
-            </TouchableOpacity>
-          </View>
+          ) : (
+            // 未完了あり：両ボタンを表示
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.addButtonOutline}
+                onPress={() => navigation.navigate('AddExercise')}
+              >
+                <Text style={styles.addButtonOutlineText}>＋ 種目を追加</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.startButton}
+                onPress={() => navigation.navigate('TrainingStart')}
+              >
+                <Text style={styles.startButtonText}>▶ トレーニング開始</Text>
+              </TouchableOpacity>
+            </View>
+          )
         ) : (
           <TouchableOpacity
             style={styles.addButton}
