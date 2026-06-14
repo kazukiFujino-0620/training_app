@@ -17,6 +17,15 @@ const DEFAULT_INTERVAL = 120;
 
 // アプリセッション内でコンポーネントが再マウントされてもタイマーを保持する
 let _savedSessionStartTime: number | null = null;
+let _savedSessionDate: string | null = null;
+
+function todayDateStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isSessionRestorable(): boolean {
+  return _savedSessionStartTime !== null && _savedSessionDate === todayDateStr();
+}
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'TrainingStart'>;
@@ -49,15 +58,15 @@ export default function TrainingStartScreen({ navigation }: Props) {
   const [loading, setLoading]     = useState(true);
 
   // セッションタイマー（カウントアップ）
-  // Bug2修正: _savedSessionStartTime から復元することで再マウント後も継続
+  // 再マウント後も同日のタイマーを復元する
   const [sessionElapsed, setSessionElapsed] = useState(() =>
-    _savedSessionStartTime !== null
-      ? Math.floor((Date.now() - _savedSessionStartTime) / 1000)
+    isSessionRestorable()
+      ? Math.floor((Date.now() - _savedSessionStartTime!) / 1000)
       : 0
   );
-  const sessionStartRef = useRef<number | null>(_savedSessionStartTime);
-  const [sessionStarted, setSessionStarted] = useState(_savedSessionStartTime !== null);
-  const sessionStartedRef = useRef(_savedSessionStartTime !== null);
+  const sessionStartRef = useRef<number | null>(isSessionRestorable() ? _savedSessionStartTime : null);
+  const [sessionStarted, setSessionStarted] = useState(isSessionRestorable());
+  const sessionStartedRef = useRef(isSessionRestorable());
 
   // Bug1修正: 完了ナビゲーション時は beforeRemove を素通りさせるフラグ
   const isCompletingRef = useRef(false);
@@ -93,13 +102,13 @@ export default function TrainingStartScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => {
     load();
-    // Bug2: フォーカス復帰時（navigate で再マウントしない場合）もタイマーを再同期
-    if (_savedSessionStartTime !== null && !sessionStartedRef.current) {
+    // フォーカス復帰時（navigate で再マウントしない場合）も同日タイマーを再同期
+    if (isSessionRestorable() && !sessionStartedRef.current) {
       const now = Date.now();
       sessionStartRef.current = _savedSessionStartTime;
       sessionStartedRef.current = true;
       setSessionStarted(true);
-      setSessionElapsed(Math.floor((now - _savedSessionStartTime) / 1000));
+      setSessionElapsed(Math.floor((now - _savedSessionStartTime!) / 1000));
     }
   }, [load]));
 
@@ -206,12 +215,13 @@ export default function TrainingStartScreen({ navigation }: Props) {
 
   // ── インターバル操作 ────────────────────────────────────────────────────────
   function startInterval() {
-    // 修正1: 初セット完了時にセッションタイマーを自動開始
+    // 初セット完了時にセッションタイマーを自動開始
     if (!sessionStartedRef.current) {
       const now = Date.now();
       sessionStartRef.current = now;
       sessionStartedRef.current = true;
-      _savedSessionStartTime = now; // Bug2: モジュール変数にも保存
+      _savedSessionStartTime = now;
+      _savedSessionDate = todayDateStr();
       setSessionStarted(true);
     }
     intervalDurationRef.current = intervalDuration;
@@ -318,8 +328,7 @@ export default function TrainingStartScreen({ navigation }: Props) {
             for (const t of trainings) {
               await trainingApi.completeTraining(t.id);
             }
-            isCompletingRef.current = true; // Bug1: beforeRemove を素通りさせる
-            _savedSessionStartTime = null;   // Bug2: 完了時はタイマーをリセット
+            isCompletingRef.current = true; // beforeRemove を素通りさせる
             navigation.replace('Goal' as any, {
               date: new Date().toISOString().slice(0, 10),
               totalSets,
@@ -383,6 +392,7 @@ export default function TrainingStartScreen({ navigation }: Props) {
                   sessionStartRef.current = now;
                   sessionStartedRef.current = true;
                   _savedSessionStartTime = now;
+                  _savedSessionDate = todayDateStr();
                   setSessionStarted(true);
                 }}
               >
