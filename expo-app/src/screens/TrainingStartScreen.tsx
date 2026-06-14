@@ -226,7 +226,7 @@ export default function TrainingStartScreen({ navigation }: Props) {
     setIntervalRemaining(null);
   }
 
-  // 実行中は現在の残り時間にdeltaを加算（リセットしない）
+  // インターバルタイマー調整（秒単位）
   const adjustInterval = useCallback((delta: number) => {
     if (intervalRunning) {
       const elapsed = (Date.now() - intervalStartRef.current) / 1000;
@@ -238,6 +238,17 @@ export default function TrainingStartScreen({ navigation }: Props) {
       setIntervalDuration((prev) => Math.max(10, prev + delta));
     }
   }, [intervalRunning]);
+
+  // セッションタイマー調整（秒単位）
+  const adjustSession = useCallback((deltaSeconds: number) => {
+    if (!sessionStartedRef.current || sessionStartRef.current === null) return;
+    const currentElapsed = Math.floor((Date.now() - sessionStartRef.current) / 1000);
+    const newElapsed = Math.max(0, currentElapsed + deltaSeconds);
+    const newStart = Date.now() - newElapsed * 1000;
+    sessionStartRef.current = newStart;
+    _savedSessionStartTime = newStart;
+    setSessionElapsed(newElapsed);
+  }, []);
 
   // ── セット更新 ──────────────────────────────────────────────────────────────
   function handleDetailUpdated(trainingId: number, updated: TrainingDetail) {
@@ -363,20 +374,35 @@ export default function TrainingStartScreen({ navigation }: Props) {
                 {sessionStarted ? fmtTime(sessionElapsed) : '--:--'}
               </Text>
             </View>
-            {/* 修正1: タイマー開始ボタン（未開始時のみ表示） */}
-            {!sessionStarted && (
+            {/* タイマー開始ボタン（未開始時） or 時間調整ボタン（開始後） */}
+            {!sessionStarted ? (
               <TouchableOpacity
                 style={styles.sessionStartBtn}
                 onPress={() => {
                   const now = Date.now();
                   sessionStartRef.current = now;
                   sessionStartedRef.current = true;
-                  _savedSessionStartTime = now; // Bug2: モジュール変数にも保存
+                  _savedSessionStartTime = now;
                   setSessionStarted(true);
                 }}
               >
                 <Text style={styles.sessionStartBtnText}>▶ タイマー開始</Text>
               </TouchableOpacity>
+            ) : (
+              <View style={styles.sessionAdjRow}>
+                <TouchableOpacity style={styles.sessionAdjBtn} onPress={() => adjustSession(-3600)}>
+                  <Text style={styles.sessionAdjBtnText}>-60m</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.sessionAdjBtn} onPress={() => adjustSession(-1800)}>
+                  <Text style={styles.sessionAdjBtnText}>-30m</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.sessionAdjBtn} onPress={() => adjustSession(1800)}>
+                  <Text style={styles.sessionAdjBtnText}>+30m</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.sessionAdjBtn} onPress={() => adjustSession(3600)}>
+                  <Text style={styles.sessionAdjBtnText}>+60m</Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             {/* インターバルタイマー（折りたたみ） */}
@@ -406,26 +432,20 @@ export default function TrainingStartScreen({ navigation }: Props) {
                     <Text style={styles.intervalFinishedText}>終了！次のセットへ</Text>
                   )}
 
-                  {/* 修正2: ±5s・±10s・±30s の6ボタン */}
+                  {/* インターバル調整: ±30s・±60s の4ボタン */}
                   <View style={styles.adjustRow}>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(-60)}>
+                      <Text style={styles.adjBtnText}>-60s</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(-30)}>
                       <Text style={styles.adjBtnText}>-30s</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(-10)}>
-                      <Text style={styles.adjBtnText}>-10s</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(-5)}>
-                      <Text style={styles.adjBtnText}>-5s</Text>
-                    </TouchableOpacity>
                     <Text style={styles.adjLabel}>{fmtTime(intervalDuration)}</Text>
-                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(5)}>
-                      <Text style={styles.adjBtnText}>+5s</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(10)}>
-                      <Text style={styles.adjBtnText}>+10s</Text>
-                    </TouchableOpacity>
                     <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(30)}>
                       <Text style={styles.adjBtnText}>+30s</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(60)}>
+                      <Text style={styles.adjBtnText}>+60s</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -535,6 +555,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', borderTopWidth: 1, borderTopColor: '#2a2a4e',
   },
   sessionStartBtnText: { fontSize: 14, color: '#4CAF50', fontWeight: '700' },
+  sessionAdjRow: {
+    backgroundColor: '#1a1a2e', flexDirection: 'row', justifyContent: 'center',
+    gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#2a2a4e',
+  },
+  sessionAdjBtn: {
+    backgroundColor: '#2a2a4e', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 18,
+  },
+  sessionAdjBtnText: { fontSize: 14, fontWeight: '700', color: '#4CAF50' },
 
   // ── インターバルタイマー ────────────────────────────────────────────────────
   intervalCard: {
