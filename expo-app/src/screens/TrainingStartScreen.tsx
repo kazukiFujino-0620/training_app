@@ -68,8 +68,12 @@ export default function TrainingStartScreen({ navigation }: Props) {
   const [sessionStarted, setSessionStarted] = useState(isSessionRestorable());
   const sessionStartedRef = useRef(isSessionRestorable());
 
-  // Bug1修正: 完了ナビゲーション時は beforeRemove を素通りさせるフラグ
+  // 完了ナビゲーション時は beforeRemove を素通りさせるフラグ
   const isCompletingRef = useRef(false);
+  // 中断確定時は beforeRemove を素通りさせるフラグ
+  const isInterruptingRef = useRef(false);
+  // trainings を deps に入れずに最新値を参照するための ref
+  const trainingsRef = useRef(trainings);
 
   // インターバルタイマー
   const [intervalDuration, setIntervalDuration] = useState(DEFAULT_INTERVAL);
@@ -112,21 +116,38 @@ export default function TrainingStartScreen({ navigation }: Props) {
     }
   }, [load]));
 
-  // Bug1・Bug3修正: ホーム遷移防止（完了時と trainings 空は素通り）
+  // trainingsRef を常に最新の trainings と同期
+  useEffect(() => {
+    trainingsRef.current = trainings;
+  }, [trainings]);
+
+  // 誤操作によるホーム遷移防止
+  // - trainings が空・完了確定・中断確定 の場合のみ素通り
+  // - deps を [navigation] のみにすることで load() 後の再登録を防ぐ
+  //   （再登録されると e.preventDefault() が無効化され、キャンセル後に戻ってしまう）
+  // - navigation.dispatch(e.data.action) は beforeRemove を再発火させるため
+  //   isInterruptingRef で二重アラートを防ぐ
   useEffect(() => {
     return navigation.addListener('beforeRemove', (e) => {
-      if (trainings.length === 0 || isCompletingRef.current) return;
+      if (trainingsRef.current.length === 0 || isCompletingRef.current || isInterruptingRef.current) return;
       e.preventDefault();
       Alert.alert(
         'トレーニングを中断しますか？',
         'ホームに戻るとトレーニングが中断されます。',
         [
           { text: 'キャンセル', style: 'cancel' },
-          { text: '中断する', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+          {
+            text: '中断する',
+            style: 'destructive',
+            onPress: () => {
+              isInterruptingRef.current = true;
+              navigation.dispatch(e.data.action);
+            },
+          },
         ],
       );
     });
-  }, [navigation, trainings.length]);
+  }, [navigation]);
 
   // 修正3: 通知パーミッションリクエスト
   useEffect(() => {
