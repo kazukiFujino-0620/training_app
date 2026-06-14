@@ -91,7 +91,17 @@ export default function TrainingStartScreen({ navigation }: Props) {
     }
   }, [navigation]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    load();
+    // Bug2: フォーカス復帰時（navigate で再マウントしない場合）もタイマーを再同期
+    if (_savedSessionStartTime !== null && !sessionStartedRef.current) {
+      const now = Date.now();
+      sessionStartRef.current = _savedSessionStartTime;
+      sessionStartedRef.current = true;
+      setSessionStarted(true);
+      setSessionElapsed(Math.floor((now - _savedSessionStartTime) / 1000));
+    }
+  }, [load]));
 
   // Bug1・Bug3修正: ホーム遷移防止（完了時と trainings 空は素通り）
   useEffect(() => {
@@ -160,7 +170,11 @@ export default function TrainingStartScreen({ navigation }: Props) {
               body: '次のセットを開始してください',
               sound: true,
             },
-            trigger: { seconds: left } as any,
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+              seconds: left,
+              repeats: false,
+            },
           });
           notificationIdRef.current = id;
         }
@@ -302,6 +316,7 @@ export default function TrainingStartScreen({ navigation }: Props) {
               totalVolume,
             });
           } catch {
+            isCompletingRef.current = false; // Bug1: API失敗時はフラグをリセット
             Alert.alert('エラー', '完了処理に失敗しました');
           }
         },
