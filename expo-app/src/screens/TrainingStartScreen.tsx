@@ -387,15 +387,13 @@ export default function TrainingStartScreen({ navigation }: Props) {
             ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
             : sessionElapsed;
 
-          try {
-            for (const t of trainings) {
-              await trainingApi.completeTraining(t.id, elapsed);
-            }
-
-            isCompletingRef.current = true; // beforeRemove を素通りさせる
-
-            if (isFullyCompleted) {
-              // 全セット完了：タイマーをリセットして Goal 画面へ
+          if (isFullyCompleted) {
+            // 全セット完了：completeTraining を呼んで isAllCompleted=true にし Goal 画面へ
+            try {
+              for (const t of trainings) {
+                await trainingApi.completeTraining(t.id, elapsed);
+              }
+              isCompletingRef.current = true;
               _savedSessionStartTime = null;
               _savedSessionDate = null;
               navigation.replace('Goal' as any, {
@@ -405,13 +403,16 @@ export default function TrainingStartScreen({ navigation }: Props) {
                 totalVolume,
                 sessionElapsed: elapsed,
               });
-            } else {
-              // 途中完了：タイマーは保持したままホームへ戻る
-              navigation.goBack();
+            } catch {
+              isCompletingRef.current = false;
+              Alert.alert('エラー', '完了処理に失敗しました');
             }
-          } catch {
-            isCompletingRef.current = false;
-            Alert.alert('エラー', '完了処理に失敗しました');
+          } else {
+            // 途中完了：isAllCompleted を変えない（ホームでボタンを表示し続ける）
+            // completeTraining は呼ばない（呼ぶと isAllCompleted=true になってボタンが消える）
+            // ※ duration の DB 保存はバックエンドの専用エンドポイント追加後に対応
+            isCompletingRef.current = true;
+            navigation.goBack();
           }
         },
       },
