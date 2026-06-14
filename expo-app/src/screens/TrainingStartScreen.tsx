@@ -27,6 +27,19 @@ function isSessionRestorable(): boolean {
   return _savedSessionStartTime !== null && _savedSessionDate === todayDateStr();
 }
 
+// DBのduration文字列（"HH:MM:SS" または 秒数文字列）を秒数に変換
+function parseDurationSec(duration?: string): number {
+  if (!duration) return 0;
+  if (duration.includes(':')) {
+    const parts = duration.split(':').map(Number);
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    return 0;
+  }
+  const n = parseInt(duration, 10);
+  return isNaN(n) ? 0 : n;
+}
+
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'TrainingStart'>;
 };
@@ -88,10 +101,11 @@ export default function TrainingStartScreen({ navigation }: Props) {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   // ── データ取得 ──────────────────────────────────────────────────────────────
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<Training[] | undefined> => {
     try {
       const { data } = await trainingApi.getToday();
       setTrainings(data);
+      return data;
     } catch (e: any) {
       if (e.response?.status === 401) {
         await clearTokens();
@@ -99,21 +113,38 @@ export default function TrainingStartScreen({ navigation }: Props) {
       } else {
         Alert.alert('エラー', 'データ取得に失敗しました');
       }
+      return undefined;
     } finally {
       setLoading(false);
     }
   }, [navigation]);
 
   useFocusEffect(useCallback(() => {
-    load();
-    // フォーカス復帰時（navigate で再マウントしない場合）も同日タイマーを再同期
-    if (isSessionRestorable() && !sessionStartedRef.current) {
-      const now = Date.now();
-      sessionStartRef.current = _savedSessionStartTime;
-      sessionStartedRef.current = true;
-      setSessionStarted(true);
-      setSessionElapsed(Math.floor((now - _savedSessionStartTime!) / 1000));
-    }
+    (async () => {
+      const data = await load();
+      if (!data) return;
+
+      if (isSessionRestorable() && !sessionStartedRef.current) {
+        // 同セッション内でフォーカス復帰した場合（navigate で再マウントしない場合）
+        const now = Date.now();
+        sessionStartRef.current = _savedSessionStartTime;
+        sessionStartedRef.current = true;
+        setSessionStarted(true);
+        setSessionElapsed(Math.floor((now - _savedSessionStartTime!) / 1000));
+      } else if (!isSessionRestorable() && !sessionStartedRef.current) {
+        // アプリ再起動後など：DBの duration からタイマーを復元
+        const saved = Math.max(0, ...data.map((t) => parseDurationSec(t.duration)));
+        if (saved > 0) {
+          const restoredStart = Date.now() - saved * 1000;
+          _savedSessionStartTime = restoredStart;
+          _savedSessionDate = todayDateStr();
+          sessionStartRef.current = restoredStart;
+          sessionStartedRef.current = true;
+          setSessionStarted(true);
+          setSessionElapsed(saved);
+        }
+      }
+    })();
   }, [load]));
 
   // trainingsRef を常に最新の trainings と同期
@@ -339,25 +370,47 @@ export default function TrainingStartScreen({ navigation }: Props) {
     const totalVolume   = trainings.reduce(
       (s, t) => s + t.details.reduce((ds, d) => ds + d.weight * d.reps, 0), 0,
     );
+    const isFullyCompleted = completedSets === totalSets && totalSets > 0;
 
-    Alert.alert('トレーニング完了', '今日のトレーニングを完了にしますか？', [
+    const alertTitle   = isFullyCompleted ? 'トレーニング完了' : '途中完了の確認';
+    const alertMessage = isFullyCompleted
+      ? '今日のトレーニングを完了にしますか？'
+      : `${completedSets} / ${totalSets} セット完了です。このまま完了にしますか？`;
+
+    Alert.alert(alertTitle, alertMessage, [
       { text: 'キャンセル', style: 'cancel' },
       {
         text: '完了！',
         onPress: async () => {
+          // 現時点の経過秒数を確定
+          const elapsed = sessionStartRef.current !== null
+            ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
+            : sessionElapsed;
+
           try {
             for (const t of trainings) {
-              await trainingApi.completeTraining(t.id);
+              await trainingApi.completeTraining(t.id, elapsed);
             }
+
             isCompletingRef.current = true; // beforeRemove を素通りさせる
-            navigation.replace('Goal' as any, {
-              date: new Date().toISOString().slice(0, 10),
-              totalSets,
-              completedSets,
-              totalVolume,
-            });
+
+            if (isFullyCompleted) {
+              // 全セット完了：タイマーをリセットして Goal 画面へ
+              _savedSessionStartTime = null;
+              _savedSessionDate = null;
+              navigation.replace('Goal' as any, {
+                date: new Date().toISOString().slice(0, 10),
+                totalSets,
+                completedSets,
+                totalVolume,
+                sessionElapsed: elapsed,
+              });
+            } else {
+              // 途中完了：タイマーは保持したままホームへ戻る
+              navigation.goBack();
+            }
           } catch {
-            isCompletingRef.current = false; // Bug1: API失敗時はフラグをリセット
+            isCompletingRef.current = false;
             Alert.alert('エラー', '完了処理に失敗しました');
           }
         },
