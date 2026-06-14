@@ -42,7 +42,8 @@ export interface Training {
   menu: string;
   partCode: string;
   partName?: string;
-  isAllCompleted: boolean;
+  /** Jackson が isAllCompleted() ゲッターの "is" を剥がして allCompleted として返す */
+  allCompleted: boolean;
   trainingDate: string;
   duration?: string;
   details: TrainingDetail[];
