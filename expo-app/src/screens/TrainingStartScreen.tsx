@@ -12,6 +12,7 @@ import { trainingApi } from '../api/client';
 import { clearTokens } from '../auth/tokenStore';
 import type { Training, TrainingDetail } from '../api/types';
 import * as Notifications from 'expo-notifications';
+import { Audio } from 'expo-av';
 
 const DEFAULT_INTERVAL = 120;
 
@@ -95,9 +96,12 @@ export default function TrainingStartScreen({ navigation }: Props) {
   const intervalDurationRef = useRef(DEFAULT_INTERVAL);
   const intervalStartRef    = useRef<number>(0);
 
-  // 修正3: バックグラウンド通知用
+  // バックグラウンド通知用
   const notificationIdRef = useRef<string | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  // expo-av 音声: silence = バックグラウンドオーディオセッション維持用, alarm = アラーム音
+  const silenceSoundRef = useRef<Audio.Sound | null>(null);
+  const alarmSoundRef   = useRef<Audio.Sound | null>(null);
 
   // ── データ取得 ──────────────────────────────────────────────────────────────
   const load = useCallback(async (): Promise<Training[] | undefined> => {
@@ -179,9 +183,21 @@ export default function TrainingStartScreen({ navigation }: Props) {
     });
   }, [navigation]);
 
-  // 修正3: 通知パーミッションリクエスト
+  // 通知パーミッションリクエスト
   useEffect(() => {
     Notifications.requestPermissionsAsync();
+  }, []);
+
+  // 画面離脱時に音声リソースを解放
+  useEffect(() => {
+    return () => {
+      silenceSoundRef.current?.stopAsync().catch(() => {});
+      silenceSoundRef.current?.unloadAsync().catch(() => {});
+      silenceSoundRef.current = null;
+      alarmSoundRef.current?.stopAsync().catch(() => {});
+      alarmSoundRef.current?.unloadAsync().catch(() => {});
+      alarmSoundRef.current = null;
+    };
   }, []);
 
   // 修正1: セッションタイマー tick（sessionStarted が true の時のみ動作）
@@ -198,13 +214,28 @@ export default function TrainingStartScreen({ navigation }: Props) {
   // ── インターバルタイマー tick ───────────────────────────────────────────────
   useEffect(() => {
     if (!intervalRunning) return;
-    const id = setInterval(() => {
+    const id = setInterval(async () => {
       const elapsed = (Date.now() - intervalStartRef.current) / 1000;
       const left = Math.ceil(intervalDurationRef.current - elapsed);
       if (left <= 0) {
         setIntervalRunning(false);
         setIntervalRemaining(0);
-        notificationIdRef.current = null; // 修正3: タイマー完了時に通知IDをクリア
+        notificationIdRef.current = null;
+        // 無音ループ停止（バックグラウンドオーディオセッション解放）
+        const sil = silenceSoundRef.current;
+        silenceSoundRef.current = null;
+        if (sil) { try { await sil.stopAsync(); await sil.unloadAsync(); } catch {} }
+        // アラーム音再生（playsInSilentModeIOS: true でマナー+イヤホン対応）
+        try {
+          const { sound } = await Audio.Sound.createAsync(
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            require('../../assets/alarm.wav'),
+            { volume: 1.0 },
+          );
+          alarmSoundRef.current = sound;
+          await sound.playAsync();
+        } catch {}
+        // バイブ（フォアグラウンド時のみ有効）
         Vibration.vibrate([0, 400, 150, 400, 150, 800]);
       } else {
         setIntervalRemaining(left);
@@ -266,7 +297,7 @@ export default function TrainingStartScreen({ navigation }: Props) {
   }, [intervalRunning]);
 
   // ── インターバル操作 ────────────────────────────────────────────────────────
-  function startInterval() {
+  async function startInterval() {
     // 初セット完了時にセッションタイマーを自動開始
     if (!sessionStartedRef.current) {
       const now = Date.now();
@@ -276,6 +307,18 @@ export default function TrainingStartScreen({ navigation }: Props) {
       _savedSessionDate = todayDateStr();
       setSessionStarted(true);
     }
+    // 無音ループ開始: バックグラウンド移行後もオーディオセッション+JSを維持する
+    try {
+      const prev = silenceSoundRef.current;
+      if (prev) { await prev.stopAsync(); await prev.unloadAsync(); }
+      const { sound: sil } = await Audio.Sound.createAsync(
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('../../assets/silence.wav'),
+        { isLooping: true, volume: 0 },
+      );
+      silenceSoundRef.current = sil;
+      await sil.playAsync();
+    } catch {}
     intervalDurationRef.current = intervalDuration;
     intervalStartRef.current = Date.now();
     setIntervalRemaining(intervalDuration);
@@ -283,7 +326,11 @@ export default function TrainingStartScreen({ navigation }: Props) {
     setShowInterval(true);
   }
 
-  function resetInterval() {
+  async function resetInterval() {
+    // 無音ループ停止
+    const sil = silenceSoundRef.current;
+    silenceSoundRef.current = null;
+    if (sil) { try { await sil.stopAsync(); await sil.unloadAsync(); } catch {} }
     setIntervalRunning(false);
     setIntervalRemaining(null);
   }

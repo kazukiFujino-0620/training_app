@@ -73,7 +73,8 @@
       "Bash(ideviceinstaller -l)",
       "Bash(ios-deploy --list-bundle-id)",
       "Bash(git *)",
-      "Bash(xargs cat)"
+      "Bash(xargs cat)",
+      "Bash(ffmpeg -version)"
     ]
   }
 }
