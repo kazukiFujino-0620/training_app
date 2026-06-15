@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Vibration,
-  SectionList, Alert, ActivityIndicator, AppState, AppStateStatus,
+  SectionList, Alert, ActivityIndicator, AppState, AppStateStatus, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -234,6 +234,7 @@ export default function TrainingStartScreen({ navigation }: Props) {
               type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
               seconds: left,
               repeats: false,
+              ...(Platform.OS === 'android' && { channelId: 'interval-timer' }),
             },
           });
           notificationIdRef.current = id;
