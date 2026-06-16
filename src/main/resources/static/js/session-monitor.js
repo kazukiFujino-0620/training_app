@@ -10,6 +10,10 @@
 
     const isTrainingPage = window.location.pathname === '/start/training';
 
+    // トレーニング画面のみ：ネットワーク瞬断での誤ログアウトを防ぐためリトライカウンター
+    const PING_FAIL_MAX = 3;
+    let pingFailCount = 0;
+
     let countdownTimerId = null;
 
     function getSessionStart() {
@@ -79,6 +83,7 @@
             });
 
             if (res.ok) {
+                pingFailCount = 0;
                 resetSessionStart();
                 hideWarningModal();
                 return;
@@ -89,6 +94,11 @@
                 return;
             }
         } catch (_) {
+            // トレーニング画面のみ：瞬断で即ログアウトしないようリトライ判定
+            if (isTrainingPage) {
+                pingFailCount++;
+                if (pingFailCount < PING_FAIL_MAX) return;
+            }
             showExpiredModal();
         }
     }
@@ -124,6 +134,15 @@
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
                 document.getElementById('logoutForm')?.submit();
+            });
+        }
+
+        // トレーニング画面のみ：スマホ画面ロック後の復帰時に即pingを送る
+        if (isTrainingPage) {
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    sendPing();
+                }
             });
         }
     }
