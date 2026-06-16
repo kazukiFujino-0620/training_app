@@ -100,10 +100,12 @@
         </root>
     </springProfile>
 
-    <!-- GCP 本番向け: ファイル出力 + WARN レベル以上のみ -->
+    <!-- GCP 本番向け: ファイル出力（短期）+ Cloud Logging（Ops Agent 転送）で90日保持 -->
+    <!-- ファイルは SSH デバッグ用の直近5日分のみ。長期保存は Cloud Logging に委ねる。 -->
     <springProfile name="gcp">
 
-        <!-- アプリケーションログ（14日保持・200MB上限） -->
+        <!-- アプリケーションログ（5日保持・70MB上限） -->
+        <!-- Cloud Logging の _Default バケット（90日）に Ops Agent が転送する -->
         <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${LOGS_PATH}/trainingapp.log</file>
             <encoder>
@@ -114,12 +116,13 @@
                 <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
                     <maxFileSize>10MB</maxFileSize>
                 </timeBasedFileNamingAndTriggeringPolicy>
-                <maxHistory>14</maxHistory>
-                <totalSizeCap>200MB</totalSizeCap>
+                <maxHistory>5</maxHistory>
+                <totalSizeCap>70MB</totalSizeCap>
             </rollingPolicy>
         </appender>
 
-        <!-- エラーログ（14日保持・100MB上限） -->
+        <!-- エラーログ（5日保持・35MB上限） -->
+        <!-- Cloud Logging に転送済みのため、ファイルは直近のみ保持 -->
         <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${LOGS_PATH}/trainingapp-error.log</file>
             <filter class="ch.qos.logback.classic.filter.LevelFilter">
@@ -135,12 +138,13 @@
                 <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
                     <maxFileSize>10MB</maxFileSize>
                 </timeBasedFileNamingAndTriggeringPolicy>
-                <maxHistory>14</maxHistory>
-                <totalSizeCap>100MB</totalSizeCap>
+                <maxHistory>5</maxHistory>
+                <totalSizeCap>35MB</totalSizeCap>
             </rollingPolicy>
         </appender>
 
-        <!-- バッチログ（14日保持・50MB上限） -->
+        <!-- バッチログ（5日保持・20MB上限） -->
+        <!-- 月次バッチの確認は Cloud Logging の検索で行う -->
         <appender name="BATCH_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${LOGS_PATH}/trainingapp-batch.log</file>
             <encoder>
@@ -151,8 +155,8 @@
                 <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
                     <maxFileSize>10MB</maxFileSize>
                 </timeBasedFileNamingAndTriggeringPolicy>
-                <maxHistory>14</maxHistory>
-                <totalSizeCap>50MB</totalSizeCap>
+                <maxHistory>5</maxHistory>
+                <totalSizeCap>20MB</totalSizeCap>
             </rollingPolicy>
         </appender>
 
