@@ -63,7 +63,7 @@ export default function SetRow({
       setCompletedLocal(data.completed);
       onUpdated({ ...detail, weight: w, reps: r, completed: data.completed });
 
-      // primitive boolean isPR → isPR() → "PR"（2文字目も大文字なので decapitalize されない）
+      // バックエンド側で @JsonProperty("PR") によりキー名を "PR" に明示固定している
       if (data.PR && data.prMessage) {
         Alert.alert('新記録！', data.prMessage);
       }

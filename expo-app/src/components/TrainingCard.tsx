@@ -10,8 +10,7 @@ interface Props {
 
 const PART_LABELS: Record<string, string> = {
   CHEST: '胸', BACK: '背中', SHOULDER: '肩',
-  BICEPS: '上腕二頭筋', TRICEPS: '上腕三頭筋',
-  ABS: '腹筋', LEG: '脚', CALVES: 'ふくらはぎ',
+  ARM: '腕', LEG: '脚',
 };
 
 export default function TrainingCard({ training, onPress, onDelete }: Props) {
