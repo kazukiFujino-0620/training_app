@@ -4,7 +4,7 @@ import {
   SectionList, Alert, ActivityIndicator, AppState, AppStateStatus, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, UNSTABLE_usePreventRemove } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import SetRow from '../components/SetRow';
@@ -81,12 +81,11 @@ export default function TrainingStartScreen({ navigation }: Props) {
   const [sessionStarted, setSessionStarted] = useState(isSessionRestorable());
   const sessionStartedRef = useRef(isSessionRestorable());
 
-  // 完了ナビゲーション時は beforeRemove を素通りさせるフラグ
-  const isCompletingRef = useRef(false);
-  // 中断確定時は beforeRemove を素通りさせるフラグ
-  const isInterruptingRef = useRef(false);
-  // trainings を deps に入れずに最新値を参照するための ref
-  const trainingsRef = useRef(trainings);
+  // 完了ナビゲーション時は中断ガードを素通りさせるフラグ
+  // usePreventRemove の preventRemove 引数に渡すため state 化する（ref だと変更が伝わらない）
+  const [isCompleting, setIsCompleting] = useState(false);
+  // 中断確定時は中断ガードを素通りさせるフラグ（同上）
+  const [isInterrupting, setIsInterrupting] = useState(false);
 
   // インターバルタイマー
   const [intervalDuration, setIntervalDuration] = useState(DEFAULT_INTERVAL);
@@ -150,38 +149,31 @@ export default function TrainingStartScreen({ navigation }: Props) {
     })();
   }, [load]));
 
-  // trainingsRef を常に最新の trainings と同期
-  useEffect(() => {
-    trainingsRef.current = trainings;
-  }, [trainings]);
-
   // 誤操作によるホーム遷移防止
   // - trainings が空・完了確定・中断確定 の場合のみ素通り
-  // - deps を [navigation] のみにすることで load() 後の再登録を防ぐ
-  //   （再登録されると e.preventDefault() が無効化され、キャンセル後に戻ってしまう）
-  // - navigation.dispatch(e.data.action) は beforeRemove を再発火させるため
-  //   isInterruptingRef で二重アラートを防ぐ
-  useEffect(() => {
-    return navigation.addListener('beforeRemove', (e) => {
-      if (trainingsRef.current.length === 0 || isCompletingRef.current || isInterruptingRef.current) return;
-      e.preventDefault();
-      Alert.alert(
-        'トレーニングを中断しますか？',
-        'ホームに戻るとトレーニングが中断されます。',
-        [
-          { text: 'キャンセル', style: 'cancel' },
-          {
-            text: '中断する',
-            style: 'destructive',
-            onPress: () => {
-              isInterruptingRef.current = true;
-              navigation.dispatch(e.data.action);
-            },
+  // - native-stack ではヘッダー戻るボタン経由の遷移でネイティブ側が先に画面を pop してしまい、
+  //   beforeRemove + e.preventDefault() では遷移を止められない（公式の既知の制限）。
+  //   そのため usePreventRemove フックに置き換える。
+  // - navigation.dispatch(data.action) は preventRemove を再評価させるため
+  //   isInterrupting state で二重アラートを防ぐ
+  const shouldPreventRemove = trainings.length > 0 && !isCompleting && !isInterrupting;
+  UNSTABLE_usePreventRemove(shouldPreventRemove, ({ data }) => {
+    Alert.alert(
+      'トレーニングを中断しますか？',
+      'ホームに戻るとトレーニングが中断されます。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '中断する',
+          style: 'destructive',
+          onPress: () => {
+            setIsInterrupting(true);
+            navigation.dispatch(data.action);
           },
-        ],
-      );
-    });
-  }, [navigation]);
+        },
+      ],
+    );
+  });
 
   // 通知パーミッションリクエスト
   useEffect(() => {
@@ -440,7 +432,7 @@ export default function TrainingStartScreen({ navigation }: Props) {
               for (const t of trainings) {
                 await trainingApi.completeTraining(t.id, elapsed);
               }
-              isCompletingRef.current = true;
+              setIsCompleting(true);
               _savedSessionStartTime = null;
               _savedSessionDate = null;
               navigation.replace('Goal' as any, {
@@ -451,7 +443,7 @@ export default function TrainingStartScreen({ navigation }: Props) {
                 sessionElapsed: elapsed,
               });
             } catch {
-              isCompletingRef.current = false;
+              setIsCompleting(false);
               Alert.alert('エラー', '完了処理に失敗しました');
             }
           } else {
@@ -462,11 +454,11 @@ export default function TrainingStartScreen({ navigation }: Props) {
               for (const t of trainings) {
                 await trainingApi.saveDuration(t.id, elapsed);
               }
-              isCompletingRef.current = true;
+              setIsCompleting(true);
               // _savedSessionStartTime / _savedSessionDate はリセットしない（タイマー保持）
               navigation.goBack();
             } catch {
-              isCompletingRef.current = false;
+              setIsCompleting(false);
               Alert.alert('エラー', '時間の保存に失敗しました');
             }
           }
