@@ -1,19 +1,45 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Vibration,
-  SectionList, Alert, ActivityIndicator,
+  SectionList, Alert, ActivityIndicator, AppState, AppStateStatus, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, UNSTABLE_usePreventRemove } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import SetRow from '../components/SetRow';
 import { trainingApi } from '../api/client';
 import { clearTokens } from '../auth/tokenStore';
 import type { Training, TrainingDetail } from '../api/types';
+import * as Notifications from 'expo-notifications';
+import { Audio } from 'expo-av';
 
 const DEFAULT_INTERVAL = 120;
-const ADJUST_STEP = 30;
+
+// アプリセッション内でコンポーネントが再マウントされてもタイマーを保持する
+let _savedSessionStartTime: number | null = null;
+let _savedSessionDate: string | null = null;
+
+function todayDateStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isSessionRestorable(): boolean {
+  return _savedSessionStartTime !== null && _savedSessionDate === todayDateStr();
+}
+
+// DBのduration文字列（"HH:MM:SS" または 秒数文字列）を秒数に変換
+function parseDurationSec(duration?: string): number {
+  if (!duration) return 0;
+  if (duration.includes(':')) {
+    const parts = duration.split(':').map(Number);
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    return 0;
+  }
+  const n = parseInt(duration, 10);
+  return isNaN(n) ? 0 : n;
+}
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'TrainingStart'>;
@@ -29,8 +55,7 @@ type TrainingSection = {
 
 const PART_LABELS: Record<string, string> = {
   CHEST: '胸', BACK: '背中', SHOULDER: '肩',
-  BICEPS: '上腕二頭筋', TRICEPS: '上腕三頭筋',
-  ABS: '腹筋', LEG: '脚', CALVES: 'ふくらはぎ',
+  ARM: '腕', LEG: '脚',
 };
 
 function fmtTime(sec: number) {
@@ -46,8 +71,21 @@ export default function TrainingStartScreen({ navigation }: Props) {
   const [loading, setLoading]     = useState(true);
 
   // セッションタイマー（カウントアップ）
-  const [sessionElapsed, setSessionElapsed] = useState(0);
-  const sessionStartRef = useRef(Date.now());
+  // 再マウント後も同日のタイマーを復元する
+  const [sessionElapsed, setSessionElapsed] = useState(() =>
+    isSessionRestorable()
+      ? Math.floor((Date.now() - _savedSessionStartTime!) / 1000)
+      : 0
+  );
+  const sessionStartRef = useRef<number | null>(isSessionRestorable() ? _savedSessionStartTime : null);
+  const [sessionStarted, setSessionStarted] = useState(isSessionRestorable());
+  const sessionStartedRef = useRef(isSessionRestorable());
+
+  // 完了ナビゲーション時は中断ガードを素通りさせるフラグ
+  // usePreventRemove の preventRemove 引数に渡すため state 化する（ref だと変更が伝わらない）
+  const [isCompleting, setIsCompleting] = useState(false);
+  // 中断確定時は中断ガードを素通りさせるフラグ（同上）
+  const [isInterrupting, setIsInterrupting] = useState(false);
 
   // インターバルタイマー
   const [intervalDuration, setIntervalDuration] = useState(DEFAULT_INTERVAL);
@@ -57,11 +95,19 @@ export default function TrainingStartScreen({ navigation }: Props) {
   const intervalDurationRef = useRef(DEFAULT_INTERVAL);
   const intervalStartRef    = useRef<number>(0);
 
+  // バックグラウンド通知用
+  const notificationIdRef = useRef<string | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  // expo-av 音声: silence = バックグラウンドオーディオセッション維持用, alarm = アラーム音
+  const silenceSoundRef = useRef<Audio.Sound | null>(null);
+  const alarmSoundRef   = useRef<Audio.Sound | null>(null);
+
   // ── データ取得 ──────────────────────────────────────────────────────────────
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<Training[] | undefined> => {
     try {
       const { data } = await trainingApi.getToday();
       setTrainings(data);
+      return data;
     } catch (e: any) {
       if (e.response?.status === 401) {
         await clearTokens();
@@ -69,30 +115,119 @@ export default function TrainingStartScreen({ navigation }: Props) {
       } else {
         Alert.alert('エラー', 'データ取得に失敗しました');
       }
+      return undefined;
     } finally {
       setLoading(false);
     }
   }, [navigation]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    (async () => {
+      const data = await load();
+      if (!data) return;
 
-  // ── セッションタイマー tick ─────────────────────────────────────────────────
+      if (isSessionRestorable() && !sessionStartedRef.current) {
+        // 同セッション内でフォーカス復帰した場合（navigate で再マウントしない場合）
+        const now = Date.now();
+        sessionStartRef.current = _savedSessionStartTime;
+        sessionStartedRef.current = true;
+        setSessionStarted(true);
+        setSessionElapsed(Math.floor((now - _savedSessionStartTime!) / 1000));
+      } else if (!isSessionRestorable() && !sessionStartedRef.current) {
+        // アプリ再起動後など：DBの duration からタイマーを復元
+        const saved = Math.max(0, ...data.map((t) => parseDurationSec(t.duration)));
+        if (saved > 0) {
+          const restoredStart = Date.now() - saved * 1000;
+          _savedSessionStartTime = restoredStart;
+          _savedSessionDate = todayDateStr();
+          sessionStartRef.current = restoredStart;
+          sessionStartedRef.current = true;
+          setSessionStarted(true);
+          setSessionElapsed(saved);
+        }
+      }
+    })();
+  }, [load]));
+
+  // 誤操作によるホーム遷移防止
+  // - trainings が空・完了確定・中断確定 の場合のみ素通り
+  // - native-stack ではヘッダー戻るボタン経由の遷移でネイティブ側が先に画面を pop してしまい、
+  //   beforeRemove + e.preventDefault() では遷移を止められない（公式の既知の制限）。
+  //   そのため usePreventRemove フックに置き換える。
+  // - navigation.dispatch(data.action) は preventRemove を再評価させるため
+  //   isInterrupting state で二重アラートを防ぐ
+  const shouldPreventRemove = trainings.length > 0 && !isCompleting && !isInterrupting;
+  UNSTABLE_usePreventRemove(shouldPreventRemove, ({ data }) => {
+    Alert.alert(
+      'トレーニングを中断しますか？',
+      'ホームに戻るとトレーニングが中断されます。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '中断する',
+          style: 'destructive',
+          onPress: () => {
+            setIsInterrupting(true);
+            navigation.dispatch(data.action);
+          },
+        },
+      ],
+    );
+  });
+
+  // 通知パーミッションリクエスト
   useEffect(() => {
+    Notifications.requestPermissionsAsync();
+  }, []);
+
+  // 画面離脱時に音声リソースを解放
+  useEffect(() => {
+    return () => {
+      silenceSoundRef.current?.stopAsync().catch(() => {});
+      silenceSoundRef.current?.unloadAsync().catch(() => {});
+      silenceSoundRef.current = null;
+      alarmSoundRef.current?.stopAsync().catch(() => {});
+      alarmSoundRef.current?.unloadAsync().catch(() => {});
+      alarmSoundRef.current = null;
+    };
+  }, []);
+
+  // 修正1: セッションタイマー tick（sessionStarted が true の時のみ動作）
+  useEffect(() => {
+    if (!sessionStarted) return;
     const id = setInterval(() => {
-      setSessionElapsed(Math.floor((Date.now() - sessionStartRef.current) / 1000));
+      if (sessionStartRef.current !== null) {
+        setSessionElapsed(Math.floor((Date.now() - sessionStartRef.current) / 1000));
+      }
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [sessionStarted]);
 
   // ── インターバルタイマー tick ───────────────────────────────────────────────
   useEffect(() => {
     if (!intervalRunning) return;
-    const id = setInterval(() => {
+    const id = setInterval(async () => {
       const elapsed = (Date.now() - intervalStartRef.current) / 1000;
       const left = Math.ceil(intervalDurationRef.current - elapsed);
       if (left <= 0) {
         setIntervalRunning(false);
         setIntervalRemaining(0);
+        notificationIdRef.current = null;
+        // 無音ループ停止（バックグラウンドオーディオセッション解放）
+        const sil = silenceSoundRef.current;
+        silenceSoundRef.current = null;
+        if (sil) { try { await sil.stopAsync(); await sil.unloadAsync(); } catch {} }
+        // アラーム音再生（playsInSilentModeIOS: true でマナー+イヤホン対応）
+        try {
+          const { sound } = await Audio.Sound.createAsync(
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            require('../../assets/alarm.wav'),
+            { volume: 1.0 },
+          );
+          alarmSoundRef.current = sound;
+          await sound.playAsync();
+        } catch {}
+        // バイブ（フォアグラウンド時のみ有効）
         Vibration.vibrate([0, 400, 150, 400, 150, 800]);
       } else {
         setIntervalRemaining(left);
@@ -101,8 +236,81 @@ export default function TrainingStartScreen({ navigation }: Props) {
     return () => clearInterval(id);
   }, [intervalRunning]);
 
+  // 修正3 + 修正4: AppState 監視
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextState: AppStateStatus) => {
+      const prevState = appStateRef.current;
+      appStateRef.current = nextState;
+
+      if ((nextState === 'background' || nextState === 'inactive') && prevState === 'active') {
+        // バックグラウンド移行時: インターバル実行中なら通知をスケジュール
+        if (intervalRunning) {
+          const elapsed = (Date.now() - intervalStartRef.current) / 1000;
+          const left = Math.max(1, Math.ceil(intervalDurationRef.current - elapsed));
+          const id = await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'インターバル終了！',
+              body: '次のセットを開始してください',
+              sound: true,
+            },
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+              seconds: left,
+              repeats: false,
+              ...(Platform.OS === 'android' && { channelId: 'interval-timer' }),
+            },
+          });
+          notificationIdRef.current = id;
+        }
+      } else if (nextState === 'active' && prevState !== 'active') {
+        // フォアグラウンド復帰時: スケジュール済み通知をキャンセル
+        if (notificationIdRef.current) {
+          await Notifications.cancelScheduledNotificationAsync(notificationIdRef.current);
+          notificationIdRef.current = null;
+        }
+
+        // 修正4: UIを強制更新
+        if (sessionStartedRef.current && sessionStartRef.current !== null) {
+          setSessionElapsed(Math.floor((Date.now() - sessionStartRef.current) / 1000));
+        }
+        if (intervalRunning) {
+          const elapsed = (Date.now() - intervalStartRef.current) / 1000;
+          const left = Math.ceil(intervalDurationRef.current - elapsed);
+          if (left <= 0) {
+            setIntervalRunning(false);
+            setIntervalRemaining(0);
+          } else {
+            setIntervalRemaining(left);
+          }
+        }
+      }
+    });
+    return () => subscription.remove();
+  }, [intervalRunning]);
+
   // ── インターバル操作 ────────────────────────────────────────────────────────
-  function startInterval() {
+  async function startInterval() {
+    // 初セット完了時にセッションタイマーを自動開始
+    if (!sessionStartedRef.current) {
+      const now = Date.now();
+      sessionStartRef.current = now;
+      sessionStartedRef.current = true;
+      _savedSessionStartTime = now;
+      _savedSessionDate = todayDateStr();
+      setSessionStarted(true);
+    }
+    // 無音ループ開始: バックグラウンド移行後もオーディオセッション+JSを維持する
+    try {
+      const prev = silenceSoundRef.current;
+      if (prev) { await prev.stopAsync(); await prev.unloadAsync(); }
+      const { sound: sil } = await Audio.Sound.createAsync(
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require('../../assets/silence.wav'),
+        { isLooping: true, volume: 0 },
+      );
+      silenceSoundRef.current = sil;
+      await sil.playAsync();
+    } catch {}
     intervalDurationRef.current = intervalDuration;
     intervalStartRef.current = Date.now();
     setIntervalRemaining(intervalDuration);
@@ -110,12 +318,16 @@ export default function TrainingStartScreen({ navigation }: Props) {
     setShowInterval(true);
   }
 
-  function resetInterval() {
+  async function resetInterval() {
+    // 無音ループ停止
+    const sil = silenceSoundRef.current;
+    silenceSoundRef.current = null;
+    if (sil) { try { await sil.stopAsync(); await sil.unloadAsync(); } catch {} }
     setIntervalRunning(false);
     setIntervalRemaining(null);
   }
 
-  // 実行中は現在の残り時間にdeltaを加算（リセットしない）
+  // インターバルタイマー調整（秒単位）
   const adjustInterval = useCallback((delta: number) => {
     if (intervalRunning) {
       const elapsed = (Date.now() - intervalStartRef.current) / 1000;
@@ -127,6 +339,17 @@ export default function TrainingStartScreen({ navigation }: Props) {
       setIntervalDuration((prev) => Math.max(10, prev + delta));
     }
   }, [intervalRunning]);
+
+  // セッションタイマー調整（秒単位）
+  const adjustSession = useCallback((deltaSeconds: number) => {
+    if (!sessionStartedRef.current || sessionStartRef.current === null) return;
+    const currentElapsed = Math.floor((Date.now() - sessionStartRef.current) / 1000);
+    const newElapsed = Math.max(0, currentElapsed + deltaSeconds);
+    const newStart = Date.now() - newElapsed * 1000;
+    sessionStartRef.current = newStart;
+    _savedSessionStartTime = newStart;
+    setSessionElapsed(newElapsed);
+  }, []);
 
   // ── セット更新 ──────────────────────────────────────────────────────────────
   function handleDetailUpdated(trainingId: number, updated: TrainingDetail) {
@@ -186,24 +409,58 @@ export default function TrainingStartScreen({ navigation }: Props) {
     const totalVolume   = trainings.reduce(
       (s, t) => s + t.details.reduce((ds, d) => ds + d.weight * d.reps, 0), 0,
     );
+    const isFullyCompleted = completedSets === totalSets && totalSets > 0;
 
-    Alert.alert('トレーニング完了', '今日のトレーニングを完了にしますか？', [
+    const alertTitle   = isFullyCompleted ? 'トレーニング完了' : '途中完了の確認';
+    const alertMessage = isFullyCompleted
+      ? '今日のトレーニングを完了にしますか？'
+      : `${completedSets} / ${totalSets} セット完了です。このまま完了にしますか？`;
+
+    Alert.alert(alertTitle, alertMessage, [
       { text: 'キャンセル', style: 'cancel' },
       {
         text: '完了！',
         onPress: async () => {
-          try {
-            for (const t of trainings) {
-              await trainingApi.completeTraining(t.id);
+          // 現時点の経過秒数を確定
+          const elapsed = sessionStartRef.current !== null
+            ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
+            : sessionElapsed;
+
+          if (isFullyCompleted) {
+            // 全セット完了：completeTraining を呼んで isAllCompleted=true にし Goal 画面へ
+            try {
+              for (const t of trainings) {
+                await trainingApi.completeTraining(t.id, elapsed);
+              }
+              setIsCompleting(true);
+              _savedSessionStartTime = null;
+              _savedSessionDate = null;
+              navigation.replace('Goal' as any, {
+                date: new Date().toISOString().slice(0, 10),
+                totalSets,
+                completedSets,
+                totalVolume,
+                sessionElapsed: elapsed,
+              });
+            } catch {
+              setIsCompleting(false);
+              Alert.alert('エラー', '完了処理に失敗しました');
             }
-            navigation.replace('Goal' as any, {
-              date: new Date().toISOString().slice(0, 10),
-              totalSets,
-              completedSets,
-              totalVolume,
-            });
-          } catch {
-            Alert.alert('エラー', '完了処理に失敗しました');
+          } else {
+            // 途中完了：isAllCompleted を変えない（ホームでボタンを表示し続ける）
+            // completeTraining は呼ばない（呼ぶと isAllCompleted=true になってボタンが消える）
+            // duration のみ PATCH /training/{id}/duration で保存する
+            try {
+              for (const t of trainings) {
+                await trainingApi.saveDuration(t.id, elapsed);
+              }
+              setIsCompleting(true);
+              // _savedSessionStartTime / _savedSessionDate はリセットしない（タイマー保持）
+              navigation.goBack();
+            } catch {
+              setIsCompleting(false);
+              Alert.alert('エラー', '時間の保存に失敗しました');
+            }
           }
         },
       },
@@ -242,11 +499,44 @@ export default function TrainingStartScreen({ navigation }: Props) {
         // ── ヘッダー：セッションタイマー + インターバルタイマー ──────────────
         ListHeaderComponent={
           <View>
-            {/* セッションタイマー */}
+            {/* 修正1: セッションタイマー */}
             <View style={styles.sessionBlock}>
               <Text style={styles.sessionLabel}>トレーニング時間</Text>
-              <Text style={styles.sessionTime}>{fmtTime(sessionElapsed)}</Text>
+              <Text style={styles.sessionTime}>
+                {sessionStarted ? fmtTime(sessionElapsed) : '--:--'}
+              </Text>
             </View>
+            {/* タイマー開始ボタン（未開始時） or 時間調整ボタン（開始後） */}
+            {!sessionStarted ? (
+              <TouchableOpacity
+                style={styles.sessionStartBtn}
+                onPress={() => {
+                  const now = Date.now();
+                  sessionStartRef.current = now;
+                  sessionStartedRef.current = true;
+                  _savedSessionStartTime = now;
+                  _savedSessionDate = todayDateStr();
+                  setSessionStarted(true);
+                }}
+              >
+                <Text style={styles.sessionStartBtnText}>▶ タイマー開始</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.sessionAdjRow}>
+                <TouchableOpacity style={styles.sessionAdjBtn} onPress={() => adjustSession(-3600)}>
+                  <Text style={styles.sessionAdjBtnText}>-60m</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.sessionAdjBtn} onPress={() => adjustSession(-1800)}>
+                  <Text style={styles.sessionAdjBtnText}>-30m</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.sessionAdjBtn} onPress={() => adjustSession(1800)}>
+                  <Text style={styles.sessionAdjBtnText}>+30m</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.sessionAdjBtn} onPress={() => adjustSession(3600)}>
+                  <Text style={styles.sessionAdjBtnText}>+60m</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* インターバルタイマー（折りたたみ） */}
             <View style={styles.intervalCard}>
@@ -275,14 +565,20 @@ export default function TrainingStartScreen({ navigation }: Props) {
                     <Text style={styles.intervalFinishedText}>終了！次のセットへ</Text>
                   )}
 
-                  {/* ±調整 */}
+                  {/* インターバル調整: ±30s・±60s の4ボタン */}
                   <View style={styles.adjustRow}>
-                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(-ADJUST_STEP)}>
-                      <Text style={styles.adjBtnText}>-{ADJUST_STEP}s</Text>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(-60)}>
+                      <Text style={styles.adjBtnText}>-60s</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(-30)}>
+                      <Text style={styles.adjBtnText}>-30s</Text>
                     </TouchableOpacity>
                     <Text style={styles.adjLabel}>{fmtTime(intervalDuration)}</Text>
-                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(ADJUST_STEP)}>
-                      <Text style={styles.adjBtnText}>+{ADJUST_STEP}s</Text>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(30)}>
+                      <Text style={styles.adjBtnText}>+30s</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.adjBtn} onPress={() => adjustInterval(60)}>
+                      <Text style={styles.adjBtnText}>+60s</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -387,6 +683,19 @@ const styles = StyleSheet.create({
   },
   sessionLabel: { fontSize: 11, color: '#888', letterSpacing: 2, marginBottom: 6 },
   sessionTime:  { fontSize: 52, fontWeight: '200', color: '#fff', letterSpacing: 4 },
+  sessionStartBtn: {
+    backgroundColor: '#1a1a2e', paddingVertical: 12,
+    alignItems: 'center', borderTopWidth: 1, borderTopColor: '#2a2a4e',
+  },
+  sessionStartBtnText: { fontSize: 14, color: '#4CAF50', fontWeight: '700' },
+  sessionAdjRow: {
+    backgroundColor: '#1a1a2e', flexDirection: 'row', justifyContent: 'center',
+    gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#2a2a4e',
+  },
+  sessionAdjBtn: {
+    backgroundColor: '#2a2a4e', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 18,
+  },
+  sessionAdjBtnText: { fontSize: 14, fontWeight: '700', color: '#4CAF50' },
 
   // ── インターバルタイマー ────────────────────────────────────────────────────
   intervalCard: {
@@ -411,9 +720,9 @@ const styles = StyleSheet.create({
   intervalBigTime:     { fontSize: 64, fontWeight: '200', letterSpacing: 3, marginBottom: 4 },
   intervalFinishedText:{ fontSize: 14, color: '#F44336', fontWeight: '700', marginBottom: 8 },
 
-  adjustRow: { flexDirection: 'row', alignItems: 'center', gap: 20, marginVertical: 14 },
+  adjustRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 14, flexWrap: 'wrap', justifyContent: 'center' },
   adjBtn: {
-    backgroundColor: '#f0f0f0', paddingHorizontal: 18, paddingVertical: 9, borderRadius: 18,
+    backgroundColor: '#f0f0f0', paddingHorizontal: 10, paddingVertical: 9, borderRadius: 18,
   },
   adjBtnText: { fontSize: 14, fontWeight: '600', color: '#444' },
   adjLabel:   { fontSize: 17, fontWeight: '600', color: '#555', minWidth: 50, textAlign: 'center' },

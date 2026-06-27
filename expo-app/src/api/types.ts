@@ -42,8 +42,10 @@ export interface Training {
   menu: string;
   partCode: string;
   partName?: string;
-  isAllCompleted: boolean;
+  /** Jackson が isAllCompleted() ゲッターの "is" を剥がして allCompleted として返す */
+  allCompleted: boolean;
   trainingDate: string;
+  duration?: string;
   details: TrainingDetail[];
 }
 
@@ -71,7 +73,11 @@ export interface SetUpdateResponse {
   id: number;
   /** primitive boolean → Lombok/Jackson が "is" を剥がして JSON キー "completed" になる */
   completed: boolean;
-  /** primitive boolean isPR → "PR"（2文字目も大文字のため decapitalize されない） */
+  /**
+   * 自己ベスト（PR）更新フラグ。
+   * 本来Jacksonの命名規則では isPR() → "pr"（全小文字）になるが、
+   * バックエンド側で @JsonProperty("PR") によりキー名を "PR" に明示固定している。
+   */
   PR: boolean;
   prMessage?: string;
 }
