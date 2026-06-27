@@ -179,6 +179,23 @@ public class TrainingService {
               training.getId(),
               detailsToInsert.size());
         }
+
+        // PR更新（WARMUP/DROPを除くMAINセットのみ。save()と同様の処理）
+        if (currentDbData != null && training.getDetails() != null) {
+          for (TrainingDetail detail : training.getDetails()) {
+            String st = detail.getSetType();
+            if ("WARMUP".equals(st) || "DROP".equals(st)) continue;
+            if (detail.getWeight() == null || detail.getReps() == null) continue;
+            personalRecordService.updateIfBetter(
+                currentDbData.getUserId(),
+                currentDbData.getMenu(),
+                detail.getWeight(),
+                detail.getReps(),
+                currentDbData.getTrainingDate() != null
+                    ? currentDbData.getTrainingDate()
+                    : LocalDate.now());
+          }
+        }
       }
 
       logger.info("一括トレーニングデータ保存完了 - 件数: {}", trainingList.size());
