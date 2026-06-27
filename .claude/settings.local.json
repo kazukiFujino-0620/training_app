@@ -54,7 +54,10 @@
       "Bash(npm audit *)",
       "Bash(xcode-select --version)",
       "Bash(xcodebuild *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(ssh *)",
+      "Bash(curl *)",
+      "Bash(grep *)"
     ]
   }
 }
