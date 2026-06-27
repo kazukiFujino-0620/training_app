@@ -76,38 +76,12 @@ export default function TrainingListScreen({ navigation }: Props) {
     navigation.replace('Auth' as any);
   }
 
-  async function handleComplete() {
-    Alert.alert('トレーニング完了', '今日のトレーニングを完了にしますか？', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '完了！',
-        onPress: async () => {
-          try {
-            for (const t of trainings) {
-              await trainingApi.completeTraining(t.id);
-            }
-            navigation.navigate('Goal', {
-              date: new Date().toISOString().slice(0, 10),
-              totalSets,
-              completedSets,
-              totalVolume,
-            });
-          } catch {
-            Alert.alert('エラー', '完了処理に失敗しました');
-          }
-        },
-      },
-    ]);
-  }
-
   const totalSets     = trainings.reduce((s, t) => s + t.details.length, 0);
   const completedSets = trainings.reduce(
     (s, t) => s + t.details.filter((d) => d.completed).length, 0,
   );
-  const totalVolume = trainings.reduce(
-    (s, t) => s + t.details.reduce((ds, d) => ds + d.weight * d.reps, 0), 0,
-  );
-  const allDone = trainings.length > 0 && completedSets === totalSets;
+  // 全種目が完了済みのとき「▶ トレーニング開始」を非表示にする
+  const isAllTrainingsCompleted = trainings.length > 0 && trainings.every((t) => t.allCompleted);
 
   if (loading) {
     return (
@@ -166,10 +140,32 @@ export default function TrainingListScreen({ navigation }: Props) {
 
       {/* フッター */}
       <View style={styles.footer}>
-        {allDone ? (
-          <TouchableOpacity style={styles.completeButton} onPress={handleComplete}>
-            <Text style={styles.completeButtonText}>🎉 トレーニング完了！</Text>
-          </TouchableOpacity>
+        {trainings.length > 0 ? (
+          isAllTrainingsCompleted ? (
+            // 全種目完了済み：「トレーニング開始」を非表示、「種目追加」のみ全幅
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => navigation.navigate('AddExercise')}
+            >
+              <Text style={styles.addButtonText}>＋ 種目を追加</Text>
+            </TouchableOpacity>
+          ) : (
+            // 未完了あり：両ボタンを表示
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.addButtonOutline}
+                onPress={() => navigation.navigate('AddExercise')}
+              >
+                <Text style={styles.addButtonOutlineText}>＋ 種目を追加</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.startButton}
+                onPress={() => navigation.navigate('TrainingStart')}
+              >
+                <Text style={styles.startButtonText}>▶ トレーニング開始</Text>
+              </TouchableOpacity>
+            </View>
+          )
         ) : (
           <TouchableOpacity
             style={styles.addButton}
@@ -208,8 +204,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50', borderRadius: 12, padding: 16, alignItems: 'center',
   },
   addButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  completeButton: {
-    backgroundColor: '#FF9800', borderRadius: 12, padding: 16, alignItems: 'center',
+  buttonRow: { flexDirection: 'row', gap: 10 },
+  addButtonOutline: {
+    flex: 1, borderRadius: 12, padding: 16, alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#4CAF50', backgroundColor: '#fff',
   },
-  completeButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  addButtonOutlineText: { color: '#4CAF50', fontSize: 15, fontWeight: '700' },
+  startButton: {
+    flex: 1, backgroundColor: '#4CAF50', borderRadius: 12, padding: 16, alignItems: 'center',
+  },
+  startButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
