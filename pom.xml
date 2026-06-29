@@ -20,11 +20,11 @@
 			<!-- Lombok: Java 21 record/pattern との互換性確保のため 1.18.34 以上 -->
 			<lombok.version>1.18.34</lombok.version>
 			<!-- Maven プラグインの再現性確保のためバージョン固定 -->
-			<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
-			<maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
+			<maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
+			<maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
 			<owasp-dependency-check.version>10.0.4</owasp-dependency-check.version>
-			<cyclonedx-maven-plugin.version>2.9.0</cyclonedx-maven-plugin.version>
-			<spotless.version>2.43.0</spotless.version>
+			<cyclonedx-maven-plugin.version>2.9.2</cyclonedx-maven-plugin.version>
+			<spotless.version>2.46.1</spotless.version>
 		</properties>
 
 		<profiles>
