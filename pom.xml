@@ -16,7 +16,7 @@
 
 	<properties>
 			<java.version>21</java.version>
-			<doma.version>2.61.0</doma.version>
+			<doma.version>2.62.1</doma.version>
 			<!-- Lombok: Java 21 record/pattern との互換性確保のため 1.18.34 以上 -->
 			<lombok.version>1.18.34</lombok.version>
 			<!-- Maven プラグインの再現性確保のためバージョン固定 -->
@@ -58,7 +58,7 @@
 		<dependency>
 		    <groupId>org.seasar.doma.boot</groupId>
 		    <artifactId>doma-spring-boot-starter</artifactId>
-		    <version>1.7.0</version>
+		    <version>1.8.0</version>
 		</dependency>
 		<dependency>
 		    <groupId>org.seasar.doma</groupId>
