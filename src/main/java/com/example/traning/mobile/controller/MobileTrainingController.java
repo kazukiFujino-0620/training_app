@@ -312,27 +312,34 @@ public class MobileTrainingController {
   /** 種目名で過去のトレーニング記録を取得する（前回記録表示用）。最大10件取得。 */
   @GetMapping("/history")
   public ResponseEntity<List<TrainingHistoryResponse>> getTrainingHistory(
-      @AuthenticationPrincipal Long userId,
-      @RequestParam String itemName) {
+      @AuthenticationPrincipal Long userId, @RequestParam String itemName) {
 
-    List<Training> sessions = trainingDao.selectRecentSessionsByItem(
-        userId, itemName, LocalDate.now().plusDays(1), 10);
+    List<Training> sessions =
+        trainingDao.selectRecentSessionsByItem(userId, itemName, LocalDate.now().plusDays(1), 10);
 
-    List<TrainingHistoryResponse> result = sessions.stream()
-        .map(session -> {
-          List<TrainingDetail> details = trainingDetailDao.selectByTrainingId(session.getId());
-          List<TrainingHistoryResponse.SetRecord> setRecords = details.stream()
-              .filter(d -> d.getDeletedAt() == null)
-              .sorted(java.util.Comparator.comparingInt(TrainingDetail::getSetNumber))
-              .map(d -> new TrainingHistoryResponse.SetRecord(
-                  d.getSetNumber(), d.getWeight(), d.getReps()))
-              .toList();
-          String dateStr = session.getTrainingDate()
-              .format(java.time.format.DateTimeFormatter.ofPattern("MM/dd"));
-          return new TrainingHistoryResponse(dateStr, setRecords);
-        })
-        .filter(h -> !h.getSets().isEmpty())
-        .toList();
+    List<TrainingHistoryResponse> result =
+        sessions.stream()
+            .map(
+                session -> {
+                  List<TrainingDetail> details =
+                      trainingDetailDao.selectByTrainingId(session.getId());
+                  List<TrainingHistoryResponse.SetRecord> setRecords =
+                      details.stream()
+                          .filter(d -> d.getDeletedAt() == null)
+                          .sorted(java.util.Comparator.comparingInt(TrainingDetail::getSetNumber))
+                          .map(
+                              d ->
+                                  new TrainingHistoryResponse.SetRecord(
+                                      d.getSetNumber(), d.getWeight(), d.getReps()))
+                          .toList();
+                  String dateStr =
+                      session
+                          .getTrainingDate()
+                          .format(java.time.format.DateTimeFormatter.ofPattern("MM/dd"));
+                  return new TrainingHistoryResponse(dateStr, setRecords);
+                })
+            .filter(h -> !h.getSets().isEmpty())
+            .toList();
 
     return ResponseEntity.ok(result);
   }
