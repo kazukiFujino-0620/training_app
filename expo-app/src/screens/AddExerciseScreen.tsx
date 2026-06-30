@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   StyleSheet, Alert, ActivityIndicator, Modal, ScrollView,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import { masterApi, trainingApi } from '../api/client';
-import type { TrainingItemMaster } from '../api/types';
+import type { TrainingItemMaster, TrainingHistory } from '../api/types';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'AddExercise'>;
@@ -32,6 +33,9 @@ interface SetConfig {
 interface TrainingBlock {
   item: TrainingItemMaster;
   sets: SetConfig[];
+  history: TrainingHistory[];
+  historyExpanded: boolean;
+  historyDateIndex: number;
 }
 
 export default function AddExerciseScreen({ navigation }: Props) {
@@ -80,11 +84,29 @@ export default function AddExerciseScreen({ navigation }: Props) {
   }
 
   /** 種目一覧で確定（チェック済み種目をブロック化して一括セット入力画面を開く） */
-  function confirmSelection() {
+  async function confirmSelection() {
     const selectedItems = items.filter((item) => selectedIds.has(item.id));
     if (selectedItems.length === 0) return;
-    setBlocks(selectedItems.map((item) => ({ item, sets: [] })));
+
+    const initialBlocks: TrainingBlock[] = selectedItems.map((item) => ({
+      item, sets: [], history: [], historyExpanded: false, historyDateIndex: 0,
+    }));
+    setBlocks(initialBlocks);
     setBlocksVisible(true);
+
+    // 各種目の前回記録をバックグラウンドで取得
+    for (let i = 0; i < selectedItems.length; i++) {
+      const item = selectedItems[i];
+      try {
+        const { data } = await trainingApi.getTrainingHistory(item.itemName);
+        setBlocks((prev) => prev.map((b, bi) => {
+          if (bi !== i) return b;
+          return { ...b, history: data };
+        }));
+      } catch {
+        // 履歴取得失敗は無視（記録なし扱い）
+      }
+    }
   }
 
   function closeBlocks() {
@@ -123,6 +145,21 @@ export default function AddExerciseScreen({ navigation }: Props) {
 
   function removeBlock(blockIndex: number) {
     setBlocks((prev) => prev.filter((_, bi) => bi !== blockIndex));
+  }
+
+  function toggleHistoryExpanded(blockIndex: number) {
+    setBlocks((prev) => prev.map((b, bi) => {
+      if (bi !== blockIndex) return b;
+      return { ...b, historyExpanded: !b.historyExpanded };
+    }));
+  }
+
+  function updateHistoryDateIndex(blockIndex: number, newIndex: number) {
+    setBlocks((prev) => prev.map((b, bi) => {
+      if (bi !== blockIndex) return b;
+      const clamped = Math.max(0, Math.min(newIndex, b.history.length - 1));
+      return { ...b, historyDateIndex: clamped };
+    }));
   }
 
   /** 一括登録。新APIが未整備のため、既存の単一登録APIを種目数分ループ呼び出しする暫定実装。 */
@@ -265,66 +302,119 @@ export default function AddExerciseScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.blocksScroll} keyboardShouldPersistTaps="handled">
-            {blocks.map((block, blockIndex) => (
-              <View key={block.item.id} style={styles.block}>
-                <View style={styles.blockHeader}>
-                  <Text style={styles.blockTitle} numberOfLines={1} ellipsizeMode="tail">
-                    {block.item.itemName}
-                  </Text>
-                  <TouchableOpacity onPress={() => removeBlock(blockIndex)}>
-                    <Text style={styles.blockRemoveText}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {block.sets.length === 0 && (
-                  <Text style={styles.noSetText}>「セット追加」で記録を開始してください</Text>
-                )}
-
-                {block.sets.map((s, setIndex) => (
-                  <View key={setIndex} style={styles.setRow}>
-                    <Text style={styles.setNum}>{setIndex + 1}</Text>
-                    <TouchableOpacity
-                      style={[styles.typeBtn, s.setType === 'WARMUP' && styles.typeBtnActive]}
-                      onPress={() => updateSet(
-                        blockIndex, setIndex, 'setType',
-                        s.setType === 'WARMUP' ? 'MAIN' : 'WARMUP',
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <ScrollView contentContainerStyle={styles.blocksScroll} keyboardShouldPersistTaps="handled">
+              {blocks.map((block, blockIndex) => {
+                const currentHistory = block.history[block.historyDateIndex];
+                const hasHistory = block.history.length > 0;
+                return (
+                  <View key={block.item.id} style={styles.block}>
+                    {/* ブロックヘッダー：種目名 + 前回記録ナビ + 削除 */}
+                    <View style={styles.blockHeader}>
+                      <Text style={styles.blockTitle} numberOfLines={1} ellipsizeMode="tail">
+                        {block.item.itemName}
+                      </Text>
+                      {hasHistory && (
+                        <View style={styles.historyNav}>
+                          <TouchableOpacity
+                            onPress={() => updateHistoryDateIndex(blockIndex, block.historyDateIndex + 1)}
+                            disabled={block.historyDateIndex >= block.history.length - 1}
+                          >
+                            <Text style={[
+                              styles.historyNavBtn,
+                              block.historyDateIndex >= block.history.length - 1 && styles.historyNavBtnDisabled,
+                            ]}>＜</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.historyDateText}>{currentHistory.date}</Text>
+                          <TouchableOpacity
+                            onPress={() => updateHistoryDateIndex(blockIndex, block.historyDateIndex - 1)}
+                            disabled={block.historyDateIndex <= 0}
+                          >
+                            <Text style={[
+                              styles.historyNavBtn,
+                              block.historyDateIndex <= 0 && styles.historyNavBtnDisabled,
+                            ]}>＞</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => toggleHistoryExpanded(blockIndex)}>
+                            <Text style={styles.historyExpandBtn}>
+                              {block.historyExpanded ? '∧' : '∨'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
                       )}
-                    >
-                      <Text style={styles.typeBtnText}>{s.setType === 'WARMUP' ? 'W' : 'M'}</Text>
-                    </TouchableOpacity>
-                    <TextInput
-                      style={styles.setInput}
-                      placeholder="重量"
-                      value={s.weight}
-                      onChangeText={(v) => updateSet(blockIndex, setIndex, 'weight', v)}
-                      keyboardType="decimal-pad"
-                    />
-                    <Text style={styles.unit}>kg</Text>
-                    <TextInput
-                      style={styles.setInput}
-                      placeholder="回数"
-                      value={s.reps}
-                      onChangeText={(v) => updateSet(blockIndex, setIndex, 'reps', v)}
-                      keyboardType="number-pad"
-                    />
-                    <Text style={styles.unit}>回</Text>
-                    <TouchableOpacity onPress={() => removeSet(blockIndex, setIndex)}>
-                      <Text style={styles.removeText}>✕</Text>
+                      <TouchableOpacity onPress={() => removeBlock(blockIndex)}>
+                        <Text style={styles.blockRemoveText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* 前回記録パネル（展開時のみ表示） */}
+                    {block.historyExpanded && (
+                      <View style={styles.historyPanel}>
+                        {hasHistory && currentHistory.sets.length > 0 ? (
+                          currentHistory.sets.map((s) => (
+                            <Text key={s.setNo} style={styles.historySetText}>
+                              {s.setNo}: {s.weight}kg × {s.reps}回
+                            </Text>
+                          ))
+                        ) : (
+                          <Text style={styles.historyNoneText}>記録なし</Text>
+                        )}
+                      </View>
+                    )}
+
+                    {block.sets.length === 0 && (
+                      <Text style={styles.noSetText}>「セット追加」で記録を開始してください</Text>
+                    )}
+
+                    {block.sets.map((s, setIndex) => (
+                      <View key={setIndex} style={styles.setRow}>
+                        <Text style={styles.setNum}>{setIndex + 1}</Text>
+                        <TouchableOpacity
+                          style={[styles.typeBtn, s.setType === 'WARMUP' && styles.typeBtnActive]}
+                          onPress={() => updateSet(
+                            blockIndex, setIndex, 'setType',
+                            s.setType === 'WARMUP' ? 'MAIN' : 'WARMUP',
+                          )}
+                        >
+                          <Text style={styles.typeBtnText}>{s.setType === 'WARMUP' ? 'W' : 'M'}</Text>
+                        </TouchableOpacity>
+                        <TextInput
+                          style={styles.setInput}
+                          placeholder="重量"
+                          value={s.weight}
+                          onChangeText={(v) => updateSet(blockIndex, setIndex, 'weight', v)}
+                          keyboardType="decimal-pad"
+                        />
+                        <Text style={styles.unit}>kg</Text>
+                        <TextInput
+                          style={styles.setInput}
+                          placeholder="回数"
+                          value={s.reps}
+                          onChangeText={(v) => updateSet(blockIndex, setIndex, 'reps', v)}
+                          keyboardType="number-pad"
+                        />
+                        <Text style={styles.unit}>回</Text>
+                        <TouchableOpacity onPress={() => removeSet(blockIndex, setIndex)}>
+                          <Text style={styles.removeText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+
+                    <TouchableOpacity style={styles.addSetBtn} onPress={() => addSet(blockIndex)}>
+                      <Text style={styles.addSetText}>＋ セット追加</Text>
                     </TouchableOpacity>
                   </View>
-                ))}
+                );
+              })}
 
-                <TouchableOpacity style={styles.addSetBtn} onPress={() => addSet(blockIndex)}>
-                  <Text style={styles.addSetText}>＋ セット追加</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-
-            {blocks.length === 0 && (
-              <Text style={styles.emptyText}>種目が選択されていません</Text>
-            )}
-          </ScrollView>
+              {blocks.length === 0 && (
+                <Text style={styles.emptyText}>種目が選択されていません</Text>
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -397,6 +487,21 @@ const styles = StyleSheet.create({
   },
   blockTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#222', paddingRight: 8 },
   blockRemoveText: { fontSize: 16, color: '#ccc', paddingHorizontal: 4, flexShrink: 0 },
+  // 前回記録ナビ
+  historyNav: {
+    flexDirection: 'row', alignItems: 'center', gap: 2, flexShrink: 0,
+  },
+  historyNavBtn: { fontSize: 14, color: '#4CAF50', paddingHorizontal: 4, fontWeight: '700' },
+  historyNavBtnDisabled: { color: '#ddd' },
+  historyDateText: { fontSize: 12, color: '#555', fontWeight: '600', minWidth: 36, textAlign: 'center' },
+  historyExpandBtn: { fontSize: 14, color: '#888', paddingHorizontal: 6 },
+  // 前回記録パネル
+  historyPanel: {
+    backgroundColor: '#f0f8f0', borderRadius: 8, padding: 10, marginBottom: 8,
+  },
+  historySetText: { fontSize: 13, color: '#555', paddingVertical: 2 },
+  historyNoneText: { fontSize: 13, color: '#aaa', textAlign: 'center', paddingVertical: 4 },
+  // セット行
   noSetText: { color: '#aaa', fontSize: 13, paddingVertical: 8 },
   setRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
