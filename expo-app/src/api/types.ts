@@ -91,6 +91,19 @@ export interface TrainingItemMaster {
   displayOrder: number;
 }
 
+// ── トレーニング履歴（前回記録表示用） ──────────────────────────────────────
+
+export interface TrainingHistorySet {
+  setNo: number;
+  weight: number;
+  reps: number;
+}
+
+export interface TrainingHistory {
+  date: string;
+  sets: TrainingHistorySet[];
+}
+
 // ── プッシュ通知 ───────────────────────────────────────────────────────────
 
 export interface PushRegisterRequest {
