@@ -5,6 +5,7 @@ import com.example.traning.mobile.dto.AddSetRequest;
 import com.example.traning.mobile.dto.AddTrainingRequest;
 import com.example.traning.mobile.dto.CompleteTrainingRequest;
 import com.example.traning.mobile.dto.SetUpdateResponse;
+import com.example.traning.mobile.dto.TrainingHistoryResponse;
 import com.example.traning.mobile.dto.UpdateSetRequest;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
@@ -306,6 +307,34 @@ public class MobileTrainingController {
     detail.setUpdatedDatetime(LocalDateTime.now());
     trainingDetailDao.update(detail);
     return ResponseEntity.noContent().build();
+  }
+
+  /** 種目名で過去のトレーニング記録を取得する（前回記録表示用）。最大10件取得。 */
+  @GetMapping("/history")
+  public ResponseEntity<List<TrainingHistoryResponse>> getTrainingHistory(
+      @AuthenticationPrincipal Long userId,
+      @RequestParam String itemName) {
+
+    List<Training> sessions = trainingDao.selectRecentSessionsByItem(
+        userId, itemName, LocalDate.now().plusDays(1), 10);
+
+    List<TrainingHistoryResponse> result = sessions.stream()
+        .map(session -> {
+          List<TrainingDetail> details = trainingDetailDao.selectByTrainingId(session.getId());
+          List<TrainingHistoryResponse.SetRecord> setRecords = details.stream()
+              .filter(d -> d.getDeletedAt() == null)
+              .sorted(java.util.Comparator.comparingInt(TrainingDetail::getSetNumber))
+              .map(d -> new TrainingHistoryResponse.SetRecord(
+                  d.getSetNumber(), d.getWeight(), d.getReps()))
+              .toList();
+          String dateStr = session.getTrainingDate()
+              .format(java.time.format.DateTimeFormatter.ofPattern("MM/dd"));
+          return new TrainingHistoryResponse(dateStr, setRecords);
+        })
+        .filter(h -> !h.getSets().isEmpty())
+        .toList();
+
+    return ResponseEntity.ok(result);
   }
 
   private boolean isOwnedByUser(TrainingDetail detail, Long userId) {
