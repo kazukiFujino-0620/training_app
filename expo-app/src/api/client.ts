@@ -76,6 +76,7 @@ import type {
   SetUpdateRequest,
   SetUpdateResponse,
   TrainingItemMaster,
+  TrainingHistory,
   PushRegisterRequest,
 } from './types';
 
@@ -107,6 +108,8 @@ export const trainingApi = {
     client.delete(`/training/sets/${id}`),
   saveDuration: (trainingId: number, durationSec: number) =>
     client.patch(`/training/${trainingId}/duration`, { durationSec }),
+  getTrainingHistory: (itemName: string) =>
+    client.get<TrainingHistory[]>('/training/history', { params: { itemName } }),
 };
 
 export const masterApi = {
