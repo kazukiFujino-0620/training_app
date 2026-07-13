@@ -106,8 +106,6 @@ export const trainingApi = {
     client.post<TrainingDetail>(`/training/${trainingId}/sets`, req),
   deleteSet: (id: number) =>
     client.delete(`/training/sets/${id}`),
-  saveDuration: (trainingId: number, durationSec: number) =>
-    client.patch(`/training/${trainingId}/duration`, { durationSec }),
   getTrainingHistory: (itemName: string) =>
     client.get<TrainingHistory[]>('/training/history', { params: { itemName } }),
 };
