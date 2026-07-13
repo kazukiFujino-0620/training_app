@@ -81,6 +81,10 @@ public interface TrainingDao {
   @Update(sqlFile = true)
   int updateDisplayOrder(Long id, int displayOrder, LocalDateTime updatedDatetime);
 
+  @Update(sqlFile = true)
+  int updateCompletionById(
+      Long id, String duration, boolean isAllCompleted, LocalDateTime updatedDatetime);
+
   @Select
   int countByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate);
 

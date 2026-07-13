@@ -402,6 +402,8 @@ export default function TrainingStartScreen({ navigation }: Props) {
 
   // ── トレーニング完了 ────────────────────────────────────────────────────────
   async function handleComplete() {
+    if (trainings.length === 0) return;
+
     const totalSets     = trainings.reduce((s, t) => s + t.details.length, 0);
     const completedSets = trainings.reduce(
       (s, t) => s + t.details.filter((d) => d.completed).length, 0,
@@ -409,14 +411,8 @@ export default function TrainingStartScreen({ navigation }: Props) {
     const totalVolume   = trainings.reduce(
       (s, t) => s + t.details.reduce((ds, d) => ds + d.weight * d.reps, 0), 0,
     );
-    const isFullyCompleted = completedSets === totalSets && totalSets > 0;
 
-    const alertTitle   = isFullyCompleted ? 'トレーニング完了' : '途中完了の確認';
-    const alertMessage = isFullyCompleted
-      ? '今日のトレーニングを完了にしますか？'
-      : `${completedSets} / ${totalSets} セット完了です。このまま完了にしますか？`;
-
-    Alert.alert(alertTitle, alertMessage, [
+    Alert.alert('トレーニング完了', '今日のトレーニングを完了にしますか？', [
       { text: 'キャンセル', style: 'cancel' },
       {
         text: '完了！',
@@ -426,41 +422,23 @@ export default function TrainingStartScreen({ navigation }: Props) {
             ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
             : sessionElapsed;
 
-          if (isFullyCompleted) {
-            // 全セット完了：completeTraining を呼んで isAllCompleted=true にし Goal 画面へ
-            try {
-              for (const t of trainings) {
-                await trainingApi.completeTraining(t.id, elapsed);
-              }
-              setIsCompleting(true);
-              _savedSessionStartTime = null;
-              _savedSessionDate = null;
-              navigation.replace('Goal' as any, {
-                date: new Date().toISOString().slice(0, 10),
-                totalSets,
-                completedSets,
-                totalVolume,
-                sessionElapsed: elapsed,
-              });
-            } catch {
-              setIsCompleting(false);
-              Alert.alert('エラー', '完了処理に失敗しました');
-            }
-          } else {
-            // 途中完了：isAllCompleted を変えない（ホームでボタンを表示し続ける）
-            // completeTraining は呼ばない（呼ぶと isAllCompleted=true になってボタンが消える）
-            // duration のみ PATCH /training/{id}/duration で保存する
-            try {
-              for (const t of trainings) {
-                await trainingApi.saveDuration(t.id, elapsed);
-              }
-              setIsCompleting(true);
-              // _savedSessionStartTime / _savedSessionDate はリセットしない（タイマー保持）
-              navigation.goBack();
-            } catch {
-              setIsCompleting(false);
-              Alert.alert('エラー', '時間の保存に失敗しました');
-            }
+          // 完了処理は日単位：代表 trainingId を1件渡し、duration 保存と
+          // 種目ごとの全セット完了判定はサーバー側で行う
+          try {
+            await trainingApi.completeTraining(trainings[0].id, elapsed);
+            setIsCompleting(true);
+            _savedSessionStartTime = null;
+            _savedSessionDate = null;
+            navigation.replace('Goal' as any, {
+              date: new Date().toISOString().slice(0, 10),
+              totalSets,
+              completedSets,
+              totalVolume,
+              sessionElapsed: elapsed,
+            });
+          } catch {
+            setIsCompleting(false);
+            Alert.alert('エラー', '完了処理に失敗しました');
           }
         },
       },
