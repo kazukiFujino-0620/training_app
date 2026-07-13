@@ -62,11 +62,12 @@
                                     <td th:text="${user.userId}">1</td>
                                     <td th:text="${user.userName}">ユーザー名</td>
                                     <td th:text="${user.email}">email@example.com</td>
-                                        <span th:if="${user.role == 'ADMIN'}" 
+                                    <td class="px-4 py-2">
+                                        <span th:if="${user.role == 'ADMIN'}"
                                               class="badge badge-danger">
                                             管理者
                                         </span>
-                                        <span th:if="${user.role == 'USER'}" 
+                                        <span th:if="${user.role == 'USER'}"
                                               class="badge badge-primary">
                                             一般
                                         </span>

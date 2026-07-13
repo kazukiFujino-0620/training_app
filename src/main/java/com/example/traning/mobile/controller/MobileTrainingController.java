@@ -5,6 +5,7 @@ import com.example.traning.mobile.dto.AddSetRequest;
 import com.example.traning.mobile.dto.AddTrainingRequest;
 import com.example.traning.mobile.dto.CompleteTrainingRequest;
 import com.example.traning.mobile.dto.SetUpdateResponse;
+import com.example.traning.mobile.dto.TrainingHistoryResponse;
 import com.example.traning.mobile.dto.UpdateSetRequest;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
@@ -218,14 +219,16 @@ public class MobileTrainingController {
   }
 
   /**
-   * トレーニング全体を完了済みにする。 durationSec が指定された場合、対象トレーニングと同じ日付・同一ユーザーの 全トレーニングの duration カラムに秒数の文字列を保存する。
-   * これによりモバイル側は再開時に MAX(duration) を読み出して経過時間を復元できる。
+   * トレーニング全体の完了状態を更新する。 対象トレーニングと同じ日付・同一ユーザーの全トレーニングについて、
+   * 種目ごとにセット（論理削除済みを除く）の完了状況をサーバー側で判定し、1件以上のセットが存在し かつ全セットが完了している場合のみ is_all_completed を true
+   * にする（未完了セットがあれば false で上書きする）。 durationSec が指定された場合は、当日全トレーニングの duration カラムに HH:MM:SS
+   * 形式の文字列を保存する（未指定時は duration を更新しない）。 これによりモバイル側は再開時に MAX(duration) を読み出して経過時間を復元できる。
    */
   @PostMapping("/complete")
   @Transactional
   @AuditLog(action = "MOBILE_TRAINING_COMPLETE", targetTable = "trainings")
   public ResponseEntity<Void> completeTraining(
-      @AuthenticationPrincipal Long userId, @RequestBody CompleteTrainingRequest body) {
+      @AuthenticationPrincipal Long userId, @Valid @RequestBody CompleteTrainingRequest body) {
 
     Long trainingId = body.getTrainingId();
     if (trainingId == null) return ResponseEntity.badRequest().build();
@@ -235,31 +238,28 @@ public class MobileTrainingController {
     if (!userId.equals(training.getUserId())) return ResponseEntity.status(403).build();
 
     LocalDateTime now = LocalDateTime.now();
-    training.setIsAllCompleted(true);
-    training.setUpdatedDatetime(now);
 
+    // durationSec 指定時のみ HH:MM:SS 形式に変換（未指定時は null のまま duration を更新しない）
     Integer durationSec = body.getDurationSec();
+    String durationStr = null;
     if (durationSec != null) {
-      // 当日の自分のトレーニング全件に経過秒数を保存（MAX(duration)で復元できるように）
-      LocalDate targetDate = training.getTrainingDate();
       int h = durationSec / 3600;
       int m = (durationSec % 3600) / 60;
       int s = durationSec % 60;
-      String durationStr = String.format("%02d:%02d:%02d", h, m, s);
-      List<Training> todays = trainingDao.selectByDate(userId, targetDate, targetDate);
-      for (Training t : todays) {
-        if (trainingId.equals(t.getId())) {
-          // 完了対象は上で更新したインスタンスを使う
-          training.setDuration(durationStr);
-          continue;
-        }
-        t.setDuration(durationStr);
-        t.setUpdatedDatetime(now);
-        trainingDao.update(t);
-      }
+      durationStr = String.format("%02d:%02d:%02d", h, m, s);
     }
 
-    trainingDao.update(training);
+    // 当日・同一ユーザーの全トレーニングを対象に、セットの完了状況から is_all_completed を判定して更新する
+    LocalDate targetDate = training.getTrainingDate();
+    List<Training> todays = trainingDao.selectByDate(userId, targetDate, targetDate);
+    for (Training t : todays) {
+      // selectByTrainingId は論理削除済み（deleted_at IS NOT NULL）のセットを除外している
+      List<TrainingDetail> details = trainingDetailDao.selectByTrainingId(t.getId());
+      boolean isAllCompleted =
+          !details.isEmpty() && details.stream().allMatch(TrainingDetail::getIsCompleted);
+      trainingDao.updateCompletionById(t.getId(), durationStr, isAllCompleted, now);
+    }
+
     return ResponseEntity.noContent().build();
   }
 
@@ -306,6 +306,41 @@ public class MobileTrainingController {
     detail.setUpdatedDatetime(LocalDateTime.now());
     trainingDetailDao.update(detail);
     return ResponseEntity.noContent().build();
+  }
+
+  /** 種目名で過去のトレーニング記録を取得する（前回記録表示用）。最大10件取得。 */
+  @GetMapping("/history")
+  public ResponseEntity<List<TrainingHistoryResponse>> getTrainingHistory(
+      @AuthenticationPrincipal Long userId, @RequestParam String itemName) {
+
+    List<Training> sessions =
+        trainingDao.selectRecentSessionsByItem(userId, itemName, LocalDate.now().plusDays(1), 10);
+
+    List<TrainingHistoryResponse> result =
+        sessions.stream()
+            .map(
+                session -> {
+                  List<TrainingDetail> details =
+                      trainingDetailDao.selectByTrainingId(session.getId());
+                  List<TrainingHistoryResponse.SetRecord> setRecords =
+                      details.stream()
+                          .filter(d -> d.getDeletedAt() == null)
+                          .sorted(java.util.Comparator.comparingInt(TrainingDetail::getSetNumber))
+                          .map(
+                              d ->
+                                  new TrainingHistoryResponse.SetRecord(
+                                      d.getSetNumber(), d.getWeight(), d.getReps()))
+                          .toList();
+                  String dateStr =
+                      session
+                          .getTrainingDate()
+                          .format(java.time.format.DateTimeFormatter.ofPattern("MM/dd"));
+                  return new TrainingHistoryResponse(dateStr, setRecords);
+                })
+            .filter(h -> !h.getSets().isEmpty())
+            .toList();
+
+    return ResponseEntity.ok(result);
   }
 
   private boolean isOwnedByUser(TrainingDetail detail, Long userId) {

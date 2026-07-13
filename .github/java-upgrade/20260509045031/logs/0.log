@@ -1,0 +1,244 @@
+2026-05-09T04:50:31.163Z [INFO] ----------------------invoke appmod-report-event----------------------
+2026-05-09T04:50:31.164Z [INFO] [Tool.invoke]({name: appmod-report-event, modelId: auto, input: {
+  "projectPath": "/Users/fujinoikki/Desktop/java_app/TraningApp",
+  "event": "precheckCompleted",
+  "phase": "precheck",
+  "status": "succeeded",
+  "message": "Detected Maven Java project targeting Java 21; ready to generate upgrade plan.",
+  "details": {
+    "baseJdkVersion": "21",
+    "targetVersion": "Java 21"
+  }
+}}).
+2026-05-09T04:50:31.164Z [INFO] [Tool.invoke] do invoke.
+2026-05-09T04:50:31.165Z [INFO] Project /Users/fujinoikki/Desktop/java_app/TraningApp is a maven project, try to get java version from pom.xml
+2026-05-09T04:50:31.166Z [INFO] [Tool.invoke]({result: {
+  "message": "Event 'precheckCompleted' reported!\nSession ID: 20260509045031,\nSession Dir: /Users/fujinoikki/Desktop/java_app/TraningApp/.github/java-upgrade/20260509045031"
+}}).
+2026-05-09T04:50:31.166Z [INFO] ----------------------invoked appmod-report-event----------------------
+2026-05-09T04:50:31.211Z [INFO] Project java version: 21
+2026-05-09T04:50:31.212Z [INFO] Maven project detected.
+2026-05-09T04:50:31.212Z [INFO] Build tool type: mvnw
+2026-05-09T04:50:31.279Z [INFO] JDK: {
+  "name": "java",
+  "path": "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home/bin",
+  "version": "21"
+}
+2026-05-09T04:50:31.279Z [INFO] Build tool: {
+  "name": "mvnw",
+  "path": ".",
+  "version": ""
+}
+2026-05-09T04:50:31.279Z [INFO] Project config: {
+  "buildTool": {
+    "path": ".",
+    "name": "mvnw",
+    "version": ""
+  },
+  "jdk": {
+    "path": "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home/bin",
+    "name": "java",
+    "version": "21"
+  },
+  "name": "TraningApp",
+  "dir": "/Users/fujinoikki/Desktop/java_app/TraningApp"
+}
+2026-05-09T04:50:35.946Z [INFO] ---------------------prepare appmod-report-event----------------------
+2026-05-09T04:50:35.947Z [INFO] [Tool.prepareInvocation]({name: appmod-report-event, input: {
+  "sessionId": "20260509045031",
+  "projectPath": "/Users/fujinoikki/Desktop/java_app/TraningApp",
+  "event": "planGenerationStarted",
+  "phase": "plan",
+  "status": "succeeded"
+}}).
+2026-05-09T04:50:35.947Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-05-09T04:50:35.947Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "Report upgrade event"
+}}).
+2026-05-09T04:50:35.947Z [INFO] ----------------------prepared appmod-report-event----------------------
+2026-05-09T04:50:35.985Z [INFO] ----------------------invoke appmod-report-event----------------------
+2026-05-09T04:50:35.985Z [INFO] [Tool.invoke]({name: appmod-report-event, modelId: auto, input: {
+  "sessionId": "20260509045031",
+  "projectPath": "/Users/fujinoikki/Desktop/java_app/TraningApp",
+  "event": "planGenerationStarted",
+  "phase": "plan",
+  "status": "succeeded"
+}}).
+2026-05-09T04:50:35.986Z [INFO] [Tool.invoke] do invoke.
+2026-05-09T04:50:35.986Z [INFO] [Tool.invoke]({result: {
+  "message": "Event 'planGenerationStarted' reported!\nSession ID: 20260509045031,\nSession Dir: /Users/fujinoikki/Desktop/java_app/TraningApp/.github/java-upgrade/20260509045031"
+}}).
+2026-05-09T04:50:35.986Z [INFO] ----------------------invoked appmod-report-event----------------------
+2026-05-09T04:50:36.170Z [INFO] ---------------------prepare appmod-list-jdks----------------------
+2026-05-09T04:50:36.170Z [INFO] [Tool.prepareInvocation]({name: appmod-list-jdks, input: {
+  "sessionId": "20260509045031"
+}}).
+2026-05-09T04:50:36.170Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-05-09T04:50:36.170Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "List jdks"
+}}).
+2026-05-09T04:50:36.170Z [INFO] ----------------------prepared appmod-list-jdks----------------------
+2026-05-09T04:50:36.187Z [INFO] ----------------------invoke appmod-list-jdks----------------------
+2026-05-09T04:50:36.187Z [INFO] [Tool.invoke]({name: appmod-list-jdks, modelId: auto, input: {
+  "sessionId": "20260509045031"
+}}).
+2026-05-09T04:50:36.187Z [INFO] [Tool.invoke] do invoke.
+2026-05-09T04:50:36.233Z [INFO] [Tool.invoke]({result: {
+  "message": "We found following jdks in your system:\n\n1. Java 17\n   📁 Path: /Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home/bin\n   🏷️ Source: others\n\n2. Java 21.0.7\n   📁 Path: /Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home/bin\n   🏷️ Source: others\n\n3. Java 23.0.2\n   📁 Path: /Library/Java/JavaVirtualMachines/jdk-23.jdk/Contents/Home/bin\n   🏷️ Source: others\n\nTotal: 3 JDK installation(s) found"
+}}).
+2026-05-09T04:50:36.233Z [INFO] ----------------------invoked appmod-list-jdks----------------------
+2026-05-09T04:50:36.243Z [INFO] ---------------------prepare appmod-list-mavens----------------------
+2026-05-09T04:50:36.244Z [INFO] [Tool.prepareInvocation]({name: appmod-list-mavens, input: {
+  "sessionId": "20260509045031"
+}}).
+2026-05-09T04:50:36.244Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-05-09T04:50:36.244Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "List mavens"
+}}).
+2026-05-09T04:50:36.244Z [INFO] ----------------------prepared appmod-list-mavens----------------------
+2026-05-09T04:50:36.261Z [INFO] ----------------------invoke appmod-list-mavens----------------------
+2026-05-09T04:50:36.261Z [INFO] [Tool.invoke]({name: appmod-list-mavens, modelId: auto, input: {
+  "sessionId": "20260509045031"
+}}).
+2026-05-09T04:50:36.261Z [INFO] [Tool.invoke] do invoke.
+2026-05-09T04:50:36.263Z [INFO] [Tool.invoke]({result: {
+  "message": "No Maven installations found."
+}}).
+2026-05-09T04:50:36.264Z [INFO] ----------------------invoked appmod-list-mavens----------------------
+2026-05-09T04:52:15.138Z [INFO] ---------------------prepare appmod-report-event----------------------
+2026-05-09T04:52:15.139Z [INFO] [Tool.prepareInvocation]({name: appmod-report-event, input: {
+  "sessionId": "20260509045031",
+  "projectPath": "/Users/fujinoikki/Desktop/java_app/TraningApp",
+  "event": "planReviewed",
+  "phase": "plan",
+  "status": "succeeded"
+}}).
+2026-05-09T04:52:15.139Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-05-09T04:52:15.139Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "Report upgrade event"
+}}).
+2026-05-09T04:52:15.139Z [INFO] ----------------------prepared appmod-report-event----------------------
+2026-05-09T04:52:15.191Z [INFO] ----------------------invoke appmod-report-event----------------------
+2026-05-09T04:52:15.191Z [INFO] [Tool.invoke]({name: appmod-report-event, modelId: auto, input: {
+  "sessionId": "20260509045031",
+  "projectPath": "/Users/fujinoikki/Desktop/java_app/TraningApp",
+  "event": "planReviewed",
+  "phase": "plan",
+  "status": "succeeded"
+}}).
+2026-05-09T04:52:15.191Z [INFO] [Tool.invoke] do invoke.
+2026-05-09T04:52:15.192Z [INFO] [Tool.invoke]({result: {
+  "message": "Event 'planReviewed' reported!\nSession ID: 20260509045031,\nSession Dir: /Users/fujinoikki/Desktop/java_app/TraningApp/.github/java-upgrade/20260509045031"
+}}).
+2026-05-09T04:52:15.192Z [INFO] ----------------------invoked appmod-report-event----------------------
+2026-05-09T04:52:17.692Z [INFO] ---------------------prepare appmod-confirm-upgrade-plan----------------------
+2026-05-09T04:52:17.692Z [INFO] [Tool.prepareInvocation]({name: appmod-confirm-upgrade-plan, input: {
+  "sessionId": "20260509045031"
+}}).
+2026-05-09T04:52:17.692Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-05-09T04:52:17.692Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "Review [upgrade plan](/Users/fujinoikki/Desktop/java_app/TraningApp/.github/java-upgrade/20260509045031/plan.md)",
+  "confirmationMessages": {
+    "title": "Plan generated",
+    "message": "Please review the generated plan and make any necessary adjustments before proceeding. You can modify the generated [`plan.md`](/Users/fujinoikki/Desktop/java_app/TraningApp/.github/java-upgrade/20260509045031/plan.md) directly."
+  }
+}}).
+2026-05-09T04:52:17.692Z [INFO] ----------------------prepared appmod-confirm-upgrade-plan----------------------
+2026-05-09T04:52:44.296Z [INFO] ----------------------invoke appmod-confirm-upgrade-plan----------------------
+2026-05-09T04:52:44.297Z [INFO] [Tool.invoke]({name: appmod-confirm-upgrade-plan, modelId: auto, input: {
+  "sessionId": "20260509045031"
+}}).
+2026-05-09T04:52:44.297Z [INFO] [Tool.invoke] do invoke.
+2026-05-09T04:52:44.297Z [INFO] Upgrade plan confirmed successfully.
+2026-05-09T04:52:44.298Z [INFO] [Tool.invoke]({result: {
+  "message": "Generated plan is reviewed and confirmed by the user! the upgrade process will start now and be tracked in markdown file: /Users/fujinoikki/Desktop/java_app/TraningApp/.github/java-upgrade/20260509045031/progress.md."
+}}).
+2026-05-09T04:52:44.299Z [INFO] ----------------------invoked appmod-confirm-upgrade-plan----------------------
+2026-05-09T04:53:48.079Z [INFO] ---------------------prepare appmod-report-event----------------------
+2026-05-09T04:53:48.079Z [INFO] [Tool.prepareInvocation]({name: appmod-report-event, input: {
+  "sessionId": "20260509045031",
+  "projectPath": "/Users/fujinoikki/Desktop/java_app/TraningApp",
+  "event": "planExecutionStarted",
+  "phase": "execute",
+  "status": "succeeded"
+}}).
+2026-05-09T04:53:48.079Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-05-09T04:53:48.079Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "Report upgrade event"
+}}).
+2026-05-09T04:53:48.079Z [INFO] ----------------------prepared appmod-report-event----------------------
+2026-05-09T04:53:48.087Z [INFO] ----------------------invoke appmod-report-event----------------------
+2026-05-09T04:53:48.088Z [INFO] [Tool.invoke]({name: appmod-report-event, modelId: auto, input: {
+  "sessionId": "20260509045031",
+  "projectPath": "/Users/fujinoikki/Desktop/java_app/TraningApp",
+  "event": "planExecutionStarted",
+  "phase": "execute",
+  "status": "succeeded"
+}}).
+2026-05-09T04:53:48.088Z [INFO] [Tool.invoke] do invoke.
+2026-05-09T04:53:48.104Z [INFO] [Tool.invoke]({result: {
+  "message": "Event 'planExecutionStarted' reported!\nSession ID: 20260509045031,\nSession Dir: /Users/fujinoikki/Desktop/java_app/TraningApp/.github/java-upgrade/20260509045031"
+}}).
+2026-05-09T04:53:48.104Z [INFO] ----------------------invoked appmod-report-event----------------------
+2026-05-09T04:54:30.299Z [INFO] ---------------------prepare appmod-report-event----------------------
+2026-05-09T04:54:30.300Z [INFO] [Tool.prepareInvocation]({name: appmod-report-event, input: {
+  "sessionId": "20260509045031",
+  "projectPath": "/Users/fujinoikki/Desktop/java_app/TraningApp",
+  "event": "environmentSetup",
+  "phase": "execute",
+  "status": "succeeded",
+  "details": {
+    "jdkPath": "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home",
+    "buildToolPath": "."
+  }
+}}).
+2026-05-09T04:54:30.300Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-05-09T04:54:30.300Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "Report upgrade event"
+}}).
+2026-05-09T04:54:30.300Z [INFO] ----------------------prepared appmod-report-event----------------------
+2026-05-09T04:54:30.313Z [INFO] ----------------------invoke appmod-report-event----------------------
+2026-05-09T04:54:30.314Z [INFO] [Tool.invoke]({name: appmod-report-event, modelId: auto, input: {
+  "sessionId": "20260509045031",
+  "projectPath": "/Users/fujinoikki/Desktop/java_app/TraningApp",
+  "event": "environmentSetup",
+  "phase": "execute",
+  "status": "succeeded",
+  "details": {
+    "jdkPath": "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home",
+    "buildToolPath": "."
+  }
+}}).
+2026-05-09T04:54:30.314Z [INFO] [Tool.invoke] do invoke.
+2026-05-09T04:54:30.314Z [INFO] Project /Users/fujinoikki/Desktop/java_app/TraningApp is a maven project, try to get java version from pom.xml
+2026-05-09T04:54:30.315Z [INFO] [Tool.invoke]({result: {
+  "message": "Event 'environmentSetup' reported!\nSession ID: 20260509045031,\nSession Dir: /Users/fujinoikki/Desktop/java_app/TraningApp/.github/java-upgrade/20260509045031"
+}}).
+2026-05-09T04:54:30.315Z [INFO] ----------------------invoked appmod-report-event----------------------
+2026-05-09T04:54:30.316Z [INFO] Project java version: 21
+2026-05-09T04:54:30.316Z [INFO] Maven project detected.
+2026-05-09T04:54:30.316Z [INFO] Build tool type: mvnw
+2026-05-09T04:54:30.316Z [INFO] JDK: {
+  "name": "java",
+  "path": "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home/bin",
+  "version": "21"
+}
+2026-05-09T04:54:30.316Z [INFO] Build tool: {
+  "name": "mvnw",
+  "path": ".",
+  "version": ""
+}
+2026-05-09T04:54:30.316Z [INFO] Project config: {
+  "buildTool": {
+    "path": ".",
+    "name": "mvnw",
+    "version": ""
+  },
+  "jdk": {
+    "path": "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home/bin",
+    "name": "java",
+    "version": "21"
+  },
+  "name": "TraningApp",
+  "dir": "/Users/fujinoikki/Desktop/java_app/TraningApp"
+}

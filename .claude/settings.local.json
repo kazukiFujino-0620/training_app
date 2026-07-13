@@ -120,7 +120,10 @@
       "Bash(./mvnw -q -o compile -DskipTests)",
       "Bash(./mvnw -q compile -DskipTests)",
       "Bash(./mvnw -q compile)",
-      "Bash(echo \"compile exit: $?\")"
+      "Bash(echo \"compile exit: $?\")",
+      "Bash(gh pr *)",
+      "Bash(echo \"exit=$? \\(0=競合なし,1=競合あり\\)\")",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }
