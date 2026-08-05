@@ -1,16 +1,45 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Vibration,
-  SectionList, Alert, ActivityIndicator,
+  SectionList, Alert, ActivityIndicator, Platform, AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
+import * as Notifications from 'expo-notifications';
 import SetRow from '../components/SetRow';
 import { trainingApi } from '../api/client';
 import { clearTokens } from '../auth/tokenStore';
 import type { Training, TrainingDetail } from '../api/types';
+
+// フォアグラウンドでも通知バナーを表示し、通知センターに残す
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+async function setupNotificationChannel() {
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('interval-timer', {
+      name: 'インターバルタイマー',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 400, 150, 400, 150, 800],
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      enableVibrate: true,
+    });
+  }
+}
+
+async function requestNotificationPermission() {
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') {
+    await Notifications.requestPermissionsAsync();
+  }
+}
 
 const DEFAULT_INTERVAL = 120;
 const ADJUST_STEP = 30;
@@ -56,6 +85,31 @@ export default function TrainingStartScreen({ navigation }: Props) {
   const [showInterval, setShowInterval]         = useState(false);
   const intervalDurationRef = useRef(DEFAULT_INTERVAL);
   const intervalStartRef    = useRef<number>(0);
+  const notificationIdRef   = useRef<string | null>(null);
+
+  // ── 通知権限とチャンネル設定 ───────────────────────────────────────────────
+  useEffect(() => {
+    setupNotificationChannel();
+    requestNotificationPermission();
+  }, []);
+
+  // ── バックグラウンド復帰時にインターバル状態を同期 ─────────────────────
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && intervalRunning) {
+        const elapsed = (Date.now() - intervalStartRef.current) / 1000;
+        const left = Math.ceil(intervalDurationRef.current - elapsed);
+        if (left <= 0) {
+          setIntervalRunning(false);
+          setIntervalRemaining(0);
+          notificationIdRef.current = null;
+        } else {
+          setIntervalRemaining(left);
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [intervalRunning]);
 
   // ── データ取得 ──────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -93,6 +147,11 @@ export default function TrainingStartScreen({ navigation }: Props) {
       if (left <= 0) {
         setIntervalRunning(false);
         setIntervalRemaining(0);
+        // フォアグラウンド時はスケジュール通知をキャンセルして直接バイブ（通知は発火前の可能性もあるため）
+        if (notificationIdRef.current) {
+          Notifications.cancelScheduledNotificationAsync(notificationIdRef.current).catch(() => {});
+          notificationIdRef.current = null;
+        }
         Vibration.vibrate([0, 400, 150, 400, 150, 800]);
       } else {
         setIntervalRemaining(left);
@@ -101,28 +160,68 @@ export default function TrainingStartScreen({ navigation }: Props) {
     return () => clearInterval(id);
   }, [intervalRunning]);
 
+  // ── スケジュール済み通知をキャンセル ─────────────────────────────────────
+  async function cancelScheduledNotification() {
+    if (notificationIdRef.current) {
+      await Notifications.cancelScheduledNotificationAsync(notificationIdRef.current).catch(() => {});
+      notificationIdRef.current = null;
+    }
+  }
+
   // ── インターバル操作 ────────────────────────────────────────────────────────
-  function startInterval() {
+  async function startInterval() {
+    await cancelScheduledNotification();
+
     intervalDurationRef.current = intervalDuration;
     intervalStartRef.current = Date.now();
     setIntervalRemaining(intervalDuration);
     setIntervalRunning(true);
     setShowInterval(true);
+
+    // バックグラウンドでも発火するよう通知をスケジュール
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'インターバル終了！',
+        body: '次のセットを始めましょう',
+        sound: true,
+        vibrate: [0, 400, 150, 400, 150, 800],
+        ...(Platform.OS === 'android' && { channelId: 'interval-timer' }),
+      },
+      trigger: { seconds: intervalDuration, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
+    });
+    notificationIdRef.current = id;
   }
 
-  function resetInterval() {
+  async function resetInterval() {
+    await cancelScheduledNotification();
     setIntervalRunning(false);
     setIntervalRemaining(null);
   }
 
-  // 実行中は現在の残り時間にdeltaを加算（リセットしない）
-  const adjustInterval = useCallback((delta: number) => {
+  // 実行中は現在の残り時間にdeltaを加算（リセットしない）、通知もスケジュールし直す
+  const adjustInterval = useCallback(async (delta: number) => {
     if (intervalRunning) {
       const elapsed = (Date.now() - intervalStartRef.current) / 1000;
       const currentRemaining = Math.max(0, intervalDurationRef.current - elapsed);
       const newRemaining = Math.max(10, currentRemaining + delta);
       intervalDurationRef.current = elapsed + newRemaining;
       setIntervalRemaining(Math.ceil(newRemaining));
+
+      // 通知をスケジュールし直す
+      if (notificationIdRef.current) {
+        await Notifications.cancelScheduledNotificationAsync(notificationIdRef.current).catch(() => {});
+      }
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'インターバル終了！',
+          body: '次のセットを始めましょう',
+          sound: true,
+          vibrate: [0, 400, 150, 400, 150, 800],
+          ...(Platform.OS === 'android' && { channelId: 'interval-timer' }),
+        },
+        trigger: { seconds: Math.ceil(newRemaining), type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
+      });
+      notificationIdRef.current = id;
     } else {
       setIntervalDuration((prev) => Math.max(10, prev + delta));
     }
@@ -194,13 +293,14 @@ export default function TrainingStartScreen({ navigation }: Props) {
         onPress: async () => {
           try {
             for (const t of trainings) {
-              await trainingApi.completeTraining(t.id);
+              await trainingApi.completeTraining(t.id, sessionElapsed);
             }
             navigation.replace('Goal' as any, {
               date: new Date().toISOString().slice(0, 10),
               totalSets,
               completedSets,
               totalVolume,
+              sessionElapsed,
             });
           } catch {
             Alert.alert('エラー', '完了処理に失敗しました');

@@ -12,8 +12,18 @@ type Props = {
   route: RouteProp<AppStackParamList, 'Goal'>;
 };
 
+function fmtDuration(sec: number): string {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 export default function GoalScreen({ navigation, route }: Props) {
-  const { totalSets = 0, completedSets = 0, totalVolume = 0 } = route.params;
+  const { totalSets = 0, completedSets = 0, totalVolume = 0, sessionElapsed } = route.params;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -23,6 +33,9 @@ export default function GoalScreen({ navigation, route }: Props) {
         <Text style={styles.subtitle}>お疲れさまでした</Text>
 
         <View style={styles.card}>
+          {sessionElapsed != null && sessionElapsed > 0 && (
+            <StatRow label="トレーニング時間" value={fmtDuration(sessionElapsed)} />
+          )}
           <StatRow label="完了セット数" value={`${completedSets} セット`} />
           <StatRow label="総ボリューム" value={`${totalVolume.toLocaleString()} kg`} />
         </View>
