@@ -594,26 +594,26 @@
             </div>
 
             <!-- 疲労テーブル -->
-            <div style="padding:4px 16px 8px;">
+            <div style="padding:4px 16px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
               <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
                 <thead>
                   <tr style="border-bottom:1px solid var(--border-color);">
-                    <th style="text-align:left;padding:10px 0 8px;color:var(--text-muted);font-weight:600;font-size:0.72rem;letter-spacing:0.8px;">部位</th>
-                    <th style="text-align:right;padding:10px 0 8px;color:var(--text-muted);font-weight:600;font-size:0.72rem;letter-spacing:0.8px;">ボリューム</th>
-                    <th style="text-align:right;padding:10px 0 8px;color:var(--text-muted);font-weight:600;font-size:0.72rem;letter-spacing:0.8px;">セット数</th>
+                    <th style="text-align:left;padding:10px 0 8px;color:var(--text-muted);font-weight:600;font-size:0.72rem;letter-spacing:0.8px;white-space:nowrap;">部位</th>
+                    <th style="text-align:right;padding:10px 0 8px;color:var(--text-muted);font-weight:600;font-size:0.72rem;letter-spacing:0.8px;white-space:nowrap;">ボリューム</th>
+                    <th style="text-align:right;padding:10px 0 8px;color:var(--text-muted);font-weight:600;font-size:0.72rem;letter-spacing:0.8px;white-space:nowrap;">セット数</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr th:each="row : ${fatigueRows}" style="border-bottom:1px solid var(--border-color);">
-                    <td style="padding:11px 0;">
+                    <td style="padding:11px 0;white-space:nowrap;">
                       <div style="display:flex;align-items:center;gap:10px;">
                         <span class="fatigue-dot" th:attr="data-part=${row.partCode}"
                               style="width:12px;height:12px;border-radius:3px;background:#b0bec5;display:inline-block;flex-shrink:0;transition:background 0.4s ease;"></span>
                         <span style="color:var(--text-primary);font-weight:500;" th:text="${row.partName}">部位</span>
                       </div>
                     </td>
-                    <td style="padding:11px 0;text-align:right;color:var(--text-secondary);" th:text="${row.volume} + ' kg'">0 kg</td>
-                    <td style="padding:11px 0;text-align:right;color:var(--text-secondary);" th:text="${row.sets} + ' set'">0 set</td>
+                    <td style="padding:11px 0;text-align:right;color:var(--text-secondary);white-space:nowrap;" th:text="${row.volume} + ' kg'">0 kg</td>
+                    <td style="padding:11px 0;text-align:right;color:var(--text-secondary);white-space:nowrap;" th:text="${row.sets} + ' set'">0 set</td>
                   </tr>
                 </tbody>
               </table>

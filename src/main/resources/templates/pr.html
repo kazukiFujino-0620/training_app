@@ -32,6 +32,7 @@
         overflow: hidden;
         box-shadow: 0 4px 32px rgba(0,0,0,0.15);
       }
+      .pr-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
       .pr-table { width: 100%; border-collapse: collapse; }
       .pr-table thead tr {
         border-bottom: 1px solid var(--border-color);
@@ -43,6 +44,7 @@
         font-size: 0.8rem;
         font-weight: 600;
         letter-spacing: 0.05em;
+        white-space: nowrap;
       }
       .pr-table th.num { text-align: right; }
       .pr-table td {
@@ -50,6 +52,7 @@
         color: var(--text-primary);
         font-size: 0.9rem;
         border-top: 1px solid var(--border-color);
+        white-space: nowrap;
       }
       .pr-table td.num { text-align: right; }
       .pr-table tbody tr:nth-child(even) {
@@ -171,6 +174,7 @@
 
         <!-- データあり -->
         <div th:if="${not #lists.isEmpty(records)}">
+          <div class="pr-table-wrapper">
           <table class="pr-table">
             <thead>
               <tr>
@@ -250,6 +254,7 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
 
         <!-- データなし -->
