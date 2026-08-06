@@ -51,6 +51,9 @@ type TrainingSection = {
   title: string;
   partCode: string;
   data: TrainingDetail[];
+  supersetGroupId: number | null;
+  /** スーパーセット内での役割（登録順=trainings.id昇順で決定）。ペア無しはnull */
+  supersetRole: 'A' | 'B' | null;
 };
 
 const PART_LABELS: Record<string, string> = {
@@ -450,13 +453,37 @@ export default function TrainingStartScreen({ navigation }: Props) {
   }
 
   // ── 表示データ ──────────────────────────────────────────────────────────────
-  const sections: TrainingSection[] = trainings.map((t) => ({
-    key: String(t.id),
-    trainingId: t.id,
-    title: t.menu,
-    partCode: t.partCode,
-    data: t.details,
-  }));
+  // F-M2: グループ内の役割は trainings.id 昇順（登録順）で A/B を決定する
+  const sections: TrainingSection[] = trainings.map((t) => {
+    const groupId = t.supersetGroupId ?? null;
+    let role: 'A' | 'B' | null = null;
+    if (groupId != null) {
+      const groupMemberIds = trainings
+        .filter((o) => o.supersetGroupId === groupId)
+        .map((o) => o.id)
+        .sort((a, b) => a - b);
+      role = groupMemberIds[0] === t.id ? 'A' : 'B';
+    }
+    return {
+      key: String(t.id),
+      trainingId: t.id,
+      title: t.menu,
+      partCode: t.partCode,
+      data: t.details,
+      supersetGroupId: groupId,
+      supersetRole: role,
+    };
+  });
+
+  async function handleUngroupSuperset(supersetGroupId: number) {
+    try {
+      await trainingApi.ungroupSuperset(supersetGroupId);
+      setTrainings((prev) =>
+        prev.map((t) => (t.supersetGroupId === supersetGroupId ? { ...t, supersetGroupId: null } : t)));
+    } catch {
+      Alert.alert('エラー', 'スーパーセットの解除に失敗しました');
+    }
+  }
 
   const intervalDisplay  = intervalRemaining !== null ? intervalRemaining : intervalDuration;
   const intervalFinished = intervalRemaining === 0;
@@ -584,7 +611,15 @@ export default function TrainingStartScreen({ navigation }: Props) {
 
         // ── セクションヘッダー：種目名 ──────────────────────────────────────
         renderSectionHeader={({ section }) => (
-          <View style={styles.sectionHeaderWrap}>
+          <View style={[styles.sectionHeaderWrap, section.supersetGroupId != null && styles.sectionHeaderSuperset]}>
+            {section.supersetRole && (
+              <View style={styles.supersetRow}>
+                <Text style={styles.supersetBadge}>SUPER {section.supersetRole}</Text>
+                <TouchableOpacity onPress={() => handleUngroupSuperset(section.supersetGroupId!)}>
+                  <Text style={styles.supersetUngroupText}>解除</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <Text style={styles.partBadge}>
               {PART_LABELS[section.partCode] ?? section.partCode}
             </Text>
@@ -606,7 +641,20 @@ export default function TrainingStartScreen({ navigation }: Props) {
             <SetRow
               detail={item}
               onUpdated={(updated) => handleDetailUpdated(section.trainingId, updated)}
-              onCompleted={startInterval}
+              onCompleted={(recommendedSeconds) => {
+                // F-M2: スーパーセットのA種目セット完了時はインターバルを開始せず、
+                // B種目への誘導のみ行う。B種目完了（1ラウンド完了）時に通常通り開始する。
+                if (section.supersetRole === 'A') {
+                  const partner = sections.find(
+                    (s) => s.supersetGroupId === section.supersetGroupId && s.supersetRole === 'B');
+                  Vibration.vibrate(50);
+                  if (partner) {
+                    Alert.alert('次のセットへ', `次: ${partner.title} をやりましょう（休憩なし）`);
+                  }
+                  return;
+                }
+                startInterval(recommendedSeconds);
+              }}
               onDelete={() => handleDeleteSet(section.trainingId, item.id)}
               canDelete={section.data.length > 1}
             />
@@ -733,6 +781,16 @@ const styles = StyleSheet.create({
     borderRadius: 8, fontWeight: '600', marginBottom: 4,
   },
   menuName: { fontSize: 18, fontWeight: '800', color: '#222', marginBottom: 10 },
+  // F-M2: スーパーセット
+  sectionHeaderSuperset: { borderColor: '#7c3aed', borderStyle: 'dashed', borderWidth: 2, borderBottomWidth: 0 },
+  supersetRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6,
+  },
+  supersetBadge: {
+    fontSize: 11, fontWeight: '700', color: '#fff', backgroundColor: '#7c3aed',
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+  },
+  supersetUngroupText: { fontSize: 12, color: '#999', textDecorationLine: 'underline' },
   tableHeaderRow: {
     flexDirection: 'row', paddingBottom: 8,
     borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 8, gap: 8,

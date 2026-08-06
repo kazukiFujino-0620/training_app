@@ -367,6 +367,47 @@ public class MobileTrainingController {
     return ResponseEntity.ok(result);
   }
 
+  // ── スーパーセット（F-M2） ────────────────────────────────────────────────
+
+  /** 当日の未グループ化種目一覧を取得する（ペアリング候補）。 */
+  @GetMapping("/superset/candidates")
+  public ResponseEntity<List<Training>> getSupersetCandidates(
+      @AuthenticationPrincipal Long userId, @RequestParam String date) {
+    LocalDate targetDate = LocalDate.parse(date);
+    return ResponseEntity.ok(trainingService.getCandidatesForSuperset(userId, targetDate));
+  }
+
+  /** 2種目をスーパーセットとしてグループ化する。 */
+  @PostMapping("/superset/group")
+  @Transactional
+  @AuditLog(action = "MOBILE_SUPERSET_GROUP", targetTable = "trainings")
+  public ResponseEntity<?> groupSuperset(
+      @AuthenticationPrincipal Long userId, @RequestBody java.util.Map<String, List<Long>> body) {
+    List<Long> trainingIds = body.get("trainingIds");
+    try {
+      Long groupId = trainingService.groupSuperset(trainingIds, userId);
+      return ResponseEntity.ok(java.util.Map.of("supersetGroupId", groupId));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+    }
+  }
+
+  /** スーパーセットのグループ化を解除する。 */
+  @PostMapping("/superset/ungroup")
+  @Transactional
+  @AuditLog(action = "MOBILE_SUPERSET_UNGROUP", targetTable = "trainings")
+  public ResponseEntity<?> ungroupSuperset(
+      @AuthenticationPrincipal Long userId, @RequestBody java.util.Map<String, Long> body) {
+    Long supersetGroupId = body.get("supersetGroupId");
+    if (supersetGroupId == null) return ResponseEntity.badRequest().build();
+    try {
+      trainingService.ungroupSuperset(supersetGroupId, userId);
+      return ResponseEntity.noContent().build();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+    }
+  }
+
   private boolean isOwnedByUser(TrainingDetail detail, Long userId) {
     Training training = trainingDao.selectById(detail.getTrainingId());
     return training != null && userId.equals(training.getUserId());

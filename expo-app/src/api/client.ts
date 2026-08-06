@@ -108,6 +108,10 @@ export const trainingApi = {
     client.delete(`/training/sets/${id}`),
   getTrainingHistory: (itemName: string) =>
     client.get<TrainingHistory[]>('/training/history', { params: { itemName } }),
+  groupSuperset: (trainingIds: number[]) =>
+    client.post<{ supersetGroupId: number }>('/training/superset/group', { trainingIds }),
+  ungroupSuperset: (supersetGroupId: number) =>
+    client.post('/training/superset/ungroup', { supersetGroupId }),
 };
 
 export const masterApi = {

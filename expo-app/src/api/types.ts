@@ -47,6 +47,8 @@ export interface Training {
   trainingDate: string;
   duration?: string;
   details: TrainingDetail[];
+  /** スーパーセットグループID（F-M2）。NULL=単独種目、同値=同一グループ */
+  supersetGroupId?: number | null;
 }
 
 export interface AddSetRequest {
