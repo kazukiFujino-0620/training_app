@@ -289,7 +289,9 @@ export default function TrainingStartScreen({ navigation }: Props) {
   }, [intervalRunning]);
 
   // ── インターバル操作 ────────────────────────────────────────────────────────
-  async function startInterval() {
+  // recommendedSeconds: F4 サーバー推奨値（重量/自己ベスト比率ベース）。
+  // 手動スタートボタンの onPress からは GestureResponderEvent が渡るため、number 以外は無視する。
+  async function startInterval(recommendedSeconds?: unknown) {
     // 初セット完了時にセッションタイマーを自動開始
     if (!sessionStartedRef.current) {
       const now = Date.now();
@@ -311,9 +313,11 @@ export default function TrainingStartScreen({ navigation }: Props) {
       silenceSoundRef.current = sil;
       await sil.playAsync();
     } catch {}
-    intervalDurationRef.current = intervalDuration;
+    const duration =
+      typeof recommendedSeconds === 'number' ? recommendedSeconds : intervalDuration;
+    intervalDurationRef.current = duration;
     intervalStartRef.current = Date.now();
-    setIntervalRemaining(intervalDuration);
+    setIntervalRemaining(duration);
     setIntervalRunning(true);
     setShowInterval(true);
   }
