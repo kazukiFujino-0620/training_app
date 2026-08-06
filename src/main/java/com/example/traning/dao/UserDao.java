@@ -45,6 +45,9 @@ public interface UserDao {
   @Update(sqlFile = true)
   int restoreById(Integer userId);
 
+  @Select
+  List<User> selectDeleted();
+
   @Update(sqlFile = true)
   Result<User> updateProfile(User user);
 

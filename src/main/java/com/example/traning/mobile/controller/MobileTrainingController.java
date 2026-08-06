@@ -195,6 +195,7 @@ public class MobileTrainingController {
     // PR更新チェック（セット完了かつ重量・回数が指定された場合）
     boolean isPR = false;
     String prMessage = null;
+    Integer recommendedIntervalSeconds = null;
     if (Boolean.TRUE.equals(req.getIsCompleted())
         && req.getWeight() != null
         && req.getWeight() > 0
@@ -202,6 +203,13 @@ public class MobileTrainingController {
       try {
         Optional<PersonalRecord> before =
             personalRecordService.getByUserIdAndItem(userId, training.getMenu());
+
+        double maxWeight =
+            before.isPresent()
+                ? Math.max(before.get().getMaxWeight(), req.getWeight())
+                : req.getWeight();
+        recommendedIntervalSeconds = calculateRecommendedIntervalSeconds(req.getWeight(), maxWeight);
+
         personalRecordService.updateIfBetter(
             userId, training.getMenu(), req.getWeight(), req.getReps(), LocalDate.now());
         if (before.isEmpty() || req.getWeight() > before.get().getMaxWeight()) {
@@ -215,7 +223,23 @@ public class MobileTrainingController {
 
     boolean completed =
         req.getIsCompleted() != null ? req.getIsCompleted() : detail.getIsCompleted();
-    return ResponseEntity.ok(new SetUpdateResponse(id, completed, isPR, prMessage));
+    return ResponseEntity.ok(
+        new SetUpdateResponse(id, completed, isPR, prMessage, recommendedIntervalSeconds));
+  }
+
+  /**
+   * F4: インターバル推奨通知。
+   * 重量 / 自己ベスト重量の比率で負荷を3段階に分類し、休憩時間を提案する。
+   * WHOOP・Polar・Garmin等が特許を持つ生体信号ベースの回復時間推定とは異なり、
+   * 単純な重量比率のみを使う静的カテゴリ分けのため特許抵触リスクなし
+   * （feature-gap-analysis §2-2 の代案方針に準拠）。
+   */
+  private Integer calculateRecommendedIntervalSeconds(double weight, double maxWeight) {
+    if (maxWeight <= 0) return null;
+    double ratio = weight / maxWeight;
+    if (ratio >= 0.85) return 180;
+    if (ratio >= 0.6) return 90;
+    return 60;
   }
 
   /**
