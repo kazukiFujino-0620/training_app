@@ -96,7 +96,7 @@ public class MasterUpdateService {
   }
 
   @Transactional
-  public void importCsv(File file, List<TrainingMaster> existingParts) throws Exception {
+  public int importCsv(File file, List<TrainingMaster> existingParts) throws Exception {
     // ファイルパスの検証（セキュリティ対策）
     try {
       file = validateAndNormalizeFilePath(file.getAbsolutePath());
@@ -129,12 +129,12 @@ public class MasterUpdateService {
     logger.info("CSVファイル読み込み完了 - 新規データ件数: {}", itemList.size());
 
     // 5. リストが空でなければDBへ保存（UPSERT）
+    int totalProcessed = 0;
     if (!itemList.isEmpty()) {
       // バッチ処理でパフォーマンス向上
       List<List<TrainingItemMaster>> batches = createBatches(itemList, 100);
       logger.info("バッチ処理開始 - バッチ数: {}", batches.size());
 
-      int totalProcessed = 0;
       for (int i = 0; i < batches.size(); i++) {
         List<TrainingItemMaster> batch = batches.get(i);
         trainingMasterDao.batchUpsert(batch);
@@ -148,6 +148,7 @@ public class MasterUpdateService {
     }
 
     logger.info("CSVインポート完了");
+    return totalProcessed;
   }
 
   private List<TrainingItemMaster> readCsvFile(

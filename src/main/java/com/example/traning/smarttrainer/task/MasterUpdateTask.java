@@ -29,9 +29,21 @@ public class MasterUpdateTask {
   @Value("${batch.master.update.file-path}")
   private String filePath;
 
+  /** バッチ実行結果。管理画面からの手動起動時に結果をユーザーへ表示するために使用する。 */
+  public record MasterUpdateResult(boolean success, int processedCount, String message) {}
+
   @Scheduled(cron = "${batch.master.update.cron}")
-  public void executeMasterUpdate() {
-    logger.info("=== 夜間マスタ更新バッチ 開始 ===");
+  public void scheduledMasterUpdate() {
+    executeMasterUpdate();
+  }
+
+  /**
+   * マスタ更新処理の本体。夜間バッチ（cron）と管理画面からの手動起動の両方から呼び出される共通ロジック。
+   *
+   * @return 実行結果（成功可否・処理件数・メッセージ）
+   */
+  public MasterUpdateResult executeMasterUpdate() {
+    logger.info("=== マスタ更新バッチ 開始 ===");
 
     try {
       // ファイルパスの検証を試行
@@ -41,15 +53,15 @@ public class MasterUpdateTask {
         file = masterUpdateService.validateAndNormalizeFilePath(filePath);
       } catch (Exception e) {
         logger.error("ファイルパス検証失敗: {}", e.getMessage());
-        logger.error("=== 夜間マスタ更新バッチ 異常終了 ===");
-        return;
+        logger.error("=== マスタ更新バッチ 異常終了 ===");
+        return new MasterUpdateResult(false, 0, "ファイルパスの検証に失敗しました: " + e.getMessage());
       }
 
       logger.debug("CSVファイルパス確認: {}", file.getAbsolutePath());
 
       if (!file.exists()) {
         logger.warn("更新用CSVファイルが見つかりません。パス: {}", file.getAbsolutePath());
-        return;
+        return new MasterUpdateResult(false, 0, "更新用CSVファイルが見つかりません。先にCSVファイルをアップロードしてください。");
       }
 
       logger.info("CSVファイルを確認: 存在します - サイズ: {} bytes", file.length());
@@ -63,13 +75,15 @@ public class MasterUpdateTask {
       }
 
       logger.info("ファイルを正常に検知しました。処理を開始します。");
-      masterUpdateService.importCsv(file, trainingMasterList);
+      int processedCount = masterUpdateService.importCsv(file, trainingMasterList);
 
-      logger.info("=== 夜間マスタ更新バッチ 正常終了 ===");
+      logger.info("=== マスタ更新バッチ 正常終了 ===");
+      return new MasterUpdateResult(true, processedCount, processedCount + " 件のマスタデータを取り込みました。");
 
     } catch (Exception e) {
       logger.error("バッチ処理中にエラーが発生しました", e);
-      logger.error("=== 夜間マスタ更新バッチ 異常終了 ===");
+      logger.error("=== マスタ更新バッチ 異常終了 ===");
+      return new MasterUpdateResult(false, 0, "処理中にエラーが発生しました: " + e.getMessage());
     }
   }
 
