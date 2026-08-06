@@ -444,6 +444,9 @@ body {
   visibility: hidden;
   transform: translateY(-10px);
   transition: all var(--transition-fast);
+  max-height: 50vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .settings-dropdown.show {
@@ -457,6 +460,9 @@ body {
   border-bottom: 1px solid var(--border-color);
   cursor: pointer;
   transition: background-color var(--transition-fast);
+  color: var(--text-primary);
+  text-decoration: none;
+  display: block;
 }
 
 .settings-item:last-child {
