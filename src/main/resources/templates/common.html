@@ -17,8 +17,8 @@
                     </div>
                 </div>
                 
-                <!-- Settings Gear Button -->
-                <div class="relative">
+                <!-- Settings Gear Button（メニュー画面のみ表示。ヘッダーのposition:stickyがメニュー画面以外では期待通り機能しないため、結合試験結果を受けて表示範囲をメニュー画面に限定） -->
+                <div class="relative" th:if="${currentUri == '/menu'}">
                     <button class="settings-btn" aria-label="設定">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>

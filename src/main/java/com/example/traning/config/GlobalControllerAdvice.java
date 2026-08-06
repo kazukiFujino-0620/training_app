@@ -3,6 +3,7 @@ package com.example.traning.config;
 import com.example.traning.dao.UserDao;
 import com.example.traning.retention.RetentionPolicyException;
 import com.example.traning.user.User;
+import jakarta.servlet.http.HttpServletRequest;
 import java.security.Principal;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,12 @@ public class GlobalControllerAdvice {
             user -> {
               model.addAttribute("loginUser", new LoginUserView(user));
             });
+  }
+
+  /** 共通ヘッダー（設定歯車アイコン等）の表示制御に使うため、現在のリクエストパスを全テンプレートに渡す。 */
+  @ModelAttribute("currentUri")
+  public String addCurrentUriToModel(HttpServletRequest request) {
+    return request.getRequestURI();
   }
 
   // ── 例外ハンドラー ──────────────────────────────────────────────────────
