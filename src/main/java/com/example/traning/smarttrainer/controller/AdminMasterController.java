@@ -102,7 +102,7 @@ public class AdminMasterController {
     return "redirect:/admin/master";
   }
 
-  /** 現在のマスタデータを、取り込み用CSVと同じ形式（part_code,item_name）でダウンロードする。 */
+  /** 現在のマスタデータを、取り込み用CSVと同じ形式（part_code,item_name,master_flg）でダウンロードする。 */
   @AuditLog(action = "ADMIN_MASTER_CSV_EXPORT", targetTable = "training_item_master")
   @GetMapping("/export/csv")
   public void exportCsv(HttpServletResponse response) throws IOException {
@@ -118,9 +118,10 @@ public class AdminMasterController {
     try (CSVPrinter printer =
         new CSVPrinter(
             new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8), format)) {
-      printer.printRecord("part_code", "item_name");
+      printer.printRecord("part_code", "item_name", "master_flg");
       for (TrainingItemMaster item : items) {
-        printer.printRecord(item.getPartCode(), item.getItemName());
+        printer.printRecord(
+            item.getPartCode(), item.getItemName(), item.getMasterFlg() != null ? item.getMasterFlg() : 1);
       }
     }
   }

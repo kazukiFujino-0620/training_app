@@ -1,0 +1,1 @@
+SELECT * FROM training_item_master WHERE part_code = /* partCode */'CHEST' AND master_flg = 1 ORDER BY display_order

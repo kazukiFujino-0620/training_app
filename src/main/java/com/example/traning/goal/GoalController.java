@@ -2,6 +2,7 @@ package com.example.traning.goal;
 
 import com.example.traning.audit.AuditLog;
 import com.example.traning.dao.TrainingMasterDao;
+import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
@@ -43,9 +44,12 @@ public class GoalController {
         goalService.listGoalsWithProgress(loginUser.getUserId().longValue());
 
     List<TrainingMaster> parts = trainingMasterDao.selectAllParts();
-    Map<String, List<TrainingMaster>> itemsByPart =
-        trainingMasterDao.selectAll().stream()
-            .collect(Collectors.groupingBy(TrainingMaster::getPartCode));
+    Map<String, List<TrainingItemMaster>> itemsByPart =
+        parts.stream()
+            .collect(
+                Collectors.toMap(
+                    TrainingMaster::getPartCode,
+                    part -> trainingMasterDao.selectActiveItemsByPart(part.getPartCode())));
 
     model.addAttribute("loginUser", loginUser);
     model.addAttribute("goals", goals);
@@ -71,9 +75,12 @@ public class GoalController {
         result.reject("goal.target.required", "目標重量または目標回数のどちらかを入力してください");
       }
       List<TrainingMaster> parts = trainingMasterDao.selectAllParts();
-      Map<String, List<TrainingMaster>> itemsByPart =
-          trainingMasterDao.selectAll().stream()
-              .collect(Collectors.groupingBy(TrainingMaster::getPartCode));
+      Map<String, List<TrainingItemMaster>> itemsByPart =
+          parts.stream()
+              .collect(
+                  Collectors.toMap(
+                      TrainingMaster::getPartCode,
+                      part -> trainingMasterDao.selectActiveItemsByPart(part.getPartCode())));
       model.addAttribute("loginUser", loginUser);
       model.addAttribute(
           "goals", goalService.listGoalsWithProgress(loginUser.getUserId().longValue()));

@@ -318,7 +318,17 @@ public class MenuController {
 
   @GetMapping("/api/training-items")
   @ResponseBody
-  public List<TrainingItemMaster> getItems(@RequestParam String partCode) {
+  public List<TrainingItemMaster> getItems(
+      @RequestParam String partCode,
+      @RequestParam(required = false)
+          @org.springframework.format.annotation.DateTimeFormat(
+              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+          LocalDate date) {
+    // date が本日以降の場合のみ、使用可能（master_flg=1）な種目に絞り込む。
+    // date未指定・過去日付の場合は従来通り全件返す（過去記録の閲覧・編集に影響させないため）。
+    if (date != null && !date.isBefore(LocalDate.now())) {
+      return trainingMasterDao.selectActiveItemsByPart(partCode);
+    }
     return trainingMasterDao.selectItemsByPart(partCode);
   }
 
@@ -639,12 +649,21 @@ public class MenuController {
 
   @GetMapping("/api/training-items-grouped")
   @ResponseBody
-  public Map<String, List<TrainingItemMaster>> getTrainingItemsGrouped() {
+  public Map<String, List<TrainingItemMaster>> getTrainingItemsGrouped(
+      @RequestParam(required = false)
+          @org.springframework.format.annotation.DateTimeFormat(
+              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+          LocalDate date) {
     List<TrainingMaster> parts = trainingMasterDao.selectAllParts();
     Map<String, List<TrainingItemMaster>> groupedItems = new java.util.HashMap<>();
+    // date が本日以降の場合のみ、使用可能（master_flg=1）な種目に絞り込む（/api/training-items と同じ方針）。
+    boolean activeOnly = date != null && !date.isBefore(LocalDate.now());
 
     for (TrainingMaster part : parts) {
-      List<TrainingItemMaster> items = trainingMasterDao.selectItemsByPart(part.getPartCode());
+      List<TrainingItemMaster> items =
+          activeOnly
+              ? trainingMasterDao.selectActiveItemsByPart(part.getPartCode())
+              : trainingMasterDao.selectItemsByPart(part.getPartCode());
       groupedItems.put(part.getPartCode(), items);
     }
 

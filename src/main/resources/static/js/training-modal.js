@@ -1059,7 +1059,9 @@ function updateItems(partCode) {
         }
         return Promise.resolve([]);
     }
-    return fetch('/api/training-items?partCode=' + partCode)
+    const modalDate = document.getElementById('modalDate')?.value || '';
+    const dateQuery = modalDate ? '&date=' + encodeURIComponent(modalDate) : '';
+    return fetch('/api/training-items?partCode=' + partCode + dateQuery)
         .then(response => response.json())
         .then(items => {
             if (!menuSelect) return items;
