@@ -1,6 +1,8 @@
 package com.example.traning.smarttrainer.task;
 
 import com.example.traning.dao.UserDao;
+import com.example.traning.mobile.dao.MobileDeviceTokenDao;
+import com.example.traning.mobile.dao.MobileRefreshTokenDao;
 import com.example.traning.retention.DataRetentionService;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
@@ -17,16 +19,22 @@ public class DataRetentionCleanupTask {
   private final TrainingDetailDao trainingDetailDao;
   private final TrainingDao trainingDao;
   private final UserDao userDao;
+  private final MobileRefreshTokenDao mobileRefreshTokenDao;
+  private final MobileDeviceTokenDao mobileDeviceTokenDao;
   private final DataRetentionService dataRetentionService;
 
   public DataRetentionCleanupTask(
       TrainingDetailDao trainingDetailDao,
       TrainingDao trainingDao,
       UserDao userDao,
+      MobileRefreshTokenDao mobileRefreshTokenDao,
+      MobileDeviceTokenDao mobileDeviceTokenDao,
       DataRetentionService dataRetentionService) {
     this.trainingDetailDao = trainingDetailDao;
     this.trainingDao = trainingDao;
     this.userDao = userDao;
+    this.mobileRefreshTokenDao = mobileRefreshTokenDao;
+    this.mobileDeviceTokenDao = mobileDeviceTokenDao;
     this.dataRetentionService = dataRetentionService;
   }
 
@@ -37,11 +45,21 @@ public class DataRetentionCleanupTask {
     LocalDateTime cutoff = dataRetentionService.getRetentionCutoff();
     log.info("データ保護期間超過レコードの物理削除開始 - 基準日時: {}", cutoff);
 
+    // users を削除するとJOINできなくなるため、モバイルトークンはusers削除より先に処理する
+    int refreshTokenCount = mobileRefreshTokenDao.deleteExpiredPhysically(cutoff);
+    int deviceTokenCount = mobileDeviceTokenDao.deleteExpiredPhysically(cutoff);
+
     // 外部キー制約があるため training_details を先に削除する
     int detailCount = trainingDetailDao.deleteExpiredPhysically(cutoff);
     int trainingCount = trainingDao.deleteExpiredPhysically(cutoff);
     int userCount = userDao.deleteExpiredPhysically(cutoff);
 
-    log.info("物理削除完了 - 詳細: {} 件, トレーニング: {} 件, ユーザー: {} 件", detailCount, trainingCount, userCount);
+    log.info(
+        "物理削除完了 - 詳細: {} 件, トレーニング: {} 件, ユーザー: {} 件, モバイルリフレッシュトークン: {} 件, モバイルデバイストークン: {} 件",
+        detailCount,
+        trainingCount,
+        userCount,
+        refreshTokenCount,
+        deviceTokenCount);
   }
 }

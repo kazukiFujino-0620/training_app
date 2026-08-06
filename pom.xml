@@ -27,33 +27,6 @@
 			<spotless.version>2.43.0</spotless.version>
 		</properties>
 
-		<profiles>
-			<profile>
-				<id>local</id>
-				<activation>
-					<activeByDefault>true</activeByDefault>
-				</activation>
-				<properties>
-					<db.url>jdbc:mysql://localhost:3306/training_db?serverTimezone=Asia/Tokyo</db.url>
-					<db.username>root</db.username>
-					<db.password></db.password>
-					<db.driver-class-name>com.mysql.cj.jdbc.Driver</db.driver-class-name>
-				</properties>
-			</profile>
-			<profile>
-				<id>GCP</id>
-				<activation>
-					<activeByDefault>false</activeByDefault>
-				</activation>
-				<properties>
-					<db.url>jdbc:mysql://127.0.0.1:3306/training_db?serverTimezone=Asia/Tokyo</db.url>
-					<db.username>springuser</db.username>
-					<db.password>ENC(D+5u5m2vX0P68vE4R3K5uA==)</db.password>
-					<db.driver-class-name>com.mysql.cj.jdbc.Driver</db.driver-class-name>
-				</properties>
-			</profile>
-		</profiles>
-
 	<dependencies>
 		<dependency>
 		    <groupId>org.seasar.doma.boot</groupId>

@@ -10,5 +10,6 @@ WHERE t.user_id       = /* userId */0
                           AND /* endDate */'2026-12-31'
   AND t.deleted_at    IS NULL
   AND td.deleted_at   IS NULL
+  AND td.is_completed = 1
 GROUP BY  YEARWEEK(t.training_date, 3)
 ORDER BY  YEARWEEK(t.training_date, 3)

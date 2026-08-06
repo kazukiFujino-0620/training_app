@@ -6,6 +6,8 @@ import com.example.traning.forgetpassword.dao.PasswordResetTokenDao;
 import com.example.traning.goal.GoalDao;
 import com.example.traning.mfa.MfaBackupCodeDao;
 import com.example.traning.mfa.MfaSettingDao;
+import com.example.traning.mobile.dao.MobileDeviceTokenDao;
+import com.example.traning.mobile.dao.MobileRefreshTokenDao;
 import com.example.traning.pr.dao.PersonalRecordDao;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
@@ -33,6 +35,8 @@ public class WithdrawalService {
   private final MfaBackupCodeDao mfaBackupCodeDao;
   private final PasswordResetTokenDao passwordResetTokenDao;
   private final AccountRestoreTokenDao accountRestoreTokenDao;
+  private final MobileRefreshTokenDao mobileRefreshTokenDao;
+  private final MobileDeviceTokenDao mobileDeviceTokenDao;
   private final MailService mailService;
 
   public WithdrawalService(
@@ -46,6 +50,8 @@ public class WithdrawalService {
       MfaBackupCodeDao mfaBackupCodeDao,
       PasswordResetTokenDao passwordResetTokenDao,
       AccountRestoreTokenDao accountRestoreTokenDao,
+      MobileRefreshTokenDao mobileRefreshTokenDao,
+      MobileDeviceTokenDao mobileDeviceTokenDao,
       MailService mailService) {
     this.withdrawalRequestDao = withdrawalRequestDao;
     this.userDao = userDao;
@@ -57,6 +63,8 @@ public class WithdrawalService {
     this.mfaBackupCodeDao = mfaBackupCodeDao;
     this.passwordResetTokenDao = passwordResetTokenDao;
     this.accountRestoreTokenDao = accountRestoreTokenDao;
+    this.mobileRefreshTokenDao = mobileRefreshTokenDao;
+    this.mobileDeviceTokenDao = mobileDeviceTokenDao;
     this.mailService = mailService;
   }
 
@@ -154,6 +162,10 @@ public class WithdrawalService {
     // ⑦ パスワードリセット・アカウント復元トークンを物理削除
     passwordResetTokenDao.deleteByUserId(req.getUserId().intValue());
     accountRestoreTokenDao.deleteByUserId(req.getUserId().intValue());
+
+    // ⑧ モバイルのリフレッシュトークン・デバイストークン（プッシュ通知用）を物理削除
+    mobileRefreshTokenDao.deleteByUserId(req.getUserId());
+    mobileDeviceTokenDao.deleteByUserId(req.getUserId());
 
     // ⑨ 申請ステータスを APPROVED に更新
     req.setStatus("APPROVED");

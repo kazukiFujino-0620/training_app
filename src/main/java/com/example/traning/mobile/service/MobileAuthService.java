@@ -13,11 +13,7 @@ import com.example.traning.user.User;
 import com.example.traning.user.service.LoginAttemptService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
-import java.util.HexFormat;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -101,6 +97,13 @@ public class MobileAuthService {
     Long userId = Long.parseLong(claims.getSubject());
     String deviceId = claims.get("deviceId", String.class);
 
+    // MFA仮トークン発行時のdeviceIdと、検証リクエストのdeviceIdが一致することを確認する。
+    // 不一致の場合、トークンが別デバイスに漏洩・転用された可能性があるため拒否する。
+    if (deviceId == null || !deviceId.equals(req.getDeviceId())) {
+      log.warn("MFA検証: deviceId不一致のため拒否 - userId: {}", userId);
+      throw new IllegalArgumentException("MFA仮トークンが無効または期限切れです");
+    }
+
     UserMfaSetting setting =
         mfaService
             .getSetting(userId)
@@ -172,16 +175,5 @@ public class MobileAuthService {
     refreshTokenDao.insert(entity);
 
     return TokenResponse.full(accessToken, rawRefreshToken, ACCESS_TOKEN_EXPIRES_IN_SEC);
-  }
-
-  /** SHA-256ハッシュ（リフレッシュトークンのインデックス用、BCryptと異なり決定論的） */
-  private static String sha256(String input) {
-    try {
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-      return HexFormat.of().formatHex(hash);
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("SHA-256 not available", e);
-    }
   }
 }
