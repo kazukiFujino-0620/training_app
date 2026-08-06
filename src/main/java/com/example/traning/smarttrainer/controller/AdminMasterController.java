@@ -121,7 +121,9 @@ public class AdminMasterController {
       printer.printRecord("part_code", "item_name", "master_flg");
       for (TrainingItemMaster item : items) {
         printer.printRecord(
-            item.getPartCode(), item.getItemName(), item.getMasterFlg() != null ? item.getMasterFlg() : 1);
+            item.getPartCode(),
+            item.getItemName(),
+            item.getMasterFlg() != null ? item.getMasterFlg() : 1);
       }
     }
   }
