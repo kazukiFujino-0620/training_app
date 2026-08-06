@@ -136,6 +136,9 @@
       .empty-hint p { color: var(--text-muted); font-size: 0.95rem; margin: 0; }
       .empty-hint p.sub { font-size: 0.85rem; margin-top: 8px; opacity: .7; }
 
+      /* PC/タブレット幅では開閉トグルは不要（従来通りの表形式のため常に非表示） */
+      .pr-toggle-icon { display: none; }
+
       /* iPhone等の狭い画面幅では、横スクロールテーブルではなくカード型＋開閉式レイアウトに切り替える */
       @media (max-width: 640px) {
         .pr-table-wrapper { overflow-x: visible; }
@@ -189,9 +192,7 @@
           color: var(--text-muted);
           font-size: 1rem;
           line-height: 1;
-          transition: transform 0.2s ease;
         }
-        .pr-table tr.pr-row-expanded .pr-toggle-icon { transform: rotate(45deg); }
       }
     </style>
   </head>
@@ -366,7 +367,12 @@
       document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.pr-table .pr-cell-name').forEach(function (cell) {
           cell.addEventListener('click', function () {
-            cell.closest('tr').classList.toggle('pr-row-expanded');
+            var tr = cell.closest('tr');
+            var expanded = tr.classList.toggle('pr-row-expanded');
+            var icon = cell.querySelector('.pr-toggle-icon');
+            if (icon) {
+              icon.textContent = expanded ? '−' : '+';
+            }
           });
         });
       });
