@@ -30,9 +30,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 /**
  * トレーニングマスタ（種目マスタ）のCSV取り込み・登録を管理者が行うための画面。
  *
- * <p>既存の夜間バッチ（{@link MasterUpdateTask}）はそのまま残し、本コントローラーは
- * (1) 取り込み用CSVファイルのアップロード、(2) バッチの即時手動起動、(3) 現在のマスタデータのCSVダウンロード、
- * の3操作を管理者向けに提供する。
+ * <p>既存の夜間バッチ（{@link MasterUpdateTask}）はそのまま残し、本コントローラーは (1) 取り込み用CSVファイルのアップロード、(2) バッチの即時手動起動、(3)
+ * 現在のマスタデータのCSVダウンロード、 の3操作を管理者向けに提供する。
  */
 @Controller
 @RequestMapping("/admin/master")
@@ -84,12 +83,10 @@ public class AdminMasterController {
       file.transferTo(destination.toFile());
       log.info("マスタ更新用CSVファイルをアップロードしました: {} ({} bytes)", destination, file.getSize());
       redirectAttributes.addFlashAttribute(
-          "successMessage",
-          "CSVファイルをアップロードしました。反映するには「今すぐ取り込む」を実行するか、次回の夜間バッチをお待ちください。");
+          "successMessage", "CSVファイルをアップロードしました。反映するには「今すぐ取り込む」を実行するか、次回の夜間バッチをお待ちください。");
     } catch (IOException e) {
       log.error("CSVファイルのアップロードに失敗しました", e);
-      redirectAttributes.addFlashAttribute(
-          "errorMessage", "アップロードに失敗しました: " + e.getMessage());
+      redirectAttributes.addFlashAttribute("errorMessage", "アップロードに失敗しました: " + e.getMessage());
     }
 
     return "redirect:/admin/master";

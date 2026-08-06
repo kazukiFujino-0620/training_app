@@ -61,8 +61,7 @@ public class MasterUpdateTask {
 
       if (!file.exists()) {
         logger.warn("更新用CSVファイルが見つかりません。パス: {}", file.getAbsolutePath());
-        return new MasterUpdateResult(
-            false, 0, "更新用CSVファイルが見つかりません。先にCSVファイルをアップロードしてください。");
+        return new MasterUpdateResult(false, 0, "更新用CSVファイルが見つかりません。先にCSVファイルをアップロードしてください。");
       }
 
       logger.info("CSVファイルを確認: 存在します - サイズ: {} bytes", file.length());
@@ -79,8 +78,7 @@ public class MasterUpdateTask {
       int processedCount = masterUpdateService.importCsv(file, trainingMasterList);
 
       logger.info("=== マスタ更新バッチ 正常終了 ===");
-      return new MasterUpdateResult(
-          true, processedCount, processedCount + " 件のマスタデータを取り込みました。");
+      return new MasterUpdateResult(true, processedCount, processedCount + " 件のマスタデータを取り込みました。");
 
     } catch (Exception e) {
       logger.error("バッチ処理中にエラーが発生しました", e);
