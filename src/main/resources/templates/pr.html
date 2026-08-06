@@ -135,6 +135,64 @@
       .empty-hint { padding: 64px 20px; text-align: center; }
       .empty-hint p { color: var(--text-muted); font-size: 0.95rem; margin: 0; }
       .empty-hint p.sub { font-size: 0.85rem; margin-top: 8px; opacity: .7; }
+
+      /* iPhone等の狭い画面幅では、横スクロールテーブルではなくカード型＋開閉式レイアウトに切り替える */
+      @media (max-width: 640px) {
+        .pr-table-wrapper { overflow-x: visible; }
+        .pr-table, .pr-table tbody, .pr-table tr { display: block; width: 100%; }
+        .pr-table thead { display: none; }
+        .pr-table tbody tr {
+          background: var(--bg-card);
+          border: 1px solid var(--border-color);
+          border-radius: 10px;
+          margin: 10px;
+          overflow: hidden;
+        }
+        .pr-table tbody tr:nth-child(even) { background: var(--bg-card); }
+        .pr-table td {
+          display: none;
+          padding: 10px 20px;
+          border-top: 1px solid var(--border-color);
+          align-items: center;
+          justify-content: space-between;
+          white-space: normal;
+        }
+        .pr-table td::before {
+          content: attr(data-label);
+          flex-shrink: 0;
+          margin-right: 12px;
+          color: var(--text-muted);
+          font-size: 0.78rem;
+          font-weight: 600;
+        }
+        .pr-table tr.pr-row-expanded td { display: flex; }
+        .pr-table tr.pr-row-expanded td.goal-cell { display: block; }
+        .pr-table tr.pr-row-expanded td.goal-cell::before { display: block; margin-bottom: 6px; }
+
+        .pr-table td.pr-cell-name {
+          display: flex;
+          border-top: none;
+          padding: 14px 20px;
+          cursor: pointer;
+          font-weight: 600;
+        }
+        .pr-table td.pr-cell-name::before { content: none; }
+        .pr-toggle-icon {
+          flex-shrink: 0;
+          width: 22px;
+          height: 22px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: var(--bg-tertiary);
+          color: var(--text-muted);
+          font-size: 1rem;
+          line-height: 1;
+          transition: transform 0.2s ease;
+        }
+        .pr-table tr.pr-row-expanded .pr-toggle-icon { transform: rotate(45deg); }
+      }
     </style>
   </head>
   <body class="bg-secondary">
@@ -187,27 +245,30 @@
             </thead>
             <tbody>
               <tr th:each="record : ${records}">
-                <!-- 種目名 -->
-                <td style="font-weight:500;" th:text="${record.itemName}">種目名</td>
+                <!-- 種目名（モバイル幅ではタップして詳細を開閉するトグル） -->
+                <td class="pr-cell-name" style="font-weight:500;">
+                  <span th:text="${record.itemName}">種目名</span>
+                  <span class="pr-toggle-icon" aria-hidden="true">+</span>
+                </td>
 
                 <!-- 最高重量 -->
-                <td class="num">
+                <td class="num" data-label="最高重量">
                   <span class="val-weight" th:text="${record.maxWeight + ' kg'}"></span>
                 </td>
 
                 <!-- 最高回数 -->
-                <td class="num">
+                <td class="num" data-label="最高回数">
                   <span class="val-reps" th:text="${record.maxReps + ' 回'}"></span>
                 </td>
 
                 <!-- 達成日 -->
-                <td class="num">
+                <td class="num" data-label="達成日">
                   <span class="val-date"
                         th:text="${#temporals.format(record.achievedDate, 'yyyy-MM-dd')}"></span>
                 </td>
 
                 <!-- 目標列（GoalService 実装前は goalMap が null のためガード） -->
-                <td class="goal-cell">
+                <td class="goal-cell" data-label="目標">
                   <!-- GoalService 未実装時 -->
                   <th:block th:if="${goalMap == null}">
                     <span class="no-goal">—</span>
@@ -300,5 +361,15 @@
     </main>
 
     <footer th:replace="~{common :: footerFragment}"></footer>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.pr-table .pr-cell-name').forEach(function (cell) {
+          cell.addEventListener('click', function () {
+            cell.closest('tr').classList.toggle('pr-row-expanded');
+          });
+        });
+      });
+    </script>
   </body>
 </html>
