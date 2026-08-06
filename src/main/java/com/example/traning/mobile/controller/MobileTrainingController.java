@@ -208,7 +208,8 @@ public class MobileTrainingController {
             before.isPresent()
                 ? Math.max(before.get().getMaxWeight(), req.getWeight())
                 : req.getWeight();
-        recommendedIntervalSeconds = calculateRecommendedIntervalSeconds(req.getWeight(), maxWeight);
+        recommendedIntervalSeconds =
+            calculateRecommendedIntervalSeconds(req.getWeight(), maxWeight);
 
         personalRecordService.updateIfBetter(
             userId, training.getMenu(), req.getWeight(), req.getReps(), LocalDate.now());
@@ -228,10 +229,8 @@ public class MobileTrainingController {
   }
 
   /**
-   * F4: インターバル推奨通知。
-   * 重量 / 自己ベスト重量の比率で負荷を3段階に分類し、休憩時間を提案する。
-   * WHOOP・Polar・Garmin等が特許を持つ生体信号ベースの回復時間推定とは異なり、
-   * 単純な重量比率のみを使う静的カテゴリ分けのため特許抵触リスクなし
+   * F4: インターバル推奨通知。 重量 / 自己ベスト重量の比率で負荷を3段階に分類し、休憩時間を提案する。
+   * WHOOP・Polar・Garmin等が特許を持つ生体信号ベースの回復時間推定とは異なり、 単純な重量比率のみを使う静的カテゴリ分けのため特許抵触リスクなし
    * （feature-gap-analysis §2-2 の代案方針に準拠）。
    */
   private Integer calculateRecommendedIntervalSeconds(double weight, double maxWeight) {

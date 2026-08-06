@@ -38,8 +38,7 @@ public class AdminRestoreController {
 
   @AuditLog(action = "ADMIN_USER_RESTORE", targetTable = "users")
   @PostMapping("/users/{id}/restore")
-  public String restoreUser(
-      @PathVariable("id") Integer id, RedirectAttributes redirectAttributes) {
+  public String restoreUser(@PathVariable("id") Integer id, RedirectAttributes redirectAttributes) {
     adminRestoreService.restoreUser(id);
     log.info("Admin restored soft-deleted user - userId: {}", id);
     redirectAttributes.addFlashAttribute("successMessage", "ユーザーを復元しました。");
