@@ -25,4 +25,8 @@ public class TrainingItemMaster {
 
   @Column(name = "display_order")
   private Integer displayOrder;
+
+  /** 種目活用フラグ（0:使用不可, 1:使用可能）。本日以降の新規トレーニング登録では1のもののみ表示する。 */
+  @Column(name = "master_flg")
+  private Integer masterFlg;
 }

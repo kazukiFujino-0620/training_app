@@ -153,9 +153,12 @@ function cancelSelection() {
 function loadTrainingData() {
   observeTabContents();
 
+  const selectedDate = document.getElementById("selectedDate")?.value || "";
+  const dateQuery = selectedDate ? "?date=" + encodeURIComponent(selectedDate) : "";
+
   Promise.all([
     fetch("/api/training-parts").then((response) => response.json()),
-    fetch("/api/training-items-grouped").then((response) => response.json()),
+    fetch("/api/training-items-grouped" + dateQuery).then((response) => response.json()),
   ])
     .then(([parts, groupedItems]) => {
       partsData = parts;

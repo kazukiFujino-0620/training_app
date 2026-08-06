@@ -62,7 +62,8 @@ public class TemplateController {
     List<TrainingMaster> parts = trainingMasterDao.selectAllParts();
     java.util.Map<String, List<TrainingItemMaster>> itemsByPart = new java.util.LinkedHashMap<>();
     for (TrainingMaster part : parts) {
-      itemsByPart.put(part.getPartCode(), trainingMasterDao.selectItemsByPart(part.getPartCode()));
+      itemsByPart.put(
+          part.getPartCode(), trainingMasterDao.selectActiveItemsByPart(part.getPartCode()));
     }
     model.addAttribute("parts", parts);
     model.addAttribute("itemsByPart", itemsByPart);

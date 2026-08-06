@@ -95,6 +95,10 @@ public class MasterUpdateService {
     }
   }
 
+  /** CSV読み込み結果。新規追加分と、master_flg変更のあった既存分を分けて保持する。 */
+  private record ParsedCsv(
+      List<TrainingItemMaster> newItems, List<TrainingItemMaster> updatedItems) {}
+
   @Transactional
   public int importCsv(File file, List<TrainingMaster> existingParts) throws Exception {
     // ファイルパスの検証（セキュリティ対策）
@@ -107,8 +111,8 @@ public class MasterUpdateService {
 
     logger.info("CSVインポート開始 - ファイル: {}", file.getAbsolutePath());
 
-    // 既存データのキー保持用（重複チェック用）
-    Set<String> existingKeys = new HashSet<>();
+    // 既存アイテムの保持用（新規判定・master_flg変更検知用）
+    Map<String, TrainingItemMaster> existingItems = new HashMap<>();
     // 部位ごとの現在の最大連番管理用
     Map<String, Integer> orderMap = new HashMap<>();
 
@@ -118,32 +122,40 @@ public class MasterUpdateService {
       List<TrainingItemMaster> items = trainingMasterDao.selectItemsByPart(part.getPartCode());
       int maxOrder = 0;
       for (TrainingItemMaster item : items) {
-        existingKeys.add(item.getPartCode() + ":" + item.getItemName());
+        existingItems.put(item.getPartCode() + ":" + item.getItemName(), item);
         maxOrder = Math.max(maxOrder, item.getDisplayOrder() != null ? item.getDisplayOrder() : 0);
       }
       orderMap.put(part.getPartCode(), maxOrder);
     }
-    logger.debug("既存マスタデータセットアップ完了 - 既存キー数: {}", existingKeys.size());
+    logger.debug("既存マスタデータセットアップ完了 - 既存件数: {}", existingItems.size());
 
-    List<TrainingItemMaster> itemList = readCsvFile(file, existingKeys, orderMap);
-    logger.info("CSVファイル読み込み完了 - 新規データ件数: {}", itemList.size());
+    ParsedCsv parsed = readCsvFile(file, existingItems, orderMap);
+    logger.info(
+        "CSVファイル読み込み完了 - 新規: {}件, master_flg更新: {}件",
+        parsed.newItems().size(),
+        parsed.updatedItems().size());
 
-    // 5. リストが空でなければDBへ保存（UPSERT）
     int totalProcessed = 0;
-    if (!itemList.isEmpty()) {
-      // バッチ処理でパフォーマンス向上
-      List<List<TrainingItemMaster>> batches = createBatches(itemList, 100);
-      logger.info("バッチ処理開始 - バッチ数: {}", batches.size());
 
-      for (int i = 0; i < batches.size(); i++) {
-        List<TrainingItemMaster> batch = batches.get(i);
+    // 新規種目の登録（既存行を含まないため、ユニーク制約違反は発生しない）
+    if (!parsed.newItems().isEmpty()) {
+      for (List<TrainingItemMaster> batch : createBatches(parsed.newItems(), 100)) {
         trainingMasterDao.batchUpsert(batch);
         totalProcessed += batch.size();
-        logger.debug("バッチ処理完了 - バッチ {}/{}, 処理件数: {}", i + 1, batches.size(), batch.size());
       }
+      logger.info("{} 件のマスタデータを新規登録しました。", parsed.newItems().size());
+    }
 
-      logger.info("{} 件のマスタデータを更新・登録しました。", totalProcessed);
-    } else {
+    // 既存種目のmaster_flg更新
+    if (!parsed.updatedItems().isEmpty()) {
+      for (List<TrainingItemMaster> batch : createBatches(parsed.updatedItems(), 100)) {
+        trainingMasterDao.batchUpdateMasterFlg(batch);
+        totalProcessed += batch.size();
+      }
+      logger.info("{} 件のマスタデータのmaster_flgを更新しました。", parsed.updatedItems().size());
+    }
+
+    if (totalProcessed == 0) {
       logger.warn("取り込むデータがありませんでした。");
     }
 
@@ -151,9 +163,13 @@ public class MasterUpdateService {
     return totalProcessed;
   }
 
-  private List<TrainingItemMaster> readCsvFile(
-      File file, Set<String> existingKeys, Map<String, Integer> orderMap) throws Exception {
-    List<TrainingItemMaster> itemList = new ArrayList<>();
+  private ParsedCsv readCsvFile(
+      File file, Map<String, TrainingItemMaster> existingItems, Map<String, Integer> orderMap)
+      throws Exception {
+    List<TrainingItemMaster> newItems = new ArrayList<>();
+    List<TrainingItemMaster> updatedItems = new ArrayList<>();
+    // 同一ファイル内の重複行対策（新規追加分）
+    Set<String> seenInFile = new HashSet<>();
 
     // 1. ファイルを1行ずつ読み込む
     try (java.io.BufferedReader br =
@@ -177,42 +193,63 @@ public class MasterUpdateService {
 
         String[] data = line.split(",", -1);
 
-        // 列数チェック（parts_code と item_name は最低限必要）
+        // 列数チェック（parts_code と item_name は最低限必要。master_flg列は無くても良い）
         if (data.length < 2) {
           logger.warn("不適切な行をスキップしました: {}", line);
           continue;
         }
 
-        TrainingItemMaster entity = createTrainingItemMaster(data, existingKeys, orderMap);
-        if (entity != null) {
-          itemList.add(entity);
-        }
+        processRow(data, existingItems, orderMap, seenInFile, newItems, updatedItems);
       }
     }
 
-    return itemList;
+    return new ParsedCsv(newItems, updatedItems);
   }
 
-  private TrainingItemMaster createTrainingItemMaster(
-      String[] data, Set<String> existingKeys, Map<String, Integer> orderMap) {
+  private void processRow(
+      String[] data,
+      Map<String, TrainingItemMaster> existingItems,
+      Map<String, Integer> orderMap,
+      Set<String> seenInFile,
+      List<TrainingItemMaster> newItems,
+      List<TrainingItemMaster> updatedItems) {
     String partsCode = data[0].trim();
     String itemName = data[1].trim();
 
     if (partsCode.isEmpty() || itemName.isEmpty()) {
       logger.warn("空のパーツコードまたはアイテム名をスキップしました");
-      return null;
+      return;
     }
 
-    // --- 重複チェック ---
+    int masterFlg = parseMasterFlg(data);
     String key = partsCode + ":" + itemName;
-    if (existingKeys.contains(key)) {
-      // すでにDB（または今回のリスト）に存在する場合はスキップ
-      return null;
+
+    TrainingItemMaster existing = existingItems.get(key);
+    if (existing != null) {
+      // --- 既存種目: master_flgに差分があれば更新対象に含める。無ければ何もしない ---
+      Integer currentFlg = existing.getMasterFlg();
+      if (currentFlg != null && currentFlg == masterFlg) {
+        return;
+      }
+      TrainingItemMaster entity = new TrainingItemMaster();
+      entity.setId(existing.getId());
+      entity.setPartCode(partsCode);
+      entity.setItemName(itemName);
+      entity.setDisplayOrder(existing.getDisplayOrder());
+      entity.setMasterFlg(masterFlg);
+      updatedItems.add(entity);
+      return;
+    }
+
+    // --- 同一ファイル内の重複対策（新規追加分） ---
+    if (!seenInFile.add(key)) {
+      return;
     }
 
     TrainingItemMaster entity = new TrainingItemMaster();
     entity.setPartCode(partsCode);
     entity.setItemName(itemName);
+    entity.setMasterFlg(masterFlg);
 
     // --- 部位ごとの連番ロジック ---
     // その部位が初めて登場なら1、次からは+1する
@@ -221,8 +258,25 @@ public class MasterUpdateService {
     orderMap.put(partsCode, nextOrder); // 最新の番号を保存
     // ----------------------------
 
-    existingKeys.add(key); // 同一ファイル内の重複対策
-    return entity;
+    newItems.add(entity);
+  }
+
+  /** CSVの3列目（master_flg）を解析する。列が無い・空・不正な値の場合は1（使用可能）として扱う。 */
+  private int parseMasterFlg(String[] data) {
+    if (data.length < 3 || data[2].trim().isEmpty()) {
+      return 1;
+    }
+    try {
+      int value = Integer.parseInt(data[2].trim());
+      if (value != 0 && value != 1) {
+        logger.warn("不正なmaster_flg値のため1として扱います: {}", value);
+        return 1;
+      }
+      return value;
+    } catch (NumberFormatException e) {
+      logger.warn("master_flgの解析に失敗したため1として扱います: {}", data[2]);
+      return 1;
+    }
   }
 
   private List<List<TrainingItemMaster>> createBatches(

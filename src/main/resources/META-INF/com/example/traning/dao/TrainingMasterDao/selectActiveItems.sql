@@ -1,0 +1,1 @@
+SELECT * FROM training_item_master WHERE master_flg = 1 ORDER BY part_code, display_order
