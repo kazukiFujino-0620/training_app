@@ -165,7 +165,8 @@ public class SecurityConfig {
             headers ->
                 headers
                     .httpStrictTransportSecurity(
-                        hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
+                        hsts ->
+                            hsts.includeSubDomains(true).maxAgeInSeconds(31536000).preload(true))
                     .frameOptions(frame -> frame.deny())
                     .contentTypeOptions(contentType -> {})
                     .referrerPolicy(
