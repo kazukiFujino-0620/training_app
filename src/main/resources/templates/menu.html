@@ -676,6 +676,49 @@
 
         </div><!-- /筋肉疲労マップ + 成長グラフ -->
 
+        <!-- F3 Phase1-2: 今日のおすすめメニュー -->
+        <div class="card mt-6" th:if="${dailyRecommendation != null}">
+          <div class="card-header">
+            <div class="flex items-center justify-between">
+              <h2 class="text-xl font-semibold">🏋️ 今日のおすすめメニュー</h2>
+              <span class="text-sm text-muted" th:switch="${currentGoalMode}">
+                <span th:case="'BULKING'">モード: 筋肥大</span>
+                <span th:case="'CUTTING'">モード: 減量</span>
+                <span th:case="*">モード: 維持</span>
+              </span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div th:if="${churnMessage != null}" class="alert alert-info mb-4" th:text="${churnMessage}"></div>
+            <div th:if="${acwrWarning}" class="alert alert-danger mb-4">
+              ⚠️ 警告: 今週の負荷が急増しています（ACWR
+              <span th:text="${#numbers.formatDecimal(acwrValue, 1, 2)}"></span>）。休養も検討してください。
+            </div>
+
+            <div th:if="${dailyRecommendation.restDayRecommended()}">
+              <p class="text-muted">今日は軽めの有酸素や休養日を推奨します。全部位がまだ疲労中です。</p>
+            </div>
+
+            <div th:unless="${dailyRecommendation.restDayRecommended()}">
+              <p class="text-muted mb-3" th:text="${dailyRecommendation.reasonLabel()}"></p>
+              <div th:if="${#lists.isEmpty(dailyRecommendation.items())}" class="text-muted">
+                推奨できる種目が見つかりませんでした。
+              </div>
+              <div th:each="item, iter : ${dailyRecommendation.items()}"
+                   style="padding:10px 0; border-bottom:1px solid var(--border-color);">
+                <div style="font-weight:700;">
+                  <span th:text="${iter.count} + '. ' + ${item.itemName()}"></span>
+                </div>
+                <div class="text-sm text-muted">
+                  <span th:text="${item.weightMin()} + '-' + ${item.weightMax()} + 'kg × ' + ${item.repsMin()} + '-' + ${item.repsMax()} + '回 × ' + ${item.sets()} + 'セット'"></span>
+                  <span th:if="${estimatedOneRmByItem != null and estimatedOneRmByItem.get(item.itemName()) != null}"
+                        th:text="' ／ 推定1RM: ' + ${#numbers.formatDecimal(estimatedOneRmByItem.get(item.itemName()), 1, 1)} + 'kg'"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div><!-- /今日のおすすめメニュー -->
+
         <!-- Admin Section -->
         <div sec:authorize="hasRole('ADMIN')" class="mt-8">
           <div class="card">

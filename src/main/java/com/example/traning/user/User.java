@@ -66,4 +66,7 @@ public class User {
 
   @Column(name = "birth_date")
   public LocalDate birthDate;
+
+  @Column(name = "current_goal_mode")
+  public String currentGoalMode;
 }

@@ -4,6 +4,12 @@ import com.example.traning.audit.AuditLog;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
+import com.example.traning.smarttrainer.prediction.AcwrService;
+import com.example.traning.smarttrainer.prediction.ChurnDetectionService;
+import com.example.traning.smarttrainer.prediction.OneRmPredictionService;
+import com.example.traning.smarttrainer.recommendation.DailyRecommendation;
+import com.example.traning.smarttrainer.recommendation.RecommendationService;
+import com.example.traning.smarttrainer.recommendation.RecommendedItem;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -54,6 +60,10 @@ public class MenuController {
   private final TrainingService trainingService;
   private final CalorieCalculator calorieCalculator;
   private final WeeklyProgramService weeklyProgramService;
+  private final RecommendationService recommendationService;
+  private final OneRmPredictionService oneRmPredictionService;
+  private final AcwrService acwrService;
+  private final ChurnDetectionService churnDetectionService;
 
   private static final Map<String, String> PART_LABEL_MAP =
       Map.of("CHEST", "胸", "BACK", "背中", "SHOULDER", "肩", "ARM", "腕", "LEG", "脚");
@@ -64,13 +74,21 @@ public class MenuController {
       TrainingMasterDao trainingMasterDao,
       TrainingService trainingService,
       CalorieCalculator calorieCalculator,
-      WeeklyProgramService weeklyProgramService) {
+      WeeklyProgramService weeklyProgramService,
+      RecommendationService recommendationService,
+      OneRmPredictionService oneRmPredictionService,
+      AcwrService acwrService,
+      ChurnDetectionService churnDetectionService) {
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
     this.trainingService = trainingService;
     this.calorieCalculator = calorieCalculator;
     this.weeklyProgramService = weeklyProgramService;
+    this.recommendationService = recommendationService;
+    this.oneRmPredictionService = oneRmPredictionService;
+    this.acwrService = acwrService;
+    this.churnDetectionService = churnDetectionService;
   }
 
   @GetMapping("/menu")
@@ -272,6 +290,23 @@ public class MenuController {
     model.addAttribute("todayProgram", todayProgram);
     model.addAttribute("todayPartLabel", todayPartLabel);
     model.addAttribute("showReorderMenu", true);
+
+    // F3 Phase1: 今日のおすすめメニュー（ルールベース推奨）
+    DailyRecommendation dailyRecommendation = recommendationService.getTodayRecommendation(userId);
+    Map<String, Double> estimatedOneRmByItem = new LinkedHashMap<>();
+    for (RecommendedItem item : dailyRecommendation.items()) {
+      estimatedOneRmByItem.put(
+          item.itemName(), oneRmPredictionService.estimateOneRm(item.weightMax(), item.repsMin()));
+    }
+    model.addAttribute("dailyRecommendation", dailyRecommendation);
+    model.addAttribute("currentGoalMode", userEntity.getCurrentGoalMode());
+    model.addAttribute("estimatedOneRmByItem", estimatedOneRmByItem);
+
+    // F3 Phase2: ACWR警告・離脱検知メッセージ
+    Double acwrValue = acwrService.calculate(userId, today);
+    model.addAttribute("acwrValue", acwrValue);
+    model.addAttribute("acwrWarning", acwrService.isWarning(acwrValue));
+    model.addAttribute("churnMessage", churnDetectionService.checkChurnMessage(userId, today).orElse(null));
 
     return "menu";
   }

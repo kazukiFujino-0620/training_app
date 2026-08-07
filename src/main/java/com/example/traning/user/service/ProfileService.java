@@ -37,4 +37,9 @@ public class ProfileService {
             .build();
     userDao.updateProfile(updated);
   }
+
+  @Transactional
+  public void updateGoalMode(Integer userId, String goalMode) {
+    userDao.updateGoalMode(userId, goalMode, LocalDateTime.now());
+  }
 }
