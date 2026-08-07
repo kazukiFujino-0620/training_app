@@ -51,6 +51,8 @@ export default function AddExerciseScreen({ navigation }: Props) {
   const [blocksVisible, setBlocksVisible] = useState(false);
   const [blocks, setBlocks] = useState<TrainingBlock[]>([]);
   const [saving, setSaving] = useState(false);
+  // F-M2: 2種目選択時のみ「スーパーセットにする」を選択可能
+  const [supersetPair, setSupersetPair] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -112,6 +114,7 @@ export default function AddExerciseScreen({ navigation }: Props) {
   function closeBlocks() {
     setBlocksVisible(false);
     setBlocks([]);
+    setSupersetPair(false);
   }
 
   function updateSet(blockIndex: number, setIndex: number, field: keyof SetConfig, value: string) {
@@ -144,7 +147,11 @@ export default function AddExerciseScreen({ navigation }: Props) {
   }
 
   function removeBlock(blockIndex: number) {
-    setBlocks((prev) => prev.filter((_, bi) => bi !== blockIndex));
+    setBlocks((prev) => {
+      const next = prev.filter((_, bi) => bi !== blockIndex);
+      if (next.length !== 2) setSupersetPair(false);
+      return next;
+    });
   }
 
   function toggleHistoryExpanded(blockIndex: number) {
@@ -183,10 +190,11 @@ export default function AddExerciseScreen({ navigation }: Props) {
     let successCount = 0;
     let failCount = 0;
     const failedNames: string[] = [];
+    const newTrainingIds: number[] = [];
 
     for (const t of targets) {
       try {
-        await trainingApi.addTraining({
+        const { data } = await trainingApi.addTraining({
           menu: t.item.itemName,
           partCode: t.item.partCode,
           sets: t.validSets.map((s) => ({
@@ -195,10 +203,20 @@ export default function AddExerciseScreen({ navigation }: Props) {
             setType: s.setType,
           })),
         });
+        newTrainingIds.push(data);
         successCount += 1;
       } catch {
         failCount += 1;
         failedNames.push(t.item.itemName);
+      }
+    }
+
+    // F-M2: 2種目とも登録成功し、スーパーセット指定がある場合はグループ化する
+    if (supersetPair && newTrainingIds.length === 2) {
+      try {
+        await trainingApi.groupSuperset(newTrainingIds);
+      } catch {
+        // グループ化失敗は登録自体の成否に影響させない（個別種目としては登録済みのため）
       }
     }
 
@@ -301,6 +319,22 @@ export default function AddExerciseScreen({ navigation }: Props) {
                 : <Text style={styles.saveText}>登録</Text>}
             </TouchableOpacity>
           </View>
+
+          {/* F-M2: 2種目選択時のみ、スーパーセット（休憩なし連続実施）としてペアリングする選択肢を表示 */}
+          {blocks.length === 2 && (
+            <TouchableOpacity
+              style={[styles.supersetToggle, supersetPair && styles.supersetToggleActive]}
+              onPress={() => setSupersetPair((v) => !v)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.supersetCheckbox, supersetPair && styles.supersetCheckboxActive]}>
+                {supersetPair && <Text style={styles.supersetCheckMark}>✓</Text>}
+              </View>
+              <Text style={styles.supersetToggleText}>
+                この2種目をスーパーセットにする（休憩なしで交互に実施）
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <KeyboardAvoidingView
             style={{ flex: 1 }}
@@ -477,6 +511,20 @@ const styles = StyleSheet.create({
   modalTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#222', paddingHorizontal: 8, textAlign: 'center' },
   saveText: { color: '#4CAF50', fontSize: 15, fontWeight: '700' },
   blocksScroll: { paddingBottom: 32 },
+  // F-M2: スーパーセットペアリングトグル
+  supersetToggle: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: 16, marginTop: 12, padding: 12,
+    borderRadius: 10, borderWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#fff',
+  },
+  supersetToggleActive: { borderColor: '#7c3aed', backgroundColor: '#F5F0FE' },
+  supersetCheckbox: {
+    width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: '#ccc',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  supersetCheckboxActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
+  supersetCheckMark: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  supersetToggleText: { flex: 1, fontSize: 13, color: '#333', fontWeight: '600' },
   block: {
     backgroundColor: '#fff', marginHorizontal: 16, marginTop: 12,
     borderRadius: 12, borderWidth: 1, borderColor: '#eee', padding: 12,

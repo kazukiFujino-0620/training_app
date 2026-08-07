@@ -16,6 +16,7 @@ public class PasswordEncoderConfig {
 
   @Bean
   public PasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder();
+    // ストレングス12（デフォルトの10より強固。本番運用でのブルートフォース耐性を考慮）
+    return new BCryptPasswordEncoder(12);
   }
 }

@@ -6,6 +6,8 @@ import com.example.traning.forgetpassword.dao.PasswordResetTokenDao;
 import com.example.traning.goal.GoalDao;
 import com.example.traning.mfa.MfaBackupCodeDao;
 import com.example.traning.mfa.MfaSettingDao;
+import com.example.traning.mobile.dao.MobileDeviceTokenDao;
+import com.example.traning.mobile.dao.MobileRefreshTokenDao;
 import com.example.traning.pr.dao.PersonalRecordDao;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
@@ -33,6 +35,8 @@ public class WithdrawalService {
   private final MfaBackupCodeDao mfaBackupCodeDao;
   private final PasswordResetTokenDao passwordResetTokenDao;
   private final AccountRestoreTokenDao accountRestoreTokenDao;
+  private final MobileRefreshTokenDao mobileRefreshTokenDao;
+  private final MobileDeviceTokenDao mobileDeviceTokenDao;
   private final MailService mailService;
 
   public WithdrawalService(
@@ -46,6 +50,8 @@ public class WithdrawalService {
       MfaBackupCodeDao mfaBackupCodeDao,
       PasswordResetTokenDao passwordResetTokenDao,
       AccountRestoreTokenDao accountRestoreTokenDao,
+      MobileRefreshTokenDao mobileRefreshTokenDao,
+      MobileDeviceTokenDao mobileDeviceTokenDao,
       MailService mailService) {
     this.withdrawalRequestDao = withdrawalRequestDao;
     this.userDao = userDao;
@@ -57,6 +63,8 @@ public class WithdrawalService {
     this.mfaBackupCodeDao = mfaBackupCodeDao;
     this.passwordResetTokenDao = passwordResetTokenDao;
     this.accountRestoreTokenDao = accountRestoreTokenDao;
+    this.mobileRefreshTokenDao = mobileRefreshTokenDao;
+    this.mobileDeviceTokenDao = mobileDeviceTokenDao;
     this.mailService = mailService;
   }
 
@@ -98,8 +106,14 @@ public class WithdrawalService {
     req.setUpdatedAt(LocalDateTime.now());
     withdrawalRequestDao.insert(req);
 
-    mailService.sendWithdrawalRequestedMail(
-        user.getEmail(), user.getUserName(), req.getRequestedAt());
+    // 通知メール送信失敗（SMTP障害等）で申請自体を失敗させない。
+    // 申請の成立はDB登録で完結しており、メールはあくまで通知。
+    try {
+      mailService.sendWithdrawalRequestedMail(
+          user.getEmail(), user.getUserName(), req.getRequestedAt());
+    } catch (Exception e) {
+      log.warn("退会申請の通知メール送信に失敗しました - userId: {}", userId, e);
+    }
     log.info("Withdrawal request created - userId: {}", userId);
   }
 
@@ -131,9 +145,14 @@ public class WithdrawalService {
     User targetUser = userDao.selectById(req.getUserId().intValue());
 
     // ① 退会完了メールを先に送信（削除後はアドレスが消えるため）
+    // 通知メール送信失敗（SMTP障害等）でデータ保護期間対応（物理削除）自体を止めない。
     LocalDateTime completedAt = LocalDateTime.now();
-    mailService.sendWithdrawalCompletedMail(
-        targetUser.getEmail(), targetUser.getUserName(), completedAt);
+    try {
+      mailService.sendWithdrawalCompletedMail(
+          targetUser.getEmail(), targetUser.getUserName(), completedAt);
+    } catch (Exception e) {
+      log.warn("退会完了の通知メール送信に失敗しました - userId: {}", req.getUserId(), e);
+    }
 
     // ② training_details を物理削除（FK制約のため trainings より先に削除）
     trainingDetailDao.deleteByUserId(req.getUserId());
@@ -154,6 +173,10 @@ public class WithdrawalService {
     // ⑦ パスワードリセット・アカウント復元トークンを物理削除
     passwordResetTokenDao.deleteByUserId(req.getUserId().intValue());
     accountRestoreTokenDao.deleteByUserId(req.getUserId().intValue());
+
+    // ⑧ モバイルのリフレッシュトークン・デバイストークン（プッシュ通知用）を物理削除
+    mobileRefreshTokenDao.deleteByUserId(req.getUserId());
+    mobileDeviceTokenDao.deleteByUserId(req.getUserId());
 
     // ⑨ 申請ステータスを APPROVED に更新
     req.setStatus("APPROVED");
