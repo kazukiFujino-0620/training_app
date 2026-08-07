@@ -1,6 +1,7 @@
 package com.example.traning.user.controller;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.smarttrainer.recommendation.GoalMode;
 import com.example.traning.user.User;
 import com.example.traning.user.form.ProfileForm;
 import com.example.traning.user.service.ProfileService;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -40,7 +42,21 @@ public class ProfileController {
     model.addAttribute("profileForm", form);
     model.addAttribute("loginUser", user);
     model.addAttribute("user", user);
+    model.addAttribute("goalModes", GoalMode.values());
     return "user/profile";
+  }
+
+  /** F3 Phase1: 目的モード（筋肥大/減量/維持）の切替。 */
+  @AuditLog(action = "PROFILE_GOAL_MODE_UPDATE", targetTable = "users")
+  @PostMapping("/goal-mode")
+  public String updateGoalMode(
+      @RequestParam("goalMode") String goalMode,
+      Principal principal,
+      RedirectAttributes redirectAttributes) {
+    User user = userService.getUserByEmail(principal.getName());
+    profileService.updateGoalMode(user.getUserId(), GoalMode.fromString(goalMode).name());
+    redirectAttributes.addFlashAttribute("successMessage", "目的モードを変更しました");
+    return "redirect:/user/profile";
   }
 
   @AuditLog(action = "PROFILE_UPDATE", targetTable = "users")
@@ -55,6 +71,7 @@ public class ProfileController {
       User user = userService.getUserByEmail(principal.getName());
       model.addAttribute("loginUser", user);
       model.addAttribute("user", user);
+      model.addAttribute("goalModes", GoalMode.values());
       return "user/profile";
     }
     profileService.updateProfile(principal.getName(), form);

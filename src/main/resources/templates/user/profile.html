@@ -254,6 +254,33 @@
 
       </form>
 
+      <!-- F3 Phase1: 目的モード -->
+      <form th:action="@{/user/profile/goal-mode}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+        <div class="profile-card">
+          <div class="card-header">🎯 トレーニング目的</div>
+          <div class="card-body">
+            <div class="form-field" th:each="mode : ${goalModes}" style="display:flex; align-items:center; gap:8px;">
+              <input type="radio"
+                     th:id="${'goalMode-' + mode}"
+                     name="goalMode"
+                     th:value="${mode}"
+                     th:checked="${mode.name() == user.currentGoalMode}" />
+              <label th:for="${'goalMode-' + mode}" style="margin:0;">
+                <span th:if="${mode.name() == 'BULKING'}">筋肥大（重量重視、漸進性過負荷）</span>
+                <span th:if="${mode.name() == 'CUTTING'}">減量（高回数、ボリューム維持）</span>
+                <span th:if="${mode.name() == 'MAINTENANCE'}">維持（バランス重視、現状維持）</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="action-area">
+          <button type="submit" class="btn btn-secondary w-full py-3 font-bold">
+            目的モードを保存
+          </button>
+        </div>
+      </form>
+
     </div><!-- /profile-page -->
   </main>
 

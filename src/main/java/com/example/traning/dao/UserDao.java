@@ -53,4 +53,7 @@ public interface UserDao {
 
   @Update(sqlFile = true)
   int updateEmail(Long userId, String newEmail);
+
+  @Update(sqlFile = true)
+  int updateGoalMode(Integer userId, String currentGoalMode, LocalDateTime updatedDatetime);
 }
