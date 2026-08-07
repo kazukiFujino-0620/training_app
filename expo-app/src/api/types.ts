@@ -8,6 +8,7 @@ export interface LoginRequest {
 
 export interface MfaVerifyRequest {
   mfaTempToken: string;
+  deviceId: string;
   otp?: string;
   backupCode?: string;
 }

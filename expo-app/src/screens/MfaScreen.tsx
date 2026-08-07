@@ -31,6 +31,7 @@ export default function MfaScreen({ navigation, route }: Props) {
     try {
       const { data } = await authApi.mfaVerify({
         mfaTempToken,
+        deviceId,
         ...(useBackup ? { backupCode: code } : { otp: code }),
       });
       if (data.accessToken && data.refreshToken) {
