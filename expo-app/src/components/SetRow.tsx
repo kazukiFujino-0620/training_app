@@ -9,7 +9,7 @@ import { trainingApi } from '../api/client';
 interface Props {
   detail: TrainingDetail;
   onUpdated: (updated: TrainingDetail) => void;
-  onCompleted?: () => void;
+  onCompleted?: (recommendedIntervalSeconds?: number) => void;
   onUncompleted?: () => void;
   onDelete?: () => void;
   canDelete?: boolean;
@@ -46,9 +46,7 @@ export default function SetRow({
 
     setCompletedLocal(newCompleted);
     onUpdated({ ...detail, weight: w, reps: r, completed: newCompleted });
-    if (newCompleted) {
-      onCompleted?.();
-    } else {
+    if (!newCompleted) {
       onUncompleted?.();
     }
 
@@ -62,6 +60,11 @@ export default function SetRow({
       // primitive boolean → isCompleted() getter → Jackson が "is" 剥がして "completed"
       setCompletedLocal(data.completed);
       onUpdated({ ...detail, weight: w, reps: r, completed: data.completed });
+
+      // F4: 推奨インターバル秒数をサーバーレスポンスから受け取り、インターバルタイマー開始に反映する
+      if (newCompleted) {
+        onCompleted?.(data.recommendedIntervalSeconds);
+      }
 
       // バックエンド側で @JsonProperty("PR") によりキー名を "PR" に明示固定している
       if (data.PR && data.prMessage) {

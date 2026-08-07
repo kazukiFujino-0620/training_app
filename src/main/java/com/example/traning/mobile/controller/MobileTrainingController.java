@@ -195,6 +195,7 @@ public class MobileTrainingController {
     // PR更新チェック（セット完了かつ重量・回数が指定された場合）
     boolean isPR = false;
     String prMessage = null;
+    Integer recommendedIntervalSeconds = null;
     if (Boolean.TRUE.equals(req.getIsCompleted())
         && req.getWeight() != null
         && req.getWeight() > 0
@@ -202,6 +203,14 @@ public class MobileTrainingController {
       try {
         Optional<PersonalRecord> before =
             personalRecordService.getByUserIdAndItem(userId, training.getMenu());
+
+        double maxWeight =
+            before.isPresent()
+                ? Math.max(before.get().getMaxWeight(), req.getWeight())
+                : req.getWeight();
+        recommendedIntervalSeconds =
+            calculateRecommendedIntervalSeconds(req.getWeight(), maxWeight);
+
         personalRecordService.updateIfBetter(
             userId, training.getMenu(), req.getWeight(), req.getReps(), LocalDate.now());
         if (before.isEmpty() || req.getWeight() > before.get().getMaxWeight()) {
@@ -215,7 +224,21 @@ public class MobileTrainingController {
 
     boolean completed =
         req.getIsCompleted() != null ? req.getIsCompleted() : detail.getIsCompleted();
-    return ResponseEntity.ok(new SetUpdateResponse(id, completed, isPR, prMessage));
+    return ResponseEntity.ok(
+        new SetUpdateResponse(id, completed, isPR, prMessage, recommendedIntervalSeconds));
+  }
+
+  /**
+   * F4: インターバル推奨通知。 重量 / 自己ベスト重量の比率で負荷を3段階に分類し、休憩時間を提案する。
+   * WHOOP・Polar・Garmin等が特許を持つ生体信号ベースの回復時間推定とは異なり、 単純な重量比率のみを使う静的カテゴリ分けのため特許抵触リスクなし
+   * （feature-gap-analysis §2-2 の代案方針に準拠）。
+   */
+  private Integer calculateRecommendedIntervalSeconds(double weight, double maxWeight) {
+    if (maxWeight <= 0) return null;
+    double ratio = weight / maxWeight;
+    if (ratio >= 0.85) return 180;
+    if (ratio >= 0.6) return 90;
+    return 60;
   }
 
   /**
@@ -341,6 +364,47 @@ public class MobileTrainingController {
             .toList();
 
     return ResponseEntity.ok(result);
+  }
+
+  // ── スーパーセット（F-M2） ────────────────────────────────────────────────
+
+  /** 当日の未グループ化種目一覧を取得する（ペアリング候補）。 */
+  @GetMapping("/superset/candidates")
+  public ResponseEntity<List<Training>> getSupersetCandidates(
+      @AuthenticationPrincipal Long userId, @RequestParam String date) {
+    LocalDate targetDate = LocalDate.parse(date);
+    return ResponseEntity.ok(trainingService.getCandidatesForSuperset(userId, targetDate));
+  }
+
+  /** 2種目をスーパーセットとしてグループ化する。 */
+  @PostMapping("/superset/group")
+  @Transactional
+  @AuditLog(action = "MOBILE_SUPERSET_GROUP", targetTable = "trainings")
+  public ResponseEntity<?> groupSuperset(
+      @AuthenticationPrincipal Long userId, @RequestBody java.util.Map<String, List<Long>> body) {
+    List<Long> trainingIds = body.get("trainingIds");
+    try {
+      Long groupId = trainingService.groupSuperset(trainingIds, userId);
+      return ResponseEntity.ok(java.util.Map.of("supersetGroupId", groupId));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+    }
+  }
+
+  /** スーパーセットのグループ化を解除する。 */
+  @PostMapping("/superset/ungroup")
+  @Transactional
+  @AuditLog(action = "MOBILE_SUPERSET_UNGROUP", targetTable = "trainings")
+  public ResponseEntity<?> ungroupSuperset(
+      @AuthenticationPrincipal Long userId, @RequestBody java.util.Map<String, Long> body) {
+    Long supersetGroupId = body.get("supersetGroupId");
+    if (supersetGroupId == null) return ResponseEntity.badRequest().build();
+    try {
+      trainingService.ungroupSuperset(supersetGroupId, userId);
+      return ResponseEntity.noContent().build();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+    }
   }
 
   private boolean isOwnedByUser(TrainingDetail detail, Long userId) {

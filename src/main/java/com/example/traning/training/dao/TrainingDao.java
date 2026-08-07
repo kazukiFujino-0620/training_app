@@ -42,6 +42,12 @@ public interface TrainingDao {
   @Update(sqlFile = true)
   int softDeleteById(Long id);
 
+  @Update(sqlFile = true)
+  int restoreById(Long id);
+
+  @Select
+  List<Training> selectDeleted();
+
   @Delete(sqlFile = true)
   int deleteExpiredPhysically(LocalDateTime cutoff);
 

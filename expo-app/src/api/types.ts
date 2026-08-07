@@ -47,6 +47,8 @@ export interface Training {
   trainingDate: string;
   duration?: string;
   details: TrainingDetail[];
+  /** スーパーセットグループID（F-M2）。NULL=単独種目、同値=同一グループ */
+  supersetGroupId?: number | null;
 }
 
 export interface AddSetRequest {
@@ -80,6 +82,11 @@ export interface SetUpdateResponse {
    */
   PR: boolean;
   prMessage?: string;
+  /**
+   * 推奨インターバル秒数（F4）。重量/自己ベスト重量の比率から算出（60/90/180秒の3段階）。
+   * 算出不可の場合は undefined。
+   */
+  recommendedIntervalSeconds?: number;
 }
 
 // ── 種目マスタ ─────────────────────────────────────────────────────────────
