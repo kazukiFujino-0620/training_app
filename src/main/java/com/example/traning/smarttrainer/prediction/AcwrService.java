@@ -5,9 +5,8 @@ import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 
 /**
- * ACWR（Acute:Chronic Workload Ratio）計算。
- * 直近1週間の総負荷 ÷ 過去4週間の週平均負荷。スポーツ科学の公知指標（Gabbett, 2016 BJSM）で特許リスクなし。
- * [[2026-06-06-ai-menu-requirements]] Phase 2参照。
+ * ACWR（Acute:Chronic Workload Ratio）計算。 直近1週間の総負荷 ÷ 過去4週間の週平均負荷。スポーツ科学の公知指標（Gabbett, 2016
+ * BJSM）で特許リスクなし。 [[2026-06-06-ai-menu-requirements]] Phase 2参照。
  */
 @Service
 public class AcwrService {
@@ -25,10 +24,12 @@ public class AcwrService {
    */
   public Double calculate(Long userId, LocalDate today) {
     LocalDate acuteStart = today.minusDays(6);
-    Double acuteVolume = trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, acuteStart, today);
+    Double acuteVolume =
+        trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, acuteStart, today);
 
     LocalDate chronicStart = today.minusDays(27);
-    Double chronicTotal = trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, chronicStart, today);
+    Double chronicTotal =
+        trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, chronicStart, today);
 
     double acute = acuteVolume != null ? acuteVolume : 0.0;
     double chronicWeekAvg = (chronicTotal != null ? chronicTotal : 0.0) / 4.0;

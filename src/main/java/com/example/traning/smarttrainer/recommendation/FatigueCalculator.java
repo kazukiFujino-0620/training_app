@@ -12,9 +12,8 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 
 /**
- * 部位別疲労度の計算（過去7日間・48時間半減期モデル）。
- * 元々 MenuController にインラインで実装されていたロジックを抽出し、
- * RecommendationService からも共通で使えるようにしたもの。
+ * 部位別疲労度の計算（過去7日間・48時間半減期モデル）。 元々 MenuController にインラインで実装されていたロジックを抽出し、 RecommendationService
+ * からも共通で使えるようにしたもの。
  */
 @Service
 public class FatigueCalculator {
@@ -75,5 +74,7 @@ public class FatigueCalculator {
   }
 
   public record FatigueResult(
-      Map<String, Integer> fatiguePct, Map<String, Long> volumeByPart, Map<String, Integer> setsByPart) {}
+      Map<String, Integer> fatiguePct,
+      Map<String, Long> volumeByPart,
+      Map<String, Integer> setsByPart) {}
 }

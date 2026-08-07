@@ -2,10 +2,7 @@ package com.example.traning.smarttrainer.recommendation;
 
 import java.util.List;
 
-/**
- * その日の推奨メニュー。
- * `restDayRecommended` が true の場合、`partCode`/`items` は無意味（休養日提案）。
- */
+/** その日の推奨メニュー。 `restDayRecommended` が true の場合、`partCode`/`items` は無意味（休養日提案）。 */
 public record DailyRecommendation(
     String partCode,
     String partLabel,

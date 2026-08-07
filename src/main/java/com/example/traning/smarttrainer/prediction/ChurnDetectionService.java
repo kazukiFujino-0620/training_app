@@ -10,8 +10,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
- * 離脱予測（簡易版）: 直近の記録頻度が落ちているユーザーを検知する。
- * ML不使用のシンプルなルール（最終トレーニング日からの経過日数のみ）。
+ * 離脱予測（簡易版）: 直近の記録頻度が落ちているユーザーを検知する。 ML不使用のシンプルなルール（最終トレーニング日からの経過日数のみ）。
  * [[2026-06-06-ai-menu-requirements]] Phase 2参照。
  */
 @Service
@@ -26,7 +25,9 @@ public class ChurnDetectionService {
     this.trainingDao = trainingDao;
   }
 
-  /** @return 3日以上記録がなければ「久しぶりですね」メッセージ、なければ empty */
+  /**
+   * @return 3日以上記録がなければ「久しぶりですね」メッセージ、なければ empty
+   */
   public Optional<String> checkChurnMessage(Long userId, LocalDate today) {
     LocalDate lookbackStart = today.minusDays(LOOKBACK_DAYS);
     List<Training> recent =

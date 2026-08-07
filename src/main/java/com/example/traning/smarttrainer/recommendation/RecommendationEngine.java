@@ -11,8 +11,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
- * ルールベース推奨エンジン。
- * 部位選定・種目選定は共通ロジック、重量/回数/セット数のみ {@link RecommendationStrategy} に委譲する。
+ * ルールベース推奨エンジン。 部位選定・種目選定は共通ロジック、重量/回数/セット数のみ {@link RecommendationStrategy} に委譲する。
  * [[2026-06-06-ai-menu-requirements]] 「推奨ロジック詳細」に準拠。
  */
 @Service
@@ -23,6 +22,7 @@ public class RecommendationEngine {
 
   /** デフォルト重量（PRが無い種目向け）: 体重 × 0.5。体重が不明な場合は 20kg 固定。 */
   private static final double DEFAULT_WEIGHT_FACTOR = 0.5;
+
   private static final double DEFAULT_WEIGHT_FALLBACK = 20.0;
 
   public DailyRecommendation generate(
@@ -39,7 +39,9 @@ public class RecommendationEngine {
     if (isNewUser) {
       String part = "CHEST";
       List<String> itemNames =
-          masterFallbackItems(part, masterItemsByPart).stream().map(TrainingItemMaster::getItemName).toList();
+          masterFallbackItems(part, masterItemsByPart).stream()
+              .map(TrainingItemMaster::getItemName)
+              .toList();
       return buildForPart(part, "最初のメニューを記録してみよう", itemNames, userPrs, strategy, userWeightKg);
     }
 
@@ -107,7 +109,9 @@ public class RecommendationEngine {
     if (!recent.isEmpty()) {
       return recent;
     }
-    return masterFallbackItems(part, masterItemsByPart).stream().map(TrainingItemMaster::getItemName).toList();
+    return masterFallbackItems(part, masterItemsByPart).stream()
+        .map(TrainingItemMaster::getItemName)
+        .toList();
   }
 
   private DailyRecommendation buildForPart(
@@ -133,7 +137,12 @@ public class RecommendationEngine {
       double weightMax = round(baseWeight * strategy.getWeightPctMax());
       items.add(
           new RecommendedItem(
-              itemName, weightMin, weightMax, strategy.getRepsMin(), strategy.getRepsMax(), strategy.getSets()));
+              itemName,
+              weightMin,
+              weightMax,
+              strategy.getRepsMin(),
+              strategy.getRepsMax(),
+              strategy.getSets()));
     }
 
     return new DailyRecommendation(part, PART_LABEL.get(part), reasonLabel, items, false);

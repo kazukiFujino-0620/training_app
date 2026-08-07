@@ -9,18 +9,13 @@ import com.example.traning.training.Training;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.user.User;
 import java.time.LocalDate;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
-/**
- * F3 Phase 1: 推奨エンジンのコーディネーション役。
- * 各種DAOからデータを集め、{@link RecommendationEngine} に渡す。
- */
+/** F3 Phase 1: 推奨エンジンのコーディネーション役。 各種DAOからデータを集め、{@link RecommendationEngine} に渡す。 */
 @Service
 public class RecommendationService {
 
@@ -64,7 +59,8 @@ public class RecommendationService {
     GoalMode mode = GoalMode.fromString(user.getCurrentGoalMode());
     RecommendationStrategy strategy = strategies.get(mode);
 
-    boolean isNewUser = trainingDao.countByUserIdAndDateRange(userId, LocalDate.of(2000, 1, 1), today) == 0;
+    boolean isNewUser =
+        trainingDao.countByUserIdAndDateRange(userId, LocalDate.of(2000, 1, 1), today) == 0;
 
     FatigueCalculator.FatigueResult fatigueResult = fatigueCalculator.calculate(userId, today);
 

@@ -1,9 +1,6 @@
 package com.example.traning.smarttrainer.recommendation;
 
-/**
- * 目的モード別の重量・回数・セット数レンジを提供する。
- * [[2026-06-06-ai-menu-requirements]] 「重量・セット数（モード別）」表に準拠。
- */
+/** 目的モード別の重量・回数・セット数レンジを提供する。 [[2026-06-06-ai-menu-requirements]] 「重量・セット数（モード別）」表に準拠。 */
 public interface RecommendationStrategy {
 
   GoalMode getMode();

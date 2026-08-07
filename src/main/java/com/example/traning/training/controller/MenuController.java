@@ -306,7 +306,8 @@ public class MenuController {
     Double acwrValue = acwrService.calculate(userId, today);
     model.addAttribute("acwrValue", acwrValue);
     model.addAttribute("acwrWarning", acwrService.isWarning(acwrValue));
-    model.addAttribute("churnMessage", churnDetectionService.checkChurnMessage(userId, today).orElse(null));
+    model.addAttribute(
+        "churnMessage", churnDetectionService.checkChurnMessage(userId, today).orElse(null));
 
     return "menu";
   }
