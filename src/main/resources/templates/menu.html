@@ -680,7 +680,12 @@
         <div class="card mt-6" th:if="${dailyRecommendation != null}">
           <div class="card-header">
             <div class="flex items-center justify-between">
-              <h2 class="text-xl font-semibold">🏋️ 今日のおすすめメニュー</h2>
+              <h2 class="text-xl font-semibold" style="display:flex; align-items:center; gap:8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                今日のおすすめメニュー
+              </h2>
               <span class="text-sm text-muted" th:switch="${currentGoalMode}">
                 <span th:case="'BULKING'">モード: 筋肥大</span>
                 <span th:case="'CUTTING'">モード: 減量</span>

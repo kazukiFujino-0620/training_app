@@ -12,7 +12,8 @@ SELECT
     height_cm,
     weight_kg,
     gender,
-    birth_date
+    birth_date,
+    current_goal_mode
 FROM
     users
 WHERE
