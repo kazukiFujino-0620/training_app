@@ -200,6 +200,26 @@ sudo systemctl status trainingapp
 sudo journalctl -u trainingapp -f
 ```
 
+### DB Migration (Flyway, before restarting the service)
+
+Migrations are managed with Flyway but are **not** applied automatically at application startup (this avoids a circular-dependency issue with JPA's `entityManagerFactory`, and gives explicit control over *when* schema changes land relative to a deploy). Instead, run a one-shot migration step **before** replacing/restarting the running service, using the same JAR and the same `EnvironmentFile` as the main service:
+
+```ini
+# /etc/systemd/system/trainingapp-migrate.service
+[Unit]
+Description=TraningApp DB migration (Flyway, one-shot, run before service restart)
+Conflicts=trainingapp.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/opt/trainingapp/trainingapp.env
+ExecStart=/usr/bin/java -jar /opt/trainingapp/trainingapp.jar --migrate-only=true
+```
+
+(See `deploy/trainingapp-migrate.service` in the repo for the canonical version — install it once with `sudo cp deploy/trainingapp-migrate.service /etc/systemd/system/ && sudo systemctl daemon-reload`.)
+
+Deploy order: copy the new JAR → `sudo systemctl start trainingapp-migrate.service` (blocks until migration completes, fails the deploy if migration fails) → `sudo systemctl restart trainingapp`. This is automated end-to-end in `.github/workflows/deploy.yml`.
+
 ### Option 3: Docker (Optional)
 
 #### A. Create Dockerfile
@@ -483,6 +503,7 @@ For HTTPS:
 - [ ] Health check endpoint responds (if available)
 - [ ] Firewall allows port 8080 (or configured port)
 - [ ] systemd service configured and enabled
+- [ ] `trainingapp-migrate.service` (one-shot Flyway migration) installed and `daemon-reload`'d — required once before the automated migration step in `deploy.yml` will work
 - [ ] Log rotation configured
 - [ ] Monitoring/alerting set up
 - [ ] Backup strategy documented and tested

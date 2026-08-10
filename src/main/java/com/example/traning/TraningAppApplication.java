@@ -18,6 +18,16 @@ public class TraningAppApplication {
 
   public static void main(String[] args) {
     TimeZone.setDefault(TimeZone.getTimeZone("Asia/Tokyo"));
+
+    // デプロイ時のDBマイグレーション専用モード: Springコンテキストを一切起動せず、
+    // Flywayのみを直接実行して終了する（JPAとFlywayの循環依存を避けるため）。
+    for (String arg : args) {
+      if ("--migrate-only=true".equals(arg)) {
+        System.exit(com.example.traning.migration.FlywayMigrateCli.run());
+        return;
+      }
+    }
+
     logger.info("=== TraningApp 起開始 ===");
 
     try {
