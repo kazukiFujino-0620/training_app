@@ -12,6 +12,7 @@ Web ブラウザでの利用に加え、モバイルアプリ（Expo / React Nat
 | 言語                 | Java 21                                                     |
 | フレームワーク       | Spring Boot 3.4.2                                           |
 | ORM                  | Doma2 2.61.0 + Spring Data JPA（スキーマ検証のみ）          |
+| DBマイグレーション   | Flyway（デプロイ時に明示適用、アプリ起動時の自動適用はしない）|
 | テンプレートエンジン | Thymeleaf                                                   |
 | データベース         | MySQL 8.0                                                   |
 | 認証                 | Spring Security、Google OAuth2、LINE Login、JWT（モバイル） |
@@ -40,17 +41,16 @@ CREATE DATABASE IF NOT EXISTS training_db
 "
 ```
 
-### 2. テーブル作成（手動マイグレーション）
+### 2. テーブル作成（Flyway）
 
-> **注意**: このプロジェクトは Flyway の自動実行を使用しない。  
-> `src/main/resources/db/migration/` 内の SQL を順番に手動実行すること。
+`src/main/resources/db/migration/` 内の SQL は Flyway で管理している。以下のコマンドで、未適用のマイグレーションのみが自動的に適用される（適用済みかどうかは `flyway_schema_history` テーブルで管理される）。
 
 ```bash
-for f in src/main/resources/db/migration/V*.sql; do
-  echo "Applying $f ..."
-  mysql -u root training_db < "$f"
-done
+./mvnw package -DskipTests -Plocal
+java -jar target/TraningApp-*.jar --migrate-only=true
 ```
+
+> **注意**: Spring Boot の Flyway 自動設定（`spring.flyway.enabled=true` によるアプリ起動時の自動適用）は使用していない。JPA の `entityManagerFactory` との間で循環依存エラーになるため、`--migrate-only=true` を渡した専用モード（`com.example.traning.migration.FlywayMigrateCli`）で、Spring コンテキストを経由せず直接 Flyway を実行する方式にしている。ローカル・GCP 本番とも同じ仕組みを使う。
 
 ### 3. アプリケーション起動
 
@@ -135,7 +135,7 @@ src/main/java/com/example/traning/
 ├── config/          # Spring Security 等の設定
 └── ...
 
-src/main/resources/db/migration/   # DB マイグレーション SQL（手動実行）
+src/main/resources/db/migration/   # DB マイグレーション SQL（Flyway管理）
 expo-app/                          # モバイルアプリ（Expo）
 docs/                              # 追加ドキュメント
 ```
@@ -144,10 +144,10 @@ docs/                              # 追加ドキュメント
 
 ## DB マイグレーション（注意事項）
 
-- Flyway は**使用していない**。マイグレーションファイルは記録目的。
-- 新しいテーブル追加・カラム変更は必ず `mysql` コマンドで手動実行する。
-- GCP デプロイ時も JAR 差し替えと DB マイグレーションを**セット**で実施すること  
-  （抜けると `Schema-validation` エラーでアプリが起動不能になる）。
+- Flyway で管理している（`org.flywaydb:flyway-core` / `flyway-mysql`）。
+- 新しいテーブル追加・カラム変更は `src/main/resources/db/migration/V{n}__説明.sql` にファイルを追加するだけでよい。バージョン番号（`V{n}`）は既存ファイルと重複しないよう注意すること（Flywayはバージョン重複をエラーとして検出する）。
+- **アプリ起動時の自動適用ではなく、デプロイ手順内での明示的な適用**（`--migrate-only=true`、上記「テーブル作成」参照）。GCPデプロイでは `.github/workflows/deploy.yml` が、JARの差し替え直後・サービス再起動前に自動実行する（`deploy/trainingapp-migrate.service`、詳細は [DEPLOYMENT.md](DEPLOYMENT.md) 参照）。
+- 本番DBは `V16` まで適用済みとしてベースライン設定済み（`FlywayMigrateCli` 内の `BASELINE_VERSION` 定数）。過去に手動適用運用だった際、マイグレーションファイルの存在と本番への実際の適用が一致しないインシデントが複数回発生していたため、Flyway導入によりこれを構造的に防止している。
 
 ---
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=TraningApp DB migration (Flyway, one-shot, run before service restart)
+# 通常サービスと同時に走らないようにする（DBスキーマ変更中にアプリが古いJARで動くのを防ぐ）
+Conflicts=trainingapp.service
+
+[Service]
+Type=oneshot
+# EnvironmentFileにSPRING_DATASOURCE_URL/USERNAME/PASSWORDが含まれている前提
+# （本番のtrainingapp.envには既存のDB接続情報が入っている）
+EnvironmentFile=/opt/trainingapp/trainingapp.env
+# Springコンテキストは起動せず、Flywayのみを直接実行するモード（詳細はFlywayMigrateCliのJavadoc参照）
+ExecStart=/usr/bin/java -jar /opt/trainingapp/trainingapp.jar --migrate-only=true
