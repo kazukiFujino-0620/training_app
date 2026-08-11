@@ -435,6 +435,7 @@
                     </p>
                   </div>
                   <button
+                    th:if="${!(selectedDate != null ? selectedDate : today).isBefore(today)}"
                     th:data-action="register"
                     th:data-date="${selectedDate != null ? selectedDate : today}"
                     class="btn btn-primary mt-4"
