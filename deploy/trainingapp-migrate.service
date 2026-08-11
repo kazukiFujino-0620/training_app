@@ -1,10 +1,15 @@
 [Unit]
 Description=TraningApp DB migration (Flyway, one-shot, run before service restart)
-# 通常サービスと同時に走らないようにする（DBスキーマ変更中にアプリが古いJARで動くのを防ぐ）
-Conflicts=trainingapp.service
+# 注意: 意図的にConflicts=trainingapp.serviceを設定していない。
+# 本マイグレーションは追加的な変更（ADD COLUMN/CREATE TABLE等）のみを想定しており、
+# 稼働中の旧JARと一時的に共存しても安全なため。Conflicts=を設定すると、このユニット開始時に
+# trainingapp.serviceが自動停止され、マイグレーションがハングした場合に本番が無停止で
+# 止まったままになるリスクがある（2026-08-10に実際に発生・502エラー）。
 
 [Service]
 Type=oneshot
+# タイムアウトを明示（デフォルトは無制限のため、DB接続不可時に永久ハングするのを防ぐ）
+TimeoutStartSec=60
 # EnvironmentFileにSPRING_DATASOURCE_URL/USERNAME/PASSWORDが含まれている前提
 # （本番のtrainingapp.envには既存のDB接続情報が入っている）
 EnvironmentFile=/opt/trainingapp/trainingapp.env

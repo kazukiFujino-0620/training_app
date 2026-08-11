@@ -25,18 +25,25 @@ public final class FlywayMigrateCli {
   /** 本番DBは V16（current_goal_mode追加）まで適用済みのため、これをベースラインとする。 */
   private static final String BASELINE_VERSION = "16";
 
+  /** MySQL Connector/Jのデフォルト接続タイムアウトは無制限のため、明示的に上限を設定する。 */
+  private static final int CONNECT_TIMEOUT_MILLIS = 15_000;
+
   public static int run() {
     String url =
-        System.getenv()
-            .getOrDefault(
-                "SPRING_DATASOURCE_URL",
-                "jdbc:mysql://localhost:3306/training_db?serverTimezone=Asia/Tokyo");
+        withConnectTimeout(
+            System.getenv()
+                .getOrDefault(
+                    "SPRING_DATASOURCE_URL",
+                    "jdbc:mysql://localhost:3306/training_db?serverTimezone=Asia/Tokyo"));
     String username = System.getenv().getOrDefault("SPRING_DATASOURCE_USERNAME", "root");
     String password = System.getenv().getOrDefault("SPRING_DATASOURCE_PASSWORD", "");
+
+    System.out.println("[FlywayMigrateCli] 接続先: " + url);
 
     Flyway flyway =
         Flyway.configure()
             .dataSource(url, username, password)
+            .connectRetries(0)
             .locations("classpath:db/migration")
             .baselineOnMigrate(true)
             .baselineVersion(BASELINE_VERSION)
@@ -49,5 +56,14 @@ public final class FlywayMigrateCli {
             + ", 成功="
             + result.success);
     return result.success ? 0 : 1;
+  }
+
+  /** JDBC URLに {@code connectTimeout} が未指定なら付与し、DB到達不能時に無限に待ち続けるのを防ぐ。 */
+  private static String withConnectTimeout(String url) {
+    if (url.contains("connectTimeout=")) {
+      return url;
+    }
+    String separator = url.contains("?") ? "&" : "?";
+    return url + separator + "connectTimeout=" + CONNECT_TIMEOUT_MILLIS;
   }
 }
