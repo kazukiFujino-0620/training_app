@@ -67,7 +67,10 @@ jobs:
             sudo cp /opt/trainingapp/trainingapp-migrate.service /etc/systemd/system/trainingapp-migrate.service
             sudo systemctl daemon-reload
             sudo systemctl start trainingapp-migrate.service
-            sudo systemctl status trainingapp-migrate.service --no-pager
+            # Type=oneshotは正常完了後 inactive(dead) になり、`systemctl status`はこの状態に
+            # 対して非ゼロを返す仕様のため、ここは表示目的のみとしステップの成否には影響させない
+            # （成否の判定は直前の `systemctl start` の終了コードで行う）。
+            sudo systemctl status trainingapp-migrate.service --no-pager || true
 
       # 6. サーバー上のアプリを再起動
       - name: Restart Application Service
