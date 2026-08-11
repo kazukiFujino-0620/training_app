@@ -4,7 +4,8 @@ select
   password,
   user_name,
   role,
-  enabled
+  enabled,
+  organization_id
 from
   users
 where
