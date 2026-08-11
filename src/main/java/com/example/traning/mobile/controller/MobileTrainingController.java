@@ -1,6 +1,7 @@
 package com.example.traning.mobile.controller;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.dao.UserDao;
 import com.example.traning.mobile.dto.AddSetRequest;
 import com.example.traning.mobile.dto.AddTrainingRequest;
 import com.example.traning.mobile.dto.CompleteTrainingRequest;
@@ -43,16 +44,19 @@ public class MobileTrainingController {
   private final TrainingDao trainingDao;
   private final TrainingDetailDao trainingDetailDao;
   private final PersonalRecordService personalRecordService;
+  private final UserDao userDao;
 
   public MobileTrainingController(
       TrainingService trainingService,
       TrainingDao trainingDao,
       TrainingDetailDao trainingDetailDao,
-      PersonalRecordService personalRecordService) {
+      PersonalRecordService personalRecordService,
+      UserDao userDao) {
     this.trainingService = trainingService;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.personalRecordService = personalRecordService;
+    this.userDao = userDao;
   }
 
   /** 当日（またはdate指定日）のトレーニング一覧を返す。 各 Training に details リスト（セット情報）が含まれる。 */
@@ -74,6 +78,8 @@ public class MobileTrainingController {
 
     Training training = new Training();
     training.setUserId(userId);
+    // organization_idはDB上NOT NULL。所有ユーザーの所属組織から解決して設定する。
+    training.setOrganizationId(userDao.selectOrganizationIdById(userId));
     training.setMenu(req.getMenu());
     training.setPartCode(req.getPartCode());
     training.setTrainingDate(

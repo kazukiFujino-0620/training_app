@@ -104,6 +104,7 @@ public class WithdrawalService {
     req.setRequestedAt(LocalDateTime.now());
     req.setCreatedAt(LocalDateTime.now());
     req.setUpdatedAt(LocalDateTime.now());
+    req.setOrganizationId(user.getOrganizationId());
     withdrawalRequestDao.insert(req);
 
     // 通知メール送信失敗（SMTP障害等）で申請自体を失敗させない。

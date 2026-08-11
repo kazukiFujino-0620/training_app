@@ -56,4 +56,7 @@ public interface UserDao {
 
   @Update(sqlFile = true)
   int updateGoalMode(Integer userId, String currentGoalMode, LocalDateTime updatedDatetime);
+
+  @Select
+  Long selectOrganizationIdById(Long userId);
 }
