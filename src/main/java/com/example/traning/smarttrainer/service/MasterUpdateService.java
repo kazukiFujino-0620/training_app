@@ -3,6 +3,7 @@ package com.example.traning.smarttrainer.service;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
+import com.example.traning.organization.Organization;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -237,6 +238,9 @@ public class MasterUpdateService {
       entity.setItemName(itemName);
       entity.setDisplayOrder(existing.getDisplayOrder());
       entity.setMasterFlg(masterFlg);
+      // organization_idはDB上NOT NULL。BatchUpdateは全列を明示的に列挙する自動生成SQLのため、
+      // 既存値を引き継がないとNULLで上書きされてしまう。
+      entity.setOrganizationId(existing.getOrganizationId());
       updatedItems.add(entity);
       return;
     }
@@ -250,6 +254,8 @@ public class MasterUpdateService {
     entity.setPartCode(partsCode);
     entity.setItemName(itemName);
     entity.setMasterFlg(masterFlg);
+    // CSV一括登録の種目はプラットフォーム共通種目として扱う（組織固有種目の登録UIはフェーズ4）。
+    entity.setOrganizationId(Organization.ALL_ORGANIZATION_ID);
 
     // --- 部位ごとの連番ロジック ---
     // その部位が初めて登場なら1、次からは+1する

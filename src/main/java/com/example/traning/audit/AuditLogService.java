@@ -1,5 +1,6 @@
 package com.example.traning.audit;
 
+import com.example.traning.dao.UserDao;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,6 +17,7 @@ public class AuditLogService {
   private static final int PAGE_SIZE = 50;
 
   private final AuditLogDao auditLogDao;
+  private final UserDao userDao;
 
   @Transactional
   public void record(
@@ -33,6 +35,11 @@ public class AuditLogService {
     entry.setIpAddress(ipAddress != null ? ipAddress : "unknown");
     entry.setRequestPath(requestPath != null ? requestPath : "");
     entry.setChangedAt(LocalDateTime.now());
+    // organization_idはNULL許容だが、組織管理者向けのログ絞り込み（フェーズ3）に備え、
+    // 判明する場合はここで補完しておく（userIdが無い/不明な場合はNULLのまま）。
+    if (userId != null) {
+      entry.setOrganizationId(userDao.selectOrganizationIdById(userId));
+    }
     auditLogDao.insert(entry);
     log.debug("監査ログ記録: action={} userId={} targetId={}", action, userId, targetId);
   }

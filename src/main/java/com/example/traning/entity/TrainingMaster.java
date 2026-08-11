@@ -28,4 +28,8 @@ public class TrainingMaster {
 
   @Column(name = "item_name")
   public String itemName;
+
+  /** 0=オールマイティ(全組織共通)。組織固有部位の場合はその組織（GYM単位）のid。 */
+  @Column(name = "organization_id")
+  public Long organizationId;
 }

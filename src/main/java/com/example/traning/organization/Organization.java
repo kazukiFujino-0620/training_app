@@ -17,6 +17,9 @@ public class Organization {
   /** 全組織共通を表す予約済みの特殊行（training_item_master等の共通マスタが参照する）。 */
   public static final long ALL_ORGANIZATION_ID = 0L;
 
+  /** 既存データ・招待コード未入力の新規登録が割り当てられるデフォルト店舗（V17でシード）。 招待コードによる組織割り当て（フェーズ4）が実装されるまでの暫定値。 */
+  public static final long DEFAULT_STORE_ORGANIZATION_ID = 2L;
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;

@@ -1,6 +1,7 @@
 package com.example.traning.user.service;
 
 import com.example.traning.dao.UserDao;
+import com.example.traning.organization.Organization;
 import com.example.traning.smarttrainer.recommendation.GoalMode;
 import com.example.traning.user.User;
 import com.example.traning.user.form.SignupForm;
@@ -67,6 +68,9 @@ public class SignupServiceTransaction {
       // current_goal_modeはDB上NOT NULL。Domaの自動生成INSERTは全列を明示的に列挙するため、
       // ここで未設定のままだとNULLが明示的にバインドされDBのDEFAULT句が効かず登録に失敗する。
       user.setCurrentGoalMode(GoalMode.MAINTENANCE.name());
+      // organization_idも同様にDB上NOT NULL。招待コードによる組織割り当て（フェーズ4）が
+      // 実装されるまでは、デフォルト店舗に割り当てる（既存ユーザーと同じ扱い）。
+      user.setOrganizationId(Organization.DEFAULT_STORE_ORGANIZATION_ID);
 
       userDao.insert(user);
       log.info("User registered successfully - isOAuth2: {}", signupForm.isOAuth2Signup());

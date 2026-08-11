@@ -29,4 +29,8 @@ public class TrainingItemMaster {
   /** 種目活用フラグ（0:使用不可, 1:使用可能）。本日以降の新規トレーニング登録では1のもののみ表示する。 */
   @Column(name = "master_flg")
   private Integer masterFlg;
+
+  /** 0=オールマイティ(全組織共通)。組織固有種目の場合はその組織（GYM単位）のid。 */
+  @Column(name = "organization_id")
+  private Long organizationId;
 }

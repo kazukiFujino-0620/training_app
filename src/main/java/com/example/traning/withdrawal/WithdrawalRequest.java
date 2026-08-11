@@ -43,4 +43,7 @@ public class WithdrawalRequest {
 
   @Column(name = "updated_at")
   public LocalDateTime updatedAt;
+
+  @Column(name = "organization_id")
+  public Long organizationId;
 }

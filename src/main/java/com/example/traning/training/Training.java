@@ -37,6 +37,12 @@ public class Training {
   @NotNull(message = "ユーザーIDは必須です")
   private Long userId;
 
+  // 組織IDはクライアントから受け取らず、TrainingServiceTransaction/MobileTrainingControllerで
+  // 所有ユーザーの所属組織から常にサーバー側で解決・設定するため、@NotNullは付与しない
+  // （createDatetime/updatedDatetime等の他のサーバー管理項目と同じ扱い）。
+  @Column(name = "organization_id")
+  private Long organizationId;
+
   @Column(name = "training_date")
   @NotNull(message = "トレーニング日は必須です")
   private LocalDate trainingDate;

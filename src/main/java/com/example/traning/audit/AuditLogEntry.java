@@ -41,4 +41,7 @@ public class AuditLogEntry {
 
   @Column(name = "extra")
   private String extra;
+
+  @Column(name = "organization_id")
+  private Long organizationId;
 }

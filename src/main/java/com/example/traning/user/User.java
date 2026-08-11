@@ -69,4 +69,7 @@ public class User {
 
   @Column(name = "current_goal_mode")
   public String currentGoalMode;
+
+  @Column(name = "organization_id")
+  public Long organizationId;
 }
