@@ -1,6 +1,7 @@
 package com.example.traning.user.service;
 
 import com.example.traning.dao.UserDao;
+import com.example.traning.smarttrainer.recommendation.GoalMode;
 import com.example.traning.user.User;
 import com.example.traning.user.form.SignupForm;
 import java.time.LocalDateTime;
@@ -63,6 +64,9 @@ public class SignupServiceTransaction {
               ? signupForm.getGender()
               : null);
       user.setBirthDate(signupForm.getBirthDate());
+      // current_goal_modeはDB上NOT NULL。Domaの自動生成INSERTは全列を明示的に列挙するため、
+      // ここで未設定のままだとNULLが明示的にバインドされDBのDEFAULT句が効かず登録に失敗する。
+      user.setCurrentGoalMode(GoalMode.MAINTENANCE.name());
 
       userDao.insert(user);
       log.info("User registered successfully - isOAuth2: {}", signupForm.isOAuth2Signup());
