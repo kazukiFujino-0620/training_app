@@ -413,11 +413,22 @@ body {
 .settings-btn svg {
   width: 1.25rem;
   height: 1.25rem;
-  animation: rotate 2s linear infinite paused;
+  transition: transform var(--transition-fast);
 }
 
-.settings-btn:hover svg {
-  animation-play-state: running;
+/* プルダウンが開いている間だけアイコンを回転させ、アクティブ状態を明示する。
+   開閉はJS（common.js の toggleSettings）が .settings-btn に .active を
+   付け外しすることで制御しており、タッチ操作の:hover固着に依存しない。 */
+.settings-btn.active svg {
+  transform: rotate(90deg);
+}
+
+/* マウス等、実際にホバー可能なポインタデバイスでのみ装飾的な回転演出を行う。
+   タッチデバイスは擬似的な:hoverが解除されず無限に回り続けてしまうため対象外。 */
+@media (hover: hover) and (pointer: fine) {
+  .settings-btn:hover svg {
+    animation: rotate 2s linear infinite;
+  }
 }
 
 @keyframes rotate {

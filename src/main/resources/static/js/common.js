@@ -75,10 +75,17 @@ function initializeLogoutButton() {
 document.addEventListener('DOMContentLoaded', initializeLogoutButton);
 
 // Settings dropdown functionality
+// アイコンの見た目（回転演出）はCSSの:hoverではなく、この.activeクラスの
+// 付け外しで明示的に制御する（タッチデバイスでは:hoverが解除されず
+// 「押下後に回転し続ける」不具合になるため、開閉状態と同期させる）
 function toggleSettings() {
     const dropdown = document.getElementById('settingsDropdown');
+    const settingsBtn = document.querySelector('.settings-btn');
     if (dropdown) {
-        dropdown.classList.toggle('show');
+        const isOpen = dropdown.classList.toggle('show');
+        if (settingsBtn) {
+            settingsBtn.classList.toggle('active', isOpen);
+        }
     }
 }
 
@@ -86,9 +93,10 @@ function toggleSettings() {
 document.addEventListener('click', function(event) {
     const settingsBtn = document.querySelector('.settings-btn');
     const dropdown = document.getElementById('settingsDropdown');
-    
+
     if (settingsBtn && dropdown && !settingsBtn.contains(event.target) && !dropdown.contains(event.target)) {
         dropdown.classList.remove('show');
+        settingsBtn.classList.remove('active');
     }
 });
 
