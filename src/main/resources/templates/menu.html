@@ -222,13 +222,18 @@
                                 th:if="${isDone == 'COMPLETED'}"
                                 class="text-success text-sm"
                               >
-                                ✅
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                  <polyline points="22 4 12 14.01 9 11.01" />
+                                </svg>
                               </div>
                               <div
                                 th:if="${isDone == 'IN_PROGRESS'}"
                                 class="text-warning text-sm"
                               >
-                                🔥
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                                </svg>
                               </div>
                             </div>
                           </div>
@@ -695,8 +700,13 @@
           </div>
           <div class="card-body">
             <div th:if="${churnMessage != null}" class="alert alert-info mb-4" th:text="${churnMessage}"></div>
-            <div th:if="${acwrWarning}" class="alert alert-danger mb-4">
-              ⚠️ 警告: 今週の負荷が急増しています（ACWR
+            <div th:if="${acwrWarning}" class="alert alert-danger mb-4" style="display:flex; align-items:center; gap:6px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              警告: 今週の負荷が急増しています（ACWR
               <span th:text="${#numbers.formatDecimal(acwrValue, 1, 2)}"></span>）。休養も検討してください。
             </div>
 

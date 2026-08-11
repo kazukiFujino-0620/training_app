@@ -253,7 +253,13 @@
     <th:block th:each="gp : ${goals}" th:if="${gp.effectiveStatus == 'ACHIEVED'}">
       <div class="goal-item" style="opacity:0.75;">
         <div class="goal-item-header">
-          <span class="goal-item-name" th:text="'✅ ' + ${gp.goal.itemName}"></span>
+          <span class="goal-item-name" style="display:inline-flex; align-items:center; gap:6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <span th:text="${gp.goal.itemName}"></span>
+          </span>
           <span class="badge-achieved">達成</span>
         </div>
         <div th:if="${gp.goal.targetWeight != null}" class="goal-target"

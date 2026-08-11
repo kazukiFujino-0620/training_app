@@ -106,8 +106,17 @@
                                                       th:class="${day.month != targetMonth.month} ? 'text-muted' : ''">1</span>
                                                 
                                                 <div class="mt-1">
-                                                    <div th:if="${dayStatus == 'COMPLETED'}" class="text-success text-xs">✅</div>
-                                                    <div th:if="${dayStatus == 'IN_PROGRESS'}" class="text-warning text-xs">🔥</div>
+                                                    <div th:if="${dayStatus == 'COMPLETED'}" class="text-success text-xs">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                                            <polyline points="22 4 12 14.01 9 11.01" />
+                                                        </svg>
+                                                    </div>
+                                                    <div th:if="${dayStatus == 'IN_PROGRESS'}" class="text-warning text-xs">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                                                        </svg>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
