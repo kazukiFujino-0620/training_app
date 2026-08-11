@@ -121,24 +121,33 @@ public class GlobalControllerAdvice {
   public ModelAndView handleResponseStatusException(
       ResponseStatusException ex, HttpServletRequest request, HttpServletResponse response)
       throws IOException {
-    int statusValue = ex.getStatusCode().value();
+    HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
     String reason = ex.getReason() != null ? ex.getReason() : "リクエストを処理できませんでした。";
     log.warn(
         "ResponseStatusException: status={}, reason={}, path={}",
-        statusValue,
+        status,
         reason,
         request.getRequestURI());
 
     String accept = request.getHeader("Accept");
     if (accept != null && accept.contains("application/json")) {
-      response.setStatus(statusValue);
+      response.setStatus(status.value());
       response.setContentType("application/json;charset=UTF-8");
       response.getWriter().write("{\"error\":\"" + reason.replace("\"", "'") + "\"}");
       return null;
     }
 
-    response.setStatus(statusValue);
-    ModelAndView mav = new ModelAndView("error/" + statusValue);
+    // テンプレートが用意されているステータスのみ専用ページを使い、それ以外は500ページで代替する
+    // （存在しないテンプレート名を指定するとThymeleafのレンダリング自体が失敗するため）。
+    String viewName =
+        switch (status) {
+          case FORBIDDEN -> "error/403";
+          case NOT_FOUND -> "error/404";
+          case CONFLICT -> "error/409";
+          default -> "error/500";
+        };
+    ModelAndView mav = new ModelAndView(viewName);
+    mav.setStatus(status);
     mav.addObject("message", reason);
     return mav;
   }

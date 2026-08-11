@@ -5,6 +5,7 @@ import com.example.traning.body.BodyMeasurement;
 import com.example.traning.body.BodyMeasurementService;
 import com.example.traning.export.DataExportService;
 import com.example.traning.mfa.MfaService;
+import com.example.traning.organization.OrganizationScopeResolver;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -21,8 +22,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -42,15 +45,17 @@ import org.springframework.web.bind.annotation.ResponseBody;
 /**
  * 管理者専用コントローラー。
  *
- * <p>★ 修正ポイント（指摘1・3対応） クラスレベルに @PreAuthorize("hasRole('ADMIN')") を付与することで、
- * このコントローラーの全メソッドに管理者権限チェックを一括適用する。 SecurityConfig の URL パターン設定と合わせた多層防御。
+ * <p>★ 修正ポイント（指摘1・3対応） クラスレベルに @PreAuthorize を付与することで、 このコントローラーの全メソッドに管理者権限チェックを一括適用する。
+ * SecurityConfig の URL パターン設定と合わせた多層防御。
+ * ita1-1フェーズ3対応でROLE_ORG_ADMIN/ROLE_STORE_ADMINも許可（自組織/自店舗スコープでの利用を想定。
+ * データの絞り込み自体はOrganizationScopeResolverによるサービス層フィルタリングで行う）。
  *
  * <p>また、userId をパスパラメータや @RequestParam で受け取るエンドポイントでは ユーザー存在チェックを行い、存在しない ID へのアクセスに対して
  * 適切なエラーを返すよう修正（IDOR の影響範囲を縮小）。
  */
 @Controller
 @RequestMapping("/admin")
-@PreAuthorize("hasRole('ADMIN')") // ★ クラスレベルで全メソッドに管理者権限を適用
+@PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
 @Slf4j
 public class AdminController {
 
@@ -61,6 +66,7 @@ public class AdminController {
   private final MfaService mfaService;
   private final DataExportService dataExportService;
   private final BodyMeasurementService bodyMeasurementService;
+  private final OrganizationScopeResolver organizationScopeResolver;
 
   public AdminController(
       UserService userService,
@@ -69,7 +75,8 @@ public class AdminController {
       CalorieCalculator calorieCalculator,
       MfaService mfaService,
       DataExportService dataExportService,
-      BodyMeasurementService bodyMeasurementService) {
+      BodyMeasurementService bodyMeasurementService,
+      OrganizationScopeResolver organizationScopeResolver) {
     this.userService = userService;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
@@ -77,13 +84,48 @@ public class AdminController {
     this.mfaService = mfaService;
     this.dataExportService = dataExportService;
     this.bodyMeasurementService = bodyMeasurementService;
+    this.organizationScopeResolver = organizationScopeResolver;
   }
 
-  /** ユーザー一覧画面を表示する。 */
+  /** ログイン中の管理者ユーザーを取得する。 */
+  private User getCurrentAdminUser() {
+    Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    String email = (principal instanceof UserDetails ud) ? ud.getUsername() : "";
+    return userService.getUserByEmail(email);
+  }
+
+  /** 対象ユーザーが現在の管理者からアクセス可能な組織に属するか検証する。 属さない場合は403を返してIDORを防止する（ROLE_ADMINは全組織アクセス可のため常に許可）。 */
+  private void assertAccessible(User targetUser) {
+    User currentAdmin = getCurrentAdminUser();
+    if (!organizationScopeResolver.canAccessOrganization(
+        currentAdmin, targetUser.getOrganizationId())) {
+      log.warn(
+          "組織外アクセス拒否: 管理者={}, 対象ユーザー={}, 対象組織={}",
+          currentAdmin.getEmail(),
+          targetUser.getUserId(),
+          targetUser.getOrganizationId());
+      throw new org.springframework.web.server.ResponseStatusException(
+          HttpStatus.FORBIDDEN, "対象のユーザーにアクセスする権限がありません");
+    }
+  }
+
+  /** ユーザー一覧画面を表示する。ROLE_ADMIN以外は自身がアクセス可能な組織のユーザーのみに絞り込む。 */
   @GetMapping("/users")
   public String listUsers(Model model) {
-    model.addAttribute("userList", userService.findAll());
+    model.addAttribute("userList", filterByAccessibleOrganizations(userService.findAll()));
     return "admin/user_list";
+  }
+
+  /** アクセス可能な組織（ROLE_ADMINはnull＝全組織）でユーザー一覧を絞り込む。 */
+  private List<User> filterByAccessibleOrganizations(List<User> users) {
+    java.util.Set<Long> accessibleOrganizationIds =
+        organizationScopeResolver.resolveAccessibleOrganizationIds(getCurrentAdminUser());
+    if (accessibleOrganizationIds == null) {
+      return users;
+    }
+    return users.stream()
+        .filter(u -> accessibleOrganizationIds.contains(u.getOrganizationId()))
+        .collect(Collectors.toList());
   }
 
   /**
@@ -95,6 +137,7 @@ public class AdminController {
   @GetMapping("/user/edit/{id}")
   public String showEditUser(@PathVariable("id") Integer id, Model model) {
     User user = userService.getUserById(id); // 存在しなければ RuntimeException
+    assertAccessible(user);
     model.addAttribute("user", user);
     return "admin/user_edit";
   }
@@ -117,6 +160,7 @@ public class AdminController {
     Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     String currentEmail = (principal instanceof UserDetails ud) ? ud.getUsername() : "";
     User existing = userService.getUserById(form.getUserId());
+    assertAccessible(existing);
     if (currentEmail.equals(existing.getEmail()) && Boolean.FALSE.equals(form.getEnabled())) {
       redirectAttributes.addFlashAttribute("errorMessage", "自分自身のアカウントを無効にすることはできません。");
       return "redirect:/admin/user/edit/" + form.getUserId();
@@ -142,7 +186,7 @@ public class AdminController {
       users = userService.findAll();
     }
 
-    model.addAttribute("userList", users);
+    model.addAttribute("userList", filterByAccessibleOrganizations(users));
     model.addAttribute("userName", userName);
     return "admin/all_users_training_list";
   }
@@ -163,6 +207,7 @@ public class AdminController {
 
     // ★ ユーザー存在確認（存在しなければ RuntimeException をスロー）
     User user = userService.getUserById(id);
+    assertAccessible(user);
     model.addAttribute("user", user);
 
     LocalDate targetMonth =
@@ -216,7 +261,7 @@ public class AdminController {
     log.info("API: トレーニング詳細取得 - ユーザーID: {}, 日付: {}", userId, date);
 
     // ★ ユーザー存在確認
-    userService.getUserById(userId); // 存在しなければ RuntimeException → 404 推奨
+    assertAccessible(userService.getUserById(userId)); // 存在しなければ RuntimeException → 404 推奨
 
     try {
       List<Training> trainings = trainingDao.selectByUserIdAndDate(userId, date);
@@ -255,7 +300,7 @@ public class AdminController {
     log.info("API: グラフデータ取得 - ユーザーID: {}, 開始日: {}, 終了日: {}", userId, startDate, endDate);
 
     // ★ ユーザー存在確認
-    userService.getUserById(userId);
+    assertAccessible(userService.getUserById(userId));
 
     try {
       LocalDate end = (endDate != null) ? LocalDate.parse(endDate) : LocalDate.now();
@@ -321,7 +366,7 @@ public class AdminController {
       HttpServletResponse response)
       throws IOException {
 
-    userService.getUserById(id.intValue()); // ユーザー存在確認
+    assertAccessible(userService.getUserById(id.intValue())); // ユーザー存在確認＋組織チェック
 
     if (from.isAfter(to)) {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST, "開始日は終了日以前の日付を指定してください");
@@ -343,7 +388,7 @@ public class AdminController {
   public String mfaReset(
       @PathVariable("id") Integer id,
       org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
-    userService.getUserById(id); // 存在確認
+    assertAccessible(userService.getUserById(id)); // 存在確認＋組織チェック
     mfaService.disableMfa(id.longValue());
     log.info("Admin MFA reset: userId={}", id);
     redirectAttributes.addFlashAttribute("successMessage", "2段階認証をリセットしました。");
