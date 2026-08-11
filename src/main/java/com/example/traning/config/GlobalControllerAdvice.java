@@ -4,6 +4,8 @@ import com.example.traning.dao.UserDao;
 import com.example.traning.retention.RetentionPolicyException;
 import com.example.traning.user.User;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.security.Principal;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.ModelAndView;
 
 @ControllerAdvice
@@ -104,6 +107,39 @@ public class GlobalControllerAdvice {
     log.warn("User not found");
     ModelAndView mav = new ModelAndView("error/404");
     mav.addObject("message", "お探しのリソースが見つかりませんでした。");
+    return mav;
+  }
+
+  /**
+   * ita1-1 フェーズ3: {@code assertAccessible} 等が投げる {@link ResponseStatusException}（IDOR対策の403等）を処理する。
+   *
+   * <p>{@code ResponseStatusException} は {@link RuntimeException} のサブクラスのため、専用ハンドラーが無いと下の {@code
+   * handleRuntimeException} に握りつぶされ、常に500になってしまう（実装中に発見した既存バグ）。 ステータスコードを尊重しつつ、{@code Accept:
+   * application/json} の場合はJSON、それ以外はHTMLエラーページで応答する。
+   */
+  @ExceptionHandler(ResponseStatusException.class)
+  public ModelAndView handleResponseStatusException(
+      ResponseStatusException ex, HttpServletRequest request, HttpServletResponse response)
+      throws IOException {
+    int statusValue = ex.getStatusCode().value();
+    String reason = ex.getReason() != null ? ex.getReason() : "リクエストを処理できませんでした。";
+    log.warn(
+        "ResponseStatusException: status={}, reason={}, path={}",
+        statusValue,
+        reason,
+        request.getRequestURI());
+
+    String accept = request.getHeader("Accept");
+    if (accept != null && accept.contains("application/json")) {
+      response.setStatus(statusValue);
+      response.setContentType("application/json;charset=UTF-8");
+      response.getWriter().write("{\"error\":\"" + reason.replace("\"", "'") + "\"}");
+      return null;
+    }
+
+    response.setStatus(statusValue);
+    ModelAndView mav = new ModelAndView("error/" + statusValue);
+    mav.addObject("message", reason);
     return mav;
   }
 

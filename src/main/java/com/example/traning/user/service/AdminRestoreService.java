@@ -43,4 +43,24 @@ public class AdminRestoreService {
     trainingDetailDao.restoreByTrainingId(trainingId);
     trainingDao.restoreById(trainingId);
   }
+
+  /**
+   * IDOR対策・組織スコープ判定用（ita1-1 フェーズ3）。ソフトデリート済みのユーザーも対象に含む。
+   *
+   * @return 対象ユーザーが存在しない場合は {@code null}
+   */
+  @Transactional(readOnly = true)
+  public Long getUserOrganizationId(Integer userId) {
+    return userDao.selectOrganizationIdById(userId.longValue());
+  }
+
+  /**
+   * IDOR対策・組織スコープ判定用（ita1-1 フェーズ3）。ソフトデリート済みのトレーニングも対象に含む。
+   *
+   * @return 対象トレーニングが存在しない場合は {@code null}
+   */
+  @Transactional(readOnly = true)
+  public Long getTrainingOrganizationId(Long trainingId) {
+    return trainingDao.selectOrganizationIdById(trainingId);
+  }
 }

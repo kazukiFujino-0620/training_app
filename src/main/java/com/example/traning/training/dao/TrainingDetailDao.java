@@ -50,6 +50,15 @@ public interface TrainingDetailDao {
   @Select
   List<TrainingDetail> selectByDate(String date);
 
+  /**
+   * 組織スコープで絞り込んだ日付別トレーニング詳細一覧（ita1-1 フェーズ3、管理者用）。
+   *
+   * @param organizationIds {@code null} の場合は絞り込みなし（ROLE_ADMIN）。空リストは呼び出し側で0件として扱うこと（IN
+   *     句が空になるため呼び出し禁止）。
+   */
+  @Select
+  List<TrainingDetail> selectByDateAndOrganizationIds(String date, List<Long> organizationIds);
+
   @Select
   List<TrainingDetail> selectByUserIdAndDate(Long userId, String date);
 

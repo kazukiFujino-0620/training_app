@@ -152,7 +152,10 @@ public class SecurityConfig {
                         OPENAPI_YAML)
                     .permitAll()
                     .requestMatchers(ADMIN_PATH)
-                    .hasRole("ADMIN")
+                    // ita1-1 マルチテナント化 フェーズ3: ORG_ADMIN/STORE_ADMIN も /admin/** に到達可能とする。
+                    // 実際のデータアクセス範囲は OrganizationScopeResolver +
+                    // 各コントローラーの @PreAuthorize / IDOR チェックで絞り込む。
+                    .hasAnyRole("ADMIN", "ORG_ADMIN", "STORE_ADMIN")
                     .requestMatchers(USER_PATH)
                     .hasAnyRole("USER", "ADMIN")
                     .requestMatchers("/auth/mfa", "/auth/mfa/verify")

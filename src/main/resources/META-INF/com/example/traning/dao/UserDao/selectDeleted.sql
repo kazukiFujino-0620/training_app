@@ -6,7 +6,8 @@ select
   role,
   enabled,
   create_datetime,
-  deleted_at
+  deleted_at,
+  organization_id
 from
   users
 where
