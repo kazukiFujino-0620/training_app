@@ -42,15 +42,30 @@ jobs:
           target: "/opt/trainingapp/"
           strip_components: 1
 
-      # 5. 新JARへの差し替え + DBマイグレーション適用（サービス再起動より前に実施）
+      # 4b. マイグレーション用systemdユニットファイルを転送 (SCP)
+      # リポジトリ側で内容が変わった場合も、次回デプロイで自動的にVM側へ反映される。
+      - name: Copy migrate systemd unit to GCP VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_SSH_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          source: "deploy/trainingapp-migrate.service"
+          target: "/opt/trainingapp/"
+          strip_components: 1
+
+      # 5. 新JARへの差し替え + systemdユニットの更新 + DBマイグレーション適用（サービス再起動より前に実施）
       - name: Apply DB migration (Flyway)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_SSH_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
+          command_timeout: 3m
           script: |
             cp /opt/trainingapp/TraningApp-*.jar /opt/trainingapp/trainingapp.jar
+            sudo cp /opt/trainingapp/trainingapp-migrate.service /etc/systemd/system/trainingapp-migrate.service
+            sudo systemctl daemon-reload
             sudo systemctl start trainingapp-migrate.service
             sudo systemctl status trainingapp-migrate.service --no-pager
 
