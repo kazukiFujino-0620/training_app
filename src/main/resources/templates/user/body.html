@@ -17,6 +17,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* スマートフォン幅で入力フォームが2列固定のまま崩れないよう、狭い画面では1列に切り替える */
+        .body-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        @media (max-width: 480px) {
+            .body-form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body class="bg-secondary">
     <header th:replace="~{common :: headerFragment}"></header>
@@ -33,7 +46,7 @@
             <div class="card mb-6">
                 <div class="card-body">
                     <h2 class="text-lg font-semibold text-primary mb-4">記録を追加・更新</h2>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="body-form-grid">
                         <div>
                             <label class="form-label" for="measuredDate">日付</label>
                             <input type="date" id="measuredDate" class="form-control"
@@ -88,20 +101,20 @@
                         <table class="table" style="width: 100%; border-collapse: collapse;">
                             <thead>
                                 <tr>
-                                    <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border-color);">日付</th>
-                                    <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border-color);">体重 (kg)</th>
-                                    <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border-color);">体脂肪率 (%)</th>
+                                    <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border-color); white-space: nowrap;">日付</th>
+                                    <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border-color); white-space: nowrap;">体重 (kg)</th>
+                                    <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border-color); white-space: nowrap;">体脂肪率 (%)</th>
                                     <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border-color);">メモ</th>
-                                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid var(--border-color);">操作</th>
+                                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid var(--border-color); white-space: nowrap;">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr th:each="m : ${measurements}" style="border-bottom: 1px solid var(--border-color);">
-                                    <td style="padding: 0.75rem;" th:text="${m.measuredDate}"></td>
-                                    <td style="padding: 0.75rem; text-align: right; font-weight: 500;" th:text="${m.weightKg}"></td>
-                                    <td style="padding: 0.75rem; text-align: right;" th:text="${m.bodyFatPct != null ? m.bodyFatPct : '-'}"></td>
+                                    <td style="padding: 0.75rem; white-space: nowrap;" th:text="${m.measuredDate}"></td>
+                                    <td style="padding: 0.75rem; text-align: right; font-weight: 500; white-space: nowrap;" th:text="${m.weightKg}"></td>
+                                    <td style="padding: 0.75rem; text-align: right; white-space: nowrap;" th:text="${m.bodyFatPct != null ? m.bodyFatPct : '-'}"></td>
                                     <td style="padding: 0.75rem; color: var(--text-muted);" th:text="${m.memo != null ? m.memo : ''}"></td>
-                                    <td style="padding: 0.75rem; text-align: center;">
+                                    <td style="padding: 0.75rem; text-align: center; white-space: nowrap;">
                                         <button type="button"
                                                 class="btn btn-sm"
                                                 style="background: var(--danger-color); color: white; border: none; padding: 0.25rem 0.75rem; border-radius: 4px; cursor: pointer;"
