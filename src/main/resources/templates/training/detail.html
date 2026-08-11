@@ -230,7 +230,15 @@
             <!-- メモ -->
             <div class="memo-box"
                  th:if="${training.memo != null && !training.memo.isEmpty()}"
-                 th:text="'📝 ' + ${training.memo}">
+                 style="display:flex; align-items:center; gap:6px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              <span th:text="${training.memo}"></span>
             </div>
           </div>
         </div>
@@ -240,8 +248,12 @@
           <!-- 編集ボタン（当日のみ表示） -->
           <a th:if="${isToday}"
              th:href="@{/start/training(date=${date})}"
-             class="btn btn-primary w-full text-center py-3 font-bold">
-            ✏️ 今日のトレーニングを修正する
+             class="btn btn-primary w-full text-center py-3 font-bold"
+             style="display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+            </svg>
+            今日のトレーニングを修正する
           </a>
 
           <a th:href="@{/menu}" class="btn btn-secondary w-full text-center">
