@@ -29,7 +29,7 @@ public class TrainingApiController {
    * <p>以前は SecurityConfig の URL マッチングのみに依存しており、 設定の変更や別コントローラーへの移動で認可が外れるリスクがあった。
    */
   @GetMapping("/admin/api/training-details")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
   public List<TrainingDetail> getDetails(
       @RequestParam String date, @RequestParam(required = false) Long userId) {
 
@@ -48,7 +48,7 @@ public class TrainingApiController {
    */
   @GetMapping("/admin/api/training-volume/{userId}")
   @ResponseBody
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
   public Map<String, Object> getTrainingVolume(
       @PathVariable Long userId, @RequestParam String startDate, @RequestParam String endDate) {
 

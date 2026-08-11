@@ -152,7 +152,7 @@ public class SecurityConfig {
                         OPENAPI_YAML)
                     .permitAll()
                     .requestMatchers(ADMIN_PATH)
-                    .hasRole("ADMIN")
+                    .hasAnyRole("ADMIN", "ORG_ADMIN", "STORE_ADMIN")
                     .requestMatchers(USER_PATH)
                     .hasAnyRole("USER", "ADMIN")
                     .requestMatchers("/auth/mfa", "/auth/mfa/verify")

@@ -107,6 +107,27 @@ public class GlobalControllerAdvice {
     return mav;
   }
 
+  // OrganizationScopeResolver等によるIDOR対策で投げるResponseStatusExceptionを、下の
+  // RuntimeException.classハンドラー（常に500を返す）に握りつぶされる前に専用処理する。
+  // 呼び出し元がJSONを期待している場合（Acceptヘッダー）はJSONで、それ以外はHTMLエラーページで応答する。
+  @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+  public Object handleResponseStatusException(
+      org.springframework.web.server.ResponseStatusException ex, HttpServletRequest request) {
+    HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+    log.warn("ResponseStatusException: status={}, reason={}", status, ex.getReason());
+
+    String accept = request.getHeader("Accept");
+    if (accept != null && accept.contains("application/json")) {
+      return ResponseEntity.status(status).body(java.util.Map.of("error", ex.getReason()));
+    }
+
+    String viewName = (status == HttpStatus.FORBIDDEN) ? "error/403" : "error/500";
+    ModelAndView mav = new ModelAndView(viewName);
+    mav.setStatus(status);
+    mav.addObject("message", ex.getReason());
+    return mav;
+  }
+
   @ExceptionHandler(RuntimeException.class)
   @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
   public ModelAndView handleRuntimeException(RuntimeException ex) {

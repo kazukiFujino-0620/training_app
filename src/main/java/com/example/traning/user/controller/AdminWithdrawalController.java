@@ -16,6 +16,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequestMapping("/admin/withdrawal")
+// 退会承認（データ削除を伴う）は影響が大きいため、ita1-1フェーズ3では意図的にADMIN限定のまま据え置く
+// （ORG_ADMIN/STORE_ADMINへの開放要否は要ユーザー判断、設計書7-4参照）。
 @PreAuthorize("hasRole('ADMIN')")
 @Slf4j
 public class AdminWithdrawalController {
