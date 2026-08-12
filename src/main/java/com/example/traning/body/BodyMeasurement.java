@@ -32,6 +32,9 @@ public class BodyMeasurement {
   @Column(name = "memo")
   public String memo;
 
+  @Column(name = "source")
+  public String source;
+
   @Column(name = "created_at", insertable = false, updatable = false)
   public LocalDateTime createdAt;
 
