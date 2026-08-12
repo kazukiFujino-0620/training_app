@@ -16,8 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * HealthKit/Health Connect連携の同期API（ita3-1）。
  *
- * <p>読み取り専用連携のため、モバイル端末側でOSのヘルスケアAPIから取得した値をこのエンドポイントへPUSHするのみで、
- * サーバー側からヘルスケアデータを書き戻す処理は無い。
+ * <p>読み取り専用連携のため、モバイル端末側でOSのヘルスケアAPIから取得した値をこのエンドポイントへPUSHするのみで、 サーバー側からヘルスケアデータを書き戻す処理は無い。
  */
 @RestController
 @RequestMapping("/api/mobile/health")
