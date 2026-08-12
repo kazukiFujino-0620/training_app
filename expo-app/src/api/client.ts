@@ -78,6 +78,8 @@ import type {
   TrainingItemMaster,
   TrainingHistory,
   PushRegisterRequest,
+  HealthSyncRequest,
+  HealthSyncResponse,
 } from './types';
 
 export const authApi = {
@@ -126,4 +128,9 @@ export const pushApi = {
     client.post('/push/register', req),
   unregister: (req: PushRegisterRequest) =>
     client.delete('/push/unregister', { data: req }),
+};
+
+export const healthApi = {
+  sync: (req: HealthSyncRequest) =>
+    client.post<HealthSyncResponse>('/health/sync', req),
 };
