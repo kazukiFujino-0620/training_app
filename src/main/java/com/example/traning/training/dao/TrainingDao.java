@@ -48,6 +48,10 @@ public interface TrainingDao {
   @Select
   List<Training> selectDeleted();
 
+  /** IDOR対策・組織スコープ判定用（ita1-1 フェーズ3）。ソフトデリート済みのレコードも対象に含む。 */
+  @Select
+  Long selectOrganizationIdById(Long id);
+
   @Delete(sqlFile = true)
   int deleteExpiredPhysically(LocalDateTime cutoff);
 

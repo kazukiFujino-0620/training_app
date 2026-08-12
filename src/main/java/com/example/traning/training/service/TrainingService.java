@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -250,6 +251,36 @@ public class TrainingService {
       return details;
     } catch (Exception e) {
       logger.error("日付別トレーニング詳細取得中にエラー発生 - 日付: {}", date, e);
+      throw e;
+    }
+  }
+
+  /**
+   * 組織スコープで絞り込んだ日付別トレーニング詳細取得（ita1-1 フェーズ3、管理者用）。
+   *
+   * @param organizationIds {@code null} の場合は絞り込みなし（ROLE_ADMIN）。空集合の場合はDBに問い合わせず空リストを返す（IN
+   *     句が空になることを避けるため）。
+   */
+  public List<TrainingDetail> findByDate(String date, Set<Long> organizationIds) {
+    logger.debug("組織スコープ日付別トレーニング詳細取得開始 - 日付: {}, 組織数: {}", date, organizationIds);
+
+    if (organizationIds != null && organizationIds.isEmpty()) {
+      return List.of();
+    }
+
+    try {
+      List<TrainingDetail> details;
+      if (organizationIds == null) {
+        details = trainingDetailDao.selectByDate(date);
+      } else {
+        details =
+            trainingDetailDao.selectByDateAndOrganizationIds(
+                date, new ArrayList<>(organizationIds));
+      }
+      logger.debug("組織スコープ日付別トレーニング詳細取得完了 - 日付: {}, 件数: {}", date, details.size());
+      return details;
+    } catch (Exception e) {
+      logger.error("組織スコープ日付別トレーニング詳細取得中にエラー発生 - 日付: {}", date, e);
       throw e;
     }
   }

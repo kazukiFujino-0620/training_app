@@ -9,7 +9,8 @@ SELECT
     duration,
     create_datetime,
     updated_datetime,
-    deleted_at
+    deleted_at,
+    organization_id
 FROM
     trainings
 WHERE

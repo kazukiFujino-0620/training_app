@@ -4,6 +4,8 @@ import com.example.traning.dao.UserDao;
 import com.example.traning.retention.RetentionPolicyException;
 import com.example.traning.user.User;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.security.Principal;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.ModelAndView;
 
 @ControllerAdvice
@@ -107,24 +110,45 @@ public class GlobalControllerAdvice {
     return mav;
   }
 
-  // OrganizationScopeResolver等によるIDOR対策で投げるResponseStatusExceptionを、下の
-  // RuntimeException.classハンドラー（常に500を返す）に握りつぶされる前に専用処理する。
-  // 呼び出し元がJSONを期待している場合（Acceptヘッダー）はJSONで、それ以外はHTMLエラーページで応答する。
-  @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
-  public Object handleResponseStatusException(
-      org.springframework.web.server.ResponseStatusException ex, HttpServletRequest request) {
+  /**
+   * ita1-1 フェーズ3: {@code assertAccessible} 等が投げる {@link ResponseStatusException}（IDOR対策の403等）を処理する。
+   *
+   * <p>{@code ResponseStatusException} は {@link RuntimeException} のサブクラスのため、専用ハンドラーが無いと下の {@code
+   * handleRuntimeException} に握りつぶされ、常に500になってしまう（実装中に発見した既存バグ）。 ステータスコードを尊重しつつ、{@code Accept:
+   * application/json} の場合はJSON、それ以外はHTMLエラーページで応答する。
+   */
+  @ExceptionHandler(ResponseStatusException.class)
+  public ModelAndView handleResponseStatusException(
+      ResponseStatusException ex, HttpServletRequest request, HttpServletResponse response)
+      throws IOException {
     HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
-    log.warn("ResponseStatusException: status={}, reason={}", status, ex.getReason());
+    String reason = ex.getReason() != null ? ex.getReason() : "リクエストを処理できませんでした。";
+    log.warn(
+        "ResponseStatusException: status={}, reason={}, path={}",
+        status,
+        reason,
+        request.getRequestURI());
 
     String accept = request.getHeader("Accept");
     if (accept != null && accept.contains("application/json")) {
-      return ResponseEntity.status(status).body(java.util.Map.of("error", ex.getReason()));
+      response.setStatus(status.value());
+      response.setContentType("application/json;charset=UTF-8");
+      response.getWriter().write("{\"error\":\"" + reason.replace("\"", "'") + "\"}");
+      return null;
     }
 
-    String viewName = (status == HttpStatus.FORBIDDEN) ? "error/403" : "error/500";
+    // テンプレートが用意されているステータスのみ専用ページを使い、それ以外は500ページで代替する
+    // （存在しないテンプレート名を指定するとThymeleafのレンダリング自体が失敗するため）。
+    String viewName =
+        switch (status) {
+          case FORBIDDEN -> "error/403";
+          case NOT_FOUND -> "error/404";
+          case CONFLICT -> "error/409";
+          default -> "error/500";
+        };
     ModelAndView mav = new ModelAndView(viewName);
     mav.setStatus(status);
-    mav.addObject("message", ex.getReason());
+    mav.addObject("message", reason);
     return mav;
   }
 

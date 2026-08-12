@@ -118,7 +118,7 @@ public class AdminController {
 
   /** アクセス可能な組織（ROLE_ADMINはnull＝全組織）でユーザー一覧を絞り込む。 */
   private List<User> filterByAccessibleOrganizations(List<User> users) {
-    List<Long> accessibleOrganizationIds =
+    java.util.Set<Long> accessibleOrganizationIds =
         organizationScopeResolver.resolveAccessibleOrganizationIds(getCurrentAdminUser());
     if (accessibleOrganizationIds == null) {
       return users;
