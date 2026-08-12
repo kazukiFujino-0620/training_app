@@ -167,3 +167,23 @@ export interface HealthSyncRequest {
 export interface HealthSyncResponse {
   syncedCount: number;
 }
+
+export interface HealthSummaryResponse {
+  weight: { date: string; weightKg: number; bodyFatPct?: number; source: string } | null;
+  steps: { date: string; stepCount: number; source: string } | null;
+  heartRate:
+    | { date: string; avgBpm?: number; minBpm?: number; maxBpm?: number; source: string }
+    | null;
+  calories:
+    | { date: string; activeCalories?: number; totalCalories?: number; source: string }
+    | null;
+  sleep:
+    | {
+        date: string;
+        startTime: string;
+        endTime: string;
+        durationMinutes: number;
+        source: string;
+      }
+    | null;
+}

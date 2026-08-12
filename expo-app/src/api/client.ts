@@ -80,6 +80,7 @@ import type {
   PushRegisterRequest,
   HealthSyncRequest,
   HealthSyncResponse,
+  HealthSummaryResponse,
 } from './types';
 
 export const authApi = {
@@ -133,4 +134,5 @@ export const pushApi = {
 export const healthApi = {
   sync: (req: HealthSyncRequest) =>
     client.post<HealthSyncResponse>('/health/sync', req),
+  getSummary: () => client.get<HealthSummaryResponse>('/health/summary'),
 };

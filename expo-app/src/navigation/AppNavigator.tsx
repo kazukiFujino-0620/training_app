@@ -9,6 +9,7 @@ import ExerciseScreen from '../screens/ExerciseScreen';
 import AddExerciseScreen from '../screens/AddExerciseScreen';
 import TrainingStartScreen from '../screens/TrainingStartScreen';
 import GoalScreen from '../screens/GoalScreen';
+import HealthScreen from '../screens/HealthScreen';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -27,6 +28,7 @@ export type AppStackParamList = {
     totalVolume?: number;
     sessionElapsed?: number;
   };
+  Health: undefined;
 };
 
 type RootStackParamList = {
@@ -78,6 +80,11 @@ function AppNavigator() {
         name="Goal"
         component={GoalScreen}
         options={{ headerShown: false, gestureEnabled: false }}
+      />
+      <AppStack.Screen
+        name="Health"
+        component={HealthScreen}
+        options={{ headerShown: false }}
       />
     </AppStack.Navigator>
   );

@@ -20,6 +20,9 @@ public interface HealthHeartRateDao {
   @Select
   List<HealthHeartRate> selectByUserIdAndDateRange(Long userId, LocalDate from, LocalDate to);
 
+  @Select
+  Optional<HealthHeartRate> selectLatestByUserId(Long userId);
+
   @Insert
   int insert(HealthHeartRate entity);
 

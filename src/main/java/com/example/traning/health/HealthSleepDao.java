@@ -20,6 +20,9 @@ public interface HealthSleepDao {
   @Select
   List<HealthSleep> selectByUserIdAndDateRange(Long userId, LocalDate from, LocalDate to);
 
+  @Select
+  Optional<HealthSleep> selectLatestByUserId(Long userId);
+
   @Insert
   int insert(HealthSleep entity);
 
