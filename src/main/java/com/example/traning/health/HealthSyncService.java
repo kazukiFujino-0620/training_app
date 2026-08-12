@@ -160,8 +160,7 @@ public class HealthSyncService {
         .ifPresent(
             s ->
                 response.setSteps(
-                    new HealthSummaryResponse.StepsSummary(
-                        s.recordDate, s.stepCount, s.source)));
+                    new HealthSummaryResponse.StepsSummary(s.recordDate, s.stepCount, s.source)));
 
     healthHeartRateDao
         .selectLatestByUserId(userId)
