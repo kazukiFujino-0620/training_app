@@ -26,6 +26,24 @@
         {
           "sounds": []
         }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "体重・歩数・心拍数・消費カロリー・睡眠のデータを取得するために使用します",
+          "NSHealthUpdateUsageDescription": "本アプリはヘルスケアデータの書き込みを行いません"
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 26
+          }
+        }
       ]
     ]
   }

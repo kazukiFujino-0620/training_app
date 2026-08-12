@@ -119,3 +119,51 @@ export interface PushRegisterRequest {
   platform: 'ios' | 'android';
   deviceId: string;
 }
+
+// ── ヘルスケア連動（ita3-1） ────────────────────────────────────────────────
+
+export type HealthSyncSource = 'HEALTHKIT' | 'HEALTH_CONNECT';
+
+export interface HealthWeightRecord {
+  date: string;
+  weightKg: number;
+  bodyFatPct?: number;
+}
+
+export interface HealthStepsRecord {
+  date: string;
+  stepCount: number;
+}
+
+export interface HealthHeartRateRecord {
+  date: string;
+  avgBpm?: number;
+  minBpm?: number;
+  maxBpm?: number;
+}
+
+export interface HealthCaloriesRecord {
+  date: string;
+  activeCalories?: number;
+  totalCalories?: number;
+}
+
+export interface HealthSleepRecord {
+  date: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+}
+
+export interface HealthSyncRequest {
+  source: HealthSyncSource;
+  weight?: HealthWeightRecord[];
+  steps?: HealthStepsRecord[];
+  heartRate?: HealthHeartRateRecord[];
+  calories?: HealthCaloriesRecord[];
+  sleep?: HealthSleepRecord[];
+}
+
+export interface HealthSyncResponse {
+  syncedCount: number;
+}
