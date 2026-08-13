@@ -72,4 +72,9 @@ public class BodyMeasurementService {
   public List<BodyMeasurement> getForDateRange(Long userId, LocalDate from, LocalDate to) {
     return bodyMeasurementDao.selectByUserIdAndDateRange(userId, from, to);
   }
+
+  @Transactional(readOnly = true)
+  public Optional<BodyMeasurement> getLatest(Long userId) {
+    return bodyMeasurementDao.selectLatestByUserId(userId);
+  }
 }

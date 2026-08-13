@@ -1,6 +1,8 @@
 package com.example.traning.health;
 
+import com.example.traning.body.BodyMeasurement;
 import com.example.traning.body.BodyMeasurementService;
+import com.example.traning.mobile.dto.HealthSummaryResponse;
 import com.example.traning.mobile.dto.HealthSyncRequest;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -138,5 +140,52 @@ public class HealthSyncService {
       e.source = source;
       healthSleepDao.insert(e);
     }
+  }
+
+  /** 各指標の最新値をまとめて返す（表示画面用）。データが無い項目はnullのまま返す。 */
+  @Transactional(readOnly = true)
+  public HealthSummaryResponse getSummary(Long userId) {
+    HealthSummaryResponse response = new HealthSummaryResponse();
+
+    bodyMeasurementService
+        .getLatest(userId)
+        .ifPresent(
+            (BodyMeasurement m) ->
+                response.setWeight(
+                    new HealthSummaryResponse.WeightSummary(
+                        m.measuredDate, m.weightKg, m.bodyFatPct, m.source)));
+
+    healthStepsDao
+        .selectLatestByUserId(userId)
+        .ifPresent(
+            s ->
+                response.setSteps(
+                    new HealthSummaryResponse.StepsSummary(s.recordDate, s.stepCount, s.source)));
+
+    healthHeartRateDao
+        .selectLatestByUserId(userId)
+        .ifPresent(
+            h ->
+                response.setHeartRate(
+                    new HealthSummaryResponse.HeartRateSummary(
+                        h.recordDate, h.avgBpm, h.minBpm, h.maxBpm, h.source)));
+
+    healthCaloriesDao
+        .selectLatestByUserId(userId)
+        .ifPresent(
+            c ->
+                response.setCalories(
+                    new HealthSummaryResponse.CaloriesSummary(
+                        c.recordDate, c.activeCalories, c.totalCalories, c.source)));
+
+    healthSleepDao
+        .selectLatestByUserId(userId)
+        .ifPresent(
+            s ->
+                response.setSleep(
+                    new HealthSummaryResponse.SleepSummary(
+                        s.sleepDate, s.startTime, s.endTime, s.durationMinutes, s.source)));
+
+    return response;
   }
 }

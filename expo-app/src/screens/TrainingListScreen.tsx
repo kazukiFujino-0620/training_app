@@ -99,9 +99,14 @@ export default function TrainingListScreen({ navigation }: Props) {
           <Text style={styles.dateText}>{today}</Text>
           <Text style={styles.headerTitle}>今日のトレーニング</Text>
         </View>
-        <TouchableOpacity onPress={handleLogout}>
-          <Text style={styles.logoutText}>ログアウト</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => navigation.navigate('Health')} style={styles.healthButton}>
+            <Text style={styles.healthButtonText}>❤️ ヘルスケア</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout}>
+            <Text style={styles.logoutText}>ログアウト</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 全体プログレス */}
@@ -189,6 +194,11 @@ const styles = StyleSheet.create({
   },
   dateText: { fontSize: 12, color: '#888' },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#222' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  healthButton: {
+    backgroundColor: '#fdecea', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  healthButtonText: { fontSize: 12, color: '#e53935', fontWeight: '600' },
   logoutText: { fontSize: 13, color: '#999' },
   progressContainer: { paddingHorizontal: 16, paddingTop: 12 },
   list: { paddingTop: 4, paddingBottom: 16 },

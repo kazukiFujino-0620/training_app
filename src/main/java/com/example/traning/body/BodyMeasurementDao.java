@@ -18,6 +18,9 @@ public interface BodyMeasurementDao {
   List<BodyMeasurement> selectByUserId(Long userId);
 
   @Select
+  Optional<BodyMeasurement> selectLatestByUserId(Long userId);
+
+  @Select
   List<BodyMeasurement> selectByUserIdAndDateRange(Long userId, LocalDate from, LocalDate to);
 
   @Select

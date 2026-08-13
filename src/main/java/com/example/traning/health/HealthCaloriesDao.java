@@ -20,6 +20,9 @@ public interface HealthCaloriesDao {
   @Select
   List<HealthCalories> selectByUserIdAndDateRange(Long userId, LocalDate from, LocalDate to);
 
+  @Select
+  Optional<HealthCalories> selectLatestByUserId(Long userId);
+
   @Insert
   int insert(HealthCalories entity);
 

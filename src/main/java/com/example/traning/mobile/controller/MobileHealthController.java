@@ -2,12 +2,14 @@ package com.example.traning.mobile.controller;
 
 import com.example.traning.audit.AuditLog;
 import com.example.traning.health.HealthSyncService;
+import com.example.traning.mobile.dto.HealthSummaryResponse;
 import com.example.traning.mobile.dto.HealthSyncRequest;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,5 +37,11 @@ public class MobileHealthController {
       @AuthenticationPrincipal Long userId, @Valid @RequestBody HealthSyncRequest req) {
     int syncedCount = healthSyncService.sync(userId, req);
     return ResponseEntity.ok(Map.of("syncedCount", syncedCount));
+  }
+
+  /** 各指標の最新値をまとめて返す（表示画面用）。 */
+  @GetMapping("/summary")
+  public ResponseEntity<HealthSummaryResponse> summary(@AuthenticationPrincipal Long userId) {
+    return ResponseEntity.ok(healthSyncService.getSummary(userId));
   }
 }
