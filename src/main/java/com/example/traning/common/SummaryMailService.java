@@ -172,7 +172,13 @@ public class SummaryMailService {
                 c -> {
                   int count = partSessionCounts.getOrDefault(c, 0);
                   double volume = partVolumes.getOrDefault(c, 0.0);
-                  return "　" + resolvePartLabel(c) + ": " + count + "回 / " + formatVolume(volume) + "kg";
+                  return "　"
+                      + resolvePartLabel(c)
+                      + ": "
+                      + count
+                      + "回 / "
+                      + formatVolume(volume)
+                      + "kg";
                 })
             .collect(java.util.stream.Collectors.joining("<br>"));
     return rows.isEmpty() ? "　実施なし" : rows;
