@@ -1,18 +1,24 @@
 package com.example.traning.common;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SummaryMailService {
+
+  private static final Logger logger = LoggerFactory.getLogger(SummaryMailService.class);
+  private static final List<String> PART_ORDER = List.of("CHEST", "BACK", "ARM", "SHOULDER", "LEG");
 
   private final JavaMailSender mailSender;
 
@@ -30,51 +36,43 @@ public class SummaryMailService {
       LocalDate weekEnd,
       int sessionCount,
       double totalVolume,
-      List<String> partsTrainedCodes,
+      Map<String, Double> partVolumes,
       Double volumeChangePercent) {
 
-    String sanitizedTo = sanitizeHeader(to);
-    String sanitizedName = sanitizeHeader(userName);
-
-    String partLabels =
-        partsTrainedCodes.stream().map(this::resolvePartLabel).collect(Collectors.joining(" / "));
-    if (partLabels.isEmpty()) partLabels = "なし";
-
-    String volumeChangeLine = buildVolumeChangeLine(volumeChangePercent, "前々週");
+    String sanitizedName = escapeHtml(sanitizeHeader(userName));
+    String volumeChangeLine = buildVolumeChangeLine(volumeChangePercent);
+    String partVolumeRows = buildPartVolumeRows(partVolumes);
 
     DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy/MM/dd");
     String subject =
         String.format(
             "【TraningApp】先週のトレーニングサマリー（%s〜%s）", weekStart.format(fmt), weekEnd.format(fmt));
 
-    String body =
-        sanitizedName
-            + " 様\n\n"
-            + "先週（"
+    String html =
+        "<p>"
+            + sanitizedName
+            + " 様</p>"
+            + "<p>先週（"
             + weekStart.format(fmt)
             + "〜"
             + weekEnd.format(fmt)
-            + "）のトレーニングサマリーです。\n\n"
-            + "■ トレーニング回数: "
+            + "）のトレーニングサマリーです。</p>"
+            + "<p>📊 トレーニング回数: "
             + sessionCount
-            + " 回\n"
-            + "■ 総ボリューム: "
+            + " 回<br>"
+            + "💪 総ボリューム: "
             + formatVolume(totalVolume)
-            + " kg\n"
-            + "■ 前々週比: "
+            + " kg（"
             + volumeChangeLine
-            + "\n"
-            + "■ 実施部位: "
-            + partLabels
-            + "\n\n"
-            + "引き続き頑張りましょう！\n\n"
-            + "【TraningApp】";
+            + "）</p>"
+            + "<p>🎯 部位別ボリューム<br>"
+            + partVolumeRows
+            + "</p>"
+            + buildSmartTrainerButton()
+            + "<p>引き続き頑張りましょう！</p>"
+            + "<p>【TraningApp】</p>";
 
-    SimpleMailMessage message = new SimpleMailMessage();
-    message.setTo(sanitizedTo);
-    message.setSubject(subject);
-    message.setText(body);
-    mailSender.send(message);
+    sendHtmlMail(to, subject, html);
   }
 
   public void sendMonthlySummary(
@@ -85,88 +83,116 @@ public class SummaryMailService {
       int sessionCount,
       double totalVolume,
       Map<String, Integer> partSessionCounts,
+      Map<String, Double> partVolumes,
       Double volumeChangePercent,
       List<GoalAchievementResult> goalResults) {
 
-    String sanitizedTo = sanitizeHeader(to);
-    String sanitizedName = sanitizeHeader(userName);
-
-    String volumeChangeLine = buildVolumeChangeLine(volumeChangePercent, "前月");
-    String partSummary = buildPartSummaryLine(partSessionCounts);
-    String goalLines = buildGoalLines(goalResults);
+    String sanitizedName = escapeHtml(sanitizeHeader(userName));
+    String volumeChangeLine = buildVolumeChangeLine(volumeChangePercent);
+    String partSummaryRows = buildPartSummaryRows(partSessionCounts, partVolumes);
+    String goalRows = buildGoalRows(goalResults);
 
     String subject = String.format("【TraningApp】先月のトレーニングサマリー（%d年%02d月）", year, month);
 
-    String body =
-        sanitizedName
-            + " 様\n\n"
-            + "先月（"
+    String html =
+        "<p>"
+            + sanitizedName
+            + " 様</p>"
+            + "<p>先月（"
             + year
             + "年"
             + String.format("%02d", month)
-            + "月）のトレーニングサマリーです。\n\n"
-            + "■ トレーニング回数: "
+            + "月）のトレーニングサマリーです。</p>"
+            + "<p>📊 トレーニング回数: "
             + sessionCount
-            + " 回\n"
-            + "■ 総ボリューム: "
+            + " 回<br>"
+            + "💪 総ボリューム: "
             + formatVolume(totalVolume)
-            + " kg\n"
-            + "■ 前月比: "
+            + " kg（"
             + volumeChangeLine
-            + "\n"
-            + "■ 部位別: "
-            + partSummary
-            + "\n\n"
-            + "■ 目標達成状況\n"
-            + goalLines
-            + "\n"
-            + "【TraningApp】";
+            + "）</p>"
+            + "<p>🎯 部位別（セッション回数・ボリューム）<br>"
+            + partSummaryRows
+            + "</p>"
+            + "<p>🏆 目標達成状況<br>"
+            + goalRows
+            + "</p>"
+            + buildSmartTrainerButton()
+            + "<p>今月も頑張りましょう！</p>"
+            + "<p>【TraningApp】</p>";
 
-    SimpleMailMessage message = new SimpleMailMessage();
-    message.setTo(sanitizedTo);
-    message.setSubject(subject);
-    message.setText(body);
-    mailSender.send(message);
+    sendHtmlMail(to, subject, html);
   }
 
   // ── ヘルパー ─────────────────────────────────────────────────────────
 
-  private String buildVolumeChangeLine(Double changePercent, String baseLabel) {
-    if (changePercent == null) return baseLabel + "データなし";
+  private void sendHtmlMail(String to, String subject, String html) {
+    try {
+      MimeMessage message = mailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+      helper.setTo(sanitizeHeader(to));
+      helper.setSubject(sanitizeHeader(subject));
+      helper.setText(html, true);
+      mailSender.send(message);
+    } catch (MessagingException e) {
+      logger.error("HTMLメール送信に失敗しました: to={}", to, e);
+      throw new IllegalStateException("メール送信に失敗しました", e);
+    }
+  }
+
+  private String buildSmartTrainerButton() {
+    return "<p><a href=\""
+        + baseUrl
+        + "/menu\" style=\"display:inline-block;padding:10px 24px;background-color:#4CAF50;"
+        + "color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;\">"
+        + "Smart Trainer</a></p>";
+  }
+
+  private String buildVolumeChangeLine(Double changePercent) {
+    if (changePercent == null) return "前回データなし";
     long pct = Math.round(changePercent);
-    return (pct >= 0 ? "+" : "") + pct + "%";
+    return "前回比 " + (pct >= 0 ? "+" : "") + pct + "%";
   }
 
-  private String buildPartSummaryLine(Map<String, Integer> partSessionCounts) {
-    List<String> order = List.of("CHEST", "BACK", "ARM", "SHOULDER", "LEG");
-    String result =
-        order.stream()
-            .filter(partSessionCounts::containsKey)
-            .map(c -> resolvePartLabel(c) + " " + partSessionCounts.get(c) + "回")
-            .collect(Collectors.joining(" / "));
-    return result.isEmpty() ? "なし" : result;
+  private String buildPartVolumeRows(Map<String, Double> partVolumes) {
+    String rows =
+        PART_ORDER.stream()
+            .filter(partVolumes::containsKey)
+            .map(c -> "　" + resolvePartLabel(c) + ": " + formatVolume(partVolumes.get(c)) + "kg")
+            .collect(java.util.stream.Collectors.joining("<br>"));
+    return rows.isEmpty() ? "　実施なし" : rows;
   }
 
-  private String buildGoalLines(List<GoalAchievementResult> results) {
-    if (results.isEmpty()) return "  目標未設定\n";
+  private String buildPartSummaryRows(
+      Map<String, Integer> partSessionCounts, Map<String, Double> partVolumes) {
+    String rows =
+        PART_ORDER.stream()
+            .filter(c -> partSessionCounts.containsKey(c) || partVolumes.containsKey(c))
+            .map(
+                c -> {
+                  int count = partSessionCounts.getOrDefault(c, 0);
+                  double volume = partVolumes.getOrDefault(c, 0.0);
+                  return "　" + resolvePartLabel(c) + ": " + count + "回 / " + formatVolume(volume) + "kg";
+                })
+            .collect(java.util.stream.Collectors.joining("<br>"));
+    return rows.isEmpty() ? "　実施なし" : rows;
+  }
+
+  private String buildGoalRows(List<GoalAchievementResult> results) {
+    if (results.isEmpty()) return "　目標未設定";
     StringBuilder sb = new StringBuilder();
+    boolean first = true;
     for (GoalAchievementResult r : results) {
+      if (!first) sb.append("<br>");
+      first = false;
+      String itemName = escapeHtml(r.itemName());
       if (r.achieved()) {
-        sb.append("  ✓ ")
-            .append(r.itemName())
-            .append(" ")
-            .append(r.targetWeight())
-            .append("kg: 達成\n");
+        sb.append("　✓ ").append(itemName).append(" ").append(r.targetWeight()).append("kg: 達成");
       } else {
-        sb.append("  ✗ ")
-            .append(r.itemName())
-            .append(" ")
-            .append(r.targetWeight())
-            .append("kg: 未達");
+        sb.append("　✗ ").append(itemName).append(" ").append(r.targetWeight()).append("kg: 未達");
         if (r.maxWeightInPeriod() != null) {
           sb.append("（最高 ").append(r.maxWeightInPeriod()).append("kg）");
         }
-        sb.append("\n");
       }
     }
     return sb.toString();
@@ -187,9 +213,20 @@ public class SummaryMailService {
     };
   }
 
+  /** メールヘッダー（To/Subject）へのヘッダーインジェクション対策。 */
   private static String sanitizeHeader(String value) {
     if (value == null) return "";
     return value.replaceAll("[\\r\\n\\x00]", "");
+  }
+
+  /** HTML本文に埋め込むユーザー入力由来の文字列をエスケープする（XSS対策）。 */
+  private static String escapeHtml(String value) {
+    if (value == null) return "";
+    return value
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;");
   }
 
   public record GoalAchievementResult(
