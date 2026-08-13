@@ -356,6 +356,7 @@
                   </div>
 
                   <button
+                    th:if="${!(selectedDate != null ? selectedDate : today).isBefore(today)}"
                     th:data-action="register"
                     th:data-date="${selectedDate != null ? selectedDate : today}"
                     class="btn btn-outline w-full mt-4"
@@ -364,7 +365,7 @@
                   </button>
 
                   <div
-                    th:if="${!isDailyCompleted}"
+                    th:if="${!isDailyCompleted and !(selectedDate != null ? selectedDate : today).isBefore(today)}"
                     class="mt-6 pt-6 border-t border-border"
                   >
                     <form th:action="@{/start/training}" method="get">
