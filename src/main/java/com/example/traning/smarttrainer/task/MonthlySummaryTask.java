@@ -7,10 +7,12 @@ import com.example.traning.goal.GoalDao;
 import com.example.traning.goal.TrainingGoal;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
+import com.example.traning.training.dao.TrainingDetailDao.PartVolume;
 import com.example.traning.user.User;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -62,6 +64,13 @@ public class MonthlySummaryTask {
         Map<String, Integer> partMap =
             partCounts.stream().collect(Collectors.toMap(p -> p.partCode, p -> p.sessionCount));
 
+        List<PartVolume> partVolumeList =
+            trainingDetailDao.selectVolumeByPartAndDateRange(userId, monthStart, monthEnd);
+        Map<String, Double> partVolumes = new LinkedHashMap<>();
+        for (PartVolume pv : partVolumeList) {
+          partVolumes.put(pv.partCode, pv.totalVolume);
+        }
+
         List<TrainingGoal> goals = goalDao.selectByUserId(userId);
         List<GoalAchievementResult> goalResults =
             goals.stream().map(g -> checkGoalAchievement(g, userId, monthStart, monthEnd)).toList();
@@ -74,6 +83,7 @@ public class MonthlySummaryTask {
             sessionCount,
             volume != null ? volume : 0.0,
             partMap,
+            partVolumes,
             changePercent,
             goalResults);
         success++;

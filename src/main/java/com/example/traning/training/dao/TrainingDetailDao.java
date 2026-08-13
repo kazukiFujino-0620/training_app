@@ -73,6 +73,11 @@ public interface TrainingDetailDao {
   List<GrowthResult> selectGrowthByItemAndPeriod(
       Long userId, String itemName, String startDate, String endDate);
 
+  /** 部位別の総ボリューム（重量×回数の合計）を集計する（ita4-1 週次・月次サマリー通知用）。 */
+  @Select
+  List<PartVolume> selectVolumeByPartAndDateRange(
+      Long userId, LocalDate startDate, LocalDate endDate);
+
   @org.seasar.doma.Entity
   public static class GrowthResult {
     @Column(name = "week_label")
@@ -80,6 +85,15 @@ public interface TrainingDetailDao {
 
     @Column(name = "max_weight")
     public Double maxWeight;
+
+    @Column(name = "total_volume")
+    public Double totalVolume;
+  }
+
+  @org.seasar.doma.Entity
+  public static class PartVolume {
+    @Column(name = "part_code")
+    public String partCode;
 
     @Column(name = "total_volume")
     public Double totalVolume;

@@ -4,10 +4,13 @@ import com.example.traning.common.SummaryMailService;
 import com.example.traning.dao.UserDao;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
+import com.example.traning.training.dao.TrainingDetailDao.PartVolume;
 import com.example.traning.user.User;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -46,8 +49,12 @@ public class WeeklySummaryTask {
             trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, weekStart, weekEnd);
         Double prevVolume =
             trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, prevStart, prevEnd);
-        List<String> parts =
-            trainingDao.selectDistinctPartsByUserIdAndDateRange(userId, weekStart, weekEnd);
+        List<PartVolume> partVolumeList =
+            trainingDetailDao.selectVolumeByPartAndDateRange(userId, weekStart, weekEnd);
+        Map<String, Double> partVolumes = new LinkedHashMap<>();
+        for (PartVolume pv : partVolumeList) {
+          partVolumes.put(pv.partCode, pv.totalVolume);
+        }
         Double changePercent = calcChangePercent(volume, prevVolume);
 
         summaryMailService.sendWeeklySummary(
@@ -57,7 +64,7 @@ public class WeeklySummaryTask {
             weekEnd,
             sessionCount,
             volume != null ? volume : 0.0,
-            parts,
+            partVolumes,
             changePercent);
         success++;
       } catch (Exception e) {
