@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Vibration,
   SectionList, Alert, ActivityIndicator, AppState, AppStateStatus, Platform,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, UNSTABLE_usePreventRemove } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -692,7 +693,8 @@ export default function TrainingStartScreen({ navigation }: Props) {
               <Text style={styles.addBtnText}>＋ 種目を追加</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.completeBtn} onPress={handleComplete}>
-              <Text style={styles.completeBtnText}>🎉 トレーニング完了！</Text>
+              <Feather name="check-circle" size={18} color="#fff" />
+              <Text style={styles.completeBtnText}>トレーニング完了！</Text>
             </TouchableOpacity>
           </View>
         }
@@ -835,6 +837,7 @@ const styles = StyleSheet.create({
   addBtnText:  { color: '#4CAF50', fontSize: 15, fontWeight: '700' },
   completeBtn: {
     backgroundColor: '#FF9800', borderRadius: 12, padding: 16, alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'center', gap: 8,
   },
   completeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

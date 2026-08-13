@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { AuthStackParamList } from '../navigation/AppNavigator';
@@ -52,7 +53,7 @@ export default function MfaScreen({ navigation, route }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.container}>
-        <Text style={styles.icon}>🔐</Text>
+        <Feather name="lock" size={48} color="#4CAF50" style={styles.icon} />
         <Text style={styles.title}>2段階認証</Text>
         <Text style={styles.subtitle}>
           {useBackup
@@ -104,7 +105,7 @@ export default function MfaScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#f5f5f5' },
   container: { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
-  icon: { fontSize: 48, textAlign: 'center', marginBottom: 8 },
+  icon: { alignSelf: 'center', marginBottom: 8 },
   title: { fontSize: 24, fontWeight: '800', color: '#222', textAlign: 'center', marginBottom: 8 },
   subtitle: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 32, lineHeight: 20 },
   input: {
