@@ -28,8 +28,7 @@ public class MobileRestPreferenceController {
   }
 
   @GetMapping
-  public ResponseEntity<List<RestPreferenceResponse>> list(
-      @AuthenticationPrincipal Long userId) {
+  public ResponseEntity<List<RestPreferenceResponse>> list(@AuthenticationPrincipal Long userId) {
     List<RestPreferenceResponse> body =
         restPreferenceService.listByUserId(userId).stream()
             .map(RestPreferenceResponse::from)

@@ -8,6 +8,8 @@ import lombok.Data;
 @Data
 public class RestPreferenceUpsertRequest {
 
-  @NotNull @Min(10) @Max(600)
+  @NotNull
+  @Min(10)
+  @Max(600)
   private Integer restSeconds;
 }
