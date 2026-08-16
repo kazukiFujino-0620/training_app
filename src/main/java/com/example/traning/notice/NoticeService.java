@@ -20,7 +20,8 @@ public class NoticeService {
     if (user == null || user.getOrganizationId() == null) {
       return List.of();
     }
-    return noticeDao.selectActiveByOrganizationIdForUser(user.getOrganizationId(), user.getUserId().longValue());
+    return noticeDao.selectActiveByOrganizationIdForUser(
+        user.getOrganizationId(), user.getUserId().longValue());
   }
 
   /**

@@ -61,9 +61,7 @@ public class NoticeController {
   @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
   @GetMapping("/notices/manage")
   public String manage(
-      @RequestParam(required = false) Long organizationId,
-      Model model,
-      Principal principal) {
+      @RequestParam(required = false) Long organizationId, Model model, Principal principal) {
     User admin = currentUser(principal);
     Set<Long> accessible = organizationScopeResolver.resolveAccessibleOrganizationIds(admin);
 
@@ -74,7 +72,8 @@ public class NoticeController {
     model.addAttribute("organizations", organizations);
 
     Long targetOrgId =
-        organizationId != null && organizations.stream().anyMatch(o -> o.getId().equals(organizationId))
+        organizationId != null
+                && organizations.stream().anyMatch(o -> o.getId().equals(organizationId))
             ? organizationId
             : organizations.stream()
                 .map(Organization::getId)
@@ -98,7 +97,8 @@ public class NoticeController {
     User admin = currentUser(principal);
     try {
       Notice notice =
-          noticeService.create(admin, request.getOrganizationId(), request.getTitle(), request.getBody());
+          noticeService.create(
+              admin, request.getOrganizationId(), request.getTitle(), request.getBody());
       return ResponseEntity.ok(notice);
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().body(e.getMessage());

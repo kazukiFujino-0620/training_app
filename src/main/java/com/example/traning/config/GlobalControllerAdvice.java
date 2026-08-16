@@ -158,9 +158,9 @@ public class GlobalControllerAdvice {
    *
    * <p>{@code AccessDeniedException} も {@link RuntimeException} のサブクラスのため、専用ハンドラーが無いと下の {@code
    * handleRuntimeException} に握りつぶされ、常に500になってしまう（{@link ResponseStatusException} と同種の既存バグ、
-   * NoticeController実装中に発見）。URLパターンレベルの認可（{@code authorizeHttpRequests}）はServletフィルタ側で
-   * {@code ExceptionTranslationFilter} が正しく403に変換するため影響を受けないが、メソッドレベルの
-   * {@code @PreAuthorize} のみで保護している箇所はDispatcherServlet内で例外解決されるためこのハンドラーが必要。
+   * NoticeController実装中に発見）。URLパターンレベルの認可（{@code authorizeHttpRequests}）はServletフィルタ側で {@code
+   * ExceptionTranslationFilter} が正しく403に変換するため影響を受けないが、メソッドレベルの {@code @PreAuthorize}
+   * のみで保護している箇所はDispatcherServlet内で例外解決されるためこのハンドラーが必要。
    */
   @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
   public ModelAndView handleAccessDeniedException(
