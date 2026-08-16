@@ -3,6 +3,7 @@ package com.example.traning.user.service;
 import com.example.traning.dao.UserDao;
 import com.example.traning.organization.Organization;
 import com.example.traning.smarttrainer.recommendation.GoalMode;
+import com.example.traning.user.Role;
 import com.example.traning.user.User;
 import com.example.traning.user.form.SignupForm;
 import java.time.LocalDateTime;
@@ -52,7 +53,7 @@ public class SignupServiceTransaction {
       }
 
       user.setUserName(signupForm.getUsername());
-      user.setRole("ROLE_USER");
+      user.setRole(Role.USER.value());
       user.setEnabled(true);
       user.setGoogleId(signupForm.getGoogleId() != null ? signupForm.getGoogleId() : null);
       user.setLineId(signupForm.getLineId() != null ? signupForm.getLineId() : null);

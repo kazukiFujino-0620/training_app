@@ -19,6 +19,8 @@ public class UserAdminUpdateForm {
   @Size(max = 50)
   private String userName;
 
+  // アノテーション属性はコンパイル時定数が必須のため、com.example.traning.user.Role.USER/ADMIN の
+  // value() をリテラルで展開している（Role.values()からの自動生成は不可）。
   @NotBlank
   @Pattern(regexp = "ROLE_USER|ROLE_ADMIN", message = "権限の値が不正です")
   private String role;

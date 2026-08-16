@@ -36,7 +36,9 @@ public class User {
   @Column(name = "user_Name")
   public String userName;
 
+  /** {@link Role} の value()（例: {@code "ROLE_ADMIN"}）。 */
   public String role;
+
   public Boolean enabled;
 
   @JsonIgnore
