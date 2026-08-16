@@ -1,20 +1,33 @@
 package com.example.traning.training.service;
 
-import com.example.traning.user.User;
-import java.time.LocalDate;
-import java.time.Period;
+import com.example.traning.entity.TrainingItemMaster;
+import com.example.traning.training.SetType;
+import com.example.traning.training.Training;
+import com.example.traning.training.TrainingDetail;
+import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
+/**
+ * 消費カロリー推定（ita2-2、力学的仕事量ベース＝案Bで確定）。
+ *
+ * <p>仕事量(J) = 挙上重量(kg) × 重力加速度(9.8) × 可動域ROM(m) × 回数<br>
+ * 消費カロリー(kcal) = 仕事量(J) ÷ 筋効率(約20%) ÷ 4184(J→kcal換算)
+ *
+ * <p>体組成・トレーニング時間には依存しない（従来のMET×体重×時間方式から置き換え）。対象は筋トレ種目のみ（有酸素はita2-1で別管理）。
+ */
 @Component
 public class CalorieCalculator {
 
-  private static final double MET = 5.0;
+  private static final double GRAVITY = 9.8;
+  private static final double MUSCLE_EFFICIENCY = 0.20;
+  private static final double JOULES_PER_KCAL = 4184.0;
 
   public enum CalorieType {
-    FULL,
-    SIMPLE,
-    UNSET,
-    NO_DURATION
+    /** 計算成功。 */
+    CALCULATED,
+    /** 対象セットが無い、または種目マスタにROMが整備されていない種目のみで計算不可。 */
+    UNAVAILABLE
   }
 
   public static class CalorieEstimate {
@@ -27,35 +40,48 @@ public class CalorieCalculator {
     }
   }
 
-  public CalorieEstimate estimate(User user, int durationMinutes) {
-    if (user == null) {
-      return new CalorieEstimate(CalorieType.UNSET, null);
+  /**
+   * @param trainings 対象セッションのトレーニング一覧（各Trainingにdetailsが設定済みであること）
+   * @param itemMasterByName 種目名 → 種目マスタ（ROM取得用）
+   */
+  public CalorieEstimate estimate(
+      List<Training> trainings, Map<String, TrainingItemMaster> itemMasterByName) {
+    if (trainings == null || trainings.isEmpty() || itemMasterByName == null) {
+      return new CalorieEstimate(CalorieType.UNAVAILABLE, null);
     }
-    Double weight = user.getWeightKg();
-    if (weight == null) {
-      return new CalorieEstimate(CalorieType.UNSET, null);
-    }
-    if (durationMinutes <= 0) {
-      return new CalorieEstimate(CalorieType.NO_DURATION, null);
-    }
-    double hours = durationMinutes / 60.0;
 
-    Double height = user.getHeightCm();
-    String gender = user.getGender();
-    LocalDate birthDate = user.getBirthDate();
-    boolean canUseFull =
-        height != null && birthDate != null && ("MALE".equals(gender) || "FEMALE".equals(gender));
+    double totalJoules = 0;
+    boolean anyMatched = false;
 
-    if (canUseFull) {
-      int age = Period.between(birthDate, LocalDate.now()).getYears();
-      double bmi = weight / Math.pow(height / 100.0, 2);
-      double sexCoef = "MALE".equals(gender) ? 1.0 : 0.0;
-      double bodyFatPct = 1.20 * bmi + 0.23 * age - 10.8 * sexCoef - 5.4;
-      bodyFatPct = Math.max(3.0, Math.min(55.0, bodyFatPct));
-      double leanMass = weight * (1.0 - bodyFatPct / 100.0);
-      return new CalorieEstimate(CalorieType.FULL, (int) Math.round(MET * leanMass * hours));
-    } else {
-      return new CalorieEstimate(CalorieType.SIMPLE, (int) Math.round(MET * weight * hours));
+    for (Training training : trainings) {
+      TrainingItemMaster item = itemMasterByName.get(training.getMenu());
+      if (item == null || item.getRangeOfMotionM() == null) {
+        continue;
+      }
+      double rom = item.getRangeOfMotionM().doubleValue();
+
+      List<TrainingDetail> details = training.getDetails();
+      if (details == null) {
+        continue;
+      }
+      for (TrainingDetail detail : details) {
+        // WARMUP/DROPはPR・ボリューム集計と同様に対象から除外する
+        if (SetType.fromValueOrMain(detail.getSetType()).isVolumeExcluded()) {
+          continue;
+        }
+        if (detail.getWeight() == null || detail.getReps() == null) {
+          continue;
+        }
+        anyMatched = true;
+        totalJoules += detail.getWeight() * GRAVITY * rom * detail.getReps();
+      }
     }
+
+    if (!anyMatched) {
+      return new CalorieEstimate(CalorieType.UNAVAILABLE, null);
+    }
+
+    double kcal = totalJoules / MUSCLE_EFFICIENCY / JOULES_PER_KCAL;
+    return new CalorieEstimate(CalorieType.CALCULATED, (int) Math.round(kcal));
   }
 }
