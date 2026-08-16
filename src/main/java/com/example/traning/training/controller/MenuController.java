@@ -736,16 +736,13 @@ public class MenuController {
   public ResponseEntity<Void> reorderTrainings(
       @RequestBody List<Long> orderedIds, Principal principal) {
     Long userId = trainingService.getUserIdByEmail(principal.getName());
-    for (int i = 0; i < orderedIds.size(); i++) {
-      Long id = orderedIds.get(i);
-      Training t = trainingService.getTrainingById(id);
-      if (t == null || !t.getUserId().equals(userId)) {
-        log.warn("不正な順序変更リクエスト: ユーザー {} がトレーニング {} を操作しようとしました", userId, id);
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-      }
-      trainingDao.updateDisplayOrder(id, i, LocalDateTime.now());
+    try {
+      trainingService.reorderTrainings(orderedIds, userId);
+      return ResponseEntity.ok().build();
+    } catch (IllegalArgumentException e) {
+      log.warn("不正な順序変更リクエスト: ユーザー {} - {}", userId, e.getMessage());
+      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
-    return ResponseEntity.ok().build();
   }
 
   @AuditLog(action = "TRAINING_BULK", targetTable = "trainings")
