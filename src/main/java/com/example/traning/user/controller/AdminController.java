@@ -11,6 +11,7 @@ import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.service.CalorieCalculator;
+import com.example.traning.user.Role;
 import com.example.traning.user.User;
 import com.example.traning.user.form.UserAdminUpdateForm;
 import com.example.traning.user.service.UserService;
@@ -168,8 +169,8 @@ public class AdminController {
     }
     // 自分自身を管理者権限から降格できないよう防止（ロックアウト防止）
     if (currentEmail.equals(existing.getEmail())
-        && "ROLE_ADMIN".equals(existing.getRole())
-        && !"ROLE_ADMIN".equals(form.getRole())) {
+        && Role.ADMIN.value().equals(existing.getRole())
+        && !Role.ADMIN.value().equals(form.getRole())) {
       redirectAttributes.addFlashAttribute("errorMessage", "自分自身の管理者権限を外すことはできません。");
       return "redirect:/admin/user/edit/" + form.getUserId();
     }

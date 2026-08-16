@@ -1,5 +1,6 @@
 package com.example.traning.organization;
 
+import com.example.traning.user.Role;
 import com.example.traning.user.User;
 import java.util.HashSet;
 import java.util.List;
@@ -22,10 +23,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class OrganizationScopeResolver {
 
-  private static final String ROLE_ADMIN = "ROLE_ADMIN";
-  private static final String ROLE_ORG_ADMIN = "ROLE_ORG_ADMIN";
-  private static final String ROLE_STORE_ADMIN = "ROLE_STORE_ADMIN";
-
   private final OrganizationDao organizationDao;
   private final UserStoreAccessDao userStoreAccessDao;
 
@@ -45,8 +42,8 @@ public class OrganizationScopeResolver {
       return Set.of();
     }
 
-    String role = user.getRole();
-    if (ROLE_ADMIN.equals(role)) {
+    Role role = Role.fromValue(user.getRole());
+    if (role == Role.ADMIN) {
       return null;
     }
 
@@ -55,7 +52,7 @@ public class OrganizationScopeResolver {
       return Set.of();
     }
 
-    if (ROLE_ORG_ADMIN.equals(role)) {
+    if (role == Role.ORG_ADMIN) {
       Set<Long> ids = new HashSet<>();
       ids.add(ownOrganizationId);
       List<Organization> stores = organizationDao.selectByParentOrganizationId(ownOrganizationId);
@@ -65,7 +62,7 @@ public class OrganizationScopeResolver {
       return ids;
     }
 
-    if (ROLE_STORE_ADMIN.equals(role)) {
+    if (role == Role.STORE_ADMIN) {
       Set<Long> ids = new HashSet<>();
       ids.add(ownOrganizationId);
       List<Long> concurrentStoreIds =
