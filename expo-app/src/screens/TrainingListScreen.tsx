@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Alert, ActivityIndicator, RefreshControl, AppState,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -130,7 +131,7 @@ export default function TrainingListScreen({ navigation }: Props) {
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>📋</Text>
+            <Feather name="clipboard" size={48} color="#aaa" style={styles.emptyIcon} />
             <Text style={styles.emptyText}>今日のトレーニングはありません</Text>
             <Text style={styles.emptySubText}>
               ＋ボタンから種目を追加してください
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
   progressContainer: { paddingHorizontal: 16, paddingTop: 12 },
   list: { paddingTop: 4, paddingBottom: 16 },
   empty: { flex: 1, alignItems: 'center', paddingTop: 80 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyIcon: { marginBottom: 12 },
   emptyText: { fontSize: 16, color: '#666', fontWeight: '600', marginBottom: 4 },
   emptySubText: { fontSize: 13, color: '#aaa' },
   footer: {

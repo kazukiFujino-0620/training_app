@@ -2,6 +2,7 @@ import React from 'react';
 import {
   View, Text, StyleSheet, Pressable,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -28,7 +29,7 @@ export default function GoalScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <Pressable style={styles.container} onPress={() => navigation.replace('TrainingList' as any)}>
-        <Text style={styles.trophy}>🏆</Text>
+        <Feather name="award" size={80} color="#4CAF50" style={styles.trophy} />
         <Text style={styles.title}>トレーニング完了！</Text>
         <Text style={styles.subtitle}>お疲れさまでした</Text>
 
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32,
   },
-  trophy: { fontSize: 80, marginBottom: 16 },
+  trophy: { marginBottom: 16 },
   title: { fontSize: 28, fontWeight: '900', color: '#222', marginBottom: 8 },
   subtitle: { fontSize: 16, color: '#888', marginBottom: 40 },
   card: {

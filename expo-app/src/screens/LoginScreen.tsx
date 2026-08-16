@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/AppNavigator';
 import { authApi } from '../api/client';
@@ -54,7 +55,7 @@ export default function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.container}>
-        <Text style={styles.logo}>💪</Text>
+        <Feather name="activity" size={56} color="#4CAF50" style={styles.logo} />
         <Text style={styles.title}>トレーニングアプリ</Text>
         <Text style={styles.subtitle}>アカウントにログイン</Text>
 
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1, justifyContent: 'center', paddingHorizontal: 32,
   },
-  logo: { fontSize: 56, textAlign: 'center', marginBottom: 8 },
+  logo: { alignSelf: 'center', marginBottom: 8 },
   title: {
     fontSize: 26, fontWeight: '800', color: '#222',
     textAlign: 'center', marginBottom: 4,
