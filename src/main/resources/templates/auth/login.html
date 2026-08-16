@@ -96,10 +96,11 @@
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>
                 </svg>
-                <input 
-                    type="email" 
-                    name="username" 
-                    class="form-control" 
+                <input
+                    type="email"
+                    name="username"
+                    th:value="${param.email != null ? param.email[0] : ''}"
+                    class="form-control"
                     placeholder="メールアドレス"
                     required
                     autocomplete="username">
