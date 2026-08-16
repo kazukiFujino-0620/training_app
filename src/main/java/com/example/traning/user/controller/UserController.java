@@ -3,6 +3,8 @@ package com.example.traning.user.controller;
 import com.example.traning.user.form.SignupForm;
 import com.example.traning.user.service.AccountRestoreRequiredException;
 import com.example.traning.user.service.SignupService;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
@@ -59,6 +61,7 @@ public class UserController {
       model.addAttribute("errorMessage", "登録中にエラーが発生しました。時間をおいて再度お試しください。");
       return "auth/signup";
     }
-    return "redirect:/login";
+    String encodedEmail = URLEncoder.encode(signupForm.getEmail(), StandardCharsets.UTF_8);
+    return "redirect:/login?registered&email=" + encodedEmail;
   }
 }

@@ -143,8 +143,9 @@ public class AdminController {
   }
 
   /**
-   * ユーザー情報更新。 UserAdminUpdateForm を使い userName / enabled のみを更新する。 role / password は
-   * このエンドポイントでは変更不可（Mass Assignment 防止）。
+   * ユーザー情報更新。 UserAdminUpdateForm を使い userName / role / enabled を更新する。 password は
+   * このエンドポイントでは変更不可（Mass Assignment 防止）。role は ROLE_USER/ROLE_ADMIN のみ許可
+   * （DTO側でPattern制約済み）、ORG_ADMIN/STORE_ADMIN 等の組織権限はこのエンドポイントでは付与しない。
    */
   @AuditLog(action = "ADMIN_USER_UPDATE", targetTable = "users")
   @PostMapping("/user/update")
@@ -156,18 +157,26 @@ public class AdminController {
       redirectAttributes.addFlashAttribute("errorMessage", "入力内容に誤りがあります。再度ご確認ください。");
       return "redirect:/admin/user/edit/" + form.getUserId();
     }
-    // 自分自身を無効化できないよう防止
     Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     String currentEmail = (principal instanceof UserDetails ud) ? ud.getUsername() : "";
     User existing = userService.getUserById(form.getUserId());
     assertAccessible(existing);
+    // 自分自身を無効化できないよう防止
     if (currentEmail.equals(existing.getEmail()) && Boolean.FALSE.equals(form.getEnabled())) {
       redirectAttributes.addFlashAttribute("errorMessage", "自分自身のアカウントを無効にすることはできません。");
+      return "redirect:/admin/user/edit/" + form.getUserId();
+    }
+    // 自分自身を管理者権限から降格できないよう防止（ロックアウト防止）
+    if (currentEmail.equals(existing.getEmail())
+        && "ROLE_ADMIN".equals(existing.getRole())
+        && !"ROLE_ADMIN".equals(form.getRole())) {
+      redirectAttributes.addFlashAttribute("errorMessage", "自分自身の管理者権限を外すことはできません。");
       return "redirect:/admin/user/edit/" + form.getUserId();
     }
     User updatedUser =
         existing.toBuilder()
             .userName(form.getUserName())
+            .role(form.getRole())
             .enabled(form.getEnabled())
             .updatedDatetime(LocalDateTime.now())
             .build();

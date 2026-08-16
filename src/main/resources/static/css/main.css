@@ -1480,7 +1480,10 @@ body {
 .login-form .form-icon {
   position: absolute;
   left: 1rem;
-  top: 50%;
+  /* 3rem(.form-control の height)の中央に固定。
+     top:50%だとエラーメッセージ<p>が追加された際に.form-group全体の高さで
+     再計算され、アイコンが入力欄の外（エラーメッセージ側）にずれてしまうため。 */
+  top: 1.5rem;
   transform: translateY(-50%);
   width: 1.25rem;
   height: 1.25rem;
