@@ -66,10 +66,11 @@ public class TrainingService {
       logger.info("トレーニングデータ保存完了 - ID: {}", training.getId());
 
       // PR更新（トランザクション外・失敗してもメイン保存に影響しない）
-      // WARMUP / DROP は PR 計算から除外（MAIN のみ対象）
+      // WARMUP / DROP は PR 計算から除外（MAIN のみ対象）、未完了セットも対象外
       for (TrainingDetail detail : training.getDetails()) {
         String st = detail.getSetType();
         if ("WARMUP".equals(st) || "DROP".equals(st)) continue;
+        if (!detail.getIsCompleted()) continue;
         personalRecordService.updateIfBetter(
             training.getUserId(),
             training.getMenu(),
@@ -187,6 +188,7 @@ public class TrainingService {
             String st = detail.getSetType();
             if ("WARMUP".equals(st) || "DROP".equals(st)) continue;
             if (detail.getWeight() == null || detail.getReps() == null) continue;
+            if (!detail.getIsCompleted()) continue;
             personalRecordService.updateIfBetter(
                 currentDbData.getUserId(),
                 currentDbData.getMenu(),
