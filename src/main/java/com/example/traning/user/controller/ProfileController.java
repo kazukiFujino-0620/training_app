@@ -1,6 +1,7 @@
 package com.example.traning.user.controller;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.restpreference.RestPreferenceService;
 import com.example.traning.smarttrainer.recommendation.GoalMode;
 import com.example.traning.user.User;
 import com.example.traning.user.form.ProfileForm;
@@ -24,10 +25,15 @@ public class ProfileController {
 
   private final UserService userService;
   private final ProfileService profileService;
+  private final RestPreferenceService restPreferenceService;
 
-  public ProfileController(UserService userService, ProfileService profileService) {
+  public ProfileController(
+      UserService userService,
+      ProfileService profileService,
+      RestPreferenceService restPreferenceService) {
     this.userService = userService;
     this.profileService = profileService;
+    this.restPreferenceService = restPreferenceService;
   }
 
   @GetMapping
@@ -43,7 +49,41 @@ public class ProfileController {
     model.addAttribute("loginUser", user);
     model.addAttribute("user", user);
     model.addAttribute("goalModes", GoalMode.values());
+    model.addAttribute(
+        "restPreferences", restPreferenceService.listByUserId(user.getUserId().longValue()));
+    model.addAttribute("defaultRestSeconds", RestPreferenceService.DEFAULT_REST_SECONDS);
     return "user/profile";
+  }
+
+  /** 17番: 種目別レスト時間の登録・更新。 */
+  @AuditLog(action = "PROFILE_REST_TIME_UPSERT", targetTable = "user_item_rest_preferences")
+  @PostMapping("/rest-time")
+  public String upsertRestTime(
+      @RequestParam("itemName") String itemName,
+      @RequestParam("restSeconds") int restSeconds,
+      Principal principal,
+      RedirectAttributes redirectAttributes) {
+    User user = userService.getUserByEmail(principal.getName());
+    try {
+      restPreferenceService.upsert(user.getUserId().longValue(), itemName, restSeconds);
+      redirectAttributes.addFlashAttribute("successMessage", itemName + "のレスト時間を保存しました");
+    } catch (IllegalArgumentException e) {
+      redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+    }
+    return "redirect:/user/profile";
+  }
+
+  /** 17番: 種目別レスト時間の登録削除（デフォルト2:00に戻す）。 */
+  @AuditLog(action = "PROFILE_REST_TIME_DELETE", targetTable = "user_item_rest_preferences")
+  @PostMapping("/rest-time/delete")
+  public String deleteRestTime(
+      @RequestParam("itemName") String itemName,
+      Principal principal,
+      RedirectAttributes redirectAttributes) {
+    User user = userService.getUserByEmail(principal.getName());
+    restPreferenceService.delete(user.getUserId().longValue(), itemName);
+    redirectAttributes.addFlashAttribute("successMessage", itemName + "のレスト時間登録を削除しました");
+    return "redirect:/user/profile";
   }
 
   /** F3 Phase1: 目的モード（筋肥大/減量/維持）の切替。 */
