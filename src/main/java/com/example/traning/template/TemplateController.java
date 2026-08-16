@@ -4,6 +4,7 @@ import com.example.traning.audit.AuditLog;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
+import com.example.traning.training.SetType;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -222,7 +223,7 @@ public class TemplateController {
         TrainingTemplateItem tplItem = itemSets.get(i);
         TrainingDetail detail = new TrainingDetail();
         detail.setSetNumber(i + 1);
-        detail.setSetType(tplItem.getSetType() != null ? tplItem.getSetType() : "MAIN");
+        detail.setSetType(SetType.fromValueOrMain(tplItem.getSetType()).name());
 
         if (i < recentDetails.size()) {
           TrainingDetail prev = recentDetails.get(i);
@@ -264,11 +265,7 @@ public class TemplateController {
       item.setTemplateId(templateId);
       item.setItemName(req.getItemName().trim());
       item.setSetNumber(req.getSetNumber() != null ? req.getSetNumber() : i + 1);
-      String st = req.getSetType();
-      item.setSetType(
-          st != null && (st.equals("WARMUP") || st.equals("MAIN") || st.equals("DROP"))
-              ? st
-              : "MAIN");
+      item.setSetType(SetType.fromValueOrMain(req.getSetType()).name());
       item.setWeight(req.getWeight());
       item.setReps(req.getReps());
       item.setDisplayOrder(req.getDisplayOrder() != null ? req.getDisplayOrder() : i);

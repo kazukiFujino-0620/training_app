@@ -3,6 +3,7 @@ package com.example.traning.training.service;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
+import com.example.traning.training.SetType;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -68,8 +69,7 @@ public class TrainingService {
       // PR更新（トランザクション外・失敗してもメイン保存に影響しない）
       // WARMUP / DROP は PR 計算から除外（MAIN のみ対象）、未完了セットも対象外
       for (TrainingDetail detail : training.getDetails()) {
-        String st = detail.getSetType();
-        if ("WARMUP".equals(st) || "DROP".equals(st)) continue;
+        if (SetType.fromValueOrMain(detail.getSetType()).isVolumeExcluded()) continue;
         if (!detail.getIsCompleted()) continue;
         personalRecordService.updateIfBetter(
             training.getUserId(),
@@ -185,8 +185,7 @@ public class TrainingService {
         // PR更新（WARMUP/DROPを除くMAINセットのみ。save()と同様の処理）
         if (currentDbData != null && training.getDetails() != null) {
           for (TrainingDetail detail : training.getDetails()) {
-            String st = detail.getSetType();
-            if ("WARMUP".equals(st) || "DROP".equals(st)) continue;
+            if (SetType.fromValueOrMain(detail.getSetType()).isVolumeExcluded()) continue;
             if (detail.getWeight() == null || detail.getReps() == null) continue;
             if (!detail.getIsCompleted()) continue;
             personalRecordService.updateIfBetter(

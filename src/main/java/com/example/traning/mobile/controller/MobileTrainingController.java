@@ -10,6 +10,7 @@ import com.example.traning.mobile.dto.TrainingHistoryResponse;
 import com.example.traning.mobile.dto.UpdateSetRequest;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
+import com.example.traning.training.SetType;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -96,7 +97,7 @@ public class MobileTrainingController {
       detail.setWeight(s.getWeight());
       detail.setReps(s.getReps());
       detail.setCount(s.getReps());
-      detail.setSetType(s.getSetType() != null ? s.getSetType() : "MAIN");
+      detail.setSetType(SetType.fromValueOrMain(s.getSetType()).name());
       trainingDetailDao.insert(detail);
     }
 
@@ -142,7 +143,7 @@ public class MobileTrainingController {
     detail.setWeight(req.getWeight());
     detail.setReps(req.getReps());
     detail.setCount(req.getReps());
-    detail.setSetType(req.getSetType() != null ? req.getSetType() : "MAIN");
+    detail.setSetType(SetType.fromValueOrMain(req.getSetType()).name());
     trainingDetailDao.insert(detail);
 
     return ResponseEntity.status(201).body(detail);

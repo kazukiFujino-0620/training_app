@@ -47,6 +47,7 @@ public class TrainingDetail {
   @Column(name = "count")
   private Integer count;
 
+  /** {@link com.example.traning.training.SetType} の name()。 */
   @Column(name = "set_type")
   private String setType = "MAIN";
 

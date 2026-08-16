@@ -28,6 +28,7 @@ public class TrainingTemplateItem {
   @Column(name = "set_number")
   private Integer setNumber;
 
+  /** {@link com.example.traning.training.SetType} の name()。 */
   @Column(name = "set_type")
   private String setType = "MAIN";
 
