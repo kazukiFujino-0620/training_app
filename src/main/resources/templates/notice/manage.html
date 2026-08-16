@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>お知らせ管理 - トレーニング管理システム</title>
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    .notice-manage-page { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+    .notice-manage-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display:block; font-size:0.82rem; color:var(--text-muted); margin-bottom:6px; }
+    .form-control { width:100%; box-sizing:border-box; }
+    .notice-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--border-color); }
+    .notice-row:last-child { border-bottom:none; }
+    .notice-row h3 { margin:0 0 4px; font-size:0.95rem; color:var(--text-primary); }
+    .notice-row .notice-date { font-size:0.75rem; color:var(--text-muted); margin-bottom:6px; }
+    .notice-row .notice-body { font-size:0.85rem; color:var(--text-primary); white-space:pre-wrap; }
+    .notice-empty { text-align:center; color:var(--text-muted); padding:32px 16px; font-size:0.88rem; }
+    #createError { color:#f87171; font-size:0.82rem; margin-top:8px; display:none; }
+  </style>
+</head>
+<body class="bg-secondary">
+  <header th:replace="~{common :: headerFragment}"></header>
+
+  <main class="notice-manage-page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h1 style="color:var(--text-primary);font-size:1.5rem;font-weight:700;margin:0;">お知らせ管理</h1>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">ジム・店舗単位でお知らせを配信します</p>
+      </div>
+      <a th:href="@{/menu}"
+         style="background:var(--border-color);color:var(--text-muted);
+                border:1px solid var(--border-color);border-radius:8px;
+                padding:8px 16px;font-size:0.85rem;text-decoration:none;">
+        ← メニューへ
+      </a>
+    </div>
+
+    <div class="notice-manage-card">
+      <div class="form-group">
+        <label>配信先</label>
+        <select id="organizationSelect" class="form-control">
+          <option th:each="org : ${organizations}"
+                  th:value="${org.id}"
+                  th:text="${org.name}"
+                  th:selected="${org.id == selectedOrganizationId}"></option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>タイトル</label>
+        <input type="text" id="noticeTitle" class="form-control" maxlength="200" placeholder="例: 8/20は臨時休業します">
+      </div>
+      <div class="form-group">
+        <label>本文</label>
+        <textarea id="noticeBody" class="form-control" rows="4" placeholder="お知らせの内容を入力してください"></textarea>
+      </div>
+      <button id="createBtn" class="btn btn-primary" type="button">配信する</button>
+      <div id="createError"></div>
+    </div>
+
+    <div class="notice-manage-card">
+      <h2 style="margin:0 0 12px;font-size:1rem;color:var(--text-primary);">配信済みのお知らせ</h2>
+      <div id="noticeList">
+        <div th:if="${#lists.isEmpty(notices)}" class="notice-empty">配信済みのお知らせはありません</div>
+        <div th:each="notice : ${notices}" class="notice-row" th:attr="data-notice-id=${notice.id}">
+          <div>
+            <h3 th:text="${notice.title}">タイトル</h3>
+            <div class="notice-date" th:text="${#temporals.format(notice.createdAt, 'yyyy/MM/dd HH:mm')}">2026/08/16</div>
+            <div class="notice-body" th:text="${notice.body}">本文</div>
+          </div>
+          <button class="btn btn-outline btn-sm delete-notice-btn" type="button">取り下げ</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script th:src="@{/js/common.js}"></script>
+  <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+      var csrfToken = document.querySelector('meta[name="_csrf"]').content;
+      var csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+
+      document.getElementById('createBtn').addEventListener('click', function () {
+        var errorEl = document.getElementById('createError');
+        errorEl.style.display = 'none';
+        var payload = {
+          organizationId: Number(document.getElementById('organizationSelect').value),
+          title: document.getElementById('noticeTitle').value,
+          body: document.getElementById('noticeBody').value
+        };
+        var headers = { 'Content-Type': 'application/json' };
+        headers[csrfHeader] = csrfToken;
+        fetch('/api/notices', { method: 'POST', headers: headers, body: JSON.stringify(payload) })
+          .then(function (res) {
+            if (!res.ok) {
+              return res.text().then(function (msg) { throw new Error(msg || '配信に失敗しました'); });
+            }
+            window.location.reload();
+          })
+          .catch(function (e) {
+            errorEl.textContent = e.message;
+            errorEl.style.display = 'block';
+          });
+      });
+
+      document.querySelectorAll('.delete-notice-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (!confirm('このお知らせを取り下げますか？')) return;
+          var row = btn.closest('.notice-row');
+          var id = row.getAttribute('data-notice-id');
+          var headers = {};
+          headers[csrfHeader] = csrfToken;
+          fetch('/api/notices/' + id + '/delete', { method: 'POST', headers: headers })
+            .then(function (res) {
+              if (res.ok) {
+                row.remove();
+              } else {
+                alert('取り下げに失敗しました');
+              }
+            });
+        });
+      });
+
+      document.getElementById('organizationSelect').addEventListener('change', function () {
+        window.location.href = '/notices/manage?organizationId=' + this.value;
+      });
+    });
+  </script>
+</body>
+</html>
