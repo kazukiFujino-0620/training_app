@@ -463,6 +463,20 @@ public class TrainingService {
     return trainingDao.selectCandidatesForSuperset(userId, date);
   }
 
+  @Transactional
+  public void reorderTrainings(List<Long> orderedIds, Long userId) {
+    for (Long id : orderedIds) {
+      Training t = trainingDao.selectById(id);
+      if (t == null || !t.getUserId().equals(userId)) {
+        throw new IllegalArgumentException("このトレーニングを変更する権限がありません");
+      }
+    }
+    LocalDateTime now = LocalDateTime.now();
+    for (int i = 0; i < orderedIds.size(); i++) {
+      trainingDao.updateDisplayOrder(orderedIds.get(i), i, now);
+    }
+  }
+
   private List<Double> getSafeVolumeData(
       Long userId, String partCode, List<String> labels, String startStr, String endStr) {
     logger.debug("部位別ボリュームデータ取得開始 - ユーザーID: {}, 部位: {}", userId, partCode);
