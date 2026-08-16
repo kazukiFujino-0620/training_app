@@ -10,6 +10,7 @@ import com.example.traning.smarttrainer.prediction.OneRmPredictionService;
 import com.example.traning.smarttrainer.recommendation.DailyRecommendation;
 import com.example.traning.smarttrainer.recommendation.RecommendationService;
 import com.example.traning.smarttrainer.recommendation.RecommendedItem;
+import com.example.traning.training.SetType;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -563,8 +564,7 @@ public class MenuController {
                                     dm.put("reps", d.getReps() != null ? d.getReps() : 0);
                                     dm.put("isCompleted", d.getIsCompleted());
                                     dm.put(
-                                        "setType",
-                                        d.getSetType() != null ? d.getSetType() : "MAIN");
+                                        "setType", SetType.fromValueOrMain(d.getSetType()).name());
                                     return dm;
                                   })
                               .toList();
@@ -831,8 +831,7 @@ public class MenuController {
           Object completedObj = detailMap.getOrDefault("isCompleted", false);
           detail.setIsCompleted(Boolean.parseBoolean(completedObj.toString()));
           Object setTypeObj = detailMap.get("setType");
-          if (setTypeObj instanceof String s
-              && (s.equals("WARMUP") || s.equals("MAIN") || s.equals("DROP"))) {
+          if (setTypeObj instanceof String s && SetType.isValid(s)) {
             detail.setSetType(s);
           }
           details.add(detail);
