@@ -893,10 +893,18 @@ public class MenuController {
             .findFirst()
             .orElse("00:00:00");
 
-    int durationMinutes = parseDurationToMinutes(duration);
     User loginUser = trainingService.getUserByEmail(principal.getName());
+
+    // ita2-2: 消費カロリーは力学的仕事量ベース（挙上重量×可動域×回数）で計算する
+    Map<String, com.example.traning.entity.TrainingItemMaster> itemMasterByName =
+        trainingMasterDao.selectAllItems().stream()
+            .collect(
+                Collectors.toMap(
+                    com.example.traning.entity.TrainingItemMaster::getItemName,
+                    item -> item,
+                    (a, b) -> a));
     CalorieCalculator.CalorieEstimate calorieEstimate =
-        calorieCalculator.estimate(loginUser, durationMinutes);
+        calorieCalculator.estimate(trainings, itemMasterByName);
 
     // トレーニングコース（種目の順序リスト）
     List<String> course =
@@ -916,16 +924,5 @@ public class MenuController {
     model.addAttribute("trainingCourse", course);
 
     return "training/detail";
-  }
-
-  private int parseDurationToMinutes(String duration) {
-    if (duration == null || duration.isEmpty()) return 0;
-    String[] parts = duration.split(":");
-    if (parts.length != 3) return 0;
-    try {
-      return Integer.parseInt(parts[0]) * 60 + Integer.parseInt(parts[1]);
-    } catch (NumberFormatException e) {
-      return 0;
-    }
   }
 }
