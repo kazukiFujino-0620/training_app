@@ -1,9 +1,9 @@
 package com.example.traning.user;
 
 /**
- * ユーザー権限（ロール）。DB列（{@code users.role}）・Spring Securityの{@code GrantedAuthority}は
- * 引き続き{@code "ROLE_" + name()}形式の文字列のまま扱う（{@link
- * com.example.traning.organization.OrganizationType} と同じ方針）。判定ロジックはこのenum経由で行う。
+ * ユーザー権限（ロール）。DB列（{@code users.role}）・Spring Securityの{@code GrantedAuthority}は 引き続き{@code "ROLE_"
+ * + name()}形式の文字列のまま扱う（{@link com.example.traning.organization.OrganizationType}
+ * と同じ方針）。判定ロジックはこのenum経由で行う。
  */
 public enum Role {
   USER,
