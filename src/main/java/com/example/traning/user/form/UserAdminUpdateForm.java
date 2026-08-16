@@ -7,9 +7,8 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * 管理者によるユーザー情報更新専用フォーム。 password を除いた安全なフィールドのみバインドを許可する。
- * role は ROLE_USER/ROLE_ADMIN の2値のみ許可し（Mass Assignment対策として値を限定）、
- * ORG_ADMIN/STORE_ADMIN 等の組織権限はこのエンドポイントでは変更不可。
+ * 管理者によるユーザー情報更新専用フォーム。 password を除いた安全なフィールドのみバインドを許可する。 role は ROLE_USER/ROLE_ADMIN の2値のみ許可し（Mass
+ * Assignment対策として値を限定）、 ORG_ADMIN/STORE_ADMIN 等の組織権限はこのエンドポイントでは変更不可。
  */
 @Data
 public class UserAdminUpdateForm {
