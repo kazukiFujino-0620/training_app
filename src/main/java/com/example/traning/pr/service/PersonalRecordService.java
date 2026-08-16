@@ -17,9 +17,17 @@ public class PersonalRecordService {
 
   private final PersonalRecordDao personalRecordDao;
 
+  /**
+   * 重量・回数は同一セットの実測値として連動して更新する（重量優先、同重量なら回数が多い方を採用）。
+   * どちらか一方だけを個別に上書きすると、実際には達成していない重量×回数の組み合わせが
+   * 表示されてしまうため、必ずペアで比較・更新する。
+   */
   @Transactional
   public void updateIfBetter(
       Long userId, String itemName, Double weight, Integer reps, LocalDate date) {
+    if (weight == null || reps == null) {
+      return;
+    }
     try {
       Optional<PersonalRecord> existing = personalRecordDao.selectByUserIdAndItem(userId, itemName);
 
@@ -27,26 +35,21 @@ public class PersonalRecordService {
         PersonalRecord pr = new PersonalRecord();
         pr.setUserId(userId);
         pr.setItemName(itemName);
-        pr.setMaxWeight(weight != null ? weight : 0.0);
-        pr.setMaxReps(reps != null ? reps : 0);
+        pr.setMaxWeight(weight);
+        pr.setMaxReps(reps);
         pr.setAchievedDate(date);
         personalRecordDao.insert(pr);
-      } else {
-        PersonalRecord pr = existing.get();
-        boolean updated = false;
+        return;
+      }
 
-        if (weight != null && weight > pr.getMaxWeight()) {
-          pr.setMaxWeight(weight);
-          updated = true;
-        }
-        if (reps != null && reps > pr.getMaxReps()) {
-          pr.setMaxReps(reps);
-          updated = true;
-        }
-        if (updated) {
-          pr.setAchievedDate(date);
-          personalRecordDao.update(pr);
-        }
+      PersonalRecord pr = existing.get();
+      int weightCompare = Double.compare(weight, pr.getMaxWeight());
+      boolean isBetter = weightCompare > 0 || (weightCompare == 0 && reps > pr.getMaxReps());
+      if (isBetter) {
+        pr.setMaxWeight(weight);
+        pr.setMaxReps(reps);
+        pr.setAchievedDate(date);
+        personalRecordDao.update(pr);
       }
     } catch (Exception e) {
       log.warn("PR更新中にエラー: userId={}, itemName={}, message={}", userId, itemName, e.getMessage());
