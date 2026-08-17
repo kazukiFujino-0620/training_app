@@ -168,7 +168,9 @@ public class GlobalControllerAdvice {
       HttpServletRequest request,
       HttpServletResponse response)
       throws IOException {
-    log.warn("Access denied: path={}", request.getRequestURI());
+    String requestUri = request.getRequestURI();
+    String safeRequestUri = requestUri == null ? null : requestUri.replace('\r', '_').replace('\n', '_');
+    log.warn("Access denied: path={}", safeRequestUri);
 
     String accept = request.getHeader("Accept");
     if (accept != null && accept.contains("application/json")) {
