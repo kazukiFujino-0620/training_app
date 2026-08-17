@@ -158,6 +158,17 @@ public class MenuController {
     long totalCount = trainingList.size();
     long completedCount = trainingList.stream().filter(Training::isAllCompleted).count();
 
+    // ita2-3: 消費カロリー表示（menu.html拡大分）
+    Map<String, com.example.traning.entity.TrainingItemMaster> itemMasterByNameForCalorie =
+        trainingMasterDao.selectAllItems().stream()
+            .collect(
+                Collectors.toMap(
+                    com.example.traning.entity.TrainingItemMaster::getItemName,
+                    item -> item,
+                    (a, b) -> a));
+    CalorieCalculator.CalorieEstimate menuCalorieEstimate =
+        calorieCalculator.estimate(trainingList, itemMasterByNameForCalorie);
+
     // 疲労マップ用データ（過去7日間の半減期モデル）
     LocalDate fatigueStart = today.minusDays(6);
     List<Training> fatigueTrainings =
@@ -294,6 +305,7 @@ public class MenuController {
     model.addAttribute("todayProgram", todayProgram);
     model.addAttribute("todayPartLabel", todayPartLabel);
     model.addAttribute("showReorderMenu", true);
+    model.addAttribute("calorieEstimate", menuCalorieEstimate);
 
     // F3 Phase1: 今日のおすすめメニュー（ルールベース推奨）
     DailyRecommendation dailyRecommendation = recommendationService.getTodayRecommendation(userId);

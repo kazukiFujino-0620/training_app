@@ -81,6 +81,7 @@ import type {
   HealthSyncRequest,
   HealthSyncResponse,
   HealthSummaryResponse,
+  TrainingCalorieResponse,
 } from './types';
 
 export const authApi = {
@@ -97,6 +98,10 @@ export const authApi = {
 export const trainingApi = {
   getToday: (date?: string) =>
     client.get<Training[]>('/training/today', { params: date ? { date } : undefined }),
+  getTodayCalories: (date?: string) =>
+    client.get<TrainingCalorieResponse>('/training/today/calories', {
+      params: date ? { date } : undefined,
+    }),
   addTraining: (req: AddTrainingRequest) =>
     client.post<number>('/training', req),
   deleteTraining: (id: number) =>
