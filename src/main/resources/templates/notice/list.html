@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>お知らせ一覧 - トレーニング管理システム</title>
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    .notice-page { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+    .notice-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .notice-card h2 { margin: 0 0 8px; font-size: 1.05rem; color: var(--text-primary); }
+    .notice-card .notice-date { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px; }
+    .notice-card .notice-body { color: var(--text-primary); font-size: 0.92rem; line-height: 1.7; white-space: pre-wrap; }
+    .notice-empty { text-align: center; color: var(--text-muted); padding: 48px 16px; font-size: 0.9rem; }
+  </style>
+</head>
+<body class="bg-secondary">
+  <header th:replace="~{common :: headerFragment}"></header>
+
+  <main class="notice-page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h1 style="color:var(--text-primary);font-size:1.5rem;font-weight:700;margin:0;">お知らせ</h1>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">ジム・店舗からのお知らせです</p>
+      </div>
+      <a th:href="@{/menu}"
+         style="background:var(--border-color);color:var(--text-muted);
+                border:1px solid var(--border-color);border-radius:8px;
+                padding:8px 16px;font-size:0.85rem;text-decoration:none;">
+        ← メニューへ
+      </a>
+    </div>
+
+    <div th:if="${#lists.isEmpty(notices)}" class="notice-empty">
+      現在お知らせはありません
+    </div>
+
+    <div th:each="notice : ${notices}" class="notice-card" th:attr="data-notice-id=${notice.id}">
+      <h2 th:text="${notice.title}">お知らせタイトル</h2>
+      <div class="notice-date" th:text="${#temporals.format(notice.createdAt, 'yyyy/MM/dd HH:mm')}">2026/08/16</div>
+      <div class="notice-body" th:text="${notice.body}">本文</div>
+    </div>
+  </main>
+
+  <script th:src="@{/js/common.js}"></script>
+  <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+      var csrfToken = document.querySelector('meta[name="_csrf"]').content;
+      var csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+      var cards = document.querySelectorAll('.notice-card');
+      if (cards.length === 0) return;
+
+      // 一覧を開いて表示した時点で「閲覧済み」として全件dismissする
+      // （既読管理は行わず、閲覧＝以後非表示という仕様のため）
+      cards.forEach(function (card) {
+        var id = card.getAttribute('data-notice-id');
+        var headers = {};
+        headers[csrfHeader] = csrfToken;
+        fetch('/api/notices/' + id + '/dismiss', { method: 'POST', headers: headers });
+      });
+    });
+  </script>
+</body>
+</html>

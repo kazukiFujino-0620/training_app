@@ -13,7 +13,8 @@ SELECT
     weight_kg,
     gender,
     birth_date,
-    current_goal_mode
+    current_goal_mode,
+    organization_id
 FROM
     users
 WHERE

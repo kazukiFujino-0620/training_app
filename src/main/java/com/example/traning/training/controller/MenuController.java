@@ -65,6 +65,7 @@ public class MenuController {
   private final OneRmPredictionService oneRmPredictionService;
   private final AcwrService acwrService;
   private final ChurnDetectionService churnDetectionService;
+  private final com.example.traning.notice.NoticeService noticeService;
 
   private static final Map<String, String> PART_LABEL_MAP =
       Map.of("CHEST", "胸", "BACK", "背中", "SHOULDER", "肩", "ARM", "腕", "LEG", "脚");
@@ -79,7 +80,8 @@ public class MenuController {
       RecommendationService recommendationService,
       OneRmPredictionService oneRmPredictionService,
       AcwrService acwrService,
-      ChurnDetectionService churnDetectionService) {
+      ChurnDetectionService churnDetectionService,
+      com.example.traning.notice.NoticeService noticeService) {
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
@@ -90,6 +92,7 @@ public class MenuController {
     this.oneRmPredictionService = oneRmPredictionService;
     this.acwrService = acwrService;
     this.churnDetectionService = churnDetectionService;
+    this.noticeService = noticeService;
   }
 
   @GetMapping("/menu")
@@ -309,6 +312,9 @@ public class MenuController {
     model.addAttribute("acwrWarning", acwrService.isWarning(acwrValue));
     model.addAttribute(
         "churnMessage", churnDetectionService.checkChurnMessage(userId, today).orElse(null));
+
+    // ita2-5: ジム・店舗からのお知らせバナー
+    model.addAttribute("activeNoticeCount", noticeService.getActiveForUser(userEntity).size());
 
     return "menu";
   }

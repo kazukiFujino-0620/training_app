@@ -152,6 +152,40 @@ public class GlobalControllerAdvice {
     return mav;
   }
 
+  /**
+   * ita2-5: {@code @PreAuthorize} が投げる {@link
+   * org.springframework.security.access.AccessDeniedException} を処理する。
+   *
+   * <p>{@code AccessDeniedException} も {@link RuntimeException} のサブクラスのため、専用ハンドラーが無いと下の {@code
+   * handleRuntimeException} に握りつぶされ、常に500になってしまう（{@link ResponseStatusException} と同種の既存バグ、
+   * NoticeController実装中に発見）。URLパターンレベルの認可（{@code authorizeHttpRequests}）はServletフィルタ側で {@code
+   * ExceptionTranslationFilter} が正しく403に変換するため影響を受けないが、メソッドレベルの {@code @PreAuthorize}
+   * のみで保護している箇所はDispatcherServlet内で例外解決されるためこのハンドラーが必要。
+   */
+  @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+  public ModelAndView handleAccessDeniedException(
+      org.springframework.security.access.AccessDeniedException ex,
+      HttpServletRequest request,
+      HttpServletResponse response)
+      throws IOException {
+    String requestUri = request.getRequestURI();
+    String safeRequestUri = requestUri == null ? null : requestUri.replace('\r', '_').replace('\n', '_');
+    log.warn("Access denied: path={}", safeRequestUri);
+
+    String accept = request.getHeader("Accept");
+    if (accept != null && accept.contains("application/json")) {
+      response.setStatus(HttpStatus.FORBIDDEN.value());
+      response.setContentType("application/json;charset=UTF-8");
+      response.getWriter().write("{\"error\":\"この操作を行う権限がありません。\"}");
+      return null;
+    }
+
+    ModelAndView mav = new ModelAndView("error/403");
+    mav.setStatus(HttpStatus.FORBIDDEN);
+    mav.addObject("message", "この操作を行う権限がありません。");
+    return mav;
+  }
+
   @ExceptionHandler(RuntimeException.class)
   @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
   public ModelAndView handleRuntimeException(RuntimeException ex) {
