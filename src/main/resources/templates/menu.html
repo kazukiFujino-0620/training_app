@@ -264,12 +264,26 @@
           <div class="summary-section">
             <div class="card">
               <div class="card-header">
-                <h3 class="text-xl font-semibold">
-                  <span th:text="${selectedDate != null ? selectedDate : today}"
-                    >2026-03-07</span
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                  <h3 class="text-xl font-semibold" style="margin:0;">
+                    <span th:text="${selectedDate != null ? selectedDate : today}"
+                      >2026-03-07</span
+                    >
+                    のトレーニングサマリー
+                  </h3>
+                  <span
+                    th:if="${calorieEstimate != null and calorieEstimate.type.name() == 'CALCULATED'}"
+                    style="font-size:0.85rem;color:var(--text-muted);white-space:nowrap;"
                   >
-                  のトレーニングサマリー
-                </h3>
+                    推定消費カロリー:
+                    <strong
+                      th:text="${calorieEstimate.calories}"
+                      style="color:var(--text-primary);"
+                      >0</strong
+                    >
+                    kcal
+                  </span>
+                </div>
               </div>
               <div class="card-body">
                 <div th:if="${not #lists.isEmpty(trainingList)}">

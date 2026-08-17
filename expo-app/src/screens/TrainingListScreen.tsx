@@ -22,6 +22,7 @@ export default function TrainingListScreen({ navigation }: Props) {
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [calories, setCalories] = useState<number | null>(null);
 
   const today = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'short',
@@ -31,6 +32,13 @@ export default function TrainingListScreen({ navigation }: Props) {
     try {
       const { data } = await trainingApi.getToday();
       setTrainings(data);
+
+      try {
+        const { data: calorieData } = await trainingApi.getTodayCalories();
+        setCalories(calorieData.available ? calorieData.calories : null);
+      } catch {
+        setCalories(null);
+      }
     } catch (e: any) {
       if (e.response?.status === 401) {
         await clearTokens();
@@ -114,6 +122,13 @@ export default function TrainingListScreen({ navigation }: Props) {
       {trainings.length > 0 && (
         <View style={styles.progressContainer}>
           <ProgressBar completed={completedSets} total={totalSets} />
+        </View>
+      )}
+
+      {/* 消費カロリー（全種目完了時のみ表示） */}
+      {calories !== null && (
+        <View style={styles.calorieContainer}>
+          <Text style={styles.calorieText}>消費カロリー：{calories} kcal</Text>
         </View>
       )}
 
@@ -202,6 +217,8 @@ const styles = StyleSheet.create({
   healthButtonText: { fontSize: 12, color: '#e53935', fontWeight: '600' },
   logoutText: { fontSize: 13, color: '#999' },
   progressContainer: { paddingHorizontal: 16, paddingTop: 12 },
+  calorieContainer: { paddingHorizontal: 16, paddingTop: 8 },
+  calorieText: { fontSize: 13, color: '#666', fontWeight: '600' },
   list: { paddingTop: 4, paddingBottom: 16 },
   empty: { flex: 1, alignItems: 'center', paddingTop: 80 },
   emptyIcon: { marginBottom: 12 },

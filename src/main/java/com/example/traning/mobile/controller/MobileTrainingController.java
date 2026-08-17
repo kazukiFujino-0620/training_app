@@ -1,11 +1,14 @@
 package com.example.traning.mobile.controller;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.dao.UserDao;
+import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.mobile.dto.AddSetRequest;
 import com.example.traning.mobile.dto.AddTrainingRequest;
 import com.example.traning.mobile.dto.CompleteTrainingRequest;
 import com.example.traning.mobile.dto.SetUpdateResponse;
+import com.example.traning.mobile.dto.TrainingCalorieResponse;
 import com.example.traning.mobile.dto.TrainingHistoryResponse;
 import com.example.traning.mobile.dto.UpdateSetRequest;
 import com.example.traning.pr.PersonalRecord;
@@ -15,12 +18,15 @@ import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
+import com.example.traning.training.service.CalorieCalculator;
 import com.example.traning.training.service.TrainingService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -46,18 +52,24 @@ public class MobileTrainingController {
   private final TrainingDetailDao trainingDetailDao;
   private final PersonalRecordService personalRecordService;
   private final UserDao userDao;
+  private final TrainingMasterDao trainingMasterDao;
+  private final CalorieCalculator calorieCalculator;
 
   public MobileTrainingController(
       TrainingService trainingService,
       TrainingDao trainingDao,
       TrainingDetailDao trainingDetailDao,
       PersonalRecordService personalRecordService,
-      UserDao userDao) {
+      UserDao userDao,
+      TrainingMasterDao trainingMasterDao,
+      CalorieCalculator calorieCalculator) {
     this.trainingService = trainingService;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.personalRecordService = personalRecordService;
     this.userDao = userDao;
+    this.trainingMasterDao = trainingMasterDao;
+    this.calorieCalculator = calorieCalculator;
   }
 
   /** 当日（またはdate指定日）のトレーニング一覧を返す。 各 Training に details リスト（セット情報）が含まれる。 */
@@ -68,6 +80,33 @@ public class MobileTrainingController {
     LocalDate targetDate = (date != null) ? LocalDate.parse(date) : LocalDate.now();
     List<Training> trainings = trainingService.getFullTrainingData(userId, targetDate);
     return ResponseEntity.ok(trainings);
+  }
+
+  /**
+   * 当日（またはdate指定日）の推定消費カロリーを返す（ita2-3）。 その日の全種目が完了済み（isAllCompleted）の場合のみ計算・返却し、
+   * 未完了があればavailable=falseを返す。
+   */
+  @GetMapping("/today/calories")
+  public ResponseEntity<TrainingCalorieResponse> getTodayCalories(
+      @AuthenticationPrincipal Long userId, @RequestParam(required = false) String date) {
+
+    LocalDate targetDate = (date != null) ? LocalDate.parse(date) : LocalDate.now();
+    List<Training> trainings = trainingService.getFullTrainingData(userId, targetDate);
+
+    boolean allCompleted =
+        !trainings.isEmpty() && trainings.stream().allMatch(Training::isAllCompleted);
+    if (!allCompleted) {
+      return ResponseEntity.ok(new TrainingCalorieResponse(false, null));
+    }
+
+    Map<String, TrainingItemMaster> itemMasterByName =
+        trainingMasterDao.selectAllItems().stream()
+            .collect(Collectors.toMap(TrainingItemMaster::getItemName, item -> item, (a, b) -> a));
+    CalorieCalculator.CalorieEstimate estimate =
+        calorieCalculator.estimate(trainings, itemMasterByName);
+
+    boolean available = estimate.type == CalorieCalculator.CalorieType.CALCULATED;
+    return ResponseEntity.ok(new TrainingCalorieResponse(available, estimate.calories));
   }
 
   /** 当日のトレーニングに種目を追加する。 sets が空でも登録可能（後からセットを追加する想定はなし）。 */

@@ -52,6 +52,12 @@ export interface Training {
   supersetGroupId?: number | null;
 }
 
+/** 当日の推定消費カロリー（ita2-3）。全種目完了前、または計算対象データが無い場合はavailable=false */
+export interface TrainingCalorieResponse {
+  available: boolean;
+  calories: number | null;
+}
+
 export interface AddSetRequest {
   weight: number;
   reps: number;
