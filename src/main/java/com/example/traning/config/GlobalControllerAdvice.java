@@ -169,7 +169,8 @@ public class GlobalControllerAdvice {
       HttpServletResponse response)
       throws IOException {
     String requestUri = request.getRequestURI();
-    String safeRequestUri = requestUri == null ? null : requestUri.replace('\r', '_').replace('\n', '_');
+    String safeRequestUri =
+        requestUri == null ? null : requestUri.replace('\r', '_').replace('\n', '_');
     log.warn("Access denied: path={}", safeRequestUri);
 
     String accept = request.getHeader("Accept");
