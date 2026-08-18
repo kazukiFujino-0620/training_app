@@ -21,6 +21,7 @@ const PARTS = [
   { code: 'SHOULDER', label: '肩' },
   { code: 'ARM', label: '腕' },
   { code: 'LEG', label: '脚' },
+  { code: 'CARDIO', label: 'カーディオ' },
 ];
 
 interface SetConfig {
@@ -174,7 +175,12 @@ export default function AddExerciseScreen({ navigation }: Props) {
     const targets = blocks
       .map((b) => ({
         item: b.item,
-        validSets: b.sets.filter((s) => s.weight !== '' && s.reps !== ''),
+        // 有酸素運動（ita2-1）はセット概念が無いため、重量・回数の入力欄自体を表示しない。
+        // weight=0/reps=0のダミー1セットとして登録し、実施時間・距離・平均心拍数・
+        // 消費カロリーはトレーニング開始画面（TrainingStartScreen）で記録する。
+        validSets: b.item.partCode === 'CARDIO'
+          ? [{ weight: '0', reps: '0', setType: 'MAIN' as const }]
+          : b.sets.filter((s) => s.weight !== '' && s.reps !== ''),
       }));
 
     const emptyBlock = targets.find((t) => t.validSets.length === 0);
@@ -399,47 +405,57 @@ export default function AddExerciseScreen({ navigation }: Props) {
                       </View>
                     )}
 
-                    {block.sets.length === 0 && (
-                      <Text style={styles.noSetText}>「セット追加」で記録を開始してください</Text>
+                    {block.item.partCode === 'CARDIO' ? (
+                      // 有酸素運動（ita2-1）: セット概念が無いため重量/回数の入力欄は表示しない。
+                      // 実施時間・距離・平均心拍数・消費カロリーはトレーニング開始画面で記録する。
+                      <Text style={styles.cardioNoticeText}>
+                        有酸素運動として登録されます。実施時間・距離・平均心拍数・消費カロリーはトレーニング開始画面で記録します。
+                      </Text>
+                    ) : (
+                      <>
+                        {block.sets.length === 0 && (
+                          <Text style={styles.noSetText}>「セット追加」で記録を開始してください</Text>
+                        )}
+
+                        {block.sets.map((s, setIndex) => (
+                          <View key={setIndex} style={styles.setRow}>
+                            <Text style={styles.setNum}>{setIndex + 1}</Text>
+                            <TouchableOpacity
+                              style={[styles.typeBtn, s.setType === 'WARMUP' && styles.typeBtnActive]}
+                              onPress={() => updateSet(
+                                blockIndex, setIndex, 'setType',
+                                s.setType === 'WARMUP' ? 'MAIN' : 'WARMUP',
+                              )}
+                            >
+                              <Text style={styles.typeBtnText}>{s.setType === 'WARMUP' ? 'W' : 'M'}</Text>
+                            </TouchableOpacity>
+                            <TextInput
+                              style={styles.setInput}
+                              placeholder="重量"
+                              value={s.weight}
+                              onChangeText={(v) => updateSet(blockIndex, setIndex, 'weight', v)}
+                              keyboardType="decimal-pad"
+                            />
+                            <Text style={styles.unit}>kg</Text>
+                            <TextInput
+                              style={styles.setInput}
+                              placeholder="回数"
+                              value={s.reps}
+                              onChangeText={(v) => updateSet(blockIndex, setIndex, 'reps', v)}
+                              keyboardType="number-pad"
+                            />
+                            <Text style={styles.unit}>回</Text>
+                            <TouchableOpacity onPress={() => removeSet(blockIndex, setIndex)}>
+                              <Text style={styles.removeText}>✕</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+
+                        <TouchableOpacity style={styles.addSetBtn} onPress={() => addSet(blockIndex)}>
+                          <Text style={styles.addSetText}>＋ セット追加</Text>
+                        </TouchableOpacity>
+                      </>
                     )}
-
-                    {block.sets.map((s, setIndex) => (
-                      <View key={setIndex} style={styles.setRow}>
-                        <Text style={styles.setNum}>{setIndex + 1}</Text>
-                        <TouchableOpacity
-                          style={[styles.typeBtn, s.setType === 'WARMUP' && styles.typeBtnActive]}
-                          onPress={() => updateSet(
-                            blockIndex, setIndex, 'setType',
-                            s.setType === 'WARMUP' ? 'MAIN' : 'WARMUP',
-                          )}
-                        >
-                          <Text style={styles.typeBtnText}>{s.setType === 'WARMUP' ? 'W' : 'M'}</Text>
-                        </TouchableOpacity>
-                        <TextInput
-                          style={styles.setInput}
-                          placeholder="重量"
-                          value={s.weight}
-                          onChangeText={(v) => updateSet(blockIndex, setIndex, 'weight', v)}
-                          keyboardType="decimal-pad"
-                        />
-                        <Text style={styles.unit}>kg</Text>
-                        <TextInput
-                          style={styles.setInput}
-                          placeholder="回数"
-                          value={s.reps}
-                          onChangeText={(v) => updateSet(blockIndex, setIndex, 'reps', v)}
-                          keyboardType="number-pad"
-                        />
-                        <Text style={styles.unit}>回</Text>
-                        <TouchableOpacity onPress={() => removeSet(blockIndex, setIndex)}>
-                          <Text style={styles.removeText}>✕</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-
-                    <TouchableOpacity style={styles.addSetBtn} onPress={() => addSet(blockIndex)}>
-                      <Text style={styles.addSetText}>＋ セット追加</Text>
-                    </TouchableOpacity>
                   </View>
                 );
               })}
@@ -551,6 +567,8 @@ const styles = StyleSheet.create({
   historyNoneText: { fontSize: 13, color: '#aaa', textAlign: 'center', paddingVertical: 4 },
   // セット行
   noSetText: { color: '#aaa', fontSize: 13, paddingVertical: 8 },
+  // 有酸素運動（ita2-1）
+  cardioNoticeText: { color: '#0891b2', fontSize: 13, paddingVertical: 8, lineHeight: 18 },
   setRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#fafafa', marginTop: 8,

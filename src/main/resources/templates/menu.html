@@ -304,7 +304,8 @@
                           >
                         </div>
 
-                        <div class="space-y-1">
+                        <!-- 筋トレ種目: セットごとの重量×回数を表示 -->
+                        <div class="space-y-1" th:if="${item.partCode != 'CARDIO'}">
                           <div
                             th:each="detail : ${item.details}"
                             class="flex items-center gap-3 text-sm"
@@ -328,6 +329,30 @@
                               class="text-muted ml-2"
                               >○</span
                             >
+                          </div>
+                        </div>
+
+                        <!-- 有酸素運動（ita2-1）: セット概念が無いため実施状況・記録項目を表示 -->
+                        <div class="space-y-1" th:if="${item.partCode == 'CARDIO'}">
+                          <div
+                            th:each="detail : ${item.details}"
+                            class="flex items-center gap-3 text-sm flex-wrap"
+                          >
+                            <span class="cardio-badge">カーディオ</span>
+                            <span th:if="${!detail.isCompleted}" class="text-muted"
+                              >未実施</span
+                            >
+                            <span th:if="${detail.isCompleted}" class="text-success font-bold"
+                              >✓</span
+                            >
+                            <span th:if="${detail.isCompleted and detail.durationMin != null}"
+                              th:text="${detail.durationMin} + '分'">0分</span>
+                            <span th:if="${detail.isCompleted and detail.distanceKm != null}"
+                              th:text="${detail.distanceKm} + 'km'">0km</span>
+                            <span th:if="${detail.isCompleted and detail.avgHeartRateBpm != null}"
+                              th:text="'平均' + ${detail.avgHeartRateBpm} + 'bpm'">平均0bpm</span>
+                            <span th:if="${detail.isCompleted and detail.caloriesKcal != null}"
+                              th:text="${detail.caloriesKcal} + 'kcal'">0kcal</span>
                           </div>
                         </div>
                       </div>

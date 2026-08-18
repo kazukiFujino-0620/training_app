@@ -186,7 +186,10 @@ public class TrainingService {
         }
 
         // PR更新（WARMUP/DROPを除くMAINセットのみ。save()と同様の処理）
-        if (currentDbData != null && training.getDetails() != null) {
+        // 有酸素運動（ita2-1）は重量×回数の概念が無いためPR対象外
+        if (currentDbData != null
+            && training.getDetails() != null
+            && !"CARDIO".equals(currentDbData.getPartCode())) {
           for (TrainingDetail detail : training.getDetails()) {
             if (SetType.fromValueOrMain(detail.getSetType()).isVolumeExcluded()) continue;
             if (detail.getWeight() == null || detail.getReps() == null) continue;

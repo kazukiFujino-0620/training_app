@@ -469,6 +469,30 @@ function handleCheck(el) {
     }
 }
 
+// 有酸素運動（ita2-1）の完了チェック。筋トレのhandleCheck()と異なり、
+// セット概念が無いためインターバル・スーパーセット誘導は行わない。
+// 実施時間はセッション全体のタイマー（totalSeconds）から自動反映する
+// （種目ごとの個別タイマーは本アプリに存在しないため、セッションタイマーを流用する）。
+function handleCardioCheck(el) {
+    if (!el) return;
+    ensureAudioContext();
+    el.classList.toggle('completed');
+    if (!isTimerRunning) {
+        toggleMainTimer();
+    }
+
+    const card = el.closest('.training-card');
+    const durationDisplay = card?.querySelector('.cardio-duration-display');
+    if (el.classList.contains('completed')) {
+        const durationMin = Math.round(totalSeconds / 60);
+        if (card) card.dataset.cardioDurationMin = String(durationMin);
+        if (durationDisplay) durationDisplay.textContent = durationMin + ' 分';
+    } else if (durationDisplay) {
+        delete card.dataset.cardioDurationMin;
+        durationDisplay.textContent = '未記録（下の完了ボタンを押すと記録されます）';
+    }
+}
+
 function showSupersetNextBanner(nextMenu) {
     const banner = document.getElementById('supersetNextBanner');
     if (!banner) return;
@@ -825,6 +849,7 @@ function openModal(date, id = null) {
 
     const partSelect = document.getElementById('modalPart');
     if (partSelect) partSelect.value = "";
+    updateModalCardioVisibility("");
 
     const menuSelect = document.getElementById('modalMenu');
     if (menuSelect) {
@@ -1050,8 +1075,19 @@ function saveRegisterBulk() {
     });
 }
 
+// 部位選択に応じてセット詳細入力欄の表示/非表示を切り替える（ita2-1）。
+// 有酸素運動（CARDIO）はセット概念が無いため重量/回数の入力欄を隠し、案内文のみ表示する。
+function updateModalCardioVisibility(partCode) {
+    const setDetailGroup = document.getElementById('modalSetDetailGroup');
+    const cardioNotice = document.getElementById('modalCardioNotice');
+    const isCardio = partCode === 'CARDIO';
+    if (setDetailGroup) setDetailGroup.style.display = isCardio ? 'none' : '';
+    if (cardioNotice) cardioNotice.style.display = isCardio ? '' : 'none';
+}
+
 function updateItems(partCode) {
     const menuSelect = document.getElementById('modalMenu');
+    updateModalCardioVisibility(partCode);
     if (!partCode) {
         if (menuSelect) {
             menuSelect.innerHTML = '<option value="">部位を先に選択してください</option>';
@@ -1168,26 +1204,52 @@ async function finishTraining() {
             validationErrors.push(`「${menu}」はまだ保存されていません。一度モーダルから保存してください。`);
         }
 
-        card.querySelectorAll('.set-row').forEach((row, index) => {
-            const weightVal = row.querySelector('.weight')?.value ?? '';
-            const repsVal = row.querySelector('.reps')?.value ?? '';
-            const checkBtn = row.querySelector('.btn-check');
+        if (card.dataset.partCode === 'CARDIO') {
+            // 有酸素運動（ita2-1）: セット概念が無いため単一のdetailのみ送信する。
+            // weight/repsはTrainingDetailの必須項目（@NotNull）を満たすためのダミー値。
+            const cardioArea = card.querySelector('.cardio-input-area');
+            const checkBtn = cardioArea?.querySelector('.cardio-check');
             const isCompleted = checkBtn?.classList.contains('completed') ?? false;
-            const badge = row.querySelector('.set-type-badge');
-            const setType = badge?.dataset.setType || row.dataset.setType || 'MAIN';
-
-            if (weightVal === '' || repsVal === '') {
-                validationErrors.push(`「${menu}」のセット ${index + 1} に未入力の項目があります。`);
-            }
+            const durationMin = card.dataset.cardioDurationMin
+                ? parseInt(card.dataset.cardioDurationMin, 10)
+                : null;
+            const distanceVal = cardioArea?.querySelector('.cardio-distance')?.value ?? '';
+            const heartRateVal = cardioArea?.querySelector('.cardio-heart-rate')?.value ?? '';
+            const caloriesVal = cardioArea?.querySelector('.cardio-calories')?.value ?? '';
 
             details.push({
-                weight: weightVal !== '' ? parseFloat(weightVal) : null,
-                reps: repsVal !== '' ? parseInt(repsVal, 10) : null,
-                setNumber: index + 1,
+                weight: 0,
+                reps: 0,
+                setNumber: 1,
                 completed: isCompleted,
-                setType: setType
+                setType: 'MAIN',
+                durationMin: durationMin,
+                distanceKm: distanceVal !== '' ? parseFloat(distanceVal) : null,
+                avgHeartRateBpm: heartRateVal !== '' ? parseInt(heartRateVal, 10) : null,
+                caloriesKcal: caloriesVal !== '' ? parseFloat(caloriesVal) : null
             });
-        });
+        } else {
+            card.querySelectorAll('.set-row').forEach((row, index) => {
+                const weightVal = row.querySelector('.weight')?.value ?? '';
+                const repsVal = row.querySelector('.reps')?.value ?? '';
+                const checkBtn = row.querySelector('.btn-check');
+                const isCompleted = checkBtn?.classList.contains('completed') ?? false;
+                const badge = row.querySelector('.set-type-badge');
+                const setType = badge?.dataset.setType || row.dataset.setType || 'MAIN';
+
+                if (weightVal === '' || repsVal === '') {
+                    validationErrors.push(`「${menu}」のセット ${index + 1} に未入力の項目があります。`);
+                }
+
+                details.push({
+                    weight: weightVal !== '' ? parseFloat(weightVal) : null,
+                    reps: repsVal !== '' ? parseInt(repsVal, 10) : null,
+                    setNumber: index + 1,
+                    completed: isCompleted,
+                    setType: setType
+                });
+            });
+        }
 
         const trainingDate = card.dataset.trainingDate;
         const partCode = card.dataset.partCode;
@@ -1252,18 +1314,23 @@ function getModalTrainingData() {
     const trainingDate = document.getElementById('modalDate')?.value || '';
     const currentUserId = parseInt(document.getElementById('currentUserId')?.value, 10) || null;
 
-    const details = Array.from(document.querySelectorAll('#setList tr')).map((row, index) => {
-        const weightInput = row.querySelector('input.weight');
-        const repsInput = row.querySelector('input.reps');
-        const badge = row.querySelector('.set-type-badge');
-        return {
-            setNumber: index + 1,
-            weight: weightInput && weightInput.value !== '' ? parseFloat(weightInput.value) : 0,
-            reps: repsInput && repsInput.value !== '' ? parseInt(repsInput.value, 10) : 0,
-            setType: badge?.dataset.setType || 'MAIN',
-            completed: false
-        };
-    });
+    // 有酸素運動（ita2-1）: セット概念が無いため単一detailのみ。weight/repsは
+    // TrainingDetailの必須項目（@NotNull）を満たすためのダミー値。実施時間・距離・
+    // 平均心拍数・消費カロリーはトレーニング開始画面（start_training）で記録する。
+    const details = partCode === 'CARDIO'
+        ? [{ setNumber: 1, weight: 0, reps: 0, setType: 'MAIN', completed: false }]
+        : Array.from(document.querySelectorAll('#setList tr')).map((row, index) => {
+            const weightInput = row.querySelector('input.weight');
+            const repsInput = row.querySelector('input.reps');
+            const badge = row.querySelector('.set-type-badge');
+            return {
+                setNumber: index + 1,
+                weight: weightInput && weightInput.value !== '' ? parseFloat(weightInput.value) : 0,
+                reps: repsInput && repsInput.value !== '' ? parseInt(repsInput.value, 10) : 0,
+                setType: badge?.dataset.setType || 'MAIN',
+                completed: false
+            };
+        });
 
     const existingCard = trainingId ? document.querySelector(`.training-card[data-training-id="${trainingId}"]`) : null;
     const memo = existingCard?.querySelector('.memo-area')?.value || '';
@@ -1416,9 +1483,50 @@ async function addTrainingCardLocally() {
 }
 // 画面描画部分を切り出し
 function renderNewCard(menu, partName, partCode, trainingDate, userId, details, id) {
-    let rowsHtml = details.map(d => {
-        const st = d.setType || 'MAIN';
-        return `
+    const isCardio = partCode === 'CARDIO';
+
+    let bodyHtml;
+    if (isCardio) {
+        // 有酸素運動（ita2-1）: セット概念が無いため、実施時間の自動反映欄と
+        // 距離・平均心拍数・消費カロリーの手入力欄のみ表示する（サーバーレンダリング版と同じ構造）。
+        bodyHtml = `
+        <div class="cardio-input-area">
+            <span class="cardio-badge">カーディオ</span>
+            <div class="form-group cardio-field-auto">
+                <label class="form-label cardio-label-auto">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    実施時間（分）— セッションタイマーから自動反映
+                </label>
+                <div class="cardio-duration-display">未記録（下の完了ボタンを押すと記録されます）</div>
+            </div>
+            <div class="form-group cardio-field-manual">
+                <label class="form-label cardio-label-manual">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    距離（km）
+                </label>
+                <input type="number" class="cardio-distance" step="0.1" min="0" placeholder="マシンの表示値を入力してください">
+            </div>
+            <div class="form-group cardio-field-manual">
+                <label class="form-label cardio-label-manual">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    平均心拍数（bpm）
+                </label>
+                <input type="number" class="cardio-heart-rate" min="0" placeholder="マシンの表示値を入力してください">
+            </div>
+            <div class="form-group cardio-field-manual">
+                <label class="form-label cardio-label-manual">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    消費カロリー（kcal）
+                </label>
+                <input type="number" class="cardio-calories" step="0.1" min="0" placeholder="マシンの表示値を入力してください">
+            </div>
+            <button class="btn-check cardio-check" data-action="handleCardioCheck">完了</button>
+        </div>
+        `;
+    } else {
+        let rowsHtml = details.map(d => {
+            const st = d.setType || 'MAIN';
+            return `
 		<tr class="set-row" data-set-type="${st}">
         <td><span class="set-num">${d.setNumber}</span>${setTypeBadgeHtml(st)}</td>
         <td><input type="number" class="weight" value="${d.weight != null ? d.weight : ''}" step="0.5" placeholder="0"> kg</td>
@@ -1427,7 +1535,14 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
         <td><button type="button" data-action="removeSet" style="color:#f44336; border:none; background:none; cursor:pointer;">✕</button></td>
     </tr>
     `;
-    }).join('');
+        }).join('');
+        bodyHtml = `
+            <table class="set-list"><tbody class="set-tbody">${rowsHtml}</tbody></table>
+                <div style="text-align:right; margin-top: 10px;">
+                <button class="btn-add" data-action="addSet">＋ セット追加</button>
+            </div>
+        `;
+    }
 
     const newCard = `
         <div class="training-card" data-training-id="${id}"
@@ -1439,10 +1554,7 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
                 <h3 style="margin:0;">${menu}</h3>
                 <span style="font-size:0.8em; color:#888;">${partName}</span>
             </div>
-            <table class="set-list"><tbody class="set-tbody">${rowsHtml}</tbody></table>
-                <div style="text-align:right; margin-top: 10px;">
-                <button class="btn-add" data-action="addSet">＋ セット追加</button>
-            </div>
+            ${bodyHtml}
             <textarea class="memo-area" placeholder="メモ" style="width: 100%; margin-top: 10px;"></textarea>
         </div>
     `;

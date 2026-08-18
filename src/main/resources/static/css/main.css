@@ -1559,6 +1559,48 @@ body {
 .set-type-warmup { background: #9e9e9e; color: #fff; }
 .set-type-drop   { background: #ff9800; color: #fff; }
 
+/* ── カーディオ（有酸素運動）バッジ（ita2-1） ──────────────────────── */
+.cardio-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #0891b2;
+  color: #fff;
+  vertical-align: middle;
+  margin-bottom: 0.75rem;
+}
+
+/* ── カーディオ実施・完了入力エリア（ita2-1） ──────────────────────── */
+.cardio-input-area .form-group { margin-bottom: 0.75rem; }
+.cardio-label-auto,
+.cardio-label-manual {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+/* 自動反映項目（実施時間）: グレー表示で編集不可であることを示す */
+.cardio-field-auto .cardio-duration-display {
+  background: var(--bg-secondary, #f0f0f0);
+  color: var(--text-muted, #888);
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+}
+/* 手入力項目（距離・平均心拍数・消費カロリー）: 通常の入力欄の見た目で編集可能なことを示す */
+.cardio-field-manual input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  background: var(--card-bg, #fff);
+}
+.cardio-check.completed { background: var(--success-color, #22c55e); color: #fff; }
+
 /* DROP セット行のビジュアル強調 */
 tr.set-row[data-set-type="DROP"] {
   border-left: 3px solid #ff9800;

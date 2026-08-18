@@ -299,7 +299,30 @@ function renderTrainingBlocks() {
   selectedTrainings.forEach((training, trainingIndex) => {
     const blockDiv = document.createElement("div");
     blockDiv.className = "training-block";
-    
+    const isCardio = training.partCode === 'CARDIO';
+
+    // 有酸素運動（ita2-1）: セット概念が無いため重量/回数の入力欄は表示しない。
+    // 実施時間・距離・平均心拍数・消費カロリーはトレーニング開始画面で記録する。
+    const bodyHtml = isCardio
+      ? `<div class="cardio-input-area">
+             <span class="cardio-badge">カーディオ</span>
+             <p class="text-muted" style="font-size:0.85rem;margin-top:0.5rem;">
+                 有酸素運動として登録されます。実施時間・距離・平均心拍数・消費カロリーはトレーニング開始画面で記録します。
+             </p>
+         </div>`
+      : `<div class="set-container" id="setContainer-${trainingIndex}"></div>
+         <div class="volume-display" id="volumeDisplay-${trainingIndex}">
+             総ボリューム: <strong>0 kg</strong>
+         </div>
+         <div class="set-actions">
+             <button type="button" class="btn-set-action" data-vol-action="removeSet" data-index="${trainingIndex}">
+                 − セット削除
+             </button>
+             <button type="button" class="btn-set-action" data-vol-action="addSet" data-index="${trainingIndex}" style="background: #e3f2fd; border-color: #2196F3;">
+                 + セット追加
+             </button>
+         </div>`;
+
     // ⭕ class名を元の「btn-set-action」に戻し（CSSデザインを復元）、属性を「data-vol-action」に統一
     blockDiv.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -313,25 +336,13 @@ function renderTrainingBlocks() {
 
             <div class="prev-record-container" id="prev-container-${trainingIndex}"></div>
 
-            <div class="set-container" id="setContainer-${trainingIndex}">
-                </div>
-
-            <div class="volume-display" id="volumeDisplay-${trainingIndex}">
-                総ボリューム: <strong>0 kg</strong>
-            </div>
-
-            <div class="set-actions">
-                <button type="button" class="btn-set-action" data-vol-action="removeSet" data-index="${trainingIndex}">
-                    − セット削除
-                </button>
-                <button type="button" class="btn-set-action" data-vol-action="addSet" data-index="${trainingIndex}" style="background: #e3f2fd; border-color: #2196F3;">
-                    + セット追加
-                </button>
-            </div>
+            ${bodyHtml}
         `;
 
     container.appendChild(blockDiv);
-    renderSetRows(trainingIndex);
+    if (!isCardio) {
+      renderSetRows(trainingIndex);
+    }
 
     // 前回記録パネルをロード
     if (typeof createPrevRecordPanel === 'function') {
@@ -485,10 +496,14 @@ function saveRegister() {
     
   trainingBlocks.forEach((block, blockIndex) => {
     if (!selectedTrainings[blockIndex]) return;
-    
+
+    // 有酸素運動（ita2-1）はセット入力欄が無いため、confirmSelection()で設定した
+    // ダミーdetail（weight=0, reps=0）をそのまま維持する。
+    if (selectedTrainings[blockIndex].partCode === 'CARDIO') return;
+
     const setRows = block.querySelectorAll(".set-row");
     selectedTrainings[blockIndex].details = [];
-    
+
     setRows.forEach((row, rowIndex) => {
       const weightInput = row.querySelector(".weight");
       const repsInput = row.querySelector(".reps");

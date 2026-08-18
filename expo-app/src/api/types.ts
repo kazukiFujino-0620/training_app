@@ -36,6 +36,14 @@ export interface TrainingDetail {
   reps: number;
   /** バックエンドの @JsonProperty("completed") に対応 */
   completed: boolean;
+  /** 有酸素運動（ita2-1）の実施時間（分）。開始〜完了のタイマーから自動反映。筋トレ種目ではnull */
+  durationMin: number | null;
+  /** 有酸素運動（ita2-1）の距離（km）。マシンの表示値を手入力。筋トレ種目ではnull */
+  distanceKm: number | null;
+  /** 有酸素運動（ita2-1）の平均心拍数（bpm）。マシンの表示値を手入力。筋トレ種目ではnull */
+  avgHeartRateBpm: number | null;
+  /** 有酸素運動（ita2-1）の消費カロリー（kcal）。マシンの表示値を手入力。筋トレ種目ではnull */
+  caloriesKcal: number | null;
 }
 
 export interface Training {
@@ -76,6 +84,14 @@ export interface SetUpdateRequest {
   weight?: number;
   reps?: number;
   isCompleted?: boolean;
+  /** 有酸素運動（ita2-1）の実施時間（分）。開始〜完了のタイマーから自動反映 */
+  durationMin?: number;
+  /** 有酸素運動（ita2-1）の距離（km）。マシンの表示値を手入力 */
+  distanceKm?: number;
+  /** 有酸素運動（ita2-1）の平均心拍数（bpm）。マシンの表示値を手入力 */
+  avgHeartRateBpm?: number;
+  /** 有酸素運動（ita2-1）の消費カロリー（kcal）。マシンの表示値を手入力 */
+  caloriesKcal?: number;
 }
 
 export interface SetUpdateResponse {
