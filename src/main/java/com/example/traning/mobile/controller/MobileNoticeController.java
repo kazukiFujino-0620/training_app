@@ -37,8 +37,7 @@ public class MobileNoticeController {
   /** 閲覧済みとして以後表示しないようにする。 */
   @PostMapping("/{id}/dismiss")
   @Transactional
-  public ResponseEntity<Void> dismiss(
-      @AuthenticationPrincipal Long userId, @PathVariable Long id) {
+  public ResponseEntity<Void> dismiss(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
     noticeService.dismiss(id, userId);
     return ResponseEntity.ok().build();
   }
