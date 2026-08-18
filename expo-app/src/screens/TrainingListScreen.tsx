@@ -10,7 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import TrainingCard from '../components/TrainingCard';
 import ProgressBar from '../components/ProgressBar';
-import { trainingApi } from '../api/client';
+import { trainingApi, noticeApi } from '../api/client';
 import { clearTokens } from '../auth/tokenStore';
 import type { Training } from '../api/types';
 
@@ -23,6 +23,7 @@ export default function TrainingListScreen({ navigation }: Props) {
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [calories, setCalories] = useState<number | null>(null);
+  const [noticeCount, setNoticeCount] = useState(0);
 
   const today = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'short',
@@ -38,6 +39,13 @@ export default function TrainingListScreen({ navigation }: Props) {
         setCalories(calorieData.available ? calorieData.calories : null);
       } catch {
         setCalories(null);
+      }
+
+      try {
+        const { data: notices } = await noticeApi.getActive();
+        setNoticeCount(notices.length);
+      } catch {
+        setNoticeCount(0);
       }
     } catch (e: any) {
       if (e.response?.status === 401) {
@@ -109,6 +117,11 @@ export default function TrainingListScreen({ navigation }: Props) {
           <Text style={styles.headerTitle}>今日のトレーニング</Text>
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => navigation.navigate('NoticeList')} style={styles.noticeButton}>
+            <Text style={styles.noticeButtonText}>
+              🔔 お知らせ{noticeCount > 0 ? `(${noticeCount})` : ''}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('Health')} style={styles.healthButton}>
             <Text style={styles.healthButtonText}>❤️ ヘルスケア</Text>
           </TouchableOpacity>
@@ -117,6 +130,19 @@ export default function TrainingListScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* お知らせバナー（ita2-5） */}
+      {noticeCount > 0 && (
+        <TouchableOpacity
+          style={styles.noticeBanner}
+          onPress={() => navigation.navigate('NoticeList')}
+        >
+          <Text style={styles.noticeBannerText}>
+            お知らせがあります（{noticeCount}件）
+          </Text>
+          <Text style={styles.noticeBannerArrow}>確認する →</Text>
+        </TouchableOpacity>
+      )}
 
       {/* 全体プログレス */}
       {trainings.length > 0 && (
@@ -211,11 +237,23 @@ const styles = StyleSheet.create({
   dateText: { fontSize: 12, color: '#888' },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#222' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  noticeButton: {
+    backgroundColor: '#fff8e1', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  noticeButtonText: { fontSize: 12, color: '#f9a825', fontWeight: '600' },
   healthButton: {
     backgroundColor: '#fdecea', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
   },
   healthButtonText: { fontSize: 12, color: '#e53935', fontWeight: '600' },
   logoutText: { fontSize: 13, color: '#999' },
+  noticeBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginHorizontal: 16, marginTop: 12, padding: 12,
+    backgroundColor: '#fff8e1', borderRadius: 10,
+    borderLeftWidth: 4, borderLeftColor: '#f9a825',
+  },
+  noticeBannerText: { fontSize: 13, fontWeight: '700', color: '#222' },
+  noticeBannerArrow: { fontSize: 12, color: '#999' },
   progressContainer: { paddingHorizontal: 16, paddingTop: 12 },
   calorieContainer: { paddingHorizontal: 16, paddingTop: 8 },
   calorieText: { fontSize: 13, color: '#666', fontWeight: '600' },

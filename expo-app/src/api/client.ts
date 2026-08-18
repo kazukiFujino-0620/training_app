@@ -82,6 +82,7 @@ import type {
   HealthSyncResponse,
   HealthSummaryResponse,
   TrainingCalorieResponse,
+  Notice,
 } from './types';
 
 export const authApi = {
@@ -127,6 +128,11 @@ export const masterApi = {
     client.get<TrainingItemMaster[]>('/master/items', {
       params: partCode ? { partCode } : undefined,
     }),
+};
+
+export const noticeApi = {
+  getActive: () => client.get<Notice[]>('/notices/active'),
+  dismiss: (id: number) => client.post(`/notices/${id}/dismiss`),
 };
 
 export const pushApi = {

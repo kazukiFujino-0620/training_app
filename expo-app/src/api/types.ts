@@ -193,3 +193,14 @@ export interface HealthSummaryResponse {
       }
     | null;
 }
+
+/** ジム・店舗からのお知らせ（ita2-5）。閲覧（一覧画面表示）した時点でdismiss扱いとなり以後表示されなくなる */
+export interface Notice {
+  id: number;
+  organizationId: number;
+  title: string;
+  body: string;
+  createdBy: number;
+  createdAt: string;
+  deletedAt: string | null;
+}
