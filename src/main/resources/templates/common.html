@@ -98,9 +98,17 @@
                     </div>
                 </div>
                 
+                <!-- ログアウトフォームは全画面で常に存在させる（session-monitor.jsのセッション切れ時ログアウト等がform#logoutFormを直接submitするため）。
+                     可視ボタンはメニュー画面のみ表示し、それ以外の画面は下の画面ID方式の戻るリンク/ボタンを表示する。 -->
                 <form th:action="@{/logout}" method="post" id="logoutForm">
-                    <button type="button" class="btn btn-outline btn-sm" id="logoutButton">戻る</button>
+                    <button th:if="${currentUri == '/menu'}" type="button" class="btn btn-outline btn-sm" id="logoutButton">ログアウト</button>
                 </form>
+                <a th:if="${currentUri != '/menu' and screenBackUrl != null}"
+                   th:href="@{${screenBackUrl}}"
+                   th:text="${screenBackLabel}"
+                   class="btn btn-outline btn-sm">戻る</a>
+                <button th:if="${currentUri != '/menu' and screenBackUrl == null}"
+                        type="button" class="btn btn-outline btn-sm" id="historyBackButton">戻る</button>
             </div>
 
             <div class="header-right">

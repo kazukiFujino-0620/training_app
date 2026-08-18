@@ -51,6 +51,21 @@ public class GlobalControllerAdvice {
     return request.getRequestURI();
   }
 
+  /**
+   * ita2-4: 共通ヘッダーの「戻る」ボタンの戻り先URL・ラベルを{@link ScreenId}から解決してテンプレートに渡す。 未登録の画面（{@link
+   * ScreenId#fromPath}が空を返す場合）は{@code screenBackUrl}が{@code null}のままとなり、 {@code
+   * common.html}側で{@code history.back()}ボタンにフォールバックする。
+   */
+  @ModelAttribute
+  public void addScreenBackTargetToModel(Model model, HttpServletRequest request) {
+    ScreenId.fromPath(request.getRequestURI())
+        .ifPresent(
+            screen -> {
+              model.addAttribute("screenBackUrl", screen.backUrl());
+              model.addAttribute("screenBackLabel", screen.backLabel());
+            });
+  }
+
   // ── 例外ハンドラー ──────────────────────────────────────────────────────
 
   // @Valid @RequestBody のバリデーション失敗時に JSON でエラーメッセージを返す。
