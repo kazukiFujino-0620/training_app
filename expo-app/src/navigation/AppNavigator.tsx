@@ -10,6 +10,7 @@ import AddExerciseScreen from '../screens/AddExerciseScreen';
 import TrainingStartScreen from '../screens/TrainingStartScreen';
 import GoalScreen from '../screens/GoalScreen';
 import HealthScreen from '../screens/HealthScreen';
+import NoticeListScreen from '../screens/NoticeListScreen';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -29,6 +30,7 @@ export type AppStackParamList = {
     sessionElapsed?: number;
   };
   Health: undefined;
+  NoticeList: undefined;
 };
 
 type RootStackParamList = {
@@ -84,6 +86,11 @@ function AppNavigator() {
       <AppStack.Screen
         name="Health"
         component={HealthScreen}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="NoticeList"
+        component={NoticeListScreen}
         options={{ headerShown: false }}
       />
     </AppStack.Navigator>
