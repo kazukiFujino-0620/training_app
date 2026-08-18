@@ -64,6 +64,22 @@ public class TrainingDetail {
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
 
+  /** 有酸素運動（ita2-1）の実施時間（分）。開始〜完了のタイマーから自動反映。筋トレ種目ではnull。 */
+  @Column(name = "duration_min")
+  private Integer durationMin;
+
+  /** 有酸素運動（ita2-1）の距離（km）。マシンの表示値を手入力。筋トレ種目ではnull。 */
+  @Column(name = "distance_km")
+  private Double distanceKm;
+
+  /** 有酸素運動（ita2-1）の平均心拍数（bpm）。マシンの表示値を手入力。筋トレ種目ではnull。 */
+  @Column(name = "avg_heart_rate_bpm")
+  private Integer avgHeartRateBpm;
+
+  /** 有酸素運動（ita2-1）の消費カロリー（kcal）。マシンの表示値を手入力。筋トレの計算式（ita2-2）とは別管理。 */
+  @Column(name = "calories_kcal")
+  private Double caloriesKcal;
+
   @org.seasar.doma.Transient
   @ManyToOne
   @JoinColumn(name = "training_id", insertable = false, updatable = false)

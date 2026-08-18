@@ -185,14 +185,17 @@
                 <div class="exercise-name" th:text="${training.menu}">種目名</div>
                 <div class="exercise-part" th:text="${training.partName}">部位</div>
               </div>
-              <div class="exercise-volume"
+              <div class="exercise-volume" th:if="${training.partCode != 'CARDIO'}"
                    th:with="vol=${#aggregates.sum(training.details.![weight != null && reps != null ? (weight * reps) : 0])}"
                    th:text="${#numbers.formatDecimal(vol, 0, 1)} + ' kg'">
               </div>
+              <div class="exercise-volume" th:if="${training.partCode == 'CARDIO'}">
+                <span class="cardio-badge">カーディオ</span>
+              </div>
             </div>
 
-            <!-- セット表 -->
-            <table class="set-table" th:if="${!#lists.isEmpty(training.details)}">
+            <!-- セット表（筋トレ種目） -->
+            <table class="set-table" th:if="${training.partCode != 'CARDIO' and !#lists.isEmpty(training.details)}">
               <thead>
                 <tr>
                   <th>セット</th>
@@ -208,6 +211,31 @@
                   <td th:text="${d.weight != null ? d.weight : '-'}">0</td>
                   <td th:text="${d.reps != null ? d.reps : '-'}">0</td>
                   <td th:text="${d.weight != null && d.reps != null ? #numbers.formatDecimal(d.weight * d.reps, 0, 1) + ' kg' : '-'}">0 kg</td>
+                  <td>
+                    <span class="completed-mark" th:if="${d.isCompleted}">✓</span>
+                    <span th:unless="${d.isCompleted}" style="color:#ccc;">—</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- 有酸素運動（ita2-1）の記録項目 -->
+            <table class="set-table" th:if="${training.partCode == 'CARDIO' and !#lists.isEmpty(training.details)}">
+              <thead>
+                <tr>
+                  <th>実施時間</th>
+                  <th>距離</th>
+                  <th>平均心拍数</th>
+                  <th>消費カロリー</th>
+                  <th>完了</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="d : ${training.details}">
+                  <td th:text="${d.durationMin != null ? d.durationMin + ' 分' : '-'}">-</td>
+                  <td th:text="${d.distanceKm != null ? d.distanceKm + ' km' : '-'}">-</td>
+                  <td th:text="${d.avgHeartRateBpm != null ? d.avgHeartRateBpm + ' bpm' : '-'}">-</td>
+                  <td th:text="${d.caloriesKcal != null ? d.caloriesKcal + ' kcal' : '-'}">-</td>
                   <td>
                     <span class="completed-mark" th:if="${d.isCompleted}">✓</span>
                     <span th:unless="${d.isCompleted}" style="color:#ccc;">—</span>

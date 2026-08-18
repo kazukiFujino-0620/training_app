@@ -235,10 +235,15 @@ public class MobileTrainingController {
       detail.setCount(req.getReps());
     }
     if (req.getIsCompleted() != null) detail.setIsCompleted(req.getIsCompleted());
+    // 有酸素運動（ita2-1）固有項目。筋トレ種目では常にnullのまま送られてくるため更新スキップされる。
+    if (req.getDurationMin() != null) detail.setDurationMin(req.getDurationMin());
+    if (req.getDistanceKm() != null) detail.setDistanceKm(req.getDistanceKm());
+    if (req.getAvgHeartRateBpm() != null) detail.setAvgHeartRateBpm(req.getAvgHeartRateBpm());
+    if (req.getCaloriesKcal() != null) detail.setCaloriesKcal(req.getCaloriesKcal());
     detail.setUpdatedDatetime(LocalDateTime.now());
     trainingDetailDao.update(detail);
 
-    // PR更新チェック（セット完了かつ重量・回数が指定された場合）
+    // PR更新チェック（セット完了かつ重量・回数が指定された場合。有酸素運動はweightを送らないため自然に対象外）
     boolean isPR = false;
     String prMessage = null;
     Integer recommendedIntervalSeconds = null;

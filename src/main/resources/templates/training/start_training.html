@@ -117,7 +117,8 @@
                         </button>
                     </div>
 
-                    <table class="table">
+                    <!-- 筋トレ種目: セットごとの重量×回数入力 -->
+                    <table class="table" th:if="${item.partCode != 'CARDIO'}">
                         <tbody class="set-tbody">
                             <tr th:each="detail, stat : ${item.details}" class="set-row"
                                 th:data-set-type="${detail.setType != null ? detail.setType : 'MAIN'}">
@@ -142,10 +143,56 @@
                         </tbody>
                     </table>
 
-                    <div class="text-right mt-3">
+                    <div class="text-right mt-3" th:if="${item.partCode != 'CARDIO'}">
                         <button class="btn btn-secondary" data-action="addSet">＋ セット追加</button>
                     </div>
-                    
+
+                    <!-- 有酸素運動（ita2-1）: セット概念が無いため実施時間はタイマーから自動反映、
+                         距離・平均心拍数・消費カロリーはマシンの表示値を手入力する -->
+                    <div class="cardio-input-area" th:if="${item.partCode == 'CARDIO'}"
+                         th:with="cardioDetail=${!#lists.isEmpty(item.details) ? item.details[0] : null}"
+                         th:data-detail-id="${cardioDetail != null ? cardioDetail.id : ''}">
+                        <span class="cardio-badge">カーディオ</span>
+                        <div class="form-group cardio-field-auto">
+                            <label class="form-label cardio-label-auto">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                実施時間（分）— セッションタイマーから自動反映
+                            </label>
+                            <div class="cardio-duration-display"
+                                 th:text="${cardioDetail != null and cardioDetail.durationMin != null ? cardioDetail.durationMin + ' 分' : '未記録（下の完了ボタンを押すと記録されます）'}">未記録</div>
+                        </div>
+                        <div class="form-group cardio-field-manual">
+                            <label class="form-label cardio-label-manual">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                距離（km）
+                            </label>
+                            <input type="number" class="cardio-distance" step="0.1" min="0"
+                                   placeholder="マシンの表示値を入力してください"
+                                   th:value="${cardioDetail != null and cardioDetail.distanceKm != null ? cardioDetail.distanceKm : ''}">
+                        </div>
+                        <div class="form-group cardio-field-manual">
+                            <label class="form-label cardio-label-manual">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                平均心拍数（bpm）
+                            </label>
+                            <input type="number" class="cardio-heart-rate" min="0"
+                                   placeholder="マシンの表示値を入力してください"
+                                   th:value="${cardioDetail != null and cardioDetail.avgHeartRateBpm != null ? cardioDetail.avgHeartRateBpm : ''}">
+                        </div>
+                        <div class="form-group cardio-field-manual">
+                            <label class="form-label cardio-label-manual">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                消費カロリー（kcal）— ita2-2の計算式が有酸素向けに拡張されれば自動算出に変更予定
+                            </label>
+                            <input type="number" class="cardio-calories" step="0.1" min="0"
+                                   placeholder="マシンの表示値を入力してください"
+                                   th:value="${cardioDetail != null and cardioDetail.caloriesKcal != null ? cardioDetail.caloriesKcal : ''}">
+                        </div>
+                        <button class="btn-check cardio-check"
+                                th:classappend="${cardioDetail != null and cardioDetail.isCompleted} ? 'completed' : ''"
+                                data-action="handleCardioCheck">完了</button>
+                    </div>
+
                     <div class="prev-record-container" data-auto-prev></div>
 
                     <textarea class="memo-area" placeholder="メモ（セットの感想やフォームの注意点）"
@@ -186,7 +233,7 @@
                     <div id="modal-prev-container" class="prev-record-container"></div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" id="modalSetDetailGroup">
                     <label class="form-label" style="font-weight:600;">セット詳細</label>
                     <table class="table">
                         <thead>
@@ -203,6 +250,9 @@
                     </table>
                     <button type="button" data-action="addSetRow" class="btn btn-outline w-full" style="margin-top:0.5rem;">＋ セットを追加</button>
                 </div>
+                <p id="modalCardioNotice" class="text-muted" style="display:none; font-size:0.85rem;">
+                    有酸素運動として登録されます。実施時間・距離・平均心拍数・消費カロリーはトレーニング開始画面で記録します。
+                </p>
 
                 <div class="flex justify-between" style="margin-top:1.5rem;">
                     <button type="button" data-action="closeModal" class="btn btn-secondary">キャンセル</button>

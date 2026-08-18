@@ -9,6 +9,7 @@ import { useFocusEffect, UNSTABLE_usePreventRemove } from '@react-navigation/nat
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import SetRow from '../components/SetRow';
+import CardioRow from '../components/CardioRow';
 import { trainingApi } from '../api/client';
 import { clearTokens } from '../auth/tokenStore';
 import type { Training, TrainingDetail } from '../api/types';
@@ -59,7 +60,7 @@ type TrainingSection = {
 
 const PART_LABELS: Record<string, string> = {
   CHEST: '胸', BACK: '背中', SHOULDER: '肩',
-  ARM: '腕', LEG: '脚',
+  ARM: '腕', LEG: '脚', CARDIO: 'カーディオ',
 };
 
 function fmtTime(sec: number) {
@@ -625,53 +626,66 @@ export default function TrainingStartScreen({ navigation }: Props) {
               {PART_LABELS[section.partCode] ?? section.partCode}
             </Text>
             <Text style={styles.menuName}>{section.title}</Text>
-            {/* テーブルヘッダー */}
-            <View style={styles.tableHeaderRow}>
-              <Text style={[styles.colLabel, { width: 52 }]}>セット</Text>
-              <Text style={[styles.colLabel, { flex: 1 }]}>重量</Text>
-              <Text style={[styles.colLabel, { flex: 1 }]}>回数</Text>
-              <Text style={[styles.colLabel, { width: 44 }]}>完了</Text>
-              <Text style={[styles.colLabel, { width: 28 }]}> </Text>
-            </View>
+            {/* テーブルヘッダー（有酸素運動はセット概念が無いため表示しない） */}
+            {section.partCode !== 'CARDIO' && (
+              <View style={styles.tableHeaderRow}>
+                <Text style={[styles.colLabel, { width: 52 }]}>セット</Text>
+                <Text style={[styles.colLabel, { flex: 1 }]}>重量</Text>
+                <Text style={[styles.colLabel, { flex: 1 }]}>回数</Text>
+                <Text style={[styles.colLabel, { width: 44 }]}>完了</Text>
+                <Text style={[styles.colLabel, { width: 28 }]}> </Text>
+              </View>
+            )}
           </View>
         )}
 
-        // ── セット行 ────────────────────────────────────────────────────────
+        // ── セット行 / 有酸素運動の記録行 ──────────────────────────────────────
         renderItem={({ item, section }) => (
           <View style={styles.setRowWrap}>
-            <SetRow
-              detail={item}
-              onUpdated={(updated) => handleDetailUpdated(section.trainingId, updated)}
-              onCompleted={(recommendedSeconds) => {
-                // F-M2: スーパーセットのA種目セット完了時はインターバルを開始せず、
-                // B種目への誘導のみ行う。B種目完了（1ラウンド完了）時に通常通り開始する。
-                if (section.supersetRole === 'A') {
-                  const partner = sections.find(
-                    (s) => s.supersetGroupId === section.supersetGroupId && s.supersetRole === 'B');
-                  Vibration.vibrate(50);
-                  if (partner) {
-                    Alert.alert('次のセットへ', `次: ${partner.title} をやりましょう（休憩なし）`);
+            {section.partCode === 'CARDIO' ? (
+              <CardioRow
+                detail={item}
+                sessionElapsedSec={sessionElapsed}
+                onUpdated={(updated) => handleDetailUpdated(section.trainingId, updated)}
+              />
+            ) : (
+              <SetRow
+                detail={item}
+                onUpdated={(updated) => handleDetailUpdated(section.trainingId, updated)}
+                onCompleted={(recommendedSeconds) => {
+                  // F-M2: スーパーセットのA種目セット完了時はインターバルを開始せず、
+                  // B種目への誘導のみ行う。B種目完了（1ラウンド完了）時に通常通り開始する。
+                  if (section.supersetRole === 'A') {
+                    const partner = sections.find(
+                      (s) => s.supersetGroupId === section.supersetGroupId && s.supersetRole === 'B');
+                    Vibration.vibrate(50);
+                    if (partner) {
+                      Alert.alert('次のセットへ', `次: ${partner.title} をやりましょう（休憩なし）`);
+                    }
+                    return;
                   }
-                  return;
-                }
-                startInterval(recommendedSeconds);
-              }}
-              onDelete={() => handleDeleteSet(section.trainingId, item.id)}
-              canDelete={section.data.length > 1}
-            />
+                  startInterval(recommendedSeconds);
+                }}
+                onDelete={() => handleDeleteSet(section.trainingId, item.id)}
+                canDelete={section.data.length > 1}
+              />
+            )}
           </View>
         )}
 
         renderSectionFooter={({ section }) => (
           <View>
-            <View style={styles.addSetBtnWrap}>
-              <TouchableOpacity
-                style={styles.addSetBtn}
-                onPress={() => handleAddSet(section.trainingId)}
-              >
-                <Text style={styles.addSetBtnText}>＋ セット追加</Text>
-              </TouchableOpacity>
-            </View>
+            {/* 有酸素運動はセット概念が無いため「＋ セット追加」を表示しない */}
+            {section.partCode !== 'CARDIO' && (
+              <View style={styles.addSetBtnWrap}>
+                <TouchableOpacity
+                  style={styles.addSetBtn}
+                  onPress={() => handleAddSet(section.trainingId)}
+                >
+                  <Text style={styles.addSetBtnText}>＋ セット追加</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <View style={styles.sectionGap} />
           </View>
         )}

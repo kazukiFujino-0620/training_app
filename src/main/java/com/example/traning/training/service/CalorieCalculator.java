@@ -54,6 +54,10 @@ public class CalorieCalculator {
     boolean anyMatched = false;
 
     for (Training training : trainings) {
+      // 有酸素運動（ita2-1）は本計算式の対象外。消費カロリーは手入力のTrainingDetail.caloriesKcalで別管理する。
+      if ("CARDIO".equals(training.getPartCode())) {
+        continue;
+      }
       TrainingItemMaster item = itemMasterByName.get(training.getMenu());
       if (item == null || item.getRangeOfMotionM() == null) {
         continue;
