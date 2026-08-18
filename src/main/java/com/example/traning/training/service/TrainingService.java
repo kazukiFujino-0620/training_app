@@ -68,15 +68,18 @@ public class TrainingService {
 
       // PR更新（トランザクション外・失敗してもメイン保存に影響しない）
       // WARMUP / DROP は PR 計算から除外（MAIN のみ対象）、未完了セットも対象外
-      for (TrainingDetail detail : training.getDetails()) {
-        if (SetType.fromValueOrMain(detail.getSetType()).isVolumeExcluded()) continue;
-        if (!detail.getIsCompleted()) continue;
-        personalRecordService.updateIfBetter(
-            training.getUserId(),
-            training.getMenu(),
-            detail.getWeight(),
-            detail.getReps(),
-            training.getTrainingDate());
+      // 有酸素運動（ita2-1）は重量×回数の概念が無いためPR対象外
+      if (!"CARDIO".equals(training.getPartCode())) {
+        for (TrainingDetail detail : training.getDetails()) {
+          if (SetType.fromValueOrMain(detail.getSetType()).isVolumeExcluded()) continue;
+          if (!detail.getIsCompleted()) continue;
+          personalRecordService.updateIfBetter(
+              training.getUserId(),
+              training.getMenu(),
+              detail.getWeight(),
+              detail.getReps(),
+              training.getTrainingDate());
+        }
       }
     } catch (Exception e) {
       logger.error("トレーニングデータ保存中にエラー発生", e);
