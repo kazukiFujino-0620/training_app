@@ -645,7 +645,6 @@ export default function TrainingStartScreen({ navigation }: Props) {
             {section.partCode === 'CARDIO' ? (
               <CardioRow
                 detail={item}
-                sessionElapsedSec={sessionElapsed}
                 onUpdated={(updated) => handleDetailUpdated(section.trainingId, updated)}
               />
             ) : (

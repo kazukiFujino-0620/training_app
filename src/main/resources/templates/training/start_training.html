@@ -156,10 +156,10 @@
                         <div class="form-group cardio-field-auto">
                             <label class="form-label cardio-label-auto">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                                実施時間（分）— セッションタイマーから自動反映
+                                実施時間（分）— 開始ボタンからの経過時間を自動反映
                             </label>
                             <div class="cardio-duration-display"
-                                 th:text="${cardioDetail != null and cardioDetail.durationMin != null ? cardioDetail.durationMin + ' 分' : '未記録（下の完了ボタンを押すと記録されます）'}">未記録</div>
+                                 th:text="${cardioDetail != null and cardioDetail.durationMin != null ? cardioDetail.durationMin + ' 分' : '未計測（下の開始ボタンを押してください）'}">未計測</div>
                         </div>
                         <div class="form-group cardio-field-manual">
                             <label class="form-label cardio-label-manual">
@@ -188,8 +188,12 @@
                                    placeholder="マシンの表示値を入力してください"
                                    th:value="${cardioDetail != null and cardioDetail.caloriesKcal != null ? cardioDetail.caloriesKcal : ''}">
                         </div>
+                        <button class="btn-check cardio-start"
+                                th:style="${cardioDetail != null and cardioDetail.isCompleted} ? 'display:none;' : ''"
+                                data-action="handleCardioStart">開始</button>
                         <button class="btn-check cardio-check"
                                 th:classappend="${cardioDetail != null and cardioDetail.isCompleted} ? 'completed' : ''"
+                                th:style="${cardioDetail != null and cardioDetail.isCompleted} ? '' : 'display:none;'"
                                 data-action="handleCardioCheck">完了</button>
                     </div>
 

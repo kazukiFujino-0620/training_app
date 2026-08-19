@@ -469,27 +469,67 @@ function handleCheck(el) {
     }
 }
 
-// 有酸素運動（ita2-1）の完了チェック。筋トレのhandleCheck()と異なり、
-// セット概念が無いためインターバル・スーパーセット誘導は行わない。
-// 実施時間はセッション全体のタイマー（totalSeconds）から自動反映する
-// （種目ごとの個別タイマーは本アプリに存在しないため、セッションタイマーを流用する）。
-function handleCardioCheck(el) {
+// 有酸素運動（ita2-1）の実施時間は種目カードごとに個別計測する。
+// セッション全体のタイマー（totalSeconds）を流用すると、1セッション内で複数の
+// 有酸素種目を行った場合に2種目目以降の記録が「その種目単体の時間」ではなく
+// 「セッション開始からの累積時間」になってしまうため、開始ボタンを押した時刻からの
+// 経過時間をカードごとに計測する（2026-08-19 ユーザー確認の上、個別タイマー方式に変更）。
+
+// 開始ボタン: そのカード固有の計測開始時刻を記録し、1秒ごとに経過時間を表示更新する。
+function handleCardioStart(el) {
     if (!el) return;
+    const card = el.closest('.training-card');
+    if (!card) return;
+
     ensureAudioContext();
-    el.classList.toggle('completed');
     if (!isTimerRunning) {
         toggleMainTimer();
     }
 
+    card._cardioStartTs = Date.now();
+
+    const durationDisplay = card.querySelector('.cardio-duration-display');
+    const checkBtn = card.querySelector('.cardio-check');
+    el.style.display = 'none';
+    if (checkBtn) checkBtn.style.display = '';
+
+    const updateDisplay = () => {
+        const elapsedSec = Math.max(0, Math.floor((Date.now() - card._cardioStartTs) / 1000));
+        const m = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+        const s = String(elapsedSec % 60).padStart(2, '0');
+        if (durationDisplay) durationDisplay.textContent = `計測中... ${m}:${s}`;
+    };
+    updateDisplay();
+    card._cardioIntervalId = setInterval(updateDisplay, 1000);
+}
+
+// 完了ボタン: 開始ボタン押下からの経過時間（分）を実施時間として確定する。
+function handleCardioCheck(el) {
+    if (!el) return;
+    ensureAudioContext();
+    el.classList.toggle('completed');
+
     const card = el.closest('.training-card');
     const durationDisplay = card?.querySelector('.cardio-duration-display');
+    const startBtn = card?.querySelector('.cardio-start');
+
     if (el.classList.contains('completed')) {
-        const durationMin = Math.round(totalSeconds / 60);
+        if (card?._cardioIntervalId) {
+            clearInterval(card._cardioIntervalId);
+            card._cardioIntervalId = null;
+        }
+        const startTs = card?._cardioStartTs;
+        const durationMin = startTs
+            ? Math.max(0, Math.round((Date.now() - startTs) / 60000))
+            : 0;
         if (card) card.dataset.cardioDurationMin = String(durationMin);
         if (durationDisplay) durationDisplay.textContent = durationMin + ' 分';
-    } else if (durationDisplay) {
-        delete card.dataset.cardioDurationMin;
-        durationDisplay.textContent = '未記録（下の完了ボタンを押すと記録されます）';
+    } else {
+        // 完了取り消し: 再度計測し直せるよう開始前の状態に戻す
+        if (card) delete card.dataset.cardioDurationMin;
+        if (startBtn) startBtn.style.display = '';
+        el.style.display = 'none';
+        if (durationDisplay) durationDisplay.textContent = '未計測（上の開始ボタンを押してください）';
     }
 }
 
@@ -1495,9 +1535,9 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
             <div class="form-group cardio-field-auto">
                 <label class="form-label cardio-label-auto">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    実施時間（分）— セッションタイマーから自動反映
+                    実施時間（分）— 開始ボタンからの経過時間を自動反映
                 </label>
-                <div class="cardio-duration-display">未記録（下の完了ボタンを押すと記録されます）</div>
+                <div class="cardio-duration-display">未計測（下の開始ボタンを押してください）</div>
             </div>
             <div class="form-group cardio-field-manual">
                 <label class="form-label cardio-label-manual">
@@ -1520,7 +1560,8 @@ function renderNewCard(menu, partName, partCode, trainingDate, userId, details, 
                 </label>
                 <input type="number" class="cardio-calories" step="0.1" min="0" placeholder="マシンの表示値を入力してください">
             </div>
-            <button class="btn-check cardio-check" data-action="handleCardioCheck">完了</button>
+            <button class="btn-check cardio-start" data-action="handleCardioStart">開始</button>
+            <button class="btn-check cardio-check" data-action="handleCardioCheck" style="display:none;">完了</button>
         </div>
         `;
     } else {
