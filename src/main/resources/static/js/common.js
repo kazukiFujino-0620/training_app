@@ -19,55 +19,26 @@ if (document.getElementById('current-clock')) {
     setInterval(updateClock, 1000);
 }
 
-// Set logout button text and behavior based on current page
+// ログアウトボタン（メニュー画面のみ表示）とhistory.back()ボタン（戻り先URLが
+// 画面ID方式で決められない画面、例: /start/training のみ）の挙動を初期化する。
+// それ以外の画面の「戻る」はサーバー側（ScreenId、common.html）が描画する通常の
+// リンクであり、JS側での分岐は不要（ita2-4でパス文字列分岐を廃止）。
 function initializeLogoutButton() {
     const logoutButton = document.getElementById('logoutButton');
     const logoutForm = document.getElementById('logoutForm');
     if (logoutButton && logoutForm) {
-        const currentPath = window.location.pathname;
-        console.log('Current path:', currentPath);
-        
-        // Menu page: show logout button
-        if (currentPath === '/menu' || currentPath.startsWith('/menu?')) {
-            logoutButton.textContent = 'ログアウト';
-            logoutButton.onclick = function(e) {
-                e.preventDefault();
-                console.log('Logout button clicked');
-                logoutForm.submit();
-            };
-        }
-        // Admin pages: show close button
-        else if (currentPath.startsWith('/admin/all-users-training') ||
-                 currentPath.startsWith('/admin/user/training-detail')) {
-            logoutButton.textContent = '閉じる';
-            logoutButton.onclick = function(e) {
-                e.preventDefault();
-                console.log('Close button clicked');
-                window.close();
-            };
-        }
-        // Training register: close tab if from menu, back otherwise
-        else if (currentPath === '/training/register') {
-            const fromMenu = document.referrer.includes('/menu');
-            logoutButton.textContent = fromMenu ? '閉じる' : '戻る';
-            logoutButton.onclick = function(e) {
-                e.preventDefault();
-                if (fromMenu) {
-                    window.close();
-                } else {
-                    window.history.back();
-                }
-            };
-        }
-        // Other pages: show back button
-        else {
-            logoutButton.textContent = '戻る';
-            logoutButton.onclick = function(e) {
-                e.preventDefault();
-                console.log('Back button clicked');
-                window.history.back();
-            };
-        }
+        logoutButton.onclick = function(e) {
+            e.preventDefault();
+            logoutForm.submit();
+        };
+    }
+
+    const historyBackButton = document.getElementById('historyBackButton');
+    if (historyBackButton) {
+        historyBackButton.onclick = function(e) {
+            e.preventDefault();
+            window.history.back();
+        };
     }
 }
 

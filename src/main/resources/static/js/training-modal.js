@@ -184,9 +184,9 @@ function selectDate(date) {
         });
 }
 
-// 別タブで登録ページを開く
+// 登録ページを開く（ita2-4: 別タブ設計を廃止し同一タブ遷移に統一）
 function openRegisterPage(date) {
-    window.open(`/training/register?date=${encodeURIComponent(date)}`, '_blank');
+    window.location.href = `/training/register?date=${encodeURIComponent(date)}`;
 }
 
 // メニュー画面用編集機能
