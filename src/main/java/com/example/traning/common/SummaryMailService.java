@@ -26,7 +26,7 @@ public class SummaryMailService {
   private String baseUrl;
 
   /** 送信元アドレス。未設定時はSMTP認証ユーザー名（spring.mail.username）にフォールバックする。 */
-  @Value("${app.mail.from-address:${spring.mail.username:}}")
+  @Value("${app.mail.from-address}")
   private String fromAddress;
 
   public SummaryMailService(JavaMailSender mailSender) {
