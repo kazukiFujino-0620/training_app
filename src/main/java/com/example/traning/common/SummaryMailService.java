@@ -25,6 +25,10 @@ public class SummaryMailService {
   @Value("${app.base-url:http://localhost:8080}")
   private String baseUrl;
 
+  /** 送信元アドレス。未設定時はSMTP認証ユーザー名（spring.mail.username）にフォールバックする。 */
+  @Value("${app.mail.from-address:${spring.mail.username:}}")
+  private String fromAddress;
+
   public SummaryMailService(JavaMailSender mailSender) {
     this.mailSender = mailSender;
   }
@@ -130,6 +134,7 @@ public class SummaryMailService {
     try {
       MimeMessage message = mailSender.createMimeMessage();
       MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+      helper.setFrom(fromAddress);
       helper.setTo(sanitizeHeader(to));
       helper.setSubject(sanitizeHeader(subject));
       helper.setText(html, true);
