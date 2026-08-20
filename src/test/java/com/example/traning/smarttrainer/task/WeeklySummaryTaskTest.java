@@ -42,7 +42,8 @@ class WeeklySummaryTaskTest {
     task =
         new WeeklySummaryTask(
             userDao, trainingDao, trainingDetailDao, summaryMailService, lineMessagingService);
-    when(trainingDetailDao.selectVolumeByPartAndDateRange(any(), any(), any())).thenReturn(List.of());
+    when(trainingDetailDao.selectVolumeByPartAndDateRange(any(), any(), any()))
+        .thenReturn(List.of());
   }
 
   private User buildUser(String notificationMethod, String lineId, Boolean lineFriendAdded) {
@@ -62,9 +63,12 @@ class WeeklySummaryTaskTest {
 
     task.sendWeeklySummary();
 
-    verify(summaryMailService).sendWeeklySummary(anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
+    verify(summaryMailService)
+        .sendWeeklySummary(
+            anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
     verify(lineMessagingService, never())
-        .sendWeeklySummary(anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
+        .sendWeeklySummary(
+            anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
   }
 
   @Test
@@ -75,9 +79,11 @@ class WeeklySummaryTaskTest {
     task.sendWeeklySummary();
 
     verify(lineMessagingService)
-        .sendWeeklySummary(anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
+        .sendWeeklySummary(
+            anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
     verify(summaryMailService, never())
-        .sendWeeklySummary(anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
+        .sendWeeklySummary(
+            anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
   }
 
   @Test
@@ -86,9 +92,12 @@ class WeeklySummaryTaskTest {
 
     task.sendWeeklySummary();
 
-    verify(summaryMailService).sendWeeklySummary(anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
+    verify(summaryMailService)
+        .sendWeeklySummary(
+            anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
     verify(lineMessagingService, never())
-        .sendWeeklySummary(anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
+        .sendWeeklySummary(
+            anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
   }
 
   @Test
@@ -98,7 +107,9 @@ class WeeklySummaryTaskTest {
 
     task.sendWeeklySummary();
 
-    verify(summaryMailService).sendWeeklySummary(anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
+    verify(summaryMailService)
+        .sendWeeklySummary(
+            anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
   }
 
   @Test
@@ -108,9 +119,12 @@ class WeeklySummaryTaskTest {
 
     task.sendWeeklySummary();
 
-    verify(summaryMailService).sendWeeklySummary(anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
+    verify(summaryMailService)
+        .sendWeeklySummary(
+            anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
     verify(lineMessagingService)
-        .sendWeeklySummary(anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
+        .sendWeeklySummary(
+            anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
   }
 
   @Test
@@ -120,6 +134,7 @@ class WeeklySummaryTaskTest {
     task.sendWeeklySummary();
 
     verify(summaryMailService, times(1))
-        .sendWeeklySummary(anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
+        .sendWeeklySummary(
+            anyString(), anyString(), any(), any(), anyInt(), anyDouble(), any(), any());
   }
 }

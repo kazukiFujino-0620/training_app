@@ -63,15 +63,19 @@ public class LineMessagingService {
 
     DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy/MM/dd");
     String altText =
-        String.format(
-            "先週（%s〜%s）のトレーニングサマリーです", weekStart.format(fmt), weekEnd.format(fmt));
+        String.format("先週（%s〜%s）のトレーニングサマリーです", weekStart.format(fmt), weekEnd.format(fmt));
 
     List<String> bodyLines = new java.util.ArrayList<>();
     bodyLines.add(userName + " 様");
     bodyLines.add("先週（" + weekStart.format(fmt) + "〜" + weekEnd.format(fmt) + "）のサマリーです。");
     bodyLines.add("");
     bodyLines.add("📊 トレーニング回数: " + sessionCount + " 回");
-    bodyLines.add("💪 総ボリューム: " + formatVolume(totalVolume) + " kg（" + buildVolumeChangeLine(volumeChangePercent) + "）");
+    bodyLines.add(
+        "💪 総ボリューム: "
+            + formatVolume(totalVolume)
+            + " kg（"
+            + buildVolumeChangeLine(volumeChangePercent)
+            + "）");
     bodyLines.add("");
     bodyLines.add("🎯 部位別ボリューム");
     bodyLines.addAll(buildPartVolumeLines(partVolumes));
@@ -104,7 +108,11 @@ public class LineMessagingService {
     bodyLines.add("");
     bodyLines.add("📊 トレーニング回数: " + sessionCount + " 回");
     bodyLines.add(
-        "💪 総ボリューム: " + formatVolume(totalVolume) + " kg（" + buildVolumeChangeLine(volumeChangePercent) + "）");
+        "💪 総ボリューム: "
+            + formatVolume(totalVolume)
+            + " kg（"
+            + buildVolumeChangeLine(volumeChangePercent)
+            + "）");
     bodyLines.add("");
     bodyLines.add("🎯 部位別（回数・ボリューム）");
     bodyLines.addAll(buildPartSummaryLines(partSessionCounts, partVolumes));
@@ -187,10 +195,12 @@ public class LineMessagingService {
               .uri(URI.create(PUSH_API_URL))
               .header("Content-Type", "application/json")
               .header("Authorization", "Bearer " + channelAccessToken)
-              .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody)))
+              .POST(
+                  HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody)))
               .build();
 
-      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
       if (response.statusCode() != 200) {
         throw new IllegalStateException(
             "LINEメッセージ送信に失敗しました: status=" + response.statusCode() + " body=" + response.body());
