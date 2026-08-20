@@ -57,8 +57,14 @@ class LineMessagingServiceTest {
     ReflectionTestUtils.setField(service, "channelAccessToken", "");
 
     service.sendWeeklySummary(
-        "U123", "テスト太郎", LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 16), 3, 4200.0,
-        Map.of("CHEST", 1500.0), 12.0);
+        "U123",
+        "テスト太郎",
+        LocalDate.of(2026, 8, 10),
+        LocalDate.of(2026, 8, 16),
+        3,
+        4200.0,
+        Map.of("CHEST", 1500.0),
+        12.0);
 
     verify(httpClient, never()).send(any(), any());
   }
@@ -74,15 +80,22 @@ class LineMessagingServiceTest {
     partVolumes.put("BACK", 1800.0);
 
     service.sendWeeklySummary(
-        "U123", "テスト太郎", LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 16), 3, 4200.0,
-        partVolumes, 12.0);
+        "U123",
+        "テスト太郎",
+        LocalDate.of(2026, 8, 10),
+        LocalDate.of(2026, 8, 16),
+        3,
+        4200.0,
+        partVolumes,
+        12.0);
 
     ArgumentCaptor<HttpRequest> captor = ArgumentCaptor.forClass(HttpRequest.class);
     verify(httpClient).send(captor.capture(), any(HttpResponse.BodyHandler.class));
 
     HttpRequest sent = captor.getValue();
     assertThat(sent.uri().toString()).isEqualTo("https://api.line.me/v2/bot/message/push");
-    assertThat(sent.headers().firstValue("Authorization")).contains("Bearer test-channel-access-token");
+    assertThat(sent.headers().firstValue("Authorization"))
+        .contains("Bearer test-channel-access-token");
   }
 
   @Test
@@ -96,8 +109,14 @@ class LineMessagingServiceTest {
         IllegalStateException.class,
         () ->
             service.sendWeeklySummary(
-                "U123", "テスト太郎", LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 16), 3, 4200.0,
-                Map.of(), null));
+                "U123",
+                "テスト太郎",
+                LocalDate.of(2026, 8, 10),
+                LocalDate.of(2026, 8, 16),
+                3,
+                4200.0,
+                Map.of(),
+                null));
   }
 
   @Test
@@ -109,8 +128,14 @@ class LineMessagingServiceTest {
         IllegalStateException.class,
         () ->
             service.sendWeeklySummary(
-                "U123", "テスト太郎", LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 16), 3, 4200.0,
-                Map.of(), null));
+                "U123",
+                "テスト太郎",
+                LocalDate.of(2026, 8, 10),
+                LocalDate.of(2026, 8, 16),
+                3,
+                4200.0,
+                Map.of(),
+                null));
   }
 
   @Test
@@ -118,7 +143,15 @@ class LineMessagingServiceTest {
     ReflectionTestUtils.setField(service, "channelAccessToken", "");
 
     service.sendMonthlySummary(
-        "U123", "テスト太郎", 2026, 8, 12, 48500.0, Map.of("CHEST", 3), Map.of("CHEST", 12000.0), 8.0,
+        "U123",
+        "テスト太郎",
+        2026,
+        8,
+        12,
+        48500.0,
+        Map.of("CHEST", 3),
+        Map.of("CHEST", 12000.0),
+        8.0,
         java.util.List.of());
 
     verify(httpClient, never()).send(any(), any());

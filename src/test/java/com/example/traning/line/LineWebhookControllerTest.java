@@ -48,7 +48,9 @@ class LineWebhookControllerTest {
   void 署名不一致のリクエストは403を返す() {
     ResponseEntity<Void> response = controller.handle("invalid-signature", "{\"events\":[]}");
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-    verify(userDao, never()).updateLineFriendAdded(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyBoolean());
+    verify(userDao, never())
+        .updateLineFriendAdded(
+            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyBoolean());
   }
 
   @Test
@@ -82,7 +84,9 @@ class LineWebhookControllerTest {
     ResponseEntity<Void> response = controller.handle("anything", "{\"events\":[]}");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    verify(userDao, never()).updateLineFriendAdded(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyBoolean());
+    verify(userDao, never())
+        .updateLineFriendAdded(
+            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyBoolean());
   }
 
   private String sign(String body) {

@@ -76,7 +76,14 @@ public class WeeklySummaryTask {
         // LINE希望でも未設定・未友だち追加の間はメールにフォールバックし、通知が一切届かない状態を避ける
         if (wantsEmail(user) || !lineSent) {
           summaryMailService.sendWeeklySummary(
-              user.email, user.userName, weekStart, weekEnd, sessionCount, totalVolume, partVolumes, changePercent);
+              user.email,
+              user.userName,
+              weekStart,
+              weekEnd,
+              sessionCount,
+              totalVolume,
+              partVolumes,
+              changePercent);
         }
         success++;
       } catch (Exception e) {
