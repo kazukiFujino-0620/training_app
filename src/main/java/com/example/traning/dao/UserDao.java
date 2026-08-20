@@ -59,4 +59,10 @@ public interface UserDao {
 
   @Select
   Long selectOrganizationIdById(Long userId);
+
+  @Select
+  Optional<User> selectByLineId(String lineId);
+
+  @Update(sqlFile = true)
+  int updateLineFriendAdded(String lineId, boolean lineFriendAdded);
 }

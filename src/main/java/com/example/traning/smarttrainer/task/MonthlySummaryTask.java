@@ -4,6 +4,7 @@ import com.example.traning.common.SummaryMailService;
 import com.example.traning.common.SummaryMailService.GoalAchievementResult;
 import com.example.traning.dao.UserDao;
 import com.example.traning.goal.GoalDao;
+import com.example.traning.line.LineMessagingService;
 import com.example.traning.goal.TrainingGoal;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
@@ -31,6 +32,7 @@ public class MonthlySummaryTask {
   private final TrainingDetailDao trainingDetailDao;
   private final GoalDao goalDao;
   private final SummaryMailService summaryMailService;
+  private final LineMessagingService lineMessagingService;
 
   @Scheduled(cron = "${batch.summary.monthly.cron}")
   public void sendMonthlySummary() {
@@ -75,17 +77,37 @@ public class MonthlySummaryTask {
         List<GoalAchievementResult> goalResults =
             goals.stream().map(g -> checkGoalAchievement(g, userId, monthStart, monthEnd)).toList();
 
-        summaryMailService.sendMonthlySummary(
-            user.email,
-            user.userName,
-            lastMonth.getYear(),
-            lastMonth.getMonthValue(),
-            sessionCount,
-            volume != null ? volume : 0.0,
-            partMap,
-            partVolumes,
-            changePercent,
-            goalResults);
+        double totalVolume = volume != null ? volume : 0.0;
+
+        boolean lineSent = false;
+        if (wantsLine(user) && canSendLine(user)) {
+          lineMessagingService.sendMonthlySummary(
+              user.lineId,
+              user.userName,
+              lastMonth.getYear(),
+              lastMonth.getMonthValue(),
+              sessionCount,
+              totalVolume,
+              partMap,
+              partVolumes,
+              changePercent,
+              goalResults);
+          lineSent = true;
+        }
+        // LINE希望でも未設定・未友だち追加の間はメールにフォールバックし、通知が一切届かない状態を避ける
+        if (wantsEmail(user) || !lineSent) {
+          summaryMailService.sendMonthlySummary(
+              user.email,
+              user.userName,
+              lastMonth.getYear(),
+              lastMonth.getMonthValue(),
+              sessionCount,
+              totalVolume,
+              partMap,
+              partVolumes,
+              changePercent,
+              goalResults);
+        }
         success++;
       } catch (Exception e) {
         log.warn("月次サマリー送信スキップ - userId={}, reason={}", user.getUserId(), e.getMessage());
@@ -117,5 +139,19 @@ public class MonthlySummaryTask {
     if (prev == null || prev == 0.0) return null;
     double cur = current != null ? current : 0.0;
     return (cur - prev) / prev * 100.0;
+  }
+
+  private boolean wantsEmail(User user) {
+    return !"LINE".equals(user.notificationMethod);
+  }
+
+  private boolean wantsLine(User user) {
+    return "LINE".equals(user.notificationMethod) || "BOTH".equals(user.notificationMethod);
+  }
+
+  private boolean canSendLine(User user) {
+    return user.lineId != null
+        && Boolean.TRUE.equals(user.lineFriendAdded)
+        && lineMessagingService.isConfigured();
   }
 }

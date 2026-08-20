@@ -74,4 +74,11 @@ public class User {
 
   @Column(name = "organization_id")
   public Long organizationId;
+
+  /** 通知方法: {@code "EMAIL"} / {@code "LINE"} / {@code "BOTH"}。 */
+  @Column(name = "notification_method")
+  public String notificationMethod;
+
+  @Column(name = "line_friend_added")
+  public Boolean lineFriendAdded;
 }

@@ -72,6 +72,10 @@ public class SignupServiceTransaction {
       // organization_idも同様にDB上NOT NULL。招待コードによる組織割り当て（フェーズ4）が
       // 実装されるまでは、デフォルト店舗に割り当てる（既存ユーザーと同じ扱い）。
       user.setOrganizationId(Organization.DEFAULT_STORE_ORGANIZATION_ID);
+      // notification_method/line_friend_addedもDB上NOT NULL。LINEサインアップ者は通知方法をLINEに寄せる
+      // （まだ公式アカウントの友だち追加はしていないためline_friend_addedはfalseで初期化、追加後はWebhookで更新される）。
+      user.setNotificationMethod(signupForm.getLineId() != null ? "LINE" : "EMAIL");
+      user.setLineFriendAdded(false);
 
       userDao.insert(user);
       log.info("User registered successfully - isOAuth2: {}", signupForm.isOAuth2Signup());

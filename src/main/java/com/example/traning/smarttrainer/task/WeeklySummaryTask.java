@@ -2,6 +2,7 @@ package com.example.traning.smarttrainer.task;
 
 import com.example.traning.common.SummaryMailService;
 import com.example.traning.dao.UserDao;
+import com.example.traning.line.LineMessagingService;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.dao.TrainingDetailDao.PartVolume;
@@ -25,6 +26,7 @@ public class WeeklySummaryTask {
   private final TrainingDao trainingDao;
   private final TrainingDetailDao trainingDetailDao;
   private final SummaryMailService summaryMailService;
+  private final LineMessagingService lineMessagingService;
 
   @Scheduled(cron = "${batch.summary.weekly.cron}")
   public void sendWeeklySummary() {
@@ -56,16 +58,26 @@ public class WeeklySummaryTask {
           partVolumes.put(pv.partCode, pv.totalVolume);
         }
         Double changePercent = calcChangePercent(volume, prevVolume);
+        double totalVolume = volume != null ? volume : 0.0;
 
-        summaryMailService.sendWeeklySummary(
-            user.email,
-            user.userName,
-            weekStart,
-            weekEnd,
-            sessionCount,
-            volume != null ? volume : 0.0,
-            partVolumes,
-            changePercent);
+        boolean lineSent = false;
+        if (wantsLine(user) && canSendLine(user)) {
+          lineMessagingService.sendWeeklySummary(
+              user.lineId,
+              user.userName,
+              weekStart,
+              weekEnd,
+              sessionCount,
+              totalVolume,
+              partVolumes,
+              changePercent);
+          lineSent = true;
+        }
+        // LINE希望でも未設定・未友だち追加の間はメールにフォールバックし、通知が一切届かない状態を避ける
+        if (wantsEmail(user) || !lineSent) {
+          summaryMailService.sendWeeklySummary(
+              user.email, user.userName, weekStart, weekEnd, sessionCount, totalVolume, partVolumes, changePercent);
+        }
         success++;
       } catch (Exception e) {
         log.warn("週次サマリー送信スキップ - userId={}, reason={}", user.getUserId(), e.getMessage());
@@ -80,5 +92,19 @@ public class WeeklySummaryTask {
     if (prev == null || prev == 0.0) return null;
     double cur = current != null ? current : 0.0;
     return (cur - prev) / prev * 100.0;
+  }
+
+  private boolean wantsEmail(User user) {
+    return !"LINE".equals(user.notificationMethod);
+  }
+
+  private boolean wantsLine(User user) {
+    return "LINE".equals(user.notificationMethod) || "BOTH".equals(user.notificationMethod);
+  }
+
+  private boolean canSendLine(User user) {
+    return user.lineId != null
+        && Boolean.TRUE.equals(user.lineFriendAdded)
+        && lineMessagingService.isConfigured();
   }
 }
