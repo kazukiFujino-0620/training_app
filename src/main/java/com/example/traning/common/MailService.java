@@ -15,6 +15,10 @@ public class MailService {
   @Value("${app.base-url:http://localhost:8080}")
   private String baseUrl;
 
+  /** 送信元アドレス。未設定時はSMTP認証ユーザー名（spring.mail.username）にフォールバックする。 */
+  @Value("${app.mail.from-address:${spring.mail.username:}}")
+  private String fromAddress;
+
   public MailService(JavaMailSender mailSender) {
     this.mailSender = mailSender;
   }
@@ -25,6 +29,7 @@ public class MailService {
     String sanitizedToken = sanitizeHeader(token);
 
     SimpleMailMessage message = new SimpleMailMessage();
+    message.setFrom(fromAddress);
     message.setTo(sanitizedTo);
     message.setSubject("【TraningApp】パスワード再設定のご案内");
 
@@ -39,6 +44,7 @@ public class MailService {
     String sanitizedToken = sanitizeHeader(token);
 
     SimpleMailMessage message = new SimpleMailMessage();
+    message.setFrom(fromAddress);
     message.setTo(sanitizedTo);
     message.setSubject("【TraningApp】アカウント復元のご案内");
 
@@ -54,6 +60,7 @@ public class MailService {
     String formattedAt = requestedAt.format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"));
 
     SimpleMailMessage message = new SimpleMailMessage();
+    message.setFrom(fromAddress);
     message.setTo(sanitizedTo);
     message.setSubject("【TraningApp】退会申請を受け付けました");
     message.setText(
@@ -75,6 +82,7 @@ public class MailService {
     String formattedAt = completedAt.format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"));
 
     SimpleMailMessage message = new SimpleMailMessage();
+    message.setFrom(fromAddress);
     message.setTo(sanitizedTo);
     message.setSubject("【TraningApp】退会が完了しました");
     message.setText(
@@ -105,6 +113,7 @@ public class MailService {
             + "【TraningApp】";
 
     SimpleMailMessage msg = new SimpleMailMessage();
+    msg.setFrom(fromAddress);
     msg.setTo(sanitizedTo);
     msg.setSubject("【TraningApp】メールアドレス変更の確認");
     msg.setText(body);
