@@ -11,4 +11,6 @@ SELECT
     updated_at,
     organization_id
 FROM withdrawal_requests
-WHERE id = /* id */0
+WHERE status = 'PENDING'
+  AND organization_id IN /* organizationIds */(1, 2)
+ORDER BY requested_at ASC

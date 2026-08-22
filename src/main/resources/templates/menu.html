@@ -866,7 +866,7 @@
                 </a>
                 <a
                   th:href="@{/admin/withdrawal}"
-                  sec:authorize="hasRole('ADMIN')"
+                  sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')"
                   class="btn btn-outline w-full"
                 >
                   <svg
