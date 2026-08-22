@@ -8,18 +8,23 @@ import com.example.traning.mfa.MfaBackupCodeDao;
 import com.example.traning.mfa.MfaSettingDao;
 import com.example.traning.mobile.dao.MobileDeviceTokenDao;
 import com.example.traning.mobile.dao.MobileRefreshTokenDao;
+import com.example.traning.organization.OrganizationScopeResolver;
 import com.example.traning.pr.dao.PersonalRecordDao;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.user.User;
 import com.example.traning.user.dao.AccountRestoreTokenDao;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @Slf4j
@@ -38,6 +43,7 @@ public class WithdrawalService {
   private final MobileRefreshTokenDao mobileRefreshTokenDao;
   private final MobileDeviceTokenDao mobileDeviceTokenDao;
   private final MailService mailService;
+  private final OrganizationScopeResolver organizationScopeResolver;
 
   public WithdrawalService(
       WithdrawalRequestDao withdrawalRequestDao,
@@ -52,7 +58,8 @@ public class WithdrawalService {
       AccountRestoreTokenDao accountRestoreTokenDao,
       MobileRefreshTokenDao mobileRefreshTokenDao,
       MobileDeviceTokenDao mobileDeviceTokenDao,
-      MailService mailService) {
+      MailService mailService,
+      OrganizationScopeResolver organizationScopeResolver) {
     this.withdrawalRequestDao = withdrawalRequestDao;
     this.userDao = userDao;
     this.trainingDetailDao = trainingDetailDao;
@@ -66,6 +73,7 @@ public class WithdrawalService {
     this.mobileRefreshTokenDao = mobileRefreshTokenDao;
     this.mobileDeviceTokenDao = mobileDeviceTokenDao;
     this.mailService = mailService;
+    this.organizationScopeResolver = organizationScopeResolver;
   }
 
   @Transactional(readOnly = true)
@@ -73,9 +81,19 @@ public class WithdrawalService {
     return withdrawalRequestDao.selectPendingByUserId(userId).isPresent();
   }
 
+  /**
+   * 申請中の退会申請一覧を取得する。ADMINは全組織、ORG_ADMIN/STORE_ADMINは {@link OrganizationScopeResolver}
+   * が解決する自スコープ（自組織・自店舗＋兼任店舗）分のみ返す。
+   */
   @Transactional(readOnly = true)
-  public List<WithdrawalRequestWithUser> findAllPendingWithUser() {
-    List<WithdrawalRequest> requests = withdrawalRequestDao.selectAllPending();
+  public List<WithdrawalRequestWithUser> findAllPendingWithUser(User currentAdmin) {
+    Set<Long> accessibleOrganizationIds =
+        organizationScopeResolver.resolveAccessibleOrganizationIds(currentAdmin);
+    List<WithdrawalRequest> requests =
+        accessibleOrganizationIds == null
+            ? withdrawalRequestDao.selectAllPending()
+            : withdrawalRequestDao.selectPendingByOrganizationIds(
+                new ArrayList<>(accessibleOrganizationIds));
     return requests.stream()
         .map(
             req -> {
@@ -133,7 +151,7 @@ public class WithdrawalService {
   }
 
   @Transactional
-  public void approveRequest(Long requestId, Long adminUserId) {
+  public void approveRequest(Long requestId, User currentAdmin) {
     WithdrawalRequest req =
         withdrawalRequestDao
             .selectById(requestId)
@@ -142,6 +160,10 @@ public class WithdrawalService {
     if (!"PENDING".equals(req.getStatus())) {
       throw new IllegalStateException("この申請は処理済みです");
     }
+    if (!organizationScopeResolver.canAccessOrganization(currentAdmin, req.getOrganizationId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "この申請を操作する権限がありません");
+    }
+    Long adminUserId = currentAdmin.getUserId().longValue();
 
     User targetUser = userDao.selectById(req.getUserId().intValue());
 
@@ -193,7 +215,7 @@ public class WithdrawalService {
   }
 
   @Transactional
-  public void rejectRequest(Long requestId, Long adminUserId) {
+  public void rejectRequest(Long requestId, User currentAdmin) {
     WithdrawalRequest req =
         withdrawalRequestDao
             .selectById(requestId)
@@ -202,6 +224,10 @@ public class WithdrawalService {
     if (!"PENDING".equals(req.getStatus())) {
       throw new IllegalStateException("この申請は処理済みです");
     }
+    if (!organizationScopeResolver.canAccessOrganization(currentAdmin, req.getOrganizationId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "この申請を操作する権限がありません");
+    }
+    Long adminUserId = currentAdmin.getUserId().longValue();
 
     req.setStatus("REJECTED");
     req.setProcessedAt(LocalDateTime.now());
