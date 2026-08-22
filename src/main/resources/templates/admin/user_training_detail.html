@@ -31,12 +31,6 @@
             <!-- Page Header -->
             <div class="mb-6">
                 <div class="flex items-center gap-4">
-                    <a th:href="@{/admin/all-users-training}" class="btn btn-outline">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
-                            <polyline points="15 18 9 12 15 6"/>
-                        </svg>
-                        一覧に戻る
-                    </a>
                     <div>
                         <h1 class="text-3xl font-bold text-primary" th:text="${user.userName} + 'さんのトレーニング詳細'">ユーザーのトレーニング詳細</h1>
                         <p class="text-muted mt-2">トレーニング履歴と進捗管理</p>

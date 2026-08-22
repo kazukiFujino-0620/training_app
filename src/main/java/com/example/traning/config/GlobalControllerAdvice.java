@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @ControllerAdvice
 @Slf4j
@@ -199,6 +200,19 @@ public class GlobalControllerAdvice {
     ModelAndView mav = new ModelAndView("error/403");
     mav.setStatus(HttpStatus.FORBIDDEN);
     mav.addObject("message", "この操作を行う権限がありません。");
+    return mav;
+  }
+
+  /**
+   * ita2-4結合試験で発見: 存在しないURL（テンプレート内の壊れたリンク等）へのアクセス時、Springが投げる {@link NoResourceFoundException}
+   * は専用ハンドラーが無いと下の汎用 {@code handleException(Exception)} に 握りつぶされ常に500になっていた（本来404であるべき）。
+   */
+  @ExceptionHandler(NoResourceFoundException.class)
+  @ResponseStatus(HttpStatus.NOT_FOUND)
+  public ModelAndView handleNoResourceFoundException(NoResourceFoundException ex) {
+    log.warn("No resource found: {}", ex.getResourcePath());
+    ModelAndView mav = new ModelAndView("error/404");
+    mav.addObject("message", "お探しのページが見つかりませんでした。");
     return mav;
   }
 
