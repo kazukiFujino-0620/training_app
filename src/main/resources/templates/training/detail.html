@@ -125,7 +125,6 @@
       <!-- データなし -->
       <div th:if="${#lists.isEmpty(trainings)}" class="empty-state">
         <p>この日のトレーニング記録がありません。</p>
-        <a th:href="@{/menu}" class="btn btn-secondary mt-4">メニューに戻る</a>
       </div>
 
       <!-- データあり -->
@@ -271,10 +270,6 @@
               <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
             </svg>
             今日のトレーニングを修正する
-          </a>
-
-          <a th:href="@{/menu}" class="btn btn-secondary w-full text-center">
-            ← メニューに戻る
           </a>
         </div>
 

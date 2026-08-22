@@ -36,6 +36,8 @@ public enum ScreenId {
       "/admin/deleted/trainings", "削除済みトレーニング", "/admin/deleted/users", "一覧に戻る"),
   ADMIN_WITHDRAWAL("/admin/withdrawal", "退会申請一覧", "/menu", "メニューに戻る"),
   ADMIN_MASTER("/admin/master", "マスタ管理", "/menu", "メニューに戻る"),
+  ADMIN_ORGANIZATIONS("/admin/organizations", "組織・店舗管理", "/menu", "メニューに戻る"),
+  ADMIN_INVITE_CODES("/admin/invite-codes", "招待コード管理", "/menu", "メニューに戻る"),
   ADMIN_ALL_USERS_TRAINING("/admin/all-users-training", "全ユーザートレーニング一覧", "/menu", "メニューに戻る"),
   ADMIN_USER_TRAINING_DETAIL(
       "/admin/user/training-detail/", "トレーニング詳細", "/admin/all-users-training", "一覧に戻る"),
