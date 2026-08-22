@@ -119,8 +119,9 @@ public class AdminMasterController {
       redirectAttributes.addFlashAttribute(
           "successMessage", "CSVファイルをアップロードしました。反映するには「今すぐ取り込む」を実行するか、次回の夜間バッチをお待ちください。");
     } catch (IOException e) {
+      // 例外の詳細（内部パス等を含み得る）はログにのみ記録し、ユーザー向けメッセージには含めない。
       log.error("CSVファイルのアップロードに失敗しました", e);
-      redirectAttributes.addFlashAttribute("errorMessage", "アップロードに失敗しました: " + e.getMessage());
+      redirectAttributes.addFlashAttribute("errorMessage", "アップロードに失敗しました。時間をおいて再度お試しください。");
     }
 
     return "redirect:/admin/master";
