@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>招待コード管理 - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-secondary">
+    <header th:replace="~{common :: headerFragment}"></header>
+
+    <main class="main-content">
+        <div class="content-wrapper">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-primary">招待コード管理</h1>
+                <p class="text-muted mt-2">新規登録時に組織へ割り当てるための招待コードを発行・管理します。</p>
+            </div>
+
+            <div th:if="${successMessage}" class="alert alert-success mb-4" th:text="${successMessage}"></div>
+            <div th:if="${errorMessage}" class="alert alert-danger mb-4" th:text="${errorMessage}"></div>
+
+            <div class="card mb-6">
+                <div class="card-header">
+                    <h2 class="text-xl font-semibold">新規発行</h2>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/admin/invite-codes}" method="post" class="flex gap-3 flex-wrap items-end">
+                        <div>
+                            <label class="text-sm text-secondary">割り当て先組織</label>
+                            <select name="organizationId" required class="form-control">
+                                <option th:each="org : ${organizations}" th:value="${org.id}"
+                                        th:text="${org.name} + (${org.type == 'STORE'} ? '（店舗）' : '（組織）')"></option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-sm text-secondary">有効期限（任意）</label>
+                            <input type="date" name="expiresAt" class="form-control">
+                        </div>
+                        <div>
+                            <label class="text-sm text-secondary">使用回数上限（任意）</label>
+                            <input type="number" name="maxUses" min="1" placeholder="無制限" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary">発行する</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="text-xl font-semibold">発行済み一覧</h2>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-3 text-left">コード</th>
+                                    <th class="px-4 py-3 text-left">割り当て先</th>
+                                    <th class="px-4 py-3 text-left">期限</th>
+                                    <th class="px-4 py-3 text-left">使用状況</th>
+                                    <th class="px-4 py-3 text-left">状態</th>
+                                    <th class="px-4 py-3 text-center">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="c : ${codes}">
+                                    <td><code th:text="${c.code}">CODE</code></td>
+                                    <td th:text="${organizationNames.get(c.organizationId)} ?: ('id:' + ${c.organizationId})">組織名</td>
+                                    <td th:text="${c.expiresAt != null ? #temporals.format(c.expiresAt, 'yyyy/MM/dd') : '無期限'}">-</td>
+                                    <td th:text="${c.usedCount} + ' / ' + (${c.maxUses != null} ? ${c.maxUses} : '∞')">0 / ∞</td>
+                                    <td>
+                                        <span th:if="${c.revokedAt != null}" class="badge badge-secondary">失効済み</span>
+                                        <span th:if="${c.revokedAt == null and c.expiresAt != null and c.expiresAt.isBefore(T(java.time.LocalDateTime).now())}" class="badge badge-secondary">期限切れ</span>
+                                        <span th:if="${c.revokedAt == null and c.maxUses != null and c.usedCount >= c.maxUses}" class="badge badge-secondary">上限到達</span>
+                                        <span th:if="${c.revokedAt == null and (c.expiresAt == null or !c.expiresAt.isBefore(T(java.time.LocalDateTime).now())) and (c.maxUses == null or c.usedCount &lt; c.maxUses)}" class="badge badge-success">有効</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <form th:if="${c.revokedAt == null}" th:action="@{/admin/invite-codes/{id}/revoke(id=${c.id})}" method="post" style="display:inline">
+                                            <button type="submit" class="btn btn-danger btn-sm">失効</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex gap-3">
+                <a th:href="@{/menu}" class="btn btn-outline">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2"><polyline points="15 18 9 12 15 6"/></svg>
+                    メニューに戻る
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="~{common :: footerFragment}"></footer>
+    <script th:src="@{/js/theme.js}"></script>
+</body>
+</html>

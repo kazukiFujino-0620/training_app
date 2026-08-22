@@ -19,4 +19,7 @@ public interface UserStoreAccessDao {
 
   @Delete(sqlFile = true)
   int deleteByUserIdAndStoreOrganizationId(Long userId, Long storeOrganizationId);
+
+  @Delete(sqlFile = true)
+  int deleteByUserId(Long userId);
 }

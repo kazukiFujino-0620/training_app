@@ -80,14 +80,36 @@
                         </div>
                         
                         <!-- Role -->
-                        <div class="form-group">
+                        <div class="form-group" th:if="${canManageRole}">
                             <label for="role" class="form-label">権限</label>
-                            <select id="role" th:field="*{role}" class="form-control">
-                                <option value="ROLE_USER">一般ユーザー</option>
-                                <option value="ROLE_ADMIN">管理者</option>
+                            <select id="role" th:field="*{role}" class="form-control" onchange="onEditRoleChange()">
+                                <option th:each="opt : ${assignableRoles}" th:value="${opt.value()}" th:text="${opt.label()}"></option>
                             </select>
                         </div>
-                        
+                        <input type="hidden" th:if="${!canManageRole}" th:field="*{role}">
+
+                        <!-- 所属組織（ROLE_ADMIN操作時のみ変更可） -->
+                        <div class="form-group" th:if="${isAdmin}">
+                            <label for="organizationId" class="form-label">所属組織</label>
+                            <select id="organizationId" th:field="*{organizationId}" class="form-control">
+                                <option th:each="org : ${organizations}" th:value="${org.id}"
+                                        th:text="${org.name} + (${org.type == 'STORE'} ? '（店舗）' : '（組織）')"></option>
+                            </select>
+                        </div>
+
+                        <!-- 店舗兼任（対象ロールが店舗管理者の場合のみ表示） -->
+                        <div class="form-group" id="storeAssignmentsSection" th:if="${canManageRole}">
+                            <label class="form-label">店舗兼任設定</label>
+                            <div class="flex flex-col gap-2">
+                                <label th:each="store : ${assignableStores}" class="flex items-center gap-2">
+                                    <input type="checkbox" name="storeAssignments" th:value="${store.id}"
+                                           th:checked="${currentStoreAssignments.contains(store.id)}">
+                                    <span th:text="${store.name}">店舗名</span>
+                                </label>
+                            </div>
+                            <p class="text-muted text-xs mt-1">対象ユーザーの権限が「店舗管理者」の場合のみ有効になります。</p>
+                        </div>
+
                         <!-- Status -->
                         <div class="form-group">
                             <label for="enabled" class="form-label">ステータス</label>

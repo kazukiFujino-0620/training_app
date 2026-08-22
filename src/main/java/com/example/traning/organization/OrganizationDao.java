@@ -5,6 +5,7 @@ import java.util.Optional;
 import org.seasar.doma.Dao;
 import org.seasar.doma.Insert;
 import org.seasar.doma.Select;
+import org.seasar.doma.Update;
 import org.seasar.doma.boot.ConfigAutowireable;
 
 @Dao
@@ -13,6 +14,9 @@ public interface OrganizationDao {
 
   @Insert
   int insert(Organization organization);
+
+  @Update
+  int update(Organization organization);
 
   @Select
   Optional<Organization> selectById(Long id);
