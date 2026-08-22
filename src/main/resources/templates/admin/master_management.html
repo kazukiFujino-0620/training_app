@@ -100,6 +100,32 @@
                     </form>
                 </div>
             </div>
+
+            <!-- 種目の個別追加（組織/店舗固有） -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="text-xl font-semibold">④ 種目を個別追加</h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        組織・店舗固有の種目を1件ずつ登録します。公開範囲（共通/自組織/自店舗）はログイン中の権限に応じて自動的に決まります。
+                        まとめて多数登録したい場合もこのフォームで1件ずつの登録となります（CSV一括登録は共通マスタ専用のまま変更していません）。
+                    </p>
+                    <form th:action="@{/admin/master/item}" method="post" style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+                        <div>
+                            <label class="text-sm text-secondary">部位</label>
+                            <select name="partCode" required class="form-control">
+                                <option th:each="part : ${parts}" th:value="${part.partCode}" th:text="${part.partName}"></option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-sm text-secondary">種目名</label>
+                            <input type="text" name="itemName" required placeholder="例）ケーブルクロスオーバー" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary">追加する</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </main>
 

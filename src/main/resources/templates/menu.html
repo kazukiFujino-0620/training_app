@@ -804,7 +804,7 @@
         </div>
 
         <!-- Admin Section -->
-        <div sec:authorize="hasRole('ADMIN')" class="mt-8">
+        <div sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')" class="mt-8">
           <div class="card">
             <div class="card-header">
               <div class="flex items-center gap-2">
@@ -866,6 +866,7 @@
                 </a>
                 <a
                   th:href="@{/admin/withdrawal}"
+                  sec:authorize="hasRole('ADMIN')"
                   class="btn btn-outline w-full"
                 >
                   <svg
@@ -901,6 +902,43 @@
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
                   トレーニングマスタ管理
+                </a>
+                <a
+                  th:href="@{/admin/organizations}"
+                  sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN')"
+                  class="btn btn-outline w-full"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="inline mr-2"
+                  >
+                    <path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M14 9h1M14 13h1" />
+                  </svg>
+                  組織・店舗管理
+                </a>
+                <a
+                  th:href="@{/admin/invite-codes}"
+                  sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN')"
+                  class="btn btn-outline w-full"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="inline mr-2"
+                  >
+                    <rect x="3" y="7" width="18" height="10" rx="2" />
+                    <path d="M3 9l9 5 9-5" />
+                  </svg>
+                  招待コード管理
                 </a>
               </div>
             </div>

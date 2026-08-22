@@ -5,7 +5,12 @@ import com.example.traning.body.BodyMeasurement;
 import com.example.traning.body.BodyMeasurementService;
 import com.example.traning.export.DataExportService;
 import com.example.traning.mfa.MfaService;
+import com.example.traning.organization.Organization;
+import com.example.traning.organization.OrganizationDao;
 import com.example.traning.organization.OrganizationScopeResolver;
+import com.example.traning.organization.OrganizationType;
+import com.example.traning.organization.UserStoreAccess;
+import com.example.traning.organization.UserStoreAccessDao;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -32,6 +37,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
@@ -68,6 +74,8 @@ public class AdminController {
   private final DataExportService dataExportService;
   private final BodyMeasurementService bodyMeasurementService;
   private final OrganizationScopeResolver organizationScopeResolver;
+  private final OrganizationDao organizationDao;
+  private final UserStoreAccessDao userStoreAccessDao;
 
   public AdminController(
       UserService userService,
@@ -77,7 +85,9 @@ public class AdminController {
       MfaService mfaService,
       DataExportService dataExportService,
       BodyMeasurementService bodyMeasurementService,
-      OrganizationScopeResolver organizationScopeResolver) {
+      OrganizationScopeResolver organizationScopeResolver,
+      OrganizationDao organizationDao,
+      UserStoreAccessDao userStoreAccessDao) {
     this.userService = userService;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
@@ -86,7 +96,12 @@ public class AdminController {
     this.dataExportService = dataExportService;
     this.bodyMeasurementService = bodyMeasurementService;
     this.organizationScopeResolver = organizationScopeResolver;
+    this.organizationDao = organizationDao;
+    this.userStoreAccessDao = userStoreAccessDao;
   }
+
+  /** ユーザー編集画面でのロール選択肢（value・表示ラベル）。 */
+  public record RoleOption(String value, String label) {}
 
   /** ログイン中の管理者ユーザーを取得する。 */
   private User getCurrentAdminUser() {
@@ -139,16 +154,62 @@ public class AdminController {
   public String showEditUser(@PathVariable("id") Integer id, Model model) {
     User user = userService.getUserById(id); // 存在しなければ RuntimeException
     assertAccessible(user);
+    User currentAdmin = getCurrentAdminUser();
+    Role adminRole = Role.fromValue(currentAdmin.getRole());
+
     model.addAttribute("user", user);
+    model.addAttribute("canManageRole", adminRole != Role.STORE_ADMIN);
+    model.addAttribute("assignableRoles", assignableRoles(adminRole));
+    model.addAttribute("isAdmin", adminRole == Role.ADMIN);
+    model.addAttribute(
+        "organizations", adminRole == Role.ADMIN ? organizationDao.selectAll() : List.of());
+    model.addAttribute("assignableStores", assignableStores(currentAdmin, adminRole));
+    model.addAttribute(
+        "currentStoreAssignments",
+        userStoreAccessDao.selectStoreOrganizationIdsByUserId(user.getUserId().longValue()));
     return "admin/user_edit";
   }
 
+  /** 操作者の権限に応じて、選べるロールの選択肢だけを生成する（STORE_ADMIN/ADMINへの権限昇格の連鎖を防止）。 */
+  private List<RoleOption> assignableRoles(Role adminRole) {
+    if (adminRole == Role.ADMIN) {
+      return List.of(
+          new RoleOption(Role.USER.value(), "一般ユーザー（USER）"),
+          new RoleOption(Role.STORE_ADMIN.value(), "店舗管理者（STORE_ADMIN）"),
+          new RoleOption(Role.ORG_ADMIN.value(), "組織管理者（ORG_ADMIN）"),
+          new RoleOption(Role.ADMIN.value(), "システム管理者（ADMIN）"));
+    }
+    if (adminRole == Role.ORG_ADMIN) {
+      return List.of(
+          new RoleOption(Role.USER.value(), "一般ユーザー（USER）"),
+          new RoleOption(Role.STORE_ADMIN.value(), "店舗管理者（STORE_ADMIN）"));
+    }
+    return List.of();
+  }
+
+  /** 店舗兼任セクションで選べる店舗一覧。ADMINは全店舗、ORG_ADMINは自組織配下の店舗のみ。 */
+  private List<Organization> assignableStores(User currentAdmin, Role adminRole) {
+    if (adminRole == Role.ADMIN) {
+      return organizationDao.selectAll().stream()
+          .filter(o -> OrganizationType.STORE.name().equals(o.getType()))
+          .collect(Collectors.toList());
+    }
+    if (adminRole == Role.ORG_ADMIN) {
+      return organizationDao.selectByParentOrganizationId(currentAdmin.getOrganizationId());
+    }
+    return List.of();
+  }
+
   /**
-   * ユーザー情報更新。 UserAdminUpdateForm を使い userName / role / enabled を更新する。 password は
-   * このエンドポイントでは変更不可（Mass Assignment 防止）。role は ROLE_USER/ROLE_ADMIN のみ許可
-   * （DTO側でPattern制約済み）、ORG_ADMIN/STORE_ADMIN 等の組織権限はこのエンドポイントでは付与しない。
+   * ユーザー情報更新。 UserAdminUpdateForm を使い userName / role / enabled / organizationId / storeAssignments
+   * を更新する。password はこのエンドポイントでは変更不可（Mass Assignment 防止）。
+   *
+   * <p>role・organizationId・storeAssignments の実際の反映可否は操作者の権限で制御する（ita1-1
+   * 未実施分対応）。ROLE_ADMINは全範囲、ROLE_ORG_ADMINは自組織内でUSER⇔STORE_ADMINの付け替えのみ（ORG_ADMIN/ADMINへの昇格・組織自体の変更は不可）、
+   * ROLE_STORE_ADMINはこのセクション自体を操作できない（画面側で非表示）。
    */
   @AuditLog(action = "ADMIN_USER_UPDATE", targetTable = "users")
+  @Transactional
   @PostMapping("/user/update")
   public String updateUser(
       @Validated @ModelAttribute UserAdminUpdateForm form,
@@ -174,15 +235,70 @@ public class AdminController {
       redirectAttributes.addFlashAttribute("errorMessage", "自分自身の管理者権限を外すことはできません。");
       return "redirect:/admin/user/edit/" + form.getUserId();
     }
+
+    User currentAdmin = getCurrentAdminUser();
+    Role adminRole = Role.fromValue(currentAdmin.getRole());
+    if (!isRoleChangeAllowed(adminRole, form.getRole())) {
+      redirectAttributes.addFlashAttribute("errorMessage", "その権限へ変更する権限がありません。");
+      return "redirect:/admin/user/edit/" + form.getUserId();
+    }
+
+    // 所属組織の変更はROLE_ADMINのみ反映（ORG_ADMIN操作時は自組織のまま変更しない）
+    Long newOrganizationId =
+        (adminRole == Role.ADMIN && form.getOrganizationId() != null)
+            ? form.getOrganizationId()
+            : existing.getOrganizationId();
+
     User updatedUser =
         existing.toBuilder()
             .userName(form.getUserName())
             .role(form.getRole())
             .enabled(form.getEnabled())
+            .organizationId(newOrganizationId)
             .updatedDatetime(LocalDateTime.now())
             .build();
     userService.updateUserInfo(updatedUser);
+
+    replaceStoreAssignments(form, currentAdmin, adminRole, newOrganizationId);
+
     return "redirect:/admin/users";
+  }
+
+  /** 操作者の権限で指定ロールへの変更が許されるか判定する。ROLE_STORE_ADMINはこのセクション自体を操作できない。 */
+  private boolean isRoleChangeAllowed(Role adminRole, String newRole) {
+    if (adminRole == Role.ADMIN) {
+      return true;
+    }
+    if (adminRole == Role.ORG_ADMIN) {
+      Role target = Role.fromValue(newRole);
+      return target == Role.USER || target == Role.STORE_ADMIN;
+    }
+    return false;
+  }
+
+  /**
+   * 店舗兼任設定を洗い替える。対象ロールがROLE_STORE_ADMINの場合のみ意味を持つ（それ以外は全削除のみ行う）。
+   * ORG_ADMINが操作する場合は自組織配下の店舗のみ登録を許可し、範囲外の値は無視する。
+   */
+  private void replaceStoreAssignments(
+      UserAdminUpdateForm form, User currentAdmin, Role adminRole, Long targetOrganizationId) {
+    userStoreAccessDao.deleteByUserId(form.getUserId().longValue());
+    if (!Role.STORE_ADMIN.value().equals(form.getRole()) || form.getStoreAssignments() == null) {
+      return;
+    }
+    for (Long storeId : form.getStoreAssignments()) {
+      if (storeId == null || storeId.equals(targetOrganizationId)) {
+        continue; // 自店舗自体は兼任として登録しない
+      }
+      if (adminRole == Role.ORG_ADMIN
+          && !organizationScopeResolver.canAccessOrganization(currentAdmin, storeId)) {
+        continue; // 自組織配下以外は無視（不正な値の混入対策）
+      }
+      UserStoreAccess access = new UserStoreAccess();
+      access.setUserId(form.getUserId().longValue());
+      access.setStoreOrganizationId(storeId);
+      userStoreAccessDao.insert(access);
+    }
   }
 
   @GetMapping("/all-users-training")
