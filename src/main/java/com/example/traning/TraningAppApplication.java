@@ -1,10 +1,14 @@
 package com.example.traning;
 
+import com.example.traning.smarttrainer.task.MonthlySummaryTask;
+import com.example.traning.smarttrainer.task.WeeklySummaryTask;
 import java.util.TimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -24,6 +28,21 @@ public class TraningAppApplication {
     for (String arg : args) {
       if ("--migrate-only=true".equals(arg)) {
         System.exit(com.example.traning.migration.FlywayMigrateCli.run());
+        return;
+      }
+      // 動作確認用: cronを待たず、週次/月次サマリーバッチを即時1回実行して終了する。
+      // Web層は起動しない(WebApplicationType.NONE)ため、稼働中のtrainingapp.service(ポート8080)
+      // と共存できる。EnvironmentFile(trainingapp.env)は通常起動時と同じものをsourceして使う。
+      if ("--run-weekly-summary=true".equals(arg)) {
+        System.exit(
+            runTaskOnceAndExit(
+                args, WeeklySummaryTask.class, WeeklySummaryTask::sendWeeklySummary));
+        return;
+      }
+      if ("--run-monthly-summary=true".equals(arg)) {
+        System.exit(
+            runTaskOnceAndExit(
+                args, MonthlySummaryTask.class, MonthlySummaryTask::sendMonthlySummary));
         return;
       }
     }
@@ -56,6 +75,27 @@ public class TraningAppApplication {
     } catch (Exception e) {
       logger.error("TraningApp 起動中に致命的なエラーが発生しました", e);
       System.exit(1);
+    }
+  }
+
+  /**
+   * Web層を起動せずSpringコンテキストのみを立ち上げ、指定タスクを1回実行して終了する。
+   *
+   * @return 正常終了なら0、失敗なら1（プロセスの終了コードにそのまま使う）
+   */
+  private static <T> int runTaskOnceAndExit(
+      String[] args, Class<T> taskClass, java.util.function.Consumer<T> action) {
+    SpringApplication app = new SpringApplication(TraningAppApplication.class);
+    app.setWebApplicationType(WebApplicationType.NONE);
+    ConfigurableApplicationContext context = app.run(args);
+    try {
+      action.accept(context.getBean(taskClass));
+      return 0;
+    } catch (Exception e) {
+      logger.error("{} の即時実行に失敗しました", taskClass.getSimpleName(), e);
+      return 1;
+    } finally {
+      SpringApplication.exit(context);
     }
   }
 }
