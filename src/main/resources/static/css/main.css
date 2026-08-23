@@ -852,6 +852,17 @@ body {
   padding-bottom: 1.50rem;
 }
 
+/* ita4-4 (A) 追加対応: 未読のトレーナーアドバイスがある日付のハイライト */
+.calendar-cell-advice {
+  box-shadow: inset 0 0 0 2px var(--danger-color);
+}
+
+.calendar-advice-dot {
+  font-size: 0.75rem;
+  line-height: 1;
+  margin-top: 0.15rem;
+}
+
 /* Utility Classes */
 .text-center {
   text-align: center;

@@ -60,7 +60,8 @@ public class NoticeController {
                 a -> {
                   User trainer = userService.getUserById(a.getTrainerId().intValue());
                   String trainerName = trainer != null ? trainer.getUserName() : "トレーナー";
-                  return new AdviceView(a.getBody(), a.getCreatedAt(), trainerName, a.getReadAt() == null);
+                  return new AdviceView(
+                      a.getBody(), a.getCreatedAt(), trainerName, a.getReadAt() == null);
                 })
             .toList();
     model.addAttribute("advices", advices);

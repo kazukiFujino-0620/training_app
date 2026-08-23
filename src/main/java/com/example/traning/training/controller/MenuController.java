@@ -10,14 +10,14 @@ import com.example.traning.smarttrainer.prediction.OneRmPredictionService;
 import com.example.traning.smarttrainer.recommendation.DailyRecommendation;
 import com.example.traning.smarttrainer.recommendation.RecommendationService;
 import com.example.traning.smarttrainer.recommendation.RecommendedItem;
+import com.example.traning.trainer.TrainerAdvice;
+import com.example.traning.trainer.TrainerAdviceService;
 import com.example.traning.training.SetType;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.dto.PreviousTrainingResponse;
-import com.example.traning.trainer.TrainerAdvice;
-import com.example.traning.trainer.TrainerAdviceService;
 import com.example.traning.training.service.CalorieCalculator;
 import com.example.traning.training.service.TrainingService;
 import com.example.traning.user.User;
@@ -158,6 +158,14 @@ public class MenuController {
         dayStatusList.add(allDone ? "COMPLETED" : "IN_PROGRESS");
       }
     }
+
+    // ita4-4 (A) 追加対応: 未読のトレーナーアドバイスがある日付をカレンダー上でハイライトする
+    // （/notices・/detailのいずれかで閲覧するとハイライトのみ消える。本文自体は履歴として残る）
+    Set<String> unreadAdviceDates =
+        trainerAdviceService.getActiveForUser(userId).stream()
+            .filter(a -> a.getReadAt() == null)
+            .map(a -> a.getTargetDate().toString())
+            .collect(Collectors.toSet());
 
     // 7. 集計とModelセット
     long totalCount = trainingList.size();
@@ -301,6 +309,7 @@ public class MenuController {
     model.addAttribute("completedCount", completedCount);
     model.addAttribute("isDailyCompleted", totalCount > 0 && totalCount == completedCount);
     model.addAttribute("dayStatusList", dayStatusList);
+    model.addAttribute("unreadAdviceDates", unreadAdviceDates);
     model.addAttribute("fatiguePct", fatiguePct);
     model.addAttribute("fatigueRows", fatigueRows);
     model.addAttribute("monthlyCount", monthlyCount);
@@ -937,8 +946,7 @@ public class MenuController {
             .collect(Collectors.toList());
 
     // ita4-4 (A) 追加対応: この日付宛のトレーナーアドバイスを表示する（既読状態は閲覧時に更新、本文は消えない）
-    List<TrainerAdvice> advicesForDate =
-        trainerAdviceService.getActiveForUserAndDate(userId, date);
+    List<TrainerAdvice> advicesForDate = trainerAdviceService.getActiveForUserAndDate(userId, date);
     List<AdviceItem> adviceItems =
         advicesForDate.stream()
             .map(a -> new AdviceItem(a.getBody(), a.getReadAt() == null))
@@ -960,6 +968,5 @@ public class MenuController {
   }
 
   /** /detail画面表示用のトレーナーアドバイス投影（未読なら{@code unread=true}）。 */
-  public record AdviceItem(String body, boolean unread) {
-  }
+  public record AdviceItem(String body, boolean unread) {}
 }
