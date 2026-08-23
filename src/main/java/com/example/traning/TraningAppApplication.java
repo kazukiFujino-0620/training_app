@@ -36,12 +36,15 @@ public class TraningAppApplication {
       // 衝突しないよう、空きポート(server.port=0)でWebサーバーを起動する。
       // EnvironmentFile(trainingapp.env)は通常起動時と同じものをsourceして使う。
       if ("--run-weekly-summary=true".equals(arg)) {
-        System.exit(runTaskOnceAndExit(args, WeeklySummaryTask.class, WeeklySummaryTask::sendWeeklySummary));
+        System.exit(
+            runTaskOnceAndExit(
+                args, WeeklySummaryTask.class, WeeklySummaryTask::sendWeeklySummary));
         return;
       }
       if ("--run-monthly-summary=true".equals(arg)) {
         System.exit(
-            runTaskOnceAndExit(args, MonthlySummaryTask.class, MonthlySummaryTask::sendMonthlySummary));
+            runTaskOnceAndExit(
+                args, MonthlySummaryTask.class, MonthlySummaryTask::sendMonthlySummary));
         return;
       }
     }
