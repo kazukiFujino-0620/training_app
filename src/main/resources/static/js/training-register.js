@@ -344,8 +344,8 @@ function renderTrainingBlocks() {
       renderSetRows(trainingIndex);
     }
 
-    // 前回記録パネルをロード
-    if (typeof createPrevRecordPanel === 'function') {
+    // 前回記録パネルをロード（カーディオはSet概念が無く前回記録が意味をなさないため対象外）
+    if (typeof createPrevRecordPanel === 'function' && !isCardio) {
       var prevContainer = document.getElementById('prev-container-' + trainingIndex);
       if (prevContainer && training.menu) {
         createPrevRecordPanel(prevContainer).load(training.menu);
