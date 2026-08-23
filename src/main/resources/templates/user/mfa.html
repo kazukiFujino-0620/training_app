@@ -57,7 +57,9 @@
     }
     .alert-success { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
     .alert-danger  { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
-    .btn {
+    /* 共通ヘッダーの.btnまで上書きしてしまっていたため、このページ内(.mfa-page)にスコープする
+       （ita2-4結合試験で発見: ヘッダーの戻るボタンが全幅化しレイアウトが崩れていた）。 */
+    .mfa-page .btn {
       display: inline-block;
       padding: 10px 20px;
       border-radius: 8px;
@@ -67,12 +69,12 @@
       border: none;
       text-decoration: none;
     }
-    .btn-primary { background: var(--color-primary, #3b82f6); color: #fff; }
-    .btn-primary:hover { opacity: 0.9; }
-    .btn-danger { background: #ef4444; color: #fff; }
-    .btn-danger:hover { opacity: 0.9; }
-    .btn-secondary { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); }
-    .btn-secondary:hover { opacity: 0.8; }
+    .mfa-page .btn-primary { background: var(--color-primary, #3b82f6); color: #fff; }
+    .mfa-page .btn-primary:hover { opacity: 0.9; }
+    .mfa-page .btn-danger { background: #ef4444; color: #fff; }
+    .mfa-page .btn-danger:hover { opacity: 0.9; }
+    .mfa-page .btn-secondary { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); }
+    .mfa-page .btn-secondary:hover { opacity: 0.8; }
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
     .form-control {
