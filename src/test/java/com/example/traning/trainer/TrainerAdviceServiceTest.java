@@ -84,8 +84,7 @@ class TrainerAdviceServiceTest {
         .thenReturn(Set.of(10L));
     when(userService.findAll()).thenReturn(List.of(outOfScopeUser));
 
-    assertThatThrownBy(
-            () -> service.send(trainer, 3L, "不正送信", LocalDate.of(2026, 8, 23)))
+    assertThatThrownBy(() -> service.send(trainer, 3L, "不正送信", LocalDate.of(2026, 8, 23)))
         .isInstanceOf(IllegalArgumentException.class);
     verify(trainerAdviceDao, never()).insert(any(TrainerAdvice.class));
   }

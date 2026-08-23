@@ -58,8 +58,8 @@ public class TrainerAdviceService {
   }
 
   /**
-   * 渡されたアドバイスのうち未読（read_atがnull）のものを既読にする。 呼び出し側は、既読にする前に{@code advice.getReadAt() == null}で「今回のハイライト対象」を判定してから
-   * このメソッドを呼ぶこと（本文自体は既読後も履歴として表示し続けるため、削除はしない）。
+   * 渡されたアドバイスのうち未読（read_atがnull）のものを既読にする。 呼び出し側は、既読にする前に{@code advice.getReadAt() ==
+   * null}で「今回のハイライト対象」を判定してから このメソッドを呼ぶこと（本文自体は既読後も履歴として表示し続けるため、削除はしない）。
    */
   @Transactional
   public void markAsRead(List<TrainerAdvice> advices) {
