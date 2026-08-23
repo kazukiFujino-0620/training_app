@@ -13,7 +13,8 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>ROLE_ADMIN: {@code null}（フィルタ不要＝全組織アクセス可）
  *   <li>ROLE_ORG_ADMIN: 自組織自身 + 自組織（GYM）配下の全店舗
- *   <li>ROLE_STORE_ADMIN: 自店舗自身 + {@code user_store_access} に登録された兼任店舗
+ *   <li>ROLE_STORE_ADMIN / ROLE_TRAINER: 自店舗自身 + {@code user_store_access} に登録された兼任店舗（ita4-3:
+ *       TRAINERはSTORE_ADMINと同等のスコープ）
  *   <li>ROLE_USER: 自分の所属組織のみ
  * </ul>
  *
@@ -62,7 +63,7 @@ public class OrganizationScopeResolver {
       return ids;
     }
 
-    if (role == Role.STORE_ADMIN) {
+    if (role == Role.STORE_ADMIN || role == Role.TRAINER) {
       Set<Long> ids = new HashSet<>();
       ids.add(ownOrganizationId);
       List<Long> concurrentStoreIds =

@@ -41,6 +41,7 @@ public enum ScreenId {
   ADMIN_ALL_USERS_TRAINING("/admin/all-users-training", "全ユーザートレーニング一覧", "/menu", "メニューに戻る"),
   ADMIN_USER_TRAINING_DETAIL(
       "/admin/user/training-detail/", "トレーニング詳細", "/admin/all-users-training", "一覧に戻る"),
+  TRAINER_ADVICE("/trainer/advice", "トレーナーアドバイス", "/menu", "メニューに戻る"),
   ;
 
   private final String path;

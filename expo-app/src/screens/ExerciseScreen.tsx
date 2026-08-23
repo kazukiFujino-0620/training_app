@@ -78,6 +78,7 @@ export default function ExerciseScreen({ navigation, route }: Props) {
         </Text>
         <Text style={styles.menu}>{training.menu}</Text>
         <Text style={styles.progress}>{completed} / {total} セット完了</Text>
+        {!!training.memo && <Text style={styles.memoText}>{training.memo}</Text>}
       </View>
 
       {/* セット行ヘッダー */}
@@ -122,6 +123,7 @@ const styles = StyleSheet.create({
   },
   menu: { fontSize: 22, fontWeight: '800', color: '#222', marginBottom: 4 },
   progress: { fontSize: 13, color: '#888' },
+  memoText: { fontSize: 13, color: '#555', marginTop: 6 },
   tableHeader: {
     flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 8,
     backgroundColor: '#f9f9f9', borderBottomWidth: 1, borderBottomColor: '#eee',

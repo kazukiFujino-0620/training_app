@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Vibration,
   SectionList, Alert, ActivityIndicator, AppState, AppStateStatus, Platform,
+  TextInput,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -53,6 +54,7 @@ type TrainingSection = {
   title: string;
   partCode: string;
   data: TrainingDetail[];
+  memo: string;
   supersetGroupId: number | null;
   /** スーパーセット内での役割（登録順=trainings.id昇順で決定）。ペア無しはnull */
   supersetRole: 'A' | 'B' | null;
@@ -371,6 +373,19 @@ export default function TrainingStartScreen({ navigation }: Props) {
     );
   }
 
+  // ── メモ欄（ita4-4、入力中はローカルstateのみ更新し、フォーカスが外れた時点でAPI保存） ──────────
+  function handleMemoChange(trainingId: number, memo: string) {
+    setTrainings((prev) => prev.map((t) => (t.id === trainingId ? { ...t, memo } : t)));
+  }
+
+  async function handleMemoBlur(trainingId: number, memo: string) {
+    try {
+      await trainingApi.updateMemo(trainingId, memo);
+    } catch {
+      Alert.alert('エラー', 'メモの保存に失敗しました');
+    }
+  }
+
   // ── セット追加 ──────────────────────────────────────────────────────────────
   const handleAddSet = useCallback(async (trainingId: number) => {
     const training = trainings.find((t) => t.id === trainingId);
@@ -472,6 +487,7 @@ export default function TrainingStartScreen({ navigation }: Props) {
       title: t.menu,
       partCode: t.partCode,
       data: t.details,
+      memo: t.memo ?? '',
       supersetGroupId: groupId,
       supersetRole: role,
     };
@@ -685,6 +701,16 @@ export default function TrainingStartScreen({ navigation }: Props) {
                 </TouchableOpacity>
               </View>
             )}
+            <TextInput
+              style={styles.memoInput}
+              placeholder="メモ（セットの感想やフォームの注意点）"
+              placeholderTextColor="#999"
+              multiline
+              maxLength={500}
+              value={section.memo}
+              onChangeText={(text) => handleMemoChange(section.trainingId, text)}
+              onBlur={() => handleMemoBlur(section.trainingId, section.memo)}
+            />
             <View style={styles.sectionGap} />
           </View>
         )}
@@ -835,6 +861,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomLeftRadius: 12, borderBottomRightRadius: 12,
     borderLeftWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: '#eee',
+  },
+  memoInput: {
+    backgroundColor: '#fff', marginHorizontal: 16,
+    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8,
+    borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#eee',
+    minHeight: 60, textAlignVertical: 'top',
+    fontSize: 13, color: '#333',
   },
 
   // ── 空状態 ──────────────────────────────────────────────────────────────────

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>トレーナーアドバイス - トレーニング管理システム</title>
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    .advice-page { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+    .advice-manage-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .advice-manage-card .form-group { margin-bottom: 14px; }
+    .advice-manage-card .form-group label { display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 6px; }
+    .advice-manage-card .form-control { width: 100%; box-sizing: border-box; }
+    .sent-row { padding: 14px 0; border-bottom: 1px solid var(--border-color); }
+    .sent-row:last-child { border-bottom: none; }
+    .sent-row .sent-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; }
+    .sent-row .sent-body { font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; }
+    .advice-empty { text-align: center; color: var(--text-muted); padding: 32px 16px; font-size: 0.88rem; }
+  </style>
+</head>
+<body class="bg-secondary">
+  <header th:replace="~{common :: headerFragment}"></header>
+
+  <main class="advice-page">
+    <div class="mb-6">
+      <h1 style="color:var(--text-primary);font-size:1.5rem;font-weight:700;margin:0;">トレーナーアドバイス</h1>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">担当トレーニーへメッセージを送信します</p>
+    </div>
+
+    <div th:if="${successMessage}" class="alert alert-success mb-4" th:text="${successMessage}"></div>
+    <div th:if="${errorMessage}" class="alert alert-danger mb-4" th:text="${errorMessage}"></div>
+
+    <div class="advice-manage-card">
+      <form th:action="@{/trainer/advice}" method="post">
+        <div class="form-group">
+          <label>宛先</label>
+          <select name="targetUserId" class="form-control" required>
+            <option value="">トレーニーを選択してください</option>
+            <option th:each="trainee : ${trainees}"
+                    th:value="${trainee.userId}"
+                    th:text="${trainee.userName + '（' + trainee.email + '）'}"></option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>メッセージ</label>
+          <textarea name="body" class="form-control" rows="4" maxlength="1000"
+                    placeholder="例: 今週も頻度高く進めていますね。この調子で続けましょう！"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">送信する</button>
+      </form>
+    </div>
+
+    <div class="advice-manage-card">
+      <h2 style="margin:0 0 12px;font-size:1rem;color:var(--text-primary);">送信済みメッセージ</h2>
+      <div th:if="${#lists.isEmpty(sentAdvices)}" class="advice-empty">送信済みのメッセージはありません</div>
+      <div th:each="advice : ${sentAdvices}" class="sent-row">
+        <div class="sent-meta">
+          <span th:text="${#temporals.format(advice.createdAt, 'yyyy/MM/dd HH:mm')}">2026/08/16</span>
+          <form th:action="@{/trainer/advice/{id}/delete(id=${advice.id})}" method="post" style="margin:0;">
+            <button type="submit" class="btn btn-outline btn-sm"
+                    onclick="return confirm('このメッセージを取り下げますか？')">取り下げ</button>
+          </form>
+        </div>
+        <div class="sent-body" th:text="${advice.body}">本文</div>
+      </div>
+    </div>
+  </main>
+
+  <script th:src="@{/js/theme.js}"></script>
+</body>
+</html>

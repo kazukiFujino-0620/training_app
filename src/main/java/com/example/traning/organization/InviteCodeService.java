@@ -80,6 +80,33 @@ public class InviteCodeService {
     inviteCodeDao.update(target);
   }
 
+  /**
+   * 招待コードを引き換える（ita4-3: トレーナー登録での使用を想定）。有効性検証（失効・期限・使用回数上限）を行った上で
+   * used_countをインクリメントし、割り当て先organization_idを含む最新状態を返す。
+   *
+   * @throws IllegalArgumentException コードが存在しない、または失効・期限切れ・使用回数上限に達している場合
+   */
+  @Transactional
+  public InviteCode redeem(String code) {
+    InviteCode inviteCode =
+        inviteCodeDao
+            .selectByCode(code)
+            .orElseThrow(() -> new IllegalArgumentException("招待コードが見つかりません"));
+    if (inviteCode.getRevokedAt() != null) {
+      throw new IllegalArgumentException("この招待コードは失効しています");
+    }
+    if (inviteCode.getExpiresAt() != null
+        && inviteCode.getExpiresAt().isBefore(LocalDateTime.now())) {
+      throw new IllegalArgumentException("この招待コードは有効期限が切れています");
+    }
+    if (inviteCode.getMaxUses() != null && inviteCode.getUsedCount() >= inviteCode.getMaxUses()) {
+      throw new IllegalArgumentException("この招待コードは使用回数の上限に達しています");
+    }
+    inviteCode.setUsedCount(inviteCode.getUsedCount() + 1);
+    inviteCodeDao.update(inviteCode);
+    return inviteCode;
+  }
+
   /** 紛らわしい文字（0/O、1/I等）を避けた10桁のコードを生成する。 */
   private String generateCode() {
     StringBuilder sb = new StringBuilder(10);

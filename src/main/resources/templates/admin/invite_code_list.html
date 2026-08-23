@@ -21,7 +21,10 @@
         <div class="content-wrapper">
             <div class="mb-6">
                 <h1 class="text-3xl font-bold text-primary">招待コード管理</h1>
-                <p class="text-muted mt-2">新規登録時に組織へ割り当てるための招待コードを発行・管理します。</p>
+                <p class="text-muted mt-2">
+                    新規登録時に組織へ割り当てるための招待コードを発行・管理します。
+                    現在は<a th:href="@{/signup/trainer}">トレーナー登録（/signup/trainer）</a>で利用できます。
+                </p>
             </div>
 
             <div th:if="${successMessage}" class="alert alert-success mb-4" th:text="${successMessage}"></div>
