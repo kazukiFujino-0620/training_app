@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * トレーナー用新規登録（ita4-3）。一般ユーザー向け{@link SignupServiceTransaction}とは別ルートで、招待コードにより 所属組織（自店舗）を決定し、{@link
- * Role#TRAINER}として登録する。
+ * Role#STORE_ADMIN}として登録する。
  */
 @Service
 @Slf4j
@@ -61,7 +61,7 @@ public class TrainerSignupService {
     user.setEmail(form.getEmail());
     user.setPassword(passwordEncoder.encode(form.getPassword()));
     user.setUserName(form.getUsername());
-    user.setRole(Role.TRAINER.value());
+    user.setRole(Role.STORE_ADMIN.value());
     user.setEnabled(true);
     user.setCreateDatetime(LocalDateTime.now());
     user.setUpdatedDatetime(LocalDateTime.now());

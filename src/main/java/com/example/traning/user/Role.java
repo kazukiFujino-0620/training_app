@@ -9,8 +9,7 @@ public enum Role {
   USER,
   ADMIN,
   ORG_ADMIN,
-  STORE_ADMIN,
-  TRAINER;
+  STORE_ADMIN;
 
   /** DB列・Spring Securityの{@code GrantedAuthority}に格納する形式（例: {@code "ROLE_ADMIN"}）。 */
   public String value() {

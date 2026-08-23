@@ -159,10 +159,9 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(ADMIN_PATH)
                     // ita1-1 マルチテナント化 フェーズ3: ORG_ADMIN/STORE_ADMIN も /admin/** に到達可能とする。
-                    // ita4-3: TRAINERもSTORE_ADMINと同等の管理権限を持つため追加。
                     // 実際のデータアクセス範囲は OrganizationScopeResolver +
                     // 各コントローラーの @PreAuthorize / IDOR チェックで絞り込む。
-                    .hasAnyRole("ADMIN", "ORG_ADMIN", "STORE_ADMIN", "TRAINER")
+                    .hasAnyRole("ADMIN", "ORG_ADMIN", "STORE_ADMIN")
                     .requestMatchers(USER_PATH)
                     .hasAnyRole("USER", "ADMIN")
                     .requestMatchers("/auth/mfa", "/auth/mfa/verify")

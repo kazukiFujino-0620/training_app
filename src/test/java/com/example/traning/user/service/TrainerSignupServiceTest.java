@@ -24,7 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * ita4-3: {@link TrainerSignupService}のパスワード一致検証・招待コード連携・
- * ROLE_TRAINERとしての登録を検証する。DAO・招待コードサービスはMockitoでモックし、DBには依存しない。
+ * ROLE_STORE_ADMINとしての登録を検証する。DAO・招待コードサービスはMockitoでモックし、DBには依存しない。
  */
 @ExtendWith(MockitoExtension.class)
 class TrainerSignupServiceTest {
@@ -54,7 +54,7 @@ class TrainerSignupServiceTest {
   }
 
   @Test
-  void register_招待コードの組織でROLE_TRAINERとして登録される() {
+  void register_招待コードの組織でROLE_STORE_ADMINとして登録される() {
     TrainerSignupForm form = validForm();
     when(userDao.selectSoftDeletedByEmail(form.getEmail())).thenReturn(Optional.empty());
     InviteCode code = new InviteCode();
@@ -67,7 +67,7 @@ class TrainerSignupServiceTest {
     ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
     verify(userDao).insert(captor.capture());
     User saved = captor.getValue();
-    assertThat(saved.getRole()).isEqualTo(Role.TRAINER.value());
+    assertThat(saved.getRole()).isEqualTo(Role.STORE_ADMIN.value());
     assertThat(saved.getOrganizationId()).isEqualTo(7L);
     assertThat(saved.getPassword()).isEqualTo("encoded-password");
     assertThat(saved.getEmail()).isEqualTo("trainer1@example.com");

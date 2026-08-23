@@ -76,7 +76,7 @@ public class NoticeController {
 
   // ── 管理者向け（ROLE_ADMIN / ROLE_ORG_ADMIN / ROLE_STORE_ADMIN） ────────
 
-  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
   @GetMapping("/notices/manage")
   public String manage(
       @RequestParam(required = false) Long organizationId, Model model, Principal principal) {
@@ -108,7 +108,7 @@ public class NoticeController {
     return "notice/manage";
   }
 
-  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
   @PostMapping("/api/notices")
   @ResponseBody
   public ResponseEntity<?> create(@RequestBody NoticeCreateRequest request, Principal principal) {
@@ -123,7 +123,7 @@ public class NoticeController {
     }
   }
 
-  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
   @PostMapping("/api/notices/{id}/delete")
   @ResponseBody
   public ResponseEntity<?> delete(@PathVariable Long id, Principal principal) {

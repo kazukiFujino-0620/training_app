@@ -44,10 +44,10 @@ class TrainerAdviceServiceTest {
 
   @Test
   void listTrainees_自スコープ内のROLE_USERのみ返す() {
-    User trainer = user(1, "ROLE_TRAINER", 10L);
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
     User traineeInScope = user(2, "ROLE_USER", 10L);
     User traineeOutOfScope = user(3, "ROLE_USER", 999L);
-    User otherTrainer = user(4, "ROLE_TRAINER", 10L);
+    User otherTrainer = user(4, "ROLE_STORE_ADMIN", 10L);
     when(organizationScopeResolver.resolveAccessibleOrganizationIds(trainer))
         .thenReturn(Set.of(10L));
     when(userService.findAll())
@@ -60,7 +60,7 @@ class TrainerAdviceServiceTest {
 
   @Test
   void send_スコープ内のトレーニーへは送信できる() {
-    User trainer = user(1, "ROLE_TRAINER", 10L);
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
     User trainee = user(2, "ROLE_USER", 10L);
     when(organizationScopeResolver.resolveAccessibleOrganizationIds(trainer))
         .thenReturn(Set.of(10L));
@@ -76,7 +76,7 @@ class TrainerAdviceServiceTest {
 
   @Test
   void send_スコープ外のユーザーへは送信できない() {
-    User trainer = user(1, "ROLE_TRAINER", 10L);
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
     User outOfScopeUser = user(3, "ROLE_USER", 999L);
     when(organizationScopeResolver.resolveAccessibleOrganizationIds(trainer))
         .thenReturn(Set.of(10L));
@@ -89,7 +89,7 @@ class TrainerAdviceServiceTest {
 
   @Test
   void send_本文が空の場合は例外() {
-    User trainer = user(1, "ROLE_TRAINER", 10L);
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
 
     assertThatThrownBy(() -> service.send(trainer, 2L, "  "))
         .isInstanceOf(IllegalArgumentException.class);
@@ -98,7 +98,7 @@ class TrainerAdviceServiceTest {
 
   @Test
   void send_本文が1000文字を超える場合は例外() {
-    User trainer = user(1, "ROLE_TRAINER", 10L);
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
     String tooLong = "あ".repeat(1001);
 
     assertThatThrownBy(() -> service.send(trainer, 2L, tooLong))
@@ -118,7 +118,7 @@ class TrainerAdviceServiceTest {
 
   @Test
   void delete_送信者本人は取り下げできる() {
-    User trainer = user(1, "ROLE_TRAINER", 10L);
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
     TrainerAdvice advice = new TrainerAdvice();
     advice.setId(100L);
     advice.setTrainerId(1L);
@@ -132,7 +132,7 @@ class TrainerAdviceServiceTest {
 
   @Test
   void delete_送信者以外は取り下げできない() {
-    User otherTrainer = user(2, "ROLE_TRAINER", 10L);
+    User otherTrainer = user(2, "ROLE_STORE_ADMIN", 10L);
     TrainerAdvice advice = new TrainerAdvice();
     advice.setId(100L);
     advice.setTrainerId(1L);
@@ -145,7 +145,7 @@ class TrainerAdviceServiceTest {
 
   @Test
   void delete_存在しないアドバイスは例外() {
-    User trainer = user(1, "ROLE_TRAINER", 10L);
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
     when(trainerAdviceDao.selectById(999L)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.delete(trainer, 999L))

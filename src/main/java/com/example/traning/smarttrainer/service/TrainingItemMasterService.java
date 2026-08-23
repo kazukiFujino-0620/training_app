@@ -58,7 +58,7 @@ public class TrainingItemMasterService {
     if (role == Role.ADMIN) {
       return Organization.ALL_ORGANIZATION_ID;
     }
-    if (role == Role.ORG_ADMIN || role == Role.STORE_ADMIN || role == Role.TRAINER) {
+    if (role == Role.ORG_ADMIN || role == Role.STORE_ADMIN) {
       return currentAdmin.getOrganizationId();
     }
     throw new ResponseStatusException(HttpStatus.FORBIDDEN, "種目を追加する権限がありません");
