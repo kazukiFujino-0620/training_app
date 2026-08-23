@@ -34,12 +34,15 @@ public class TraningAppApplication {
       // Web層は起動しない(WebApplicationType.NONE)ため、稼働中のtrainingapp.service(ポート8080)
       // と共存できる。EnvironmentFile(trainingapp.env)は通常起動時と同じものをsourceして使う。
       if ("--run-weekly-summary=true".equals(arg)) {
-        System.exit(runTaskOnceAndExit(args, WeeklySummaryTask.class, WeeklySummaryTask::sendWeeklySummary));
+        System.exit(
+            runTaskOnceAndExit(
+                args, WeeklySummaryTask.class, WeeklySummaryTask::sendWeeklySummary));
         return;
       }
       if ("--run-monthly-summary=true".equals(arg)) {
         System.exit(
-            runTaskOnceAndExit(args, MonthlySummaryTask.class, MonthlySummaryTask::sendMonthlySummary));
+            runTaskOnceAndExit(
+                args, MonthlySummaryTask.class, MonthlySummaryTask::sendMonthlySummary));
         return;
       }
     }
