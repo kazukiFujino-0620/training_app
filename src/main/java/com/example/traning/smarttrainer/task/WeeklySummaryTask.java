@@ -61,17 +61,26 @@ public class WeeklySummaryTask {
         double totalVolume = volume != null ? volume : 0.0;
 
         boolean lineSent = false;
-        if (wantsLine(user) && canSendLine(user)) {
-          lineMessagingService.sendWeeklySummary(
-              user.lineId,
-              user.userName,
-              weekStart,
-              weekEnd,
-              sessionCount,
-              totalVolume,
-              partVolumes,
-              changePercent);
-          lineSent = true;
+        if (wantsLine(user)) {
+          log.info(
+              "LINE送信判定 - userId={}, lineIdあり={}, lineFriendAdded={}, isConfigured={}",
+              user.getUserId(),
+              user.lineId != null,
+              user.lineFriendAdded,
+              lineMessagingService.isConfigured());
+          if (canSendLine(user)) {
+            lineMessagingService.sendWeeklySummary(
+                user.lineId,
+                user.userName,
+                weekStart,
+                weekEnd,
+                sessionCount,
+                totalVolume,
+                partVolumes,
+                changePercent);
+            lineSent = true;
+            log.info("LINE送信成功 - userId={}", user.getUserId());
+          }
         }
         // LINE希望でも未設定・未友だち追加の間はメールにフォールバックし、通知が一切届かない状態を避ける
         if (wantsEmail(user) || !lineSent) {
