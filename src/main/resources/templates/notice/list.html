@@ -29,6 +29,7 @@
       margin-bottom: 16px;
     }
     .notice-card h2 { margin: 0 0 8px; font-size: 1.05rem; color: var(--text-primary); }
+    .notice-card h2::before { content: "📢 "; }
     .notice-card .notice-date { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px; }
     .notice-card .notice-body { color: var(--text-primary); font-size: 0.92rem; line-height: 1.7; white-space: pre-wrap; }
     .notice-empty { text-align: center; color: var(--text-muted); padding: 48px 16px; font-size: 0.9rem; }
@@ -40,6 +41,7 @@
     .advice-card {
       background: var(--primary-soft, var(--bg-tertiary));
       border: 1px solid var(--border-color);
+      border-left: 4px solid var(--primary-color);
       border-radius: 16px;
       padding: 16px 20px;
       margin-bottom: 12px;
@@ -49,6 +51,7 @@
       font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;
     }
     .advice-card .advice-trainer { font-weight: 700; color: var(--primary-color); }
+    .advice-card .advice-trainer::before { content: "💬 "; }
     .advice-card .advice-body { color: var(--text-primary); font-size: 0.92rem; line-height: 1.7; white-space: pre-wrap; }
   </style>
 </head>
