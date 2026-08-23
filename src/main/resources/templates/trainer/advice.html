@@ -35,6 +35,18 @@
     .sent-row .sent-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; }
     .sent-row .sent-body { font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; }
     .advice-empty { text-align: center; color: var(--text-muted); padding: 32px 16px; font-size: 0.88rem; }
+    .sent-row .sent-date-badge {
+      display: inline-block; font-size: 0.72rem; font-weight: 600; color: var(--primary-color);
+      background: var(--primary-soft, var(--bg-tertiary)); border-radius: 6px; padding: 1px 6px; margin-right: 6px;
+    }
+    .training-preview {
+      background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 10px;
+      padding: 12px 14px; margin-top: 4px; font-size: 0.85rem;
+    }
+    .training-preview .tp-title { font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+    .training-preview .tp-item { padding: 4px 0; color: var(--text-secondary); border-top: 1px solid var(--border-color); }
+    .training-preview .tp-item:first-of-type { border-top: none; }
+    .training-preview .tp-empty { color: var(--text-muted); }
   </style>
 </head>
 <body class="bg-secondary">
@@ -53,12 +65,24 @@
       <form th:action="@{/trainer/advice}" method="post">
         <div class="form-group">
           <label>宛先</label>
-          <select name="targetUserId" class="form-control" required>
+          <select name="targetUserId" id="targetUserId" class="form-control" required>
             <option value="">トレーニーを選択してください</option>
             <option th:each="trainee : ${trainees}"
                     th:value="${trainee.userId}"
+                    th:selected="${selectedTargetUserId != null and selectedTargetUserId == trainee.userId}"
                     th:text="${trainee.userName + '（' + trainee.email + '）'}"></option>
           </select>
+        </div>
+        <div class="form-group">
+          <label>対象日（トレーニング実施日）</label>
+          <input type="date" name="targetDate" id="targetDate" class="form-control"
+                 th:value="${#temporals.format(selectedDate, 'yyyy-MM-dd')}" required/>
+        </div>
+        <div class="form-group">
+          <label>対象日のトレーニング内容</label>
+          <div id="trainingPreview" class="training-preview">
+            <div class="tp-empty">宛先と対象日を選択すると、その日のトレーニング内容が表示されます</div>
+          </div>
         </div>
         <div class="form-group">
           <label>メッセージ</label>
@@ -74,7 +98,10 @@
       <div th:if="${#lists.isEmpty(sentAdvices)}" class="advice-empty">送信済みのメッセージはありません</div>
       <div th:each="advice : ${sentAdvices}" class="sent-row">
         <div class="sent-meta">
-          <span th:text="${#temporals.format(advice.createdAt, 'yyyy/MM/dd HH:mm')}">2026/08/16</span>
+          <span>
+            <span class="sent-date-badge" th:text="${'対象日: ' + #temporals.format(advice.targetDate, 'MM/dd')}">対象日</span>
+            <span th:text="${#temporals.format(advice.createdAt, 'yyyy/MM/dd HH:mm')}">2026/08/16</span>
+          </span>
           <form th:action="@{/trainer/advice/{id}/delete(id=${advice.id})}" method="post" style="margin:0;">
             <button type="submit" class="btn btn-outline btn-sm"
                     onclick="return confirm('このメッセージを取り下げますか？')">取り下げ</button>
@@ -86,5 +113,55 @@
   </main>
 
   <script th:src="@{/js/theme.js}"></script>
+  <script>
+    (function () {
+      var userSelect = document.getElementById('targetUserId');
+      var dateInput = document.getElementById('targetDate');
+      var preview = document.getElementById('trainingPreview');
+      if (!userSelect || !dateInput || !preview) return;
+
+      function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text == null ? '' : String(text);
+        return div.innerHTML;
+      }
+
+      function renderPreview(trainings) {
+        if (!trainings || trainings.length === 0) {
+          preview.innerHTML = '<div class="tp-empty">この日のトレーニング記録はありません</div>';
+          return;
+        }
+        var html = '<div class="tp-title">' + trainings.length + '種目</div>';
+        trainings.forEach(function (t) {
+          html += '<div class="tp-item">' + escapeHtml(t.menu || '') + '（' + escapeHtml(t.partName || '') + '）'
+              + (t.isAllCompleted ? ' ・完了' : ' ・進行中') + '</div>';
+        });
+        preview.innerHTML = html;
+      }
+
+      function loadPreview() {
+        var userId = userSelect.value;
+        var date = dateInput.value;
+        if (!userId || !date) {
+          preview.innerHTML = '<div class="tp-empty">宛先と対象日を選択すると、その日のトレーニング内容が表示されます</div>';
+          return;
+        }
+        preview.innerHTML = '<div class="tp-empty">読み込み中...</div>';
+        fetch('/admin/training-details?userId=' + encodeURIComponent(userId) + '&date=' + encodeURIComponent(date))
+          .then(function (res) {
+            if (!res.ok) throw new Error('failed');
+            return res.json();
+          })
+          .then(renderPreview)
+          .catch(function () {
+            preview.innerHTML = '<div class="tp-empty">トレーニング内容の取得に失敗しました</div>';
+          });
+      }
+
+      userSelect.addEventListener('change', loadPreview);
+      dateInput.addEventListener('change', loadPreview);
+      if (userSelect.value && dateInput.value) loadPreview();
+    })();
+  </script>
 </body>
 </html>

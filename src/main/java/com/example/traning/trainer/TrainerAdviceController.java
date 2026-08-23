@@ -4,6 +4,8 @@ import com.example.traning.audit.AuditLog;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
 import java.security.Principal;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -33,11 +35,21 @@ public class TrainerAdviceController {
     return userService.getUserByEmail(principal.getName());
   }
 
+  /**
+   * @param targetUserId トレーニング詳細画面から遷移した場合の宛先の事前選択（任意）
+   * @param date トレーニング詳細画面から遷移した場合の対象日の事前選択（任意）
+   */
   @GetMapping
-  public String index(Model model, Principal principal) {
+  public String index(
+      @RequestParam(required = false) Long targetUserId,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      Model model,
+      Principal principal) {
     User trainer = currentUser(principal);
     model.addAttribute("trainees", trainerAdviceService.listTrainees(trainer));
     model.addAttribute("sentAdvices", trainerAdviceService.listSentByTrainer(trainer));
+    model.addAttribute("selectedTargetUserId", targetUserId);
+    model.addAttribute("selectedDate", date != null ? date : LocalDate.now());
     return "trainer/advice";
   }
 
@@ -46,11 +58,12 @@ public class TrainerAdviceController {
   public String send(
       @RequestParam Long targetUserId,
       @RequestParam String body,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate targetDate,
       Principal principal,
       RedirectAttributes redirectAttributes) {
     User trainer = currentUser(principal);
     try {
-      trainerAdviceService.send(trainer, targetUserId, body);
+      trainerAdviceService.send(trainer, targetUserId, body, targetDate);
       redirectAttributes.addFlashAttribute("successMessage", "メッセージを送信しました。");
     } catch (IllegalArgumentException e) {
       redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());

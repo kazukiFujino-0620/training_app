@@ -4,6 +4,7 @@ import com.example.traning.organization.OrganizationScopeResolver;
 import com.example.traning.user.Role;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -51,13 +52,33 @@ public class TrainerAdviceService {
     return trainerAdviceDao.selectActiveByTargetUserId(userId);
   }
 
+  /** トレーニー向け: 自分宛・指定日が対象日のアドバイス一覧（削除済み除く、新しい順）。トレーニング詳細画面での表示に使う。 */
+  public List<TrainerAdvice> getActiveForUserAndDate(Long userId, LocalDate date) {
+    return trainerAdviceDao.selectActiveByTargetUserIdAndDate(userId, date);
+  }
+
+  /**
+   * 渡されたアドバイスのうち未読（read_atがnull）のものを既読にする。 呼び出し側は、既読にする前に{@code advice.getReadAt() == null}で「今回のハイライト対象」を判定してから
+   * このメソッドを呼ぶこと（本文自体は既読後も履歴として表示し続けるため、削除はしない）。
+   */
+  @Transactional
+  public void markAsRead(List<TrainerAdvice> advices) {
+    LocalDateTime now = LocalDateTime.now();
+    for (TrainerAdvice advice : advices) {
+      if (advice.getReadAt() == null) {
+        advice.setReadAt(now);
+        trainerAdviceDao.update(advice);
+      }
+    }
+  }
+
   /**
    * アドバイスを送信する。宛先が操作者のスコープ内のROLE_USERであることを検証する。
    *
-   * @throws IllegalArgumentException 本文が空、または宛先が不正な場合
+   * @throws IllegalArgumentException 本文が空、宛先が不正、または対象日が未指定の場合
    */
   @Transactional
-  public TrainerAdvice send(User trainer, Long targetUserId, String body) {
+  public TrainerAdvice send(User trainer, Long targetUserId, String body, LocalDate targetDate) {
     if (body == null || body.isBlank()) {
       throw new IllegalArgumentException("メッセージを入力してください");
     }
@@ -66,6 +87,9 @@ public class TrainerAdviceService {
     }
     if (targetUserId == null) {
       throw new IllegalArgumentException("宛先を選択してください");
+    }
+    if (targetDate == null) {
+      throw new IllegalArgumentException("対象日を選択してください");
     }
 
     boolean isValidTarget =
@@ -77,6 +101,7 @@ public class TrainerAdviceService {
     TrainerAdvice advice = new TrainerAdvice();
     advice.setTrainerId(trainer.getUserId().longValue());
     advice.setTargetUserId(targetUserId);
+    advice.setTargetDate(targetDate);
     advice.setBody(body.trim());
     trainerAdviceDao.insert(advice);
     return advice;

@@ -51,6 +51,35 @@
     }
     .course-arrow { color: var(--text-muted); font-size: 0.9rem; }
 
+    /* トレーナーアドバイス（ita4-4 (A) 追加対応） */
+    .advice-section { margin-bottom: 1.5rem; }
+    .advice-card {
+      background: var(--primary-soft, var(--bg-tertiary));
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--primary-color);
+      border-radius: 12px;
+      padding: 0.9rem 1.1rem;
+      margin-bottom: 0.6rem;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+    }
+    .advice-card.unread {
+      border-left-color: var(--danger-color, #ef4444);
+      box-shadow: 0 0 0 1px var(--danger-color, #ef4444);
+    }
+    .advice-card .advice-new-badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #fff;
+      background: var(--danger-color, #ef4444);
+      border-radius: 5px;
+      padding: 1px 6px;
+      margin-bottom: 0.4rem;
+      letter-spacing: 0.03em;
+    }
+
     /* 種目カード */
     .exercise-section { margin-bottom: 1.5rem; }
     .exercise-card {
@@ -119,6 +148,15 @@
         <div>
           <h1>トレーニング詳細</h1>
           <p class="date-label" th:text="${#temporals.format(date, 'yyyy年M月d日')}"></p>
+        </div>
+      </div>
+
+      <!-- トレーナーアドバイス（ita4-4 (A) 追加対応、この日付宛のもの） -->
+      <div class="advice-section" th:if="${!#lists.isEmpty(advices)}">
+        <div class="section-title">トレーナーからのアドバイス</div>
+        <div th:each="advice : ${advices}" th:class="${'advice-card' + (advice.unread() ? ' unread' : '')}">
+          <div class="advice-new-badge" th:if="${advice.unread()}">NEW</div>
+          <div th:text="${advice.body()}">本文</div>
         </div>
       </div>
 

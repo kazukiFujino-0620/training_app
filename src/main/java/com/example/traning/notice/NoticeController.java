@@ -3,6 +3,7 @@ package com.example.traning.notice;
 import com.example.traning.organization.Organization;
 import com.example.traning.organization.OrganizationDao;
 import com.example.traning.organization.OrganizationScopeResolver;
+import com.example.traning.trainer.TrainerAdvice;
 import com.example.traning.trainer.TrainerAdviceService;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
@@ -50,21 +51,26 @@ public class NoticeController {
     model.addAttribute("notices", notices);
     // ita4-4 (A): トレーナーからのアドバイスも同じ画面に統合表示する（Q4回答）。
     // ただしnoticesと異なり「表示＝以後非表示」にはせず、時系列の履歴として残す（Q3: C案）。
+    // 未読ハイライトのみ、この画面またはトレーニング詳細画面のいずれかを閲覧した時点で消える（結合試験バグ4追加対応）。
+    List<TrainerAdvice> adviceEntities =
+        trainerAdviceService.getActiveForUser(user.getUserId().longValue());
     List<AdviceView> advices =
-        trainerAdviceService.getActiveForUser(user.getUserId().longValue()).stream()
+        adviceEntities.stream()
             .map(
                 a -> {
                   User trainer = userService.getUserById(a.getTrainerId().intValue());
                   String trainerName = trainer != null ? trainer.getUserName() : "トレーナー";
-                  return new AdviceView(a.getBody(), a.getCreatedAt(), trainerName);
+                  return new AdviceView(a.getBody(), a.getCreatedAt(), trainerName, a.getReadAt() == null);
                 })
             .toList();
     model.addAttribute("advices", advices);
+    trainerAdviceService.markAsRead(adviceEntities);
     return "notice/list";
   }
 
-  /** /notices画面表示用のトレーナーアドバイス投影（送信者名を含む）。 */
-  public record AdviceView(String body, LocalDateTime createdAt, String trainerName) {}
+  /** /notices画面表示用のトレーナーアドバイス投影（送信者名・未読状態を含む）。 */
+  public record AdviceView(
+      String body, LocalDateTime createdAt, String trainerName, boolean unread) {}
 
   @PostMapping("/api/notices/{id}/dismiss")
   @ResponseBody

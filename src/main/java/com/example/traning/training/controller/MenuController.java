@@ -16,6 +16,8 @@ import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.dto.PreviousTrainingResponse;
+import com.example.traning.trainer.TrainerAdvice;
+import com.example.traning.trainer.TrainerAdviceService;
 import com.example.traning.training.service.CalorieCalculator;
 import com.example.traning.training.service.TrainingService;
 import com.example.traning.user.User;
@@ -66,6 +68,7 @@ public class MenuController {
   private final AcwrService acwrService;
   private final ChurnDetectionService churnDetectionService;
   private final com.example.traning.notice.NoticeService noticeService;
+  private final TrainerAdviceService trainerAdviceService;
 
   private static final Map<String, String> PART_LABEL_MAP =
       Map.of("CHEST", "胸", "BACK", "背中", "SHOULDER", "肩", "ARM", "腕", "LEG", "脚");
@@ -81,7 +84,8 @@ public class MenuController {
       OneRmPredictionService oneRmPredictionService,
       AcwrService acwrService,
       ChurnDetectionService churnDetectionService,
-      com.example.traning.notice.NoticeService noticeService) {
+      com.example.traning.notice.NoticeService noticeService,
+      TrainerAdviceService trainerAdviceService) {
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
@@ -93,6 +97,7 @@ public class MenuController {
     this.acwrService = acwrService;
     this.churnDetectionService = churnDetectionService;
     this.noticeService = noticeService;
+    this.trainerAdviceService = trainerAdviceService;
   }
 
   @GetMapping("/menu")
@@ -931,6 +936,15 @@ public class MenuController {
             .filter(m -> m != null && !m.isEmpty())
             .collect(Collectors.toList());
 
+    // ita4-4 (A) 追加対応: この日付宛のトレーナーアドバイスを表示する（既読状態は閲覧時に更新、本文は消えない）
+    List<TrainerAdvice> advicesForDate =
+        trainerAdviceService.getActiveForUserAndDate(userId, date);
+    List<AdviceItem> adviceItems =
+        advicesForDate.stream()
+            .map(a -> new AdviceItem(a.getBody(), a.getReadAt() == null))
+            .toList();
+    trainerAdviceService.markAsRead(advicesForDate);
+
     model.addAttribute("loginUser", loginUser);
     model.addAttribute("trainings", trainings);
     model.addAttribute("date", date);
@@ -940,7 +954,12 @@ public class MenuController {
     model.addAttribute("calorieEstimate", calorieEstimate);
     model.addAttribute("isToday", date.equals(today));
     model.addAttribute("trainingCourse", course);
+    model.addAttribute("advices", adviceItems);
 
     return "training/detail";
+  }
+
+  /** /detail画面表示用のトレーナーアドバイス投影（未読なら{@code unread=true}）。 */
+  public record AdviceItem(String body, boolean unread) {
   }
 }

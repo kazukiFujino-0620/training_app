@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.example.traning.organization.OrganizationScopeResolver;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -66,11 +67,12 @@ class TrainerAdviceServiceTest {
         .thenReturn(Set.of(10L));
     when(userService.findAll()).thenReturn(List.of(trainee));
 
-    TrainerAdvice result = service.send(trainer, 2L, "頑張りましょう");
+    TrainerAdvice result = service.send(trainer, 2L, "頑張りましょう", LocalDate.of(2026, 8, 23));
 
     assertThat(result.getTrainerId()).isEqualTo(1L);
     assertThat(result.getTargetUserId()).isEqualTo(2L);
     assertThat(result.getBody()).isEqualTo("頑張りましょう");
+    assertThat(result.getTargetDate()).isEqualTo(LocalDate.of(2026, 8, 23));
     verify(trainerAdviceDao).insert(any(TrainerAdvice.class));
   }
 
@@ -82,7 +84,8 @@ class TrainerAdviceServiceTest {
         .thenReturn(Set.of(10L));
     when(userService.findAll()).thenReturn(List.of(outOfScopeUser));
 
-    assertThatThrownBy(() -> service.send(trainer, 3L, "不正送信"))
+    assertThatThrownBy(
+            () -> service.send(trainer, 3L, "不正送信", LocalDate.of(2026, 8, 23)))
         .isInstanceOf(IllegalArgumentException.class);
     verify(trainerAdviceDao, never()).insert(any(TrainerAdvice.class));
   }
@@ -91,7 +94,7 @@ class TrainerAdviceServiceTest {
   void send_本文が空の場合は例外() {
     User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
 
-    assertThatThrownBy(() -> service.send(trainer, 2L, "  "))
+    assertThatThrownBy(() -> service.send(trainer, 2L, "  ", LocalDate.of(2026, 8, 23)))
         .isInstanceOf(IllegalArgumentException.class);
     verify(trainerAdviceDao, never()).insert(any(TrainerAdvice.class));
   }
@@ -101,7 +104,16 @@ class TrainerAdviceServiceTest {
     User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
     String tooLong = "あ".repeat(1001);
 
-    assertThatThrownBy(() -> service.send(trainer, 2L, tooLong))
+    assertThatThrownBy(() -> service.send(trainer, 2L, tooLong, LocalDate.of(2026, 8, 23)))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(trainerAdviceDao, never()).insert(any(TrainerAdvice.class));
+  }
+
+  @Test
+  void send_対象日が未指定の場合は例外() {
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
+
+    assertThatThrownBy(() -> service.send(trainer, 2L, "頑張りましょう", null))
         .isInstanceOf(IllegalArgumentException.class);
     verify(trainerAdviceDao, never()).insert(any(TrainerAdvice.class));
   }
@@ -114,6 +126,32 @@ class TrainerAdviceServiceTest {
     List<TrainerAdvice> result = service.getActiveForUser(2L);
 
     assertThat(result).containsExactly(advice);
+  }
+
+  @Test
+  void getActiveForUserAndDate_DAOの結果をそのまま返す() {
+    TrainerAdvice advice = new TrainerAdvice();
+    LocalDate date = LocalDate.of(2026, 8, 23);
+    when(trainerAdviceDao.selectActiveByTargetUserIdAndDate(2L, date)).thenReturn(List.of(advice));
+
+    List<TrainerAdvice> result = service.getActiveForUserAndDate(2L, date);
+
+    assertThat(result).containsExactly(advice);
+  }
+
+  @Test
+  void markAsRead_未読のみ既読にしてDAO更新する() {
+    TrainerAdvice unread = new TrainerAdvice();
+    unread.setId(1L);
+    TrainerAdvice alreadyRead = new TrainerAdvice();
+    alreadyRead.setId(2L);
+    alreadyRead.setReadAt(java.time.LocalDateTime.of(2026, 8, 1, 0, 0));
+
+    service.markAsRead(List.of(unread, alreadyRead));
+
+    assertThat(unread.getReadAt()).isNotNull();
+    verify(trainerAdviceDao).update(unread);
+    verify(trainerAdviceDao, never()).update(alreadyRead);
   }
 
   @Test
