@@ -706,7 +706,6 @@ export default function TrainingStartScreen({ navigation }: Props) {
               placeholder="メモ（セットの感想やフォームの注意点）"
               placeholderTextColor="#999"
               multiline
-              maxLength={500}
               value={section.memo}
               onChangeText={(text) => handleMemoChange(section.trainingId, text)}
               onBlur={() => handleMemoBlur(section.trainingId, section.memo)}
