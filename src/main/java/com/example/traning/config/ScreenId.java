@@ -17,6 +17,7 @@ public enum ScreenId {
   TRAINING_REGISTER("/training/register", "種目を登録", "/menu", "メニューに戻る"),
   START_TRAINING("/start/training", "トレーニング実施", null, null),
   USER_PROFILE("/user/profile", "プロフィール", "/menu", "メニューに戻る"),
+  USER_NOTIFICATIONS("/user/notifications", "通知設定", "/user/profile", "プロフィールに戻る"),
   USER_GOALS("/user/goals", "目標設定", "/menu", "メニューに戻る"),
   USER_BODY("/user/body", "体重記録", "/menu", "メニューに戻る"),
   USER_EXPORT("/user/export", "データエクスポート", "/menu", "メニューに戻る"),
