@@ -14,10 +14,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-/** トレーナーアドバイス送信画面（ita4-4 (A)）。TRAINERロール専用（STORE_ADMIN等はこの画面にアクセスできない）。 */
+/** トレーナーアドバイス送信画面（ita4-4 (A)）。ORG_ADMIN/STORE_ADMIN専用。 */
 @Controller
 @RequestMapping("/trainer/advice")
-@PreAuthorize("hasRole('TRAINER')")
+@PreAuthorize("hasAnyRole('ORG_ADMIN', 'STORE_ADMIN')")
 public class TrainerAdviceController {
 
   private final TrainerAdviceService trainerAdviceService;

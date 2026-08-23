@@ -62,7 +62,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
  */
 @Controller
 @RequestMapping("/admin")
-@PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
+@PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
 @Slf4j
 public class AdminController {
 
@@ -158,7 +158,7 @@ public class AdminController {
     Role adminRole = Role.fromValue(currentAdmin.getRole());
 
     model.addAttribute("user", user);
-    model.addAttribute("canManageRole", adminRole != Role.STORE_ADMIN && adminRole != Role.TRAINER);
+    model.addAttribute("canManageRole", adminRole != Role.STORE_ADMIN);
     model.addAttribute("assignableRoles", assignableRoles(adminRole));
     model.addAttribute("isAdmin", adminRole == Role.ADMIN);
     model.addAttribute(
@@ -176,15 +176,13 @@ public class AdminController {
       return List.of(
           new RoleOption(Role.USER.value(), "一般ユーザー（USER）"),
           new RoleOption(Role.STORE_ADMIN.value(), "店舗管理者（STORE_ADMIN）"),
-          new RoleOption(Role.TRAINER.value(), "トレーナー（TRAINER）"),
           new RoleOption(Role.ORG_ADMIN.value(), "組織管理者（ORG_ADMIN）"),
           new RoleOption(Role.ADMIN.value(), "システム管理者（ADMIN）"));
     }
     if (adminRole == Role.ORG_ADMIN) {
       return List.of(
           new RoleOption(Role.USER.value(), "一般ユーザー（USER）"),
-          new RoleOption(Role.STORE_ADMIN.value(), "店舗管理者（STORE_ADMIN）"),
-          new RoleOption(Role.TRAINER.value(), "トレーナー（TRAINER）"));
+          new RoleOption(Role.STORE_ADMIN.value(), "店舗管理者（STORE_ADMIN）"));
     }
     return List.of();
   }
@@ -273,21 +271,19 @@ public class AdminController {
     }
     if (adminRole == Role.ORG_ADMIN) {
       Role target = Role.fromValue(newRole);
-      return target == Role.USER || target == Role.STORE_ADMIN || target == Role.TRAINER;
+      return target == Role.USER || target == Role.STORE_ADMIN;
     }
     return false;
   }
 
   /**
-   * 店舗兼任設定を洗い替える。対象ロールがROLE_STORE_ADMIN/ROLE_TRAINERの場合のみ意味を持つ（それ以外は全削除のみ行う）。
+   * 店舗兼任設定を洗い替える。対象ロールがROLE_STORE_ADMINの場合のみ意味を持つ（それ以外は全削除のみ行う）。
    * ORG_ADMINが操作する場合は自組織配下の店舗のみ登録を許可し、範囲外の値は無視する。
    */
   private void replaceStoreAssignments(
       UserAdminUpdateForm form, User currentAdmin, Role adminRole, Long targetOrganizationId) {
     userStoreAccessDao.deleteByUserId(form.getUserId().longValue());
-    boolean supportsStoreAssignments =
-        Role.STORE_ADMIN.value().equals(form.getRole())
-            || Role.TRAINER.value().equals(form.getRole());
+    boolean supportsStoreAssignments = Role.STORE_ADMIN.value().equals(form.getRole());
     if (!supportsStoreAssignments || form.getStoreAssignments() == null) {
       return;
     }

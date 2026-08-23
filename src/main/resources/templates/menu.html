@@ -790,7 +790,7 @@
         </div><!-- /今日のおすすめメニュー -->
 
         <!-- お知らせ管理（ita2-5、ROLE_ADMIN/ROLE_ORG_ADMIN/ROLE_STORE_ADMINいずれも可） -->
-        <div sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')" class="mt-8">
+        <div sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')" class="mt-8">
           <div class="card">
             <div class="card-header">
               <strong class="font-bold">お知らせ管理</strong>
@@ -804,7 +804,7 @@
         </div>
 
         <!-- Admin Section -->
-        <div sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')" class="mt-8">
+        <div sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')" class="mt-8">
           <div class="card">
             <div class="card-header">
               <div class="flex items-center gap-2">
@@ -866,7 +866,7 @@
                 </a>
                 <a
                   th:href="@{/admin/withdrawal}"
-                  sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')"
+                  sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')"
                   class="btn btn-outline w-full"
                 >
                   <svg
@@ -942,7 +942,7 @@
                 </a>
                 <a
                   th:href="@{/trainer/advice}"
-                  sec:authorize="hasRole('TRAINER')"
+                  sec:authorize="hasAnyRole('ORG_ADMIN', 'STORE_ADMIN')"
                   class="btn btn-outline w-full"
                 >
                   <svg
