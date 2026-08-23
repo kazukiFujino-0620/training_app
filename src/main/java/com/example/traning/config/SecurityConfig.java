@@ -163,7 +163,9 @@ public class SecurityConfig {
                     // 各コントローラーの @PreAuthorize / IDOR チェックで絞り込む。
                     .hasAnyRole("ADMIN", "ORG_ADMIN", "STORE_ADMIN")
                     .requestMatchers(USER_PATH)
-                    .hasAnyRole("USER", "ADMIN")
+                    // ORG_ADMIN/STORE_ADMINも自分自身のプロフィール・通知設定（LINE連携含む）を
+                    // 利用できる必要があるため許可する（ita4-1結合試験で発見）。
+                    .hasAnyRole("USER", "ADMIN", "ORG_ADMIN", "STORE_ADMIN")
                     .requestMatchers("/auth/mfa", "/auth/mfa/verify")
                     .authenticated()
                     .anyRequest()
