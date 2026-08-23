@@ -26,4 +26,8 @@ public interface InviteCodeDao {
 
   @Select
   List<InviteCode> selectByOrganizationIds(List<Long> organizationIds);
+
+  /** トレーナー登録（ita4-3）での引換用。コードは一意（UNIQUE制約）。 */
+  @Select
+  Optional<InviteCode> selectByCode(String code);
 }

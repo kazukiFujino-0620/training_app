@@ -27,6 +27,8 @@ import org.springframework.security.web.session.HttpSessionEventPublisher;
 public class SecurityConfig {
 
   private static final String PUBLIC_PATHS = "/signup";
+  // ita4-3: トレーナー用登録ルート（招待コード必須の別フォーム）。/signupとは別に許可が必要。
+  private static final String TRAINER_SIGNUP_PATH = "/signup/trainer";
   private static final String LOGIN_PATH = "/login";
   private static final String PASSWORD_PATH = "/password/**";
   private static final String RESTORE_PATH = "/account/restore/**";
@@ -139,6 +141,7 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers(
                         PUBLIC_PATHS,
+                        TRAINER_SIGNUP_PATH,
                         LOGIN_PATH,
                         PASSWORD_PATH,
                         RESTORE_PATH,
@@ -156,9 +159,10 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(ADMIN_PATH)
                     // ita1-1 マルチテナント化 フェーズ3: ORG_ADMIN/STORE_ADMIN も /admin/** に到達可能とする。
+                    // ita4-3: TRAINERもSTORE_ADMINと同等の管理権限を持つため追加。
                     // 実際のデータアクセス範囲は OrganizationScopeResolver +
                     // 各コントローラーの @PreAuthorize / IDOR チェックで絞り込む。
-                    .hasAnyRole("ADMIN", "ORG_ADMIN", "STORE_ADMIN")
+                    .hasAnyRole("ADMIN", "ORG_ADMIN", "STORE_ADMIN", "TRAINER")
                     .requestMatchers(USER_PATH)
                     .hasAnyRole("USER", "ADMIN")
                     .requestMatchers("/auth/mfa", "/auth/mfa/verify")

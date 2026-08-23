@@ -790,7 +790,7 @@
         </div><!-- /今日のおすすめメニュー -->
 
         <!-- お知らせ管理（ita2-5、ROLE_ADMIN/ROLE_ORG_ADMIN/ROLE_STORE_ADMINいずれも可） -->
-        <div sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')" class="mt-8">
+        <div sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')" class="mt-8">
           <div class="card">
             <div class="card-header">
               <strong class="font-bold">お知らせ管理</strong>
@@ -804,7 +804,7 @@
         </div>
 
         <!-- Admin Section -->
-        <div sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')" class="mt-8">
+        <div sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')" class="mt-8">
           <div class="card">
             <div class="card-header">
               <div class="flex items-center gap-2">
@@ -866,7 +866,7 @@
                 </a>
                 <a
                   th:href="@{/admin/withdrawal}"
-                  sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')"
+                  sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')"
                   class="btn btn-outline w-full"
                 >
                   <svg
@@ -939,6 +939,24 @@
                     <path d="M3 9l9 5 9-5" />
                   </svg>
                   招待コード管理
+                </a>
+                <a
+                  th:href="@{/trainer/advice}"
+                  sec:authorize="hasRole('TRAINER')"
+                  class="btn btn-outline w-full"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="inline mr-2"
+                  >
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  トレーナーアドバイス
                 </a>
               </div>
             </div>

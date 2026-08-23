@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.traning.user.User;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -128,5 +129,84 @@ class InviteCodeServiceTest {
     assertThatThrownBy(() -> service.revoke(1L, orgAdmin))
         .isInstanceOf(ResponseStatusException.class);
     verify(inviteCodeDao, never()).update(any(InviteCode.class));
+  }
+
+  // ── redeem（ita4-3: トレーナー登録での引換） ──────────────────────────────
+
+  private InviteCode validCode() {
+    InviteCode code = new InviteCode();
+    code.setId(1L);
+    code.setCode("ABCDEFGHIJ");
+    code.setOrganizationId(5L);
+    code.setUsedCount(0);
+    return code;
+  }
+
+  @Test
+  void redeem_有効なコードは引き換えできてusedCountが増える() {
+    InviteCode code = validCode();
+    when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
+
+    InviteCode result = service.redeem("ABCDEFGHIJ");
+
+    assertThat(result.getOrganizationId()).isEqualTo(5L);
+    assertThat(result.getUsedCount()).isEqualTo(1);
+    verify(inviteCodeDao).update(code);
+  }
+
+  @Test
+  void redeem_存在しないコードは例外() {
+    when(inviteCodeDao.selectByCode("NOTFOUND")).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.redeem("NOTFOUND"))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(inviteCodeDao, never()).update(any(InviteCode.class));
+  }
+
+  @Test
+  void redeem_失効済みコードは例外() {
+    InviteCode code = validCode();
+    code.setRevokedAt(LocalDateTime.now());
+    when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
+
+    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ"))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(inviteCodeDao, never()).update(any(InviteCode.class));
+  }
+
+  @Test
+  void redeem_有効期限切れのコードは例外() {
+    InviteCode code = validCode();
+    code.setExpiresAt(LocalDateTime.now().minusDays(1));
+    when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
+
+    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ"))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(inviteCodeDao, never()).update(any(InviteCode.class));
+  }
+
+  @Test
+  void redeem_使用回数上限に達したコードは例外() {
+    InviteCode code = validCode();
+    code.setMaxUses(1);
+    code.setUsedCount(1);
+    when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
+
+    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ"))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(inviteCodeDao, never()).update(any(InviteCode.class));
+  }
+
+  @Test
+  void redeem_使用回数上限未満なら引き換えできる() {
+    InviteCode code = validCode();
+    code.setMaxUses(2);
+    code.setUsedCount(1);
+    when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
+
+    InviteCode result = service.redeem("ABCDEFGHIJ");
+
+    assertThat(result.getUsedCount()).isEqualTo(2);
+    verify(inviteCodeDao).update(code);
   }
 }

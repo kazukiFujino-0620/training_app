@@ -47,7 +47,7 @@ public class TrainingApiController {
    * 以外はアクセス可能な組織でサーバー側絞り込みを行う。
    */
   @GetMapping("/admin/api/training-details")
-  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
   public List<TrainingDetail> getDetails(
       @RequestParam String date, @RequestParam(required = false) Long userId) {
 
@@ -72,7 +72,7 @@ public class TrainingApiController {
    */
   @GetMapping("/admin/api/training-volume/{userId}")
   @ResponseBody
-  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
   public Map<String, Object> getTrainingVolume(
       @PathVariable Long userId, @RequestParam String startDate, @RequestParam String endDate) {
 

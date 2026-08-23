@@ -3,9 +3,11 @@ package com.example.traning.notice;
 import com.example.traning.organization.Organization;
 import com.example.traning.organization.OrganizationDao;
 import com.example.traning.organization.OrganizationScopeResolver;
+import com.example.traning.trainer.TrainerAdviceService;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
 import java.security.Principal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import lombok.Data;
@@ -33,6 +35,7 @@ public class NoticeController {
   private final UserService userService;
   private final OrganizationDao organizationDao;
   private final OrganizationScopeResolver organizationScopeResolver;
+  private final TrainerAdviceService trainerAdviceService;
 
   private User currentUser(Principal principal) {
     return userService.getUserByEmail(principal.getName());
@@ -45,8 +48,23 @@ public class NoticeController {
     User user = currentUser(principal);
     List<Notice> notices = noticeService.getActiveForUser(user);
     model.addAttribute("notices", notices);
+    // ita4-4 (A): トレーナーからのアドバイスも同じ画面に統合表示する（Q4回答）。
+    // ただしnoticesと異なり「表示＝以後非表示」にはせず、時系列の履歴として残す（Q3: C案）。
+    List<AdviceView> advices =
+        trainerAdviceService.getActiveForUser(user.getUserId().longValue()).stream()
+            .map(
+                a -> {
+                  User trainer = userService.getUserById(a.getTrainerId().intValue());
+                  String trainerName = trainer != null ? trainer.getUserName() : "トレーナー";
+                  return new AdviceView(a.getBody(), a.getCreatedAt(), trainerName);
+                })
+            .toList();
+    model.addAttribute("advices", advices);
     return "notice/list";
   }
+
+  /** /notices画面表示用のトレーナーアドバイス投影（送信者名を含む）。 */
+  public record AdviceView(String body, LocalDateTime createdAt, String trainerName) {}
 
   @PostMapping("/api/notices/{id}/dismiss")
   @ResponseBody
@@ -58,7 +76,7 @@ public class NoticeController {
 
   // ── 管理者向け（ROLE_ADMIN / ROLE_ORG_ADMIN / ROLE_STORE_ADMIN） ────────
 
-  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
   @GetMapping("/notices/manage")
   public String manage(
       @RequestParam(required = false) Long organizationId, Model model, Principal principal) {
@@ -90,7 +108,7 @@ public class NoticeController {
     return "notice/manage";
   }
 
-  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
   @PostMapping("/api/notices")
   @ResponseBody
   public ResponseEntity<?> create(@RequestBody NoticeCreateRequest request, Principal principal) {
@@ -105,7 +123,7 @@ public class NoticeController {
     }
   }
 
-  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
   @PostMapping("/api/notices/{id}/delete")
   @ResponseBody
   public ResponseEntity<?> delete(@PathVariable Long id, Principal principal) {

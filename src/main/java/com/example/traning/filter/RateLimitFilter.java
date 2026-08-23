@@ -85,7 +85,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
       return bucketManager.loginBucket(ip);
     }
 
-    if ("POST".equals(method) && "/signup".equals(path)) {
+    // ita4-3: トレーナー登録も招待コード総当たり対策として/signupと同じ制限を適用する。
+    if ("POST".equals(method) && ("/signup".equals(path) || "/signup/trainer".equals(path))) {
       return bucketManager.signupBucket(ip);
     }
 

@@ -18,7 +18,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequestMapping("/admin/withdrawal")
 // 退会承認（データ削除を伴う）はito1-1未実施分でORG_ADMIN/STORE_ADMINにも開放（ユーザー判断済み）。
 // 自組織・自店舗（＋兼任店舗）スコープ外の申請は WithdrawalService 側で操作を拒否する。
-@PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
 @Slf4j
 public class AdminWithdrawalController {
 
