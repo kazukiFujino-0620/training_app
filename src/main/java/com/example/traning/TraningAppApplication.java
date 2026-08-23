@@ -31,8 +31,10 @@ public class TraningAppApplication {
         return;
       }
       // 動作確認用: cronを待たず、週次/月次サマリーバッチを即時1回実行して終了する。
-      // Web層は起動しない(WebApplicationType.NONE)ため、稼働中のtrainingapp.service(ポート8080)
-      // と共存できる。EnvironmentFile(trainingapp.env)は通常起動時と同じものをsourceして使う。
+      // SecurityConfigのSecurityFilterChain BeanがHttpSecurity(Web層必須)に依存しているため
+      // WebApplicationType.NONEにはできない。稼働中のtrainingapp.service(ポート8080)と
+      // 衝突しないよう、空きポート(server.port=0)でWebサーバーを起動する。
+      // EnvironmentFile(trainingapp.env)は通常起動時と同じものをsourceして使う。
       if ("--run-weekly-summary=true".equals(arg)) {
         System.exit(runTaskOnceAndExit(args, WeeklySummaryTask.class, WeeklySummaryTask::sendWeeklySummary));
         return;
@@ -76,15 +78,17 @@ public class TraningAppApplication {
   }
 
   /**
-   * Web層を起動せずSpringコンテキストのみを立ち上げ、指定タスクを1回実行して終了する。
+   * 稼働中のtrainingapp.service(ポート8080)とは別の空きポートでSpringコンテキストを立ち上げ、 指定タスクを1回実行して終了する。
    *
    * @return 正常終了なら0、失敗なら1（プロセスの終了コードにそのまま使う）
    */
   private static <T> int runTaskOnceAndExit(
       String[] args, Class<T> taskClass, java.util.function.Consumer<T> action) {
     SpringApplication app = new SpringApplication(TraningAppApplication.class);
-    app.setWebApplicationType(WebApplicationType.NONE);
-    ConfigurableApplicationContext context = app.run(args);
+    app.setWebApplicationType(WebApplicationType.SERVLET);
+    String[] argsWithRandomPort = java.util.Arrays.copyOf(args, args.length + 1);
+    argsWithRandomPort[args.length] = "--server.port=0";
+    ConfigurableApplicationContext context = app.run(argsWithRandomPort);
     try {
       action.accept(context.getBean(taskClass));
       return 0;
