@@ -152,16 +152,21 @@
             </div>
             <div class="method-option">
               <input type="radio" id="method-line" name="notificationMethod" value="LINE"
-                     th:checked="${user.notificationMethod == 'LINE'}" />
+                     th:checked="${user.notificationMethod == 'LINE'}"
+                     th:disabled="${!lineLinked}" />
               <label for="method-line">LINEのみ</label>
             </div>
             <div class="method-option">
               <input type="radio" id="method-both" name="notificationMethod" value="BOTH"
-                     th:checked="${user.notificationMethod == 'BOTH'}" />
+                     th:checked="${user.notificationMethod == 'BOTH'}"
+                     th:disabled="${!lineLinked}" />
               <label for="method-both">メール・LINE両方</label>
             </div>
-            <p class="help-text">
-              LINEを選択していても、未連携・未友だち追加の間は自動的にメールへ切り替えて送信されます。
+            <p class="help-text" th:unless="${lineLinked}">
+              「LINEのみ」「メール・LINE両方」は、LINEアカウントと連携すると選択できるようになります。
+            </p>
+            <p class="help-text" th:if="${lineLinked}">
+              LINEを選択していても、未友だち追加の間は自動的にメールへ切り替えて送信されます。
             </p>
           </div>
         </div>

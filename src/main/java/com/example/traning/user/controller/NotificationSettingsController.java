@@ -29,6 +29,7 @@ public class NotificationSettingsController {
 
   private static final String STATE_SESSION_KEY = "line_link_oauth_state";
   private static final Set<String> VALID_METHODS = Set.of("EMAIL", "LINE", "BOTH");
+  private static final Set<String> LINE_REQUIRED_METHODS = Set.of("LINE", "BOTH");
 
   private final UserService userService;
   private final ProfileService profileService;
@@ -67,6 +68,10 @@ public class NotificationSettingsController {
       return "redirect:/user/notifications";
     }
     User user = userService.getUserByEmail(principal.getName());
+    if (LINE_REQUIRED_METHODS.contains(notificationMethod) && user.getLineId() == null) {
+      redirectAttributes.addFlashAttribute("errorMessage", "LINE通知を選択するには、先にLINEアカウントと連携してください");
+      return "redirect:/user/notifications";
+    }
     profileService.updateNotificationMethod(user.getUserId(), notificationMethod);
     redirectAttributes.addFlashAttribute("successMessage", "通知方法を変更しました");
     return "redirect:/user/notifications";
