@@ -159,6 +159,14 @@ public class MenuController {
       }
     }
 
+    // ita4-4 (A) 追加対応: 未読のトレーナーアドバイスがある日付をカレンダー上でハイライトする
+    // （/notices・/detailのいずれかで閲覧するとハイライトのみ消える。本文自体は履歴として残る）
+    Set<String> unreadAdviceDates =
+        trainerAdviceService.getActiveForUser(userId).stream()
+            .filter(a -> a.getReadAt() == null)
+            .map(a -> a.getTargetDate().toString())
+            .collect(Collectors.toSet());
+
     // 7. 集計とModelセット
     long totalCount = trainingList.size();
     long completedCount = trainingList.stream().filter(Training::isAllCompleted).count();
@@ -301,6 +309,7 @@ public class MenuController {
     model.addAttribute("completedCount", completedCount);
     model.addAttribute("isDailyCompleted", totalCount > 0 && totalCount == completedCount);
     model.addAttribute("dayStatusList", dayStatusList);
+    model.addAttribute("unreadAdviceDates", unreadAdviceDates);
     model.addAttribute("fatiguePct", fatiguePct);
     model.addAttribute("fatigueRows", fatigueRows);
     model.addAttribute("monthlyCount", monthlyCount);

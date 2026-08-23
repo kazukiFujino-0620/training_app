@@ -219,9 +219,9 @@
                       <tr th:each="i : ${#numbers.sequence(0, 5)}">
                         <td
                           th:each="j : ${#numbers.sequence(0, 6)}"
-                          th:with="index=${i * 7 + j}, day=${dateList[index]}, isDone=${dayStatusList[index]}, formattedDate=${#temporals.format(day, 'yyyy-MM-dd')}"
+                          th:with="index=${i * 7 + j}, day=${dateList[index]}, isDone=${dayStatusList[index]}, formattedDate=${#temporals.format(day, 'yyyy-MM-dd')}, hasUnreadAdvice=${unreadAdviceDates.contains(formattedDate)}"
                           class="calendar-cell cursor-pointer hover:bg-tertiary transition-colors"
-                          th:classappend="${selectedDateStr != null && formattedDate == selectedDateStr} ? 'bg-primary bg-opacity-30 font-bold border-2 border-primary' : ''"
+                          th:classappend="${(selectedDateStr != null and formattedDate == selectedDateStr ? 'bg-primary bg-opacity-30 font-bold border-2 border-primary' : '') + (hasUnreadAdvice ? ' calendar-cell-advice' : '')}"
                           th:data-date="${formattedDate}"
                         >
                           <div class="text-center p-3">
@@ -249,6 +249,7 @@
                                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                                 </svg>
                               </div>
+                              <div th:if="${hasUnreadAdvice}" class="calendar-advice-dot" title="トレーナーから新着アドバイス">💬</div>
                             </div>
                           </div>
                         </td>
