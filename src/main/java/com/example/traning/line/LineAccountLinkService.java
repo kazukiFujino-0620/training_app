@@ -20,9 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 既存ユーザー（メール/Googleログイン等）にLINEアカウントを後付けで連携する（ita4-1 残作業）。
  *
- * <p>Spring Securityの{@code oauth2Login}はログイン専用（成功するとセッションの認証がLINE側の {@link User}に差し替わる）ため、ログイン中ユーザーを維持したまま連携するにはSpring
- * Security機構を使わず、Authorization Codeフローを手動で実行する（{@link #buildAuthorizeUrl}
- * で認可URLを組み立て、コールバックで受け取った{@code code}を{@link #completeLink}でトークン・プロフィールに交換する）。
+ * <p>Spring Securityの{@code oauth2Login}はログイン専用（成功するとセッションの認証がLINE側の {@link
+ * User}に差し替わる）ため、ログイン中ユーザーを維持したまま連携するにはSpring Security機構を使わず、Authorization Codeフローを手動で実行する（{@link
+ * #buildAuthorizeUrl} で認可URLを組み立て、コールバックで受け取った{@code code}を{@link #completeLink}でトークン・プロフィールに交換する）。
  */
 @Slf4j
 @Service

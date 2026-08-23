@@ -50,7 +50,9 @@ class LineAccountLinkServiceTest {
     assertThat(url).startsWith("https://access.line.me/oauth2/v2.1/authorize?");
     assertThat(url).contains("client_id=test-client-id");
     assertThat(url).contains("state=state-123");
-    assertThat(url).contains("redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fuser%2Fnotifications%2Fline%2Fcallback");
+    assertThat(url)
+        .contains(
+            "redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fuser%2Fnotifications%2Fline%2Fcallback");
     assertThat(url).contains("scope=profile");
   }
 
@@ -59,7 +61,8 @@ class LineAccountLinkServiceTest {
     when(tokenResponse.statusCode()).thenReturn(200);
     when(tokenResponse.body()).thenReturn("{\"access_token\":\"test-access-token\"}");
     when(profileResponse.statusCode()).thenReturn(200);
-    when(profileResponse.body()).thenReturn("{\"userId\":\"U-new-line-id\",\"displayName\":\"テスト太郎\"}");
+    when(profileResponse.body())
+        .thenReturn("{\"userId\":\"U-new-line-id\",\"displayName\":\"テスト太郎\"}");
     when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
         .thenReturn(tokenResponse, profileResponse);
     when(userDao.selectByLineId("U-new-line-id")).thenReturn(Optional.empty());

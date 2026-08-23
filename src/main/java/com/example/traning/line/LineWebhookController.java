@@ -60,11 +60,11 @@ public class LineWebhookController {
           continue;
         }
         if ("follow".equals(type)) {
-          userDao.updateLineFriendAdded(lineUserId, true);
-          log.info("LINE友だち追加を検知しました");
+          int updated = userDao.updateLineFriendAdded(lineUserId, true);
+          log.info("LINE友だち追加を検知しました - lineUserId={}, 更新件数={}", lineUserId, updated);
         } else if ("unfollow".equals(type)) {
-          userDao.updateLineFriendAdded(lineUserId, false);
-          log.info("LINE友だち解除/ブロックを検知しました");
+          int updated = userDao.updateLineFriendAdded(lineUserId, false);
+          log.info("LINE友だち解除/ブロックを検知しました - lineUserId={}, 更新件数={}", lineUserId, updated);
         }
       }
     } catch (Exception e) {
