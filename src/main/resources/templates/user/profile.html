@@ -251,6 +251,16 @@
 
       </form>
 
+      <!-- 通知設定・LINE連携への導線 -->
+      <div class="profile-card">
+        <div class="card-header">通知・LINE連携</div>
+        <div class="card-body">
+          <a th:href="@{/user/notifications}" class="btn btn-secondary w-full py-3 font-bold" style="text-align:center; text-decoration:none; display:block;">
+            通知設定を開く
+          </a>
+        </div>
+      </div>
+
       <!-- F3 Phase1: 目的モード -->
       <form th:action="@{/user/profile/goal-mode}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />

@@ -64,7 +64,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         name,
         providerId);
 
-    Optional<User> userOpt = userDao.selectByEmail(email);
+    // LINEは、後付け連携（NotificationSettingsController経由）で line_Id のみが設定され、
+    // 登録時のメールアドレス（Google等）とLINE側のメール/仮メールが一致しないケースがあるため、
+    // メールより先に line_Id で既存ユーザーを検索する。
+    final String emailForLookup = email;
+    Optional<User> userOpt =
+        "line".equals(registrationId)
+            ? userDao.selectByLineId(providerId).or(() -> userDao.selectByEmail(emailForLookup))
+            : userDao.selectByEmail(email);
     User user;
 
     if (userOpt.isEmpty()) {

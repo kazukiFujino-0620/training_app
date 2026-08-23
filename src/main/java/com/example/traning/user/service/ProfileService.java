@@ -42,4 +42,9 @@ public class ProfileService {
   public void updateGoalMode(Integer userId, String goalMode) {
     userDao.updateGoalMode(userId, goalMode, LocalDateTime.now());
   }
+
+  @Transactional
+  public void updateNotificationMethod(Integer userId, String notificationMethod) {
+    userDao.updateNotificationMethod(userId, notificationMethod);
+  }
 }

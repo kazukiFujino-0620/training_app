@@ -65,4 +65,10 @@ public interface UserDao {
 
   @Update(sqlFile = true)
   int updateLineFriendAdded(String lineId, boolean lineFriendAdded);
+
+  @Update(sqlFile = true)
+  int updateLineId(Integer userId, String lineId);
+
+  @Update(sqlFile = true)
+  int updateNotificationMethod(Integer userId, String notificationMethod);
 }
