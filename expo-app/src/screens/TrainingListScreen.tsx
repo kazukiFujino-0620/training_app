@@ -125,7 +125,7 @@ export default function TrainingListScreen({ navigation }: Props) {
           <TouchableOpacity onPress={() => navigation.navigate('Health')} style={styles.healthButton}>
             <Text style={styles.healthButtonText}>❤️ ヘルスケア</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout}>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
             <Text style={styles.logoutText}>ログアウト</Text>
           </TouchableOpacity>
         </View>
@@ -248,6 +248,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fdecea', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
   },
   healthButtonText: { fontSize: 12, color: '#e53935', fontWeight: '600' },
+  logoutButton: { marginLeft: 'auto' },
   logoutText: { fontSize: 13, color: '#999' },
   noticeBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
