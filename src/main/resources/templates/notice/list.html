@@ -53,6 +53,15 @@
     .advice-card .advice-trainer { font-weight: 700; color: var(--primary-color); }
     .advice-card .advice-trainer::before { content: "💬 "; }
     .advice-card .advice-body { color: var(--text-primary); font-size: 0.92rem; line-height: 1.7; white-space: pre-wrap; }
+    .advice-card.unread {
+      border-left-color: var(--danger-color, #ef4444);
+      box-shadow: 0 0 0 1px var(--danger-color, #ef4444);
+    }
+    .advice-card .advice-new-badge {
+      display: inline-block; font-size: 0.68rem; font-weight: 700; color: #fff;
+      background: var(--danger-color, #ef4444); border-radius: 5px; padding: 1px 6px;
+      margin-right: 6px; letter-spacing: 0.03em;
+    }
   </style>
 </head>
 <body class="bg-secondary">
@@ -69,9 +78,12 @@
     <!-- ita4-4 (A): トレーナーからのアドバイス（時系列・自由記述、Q3=C案）。閲覧しても消えない履歴として表示する。 -->
     <div th:if="${!#lists.isEmpty(advices)}">
       <div class="section-label">トレーナーからのメッセージ</div>
-      <div th:each="advice : ${advices}" class="advice-card">
+      <div th:each="advice : ${advices}" th:class="${'advice-card' + (advice.unread() ? ' unread' : '')}">
         <div class="advice-header">
-          <span class="advice-trainer" th:text="${advice.trainerName()}">トレーナー</span>
+          <span>
+            <span class="advice-new-badge" th:if="${advice.unread()}">NEW</span>
+            <span class="advice-trainer" th:text="${advice.trainerName()}">トレーナー</span>
+          </span>
           <span th:text="${#temporals.format(advice.createdAt(), 'yyyy/MM/dd HH:mm')}">2026/08/16</span>
         </div>
         <div class="advice-body" th:text="${advice.body()}">本文</div>

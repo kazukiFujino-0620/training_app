@@ -370,6 +370,11 @@ public class AdminController {
     // 管理者画面はカレンダー+グラフ画面のため、カロリーは当月の平均的な値を出さずにユーザー情報のみ渡す
     model.addAttribute("targetUser", user);
 
+    // ita4-4 (A) 追加対応: ORG_ADMIN/STORE_ADMINのみ、このユーザー・日付宛のアドバイス送信導線を表示する
+    Role viewerRole = Role.fromValue(getCurrentAdminUser().getRole());
+    model.addAttribute(
+        "canSendAdvice", viewerRole == Role.ORG_ADMIN || viewerRole == Role.STORE_ADMIN);
+
     return "admin/user_training_detail";
   }
 
