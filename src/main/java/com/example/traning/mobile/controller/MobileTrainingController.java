@@ -11,6 +11,7 @@ import com.example.traning.mobile.dto.SetUpdateResponse;
 import com.example.traning.mobile.dto.TrainingCalorieResponse;
 import com.example.traning.mobile.dto.TrainingHistoryResponse;
 import com.example.traning.mobile.dto.UpdateSetRequest;
+import com.example.traning.mobile.dto.UpdateTrainingMemoRequest;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
 import com.example.traning.training.SetType;
@@ -141,6 +142,23 @@ public class MobileTrainingController {
     }
 
     return ResponseEntity.status(201).body(training.getId());
+  }
+
+  /** トレーニングのメモを更新する（ita4-4、自分のトレーニングのみ）。 */
+  @PatchMapping("/{id}/memo")
+  @Transactional
+  @AuditLog(action = "MOBILE_TRAINING_MEMO_UPDATE", targetTable = "trainings")
+  public ResponseEntity<Void> updateMemo(
+      @AuthenticationPrincipal Long userId,
+      @PathVariable Long id,
+      @Valid @RequestBody UpdateTrainingMemoRequest req) {
+
+    Training training = trainingDao.selectById(id);
+    if (training == null) return ResponseEntity.notFound().build();
+    if (!userId.equals(training.getUserId())) return ResponseEntity.status(403).build();
+
+    trainingDao.updateMemoById(id, req.getMemo(), LocalDateTime.now());
+    return ResponseEntity.noContent().build();
   }
 
   /** 種目をソフトデリートする（自分のトレーニングのみ） */

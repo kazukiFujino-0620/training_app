@@ -58,6 +58,8 @@ export interface Training {
   details: TrainingDetail[];
   /** スーパーセットグループID（F-M2）。NULL=単独種目、同値=同一グループ */
   supersetGroupId?: number | null;
+  /** トレーニングメモ（ita4-4、500文字以内） */
+  memo?: string | null;
 }
 
 /** 当日の推定消費カロリー（ita2-3）。全種目完了前、または計算対象データが無い場合はavailable=false */
