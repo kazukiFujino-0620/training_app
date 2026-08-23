@@ -136,13 +136,16 @@
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
 
-.btn-check { 
-    width: 2.5rem; height: 2.5rem; 
-    border-radius: var(--radius-full); 
-    border: 2px solid var(--border-color); 
-    background: var(--bg-card); 
-    cursor: pointer; font-size: 1.2em; 
-    transition: all var(--transition-normal); 
+.btn-check {
+    width: 2.5rem; height: 2.5rem;
+    border-radius: var(--radius-full);
+    border: 2px solid var(--border-color);
+    background: var(--bg-card);
+    /* colorを指定しないとbutton要素のブラウザデフォルト（黒固定）になり、
+       ダークモードで文字が背景に沈んで見えなくなる（ita2結合試験で発見）。 */
+    color: var(--text-primary);
+    cursor: pointer; font-size: 1.2em;
+    transition: all var(--transition-normal);
 }
 
 .btn-check:hover {

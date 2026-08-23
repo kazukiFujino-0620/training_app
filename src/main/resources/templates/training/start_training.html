@@ -197,7 +197,9 @@
                                 data-action="handleCardioCheck">完了</button>
                     </div>
 
-                    <div class="prev-record-container" data-auto-prev></div>
+                    <!-- カーディオはSetの概念が無く、筋トレ用の前回記録（Set表示）は意味をなさないため非表示にする
+                         （ita2結合試験で発見: 「Set1: 0kg × 0回」のような無意味な表示になっていた）。 -->
+                    <div class="prev-record-container" data-auto-prev th:if="${item.partCode != 'CARDIO'}"></div>
 
                     <textarea class="memo-area" placeholder="メモ（セットの感想やフォームの注意点）"
                               th:text="${item.memo}"
@@ -282,7 +284,11 @@
         var modalPanel = createPrevRecordPanel(document.getElementById('modal-prev-container'));
         var modalMenu  = document.getElementById('modalMenu');
         var modalPart  = document.getElementById('modalPart');
-        if (modalMenu) modalMenu.addEventListener('change', function() { modalPanel.load(this.value); });
+        if (modalMenu) modalMenu.addEventListener('change', function() {
+            // カーディオはSetの概念が無く前回記録（Set表示）が意味をなさないため表示しない
+            if (modalPart && modalPart.value === 'CARDIO') { modalPanel.clear(); return; }
+            modalPanel.load(this.value);
+        });
         if (modalPart) modalPart.addEventListener('change', function() { modalPanel.clear(); });
 
         // ② 既存カード（サーバーサイドレンダリング済み）の前回記録パネル
