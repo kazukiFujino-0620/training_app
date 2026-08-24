@@ -65,7 +65,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
       return;
     }
 
+    boolean isLoginAttempt = "POST".equals(method) && "/login".equals(path);
+    if (isLoginAttempt) {
+      // SEC-1 再試験(11回連続302でレート制限が発動しない)の原因切り分け用診断ログ。
+      // ip・バケットの同一性(identityHashCode)・消費前の残トークン数を出す。
+      log.info(
+          "RateLimit診断[login] ip={}, bucketIdentity={}, availableTokensBefore={}",
+          ip,
+          System.identityHashCode(bucket),
+          bucket.getAvailableTokens());
+    }
+
     if (bucket.tryConsume(1)) {
+      if (isLoginAttempt) {
+        log.info(
+            "RateLimit診断[login] 消費成功 ip={}, availableTokensAfter={}",
+            ip,
+            bucket.getAvailableTokens());
+      }
       chain.doFilter(req, res);
     } else {
       log.warn("Rate limit exceeded: path={}, method={}, ip={}", path, method, ip);
