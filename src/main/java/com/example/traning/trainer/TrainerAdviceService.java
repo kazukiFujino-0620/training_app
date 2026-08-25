@@ -60,6 +60,57 @@ public class TrainerAdviceService {
     return trainerAdviceDao.selectActiveByTrainerId(trainer.getUserId().longValue());
   }
 
+  /**
+   * トレーナーの担当範囲内の一般ユーザー（ROLE_USER）を、担当トレーナーの割り当て状況に関わらず全員返す。 担当トレーナー変更UI（宛先一覧・現在の担当表示）用。{@link #listTrainees}
+   * とは異なり、他のトレーナーが 担当のトレーニーも含める。
+   */
+  public List<User> listTraineesForAssignmentManagement(User trainer) {
+    Set<Long> accessible = organizationScopeResolver.resolveAccessibleOrganizationIds(trainer);
+    return userService.findAll().stream()
+        .filter(u -> Role.USER.value().equals(u.getRole()))
+        .filter(u -> accessible == null || accessible.contains(u.getOrganizationId()))
+        .collect(Collectors.toList());
+  }
+
+  /** トレーナーと同じ担当範囲内で、担当トレーナーの変更先として選択可能なトレーナー（ORG_ADMIN/STORE_ADMIN）一覧を返す。 */
+  public List<User> listEligibleTrainers(User trainer) {
+    Set<Long> accessible = organizationScopeResolver.resolveAccessibleOrganizationIds(trainer);
+    return userService.findAll().stream()
+        .filter(
+            u ->
+                Role.ORG_ADMIN.value().equals(u.getRole())
+                    || Role.STORE_ADMIN.value().equals(u.getRole()))
+        .filter(u -> accessible == null || accessible.contains(u.getOrganizationId()))
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * トレーニーの担当トレーナーを変更する。操作者の担当範囲内のトレーニー・変更先トレーナーであることを検証する。 {@code newTrainerId}
+   * が{@code null}の場合は未割り当てに戻す。
+   *
+   * @throws IllegalArgumentException トレーニー・変更先トレーナーが操作者の担当範囲外の場合
+   */
+  @Transactional
+  public void reassignTrainer(User actingTrainer, Long traineeId, Long newTrainerId) {
+    boolean isValidTrainee =
+        listTraineesForAssignmentManagement(actingTrainer).stream()
+            .anyMatch(u -> u.getUserId().longValue() == traineeId);
+    if (!isValidTrainee) {
+      throw new IllegalArgumentException("このトレーニーの担当は変更できません");
+    }
+
+    if (newTrainerId != null) {
+      boolean isValidTrainer =
+          listEligibleTrainers(actingTrainer).stream()
+              .anyMatch(u -> u.getUserId().longValue() == newTrainerId);
+      if (!isValidTrainer) {
+        throw new IllegalArgumentException("変更先のトレーナーが不正です");
+      }
+    }
+
+    profileService.updateAssignedTrainer(traineeId.intValue(), newTrainerId);
+  }
+
   /** トレーニー向け: 自分宛のアドバイス一覧（削除済み除く、新しい順）。/notices画面での統合表示に使う。 */
   public List<TrainerAdvice> getActiveForUser(Long userId) {
     return trainerAdviceDao.selectActiveByTargetUserId(userId);
