@@ -47,4 +47,9 @@ public class ProfileService {
   public void updateNotificationMethod(Integer userId, String notificationMethod) {
     userDao.updateNotificationMethod(userId, notificationMethod);
   }
+
+  @Transactional
+  public void updateAssignedTrainer(Integer userId, Long assignedTrainerId) {
+    userDao.updateAssignedTrainer(userId, assignedTrainerId);
+  }
 }

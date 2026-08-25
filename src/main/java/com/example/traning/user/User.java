@@ -81,4 +81,8 @@ public class User {
 
   @Column(name = "line_friend_added")
   public Boolean lineFriendAdded;
+
+  /** 担当トレーナーのuserId。未割り当ての場合はnull。 */
+  @Column(name = "assigned_trainer_id")
+  public Long assignedTrainerId;
 }
