@@ -230,15 +230,14 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#f5f5f5' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
-    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: '#eee', rowGap: 8,
+    borderBottomWidth: 1, borderBottomColor: '#eee',
   },
   dateText: { fontSize: 12, color: '#888' },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#222' },
   headerActions: {
     flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center',
-    justifyContent: 'flex-end', gap: 12, rowGap: 6,
+    marginTop: 8, gap: 12, rowGap: 6,
   },
   noticeButton: {
     backgroundColor: '#fff8e1', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
