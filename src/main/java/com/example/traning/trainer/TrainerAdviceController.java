@@ -1,10 +1,13 @@
 package com.example.traning.trainer;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.user.Role;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
 import java.security.Principal;
 import java.time.LocalDate;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
@@ -50,7 +53,39 @@ public class TrainerAdviceController {
     model.addAttribute("sentAdvices", trainerAdviceService.listSentByTrainer(trainer));
     model.addAttribute("selectedTargetUserId", targetUserId);
     model.addAttribute("selectedDate", date != null ? date : LocalDate.now());
+    model.addAttribute(
+        "assignmentTrainees", trainerAdviceService.listTraineesForAssignmentManagement(trainer));
+    model.addAttribute("eligibleTrainers", trainerAdviceService.listEligibleTrainers(trainer));
+    model.addAttribute("trainerNames", allTrainerNamesById());
     return "trainer/advice";
+  }
+
+  /** 担当トレーナー変更UIでの表示専用。スコープ外のトレーナーが担当のケースも名前を出せるよう、全トレーナーを対象にする。 */
+  private Map<Long, String> allTrainerNamesById() {
+    return userService.findAll().stream()
+        .filter(
+            u ->
+                Role.ORG_ADMIN.value().equals(u.getRole())
+                    || Role.STORE_ADMIN.value().equals(u.getRole()))
+        .collect(Collectors.toMap(u -> u.getUserId().longValue(), User::getUserName));
+  }
+
+  /** 担当トレーナーの変更（ita4結合試験バグ6追加対応）。{@code newTrainerId}が空の場合は未割り当てに戻す。 */
+  @AuditLog(action = "TRAINER_REASSIGN", targetTable = "users")
+  @PostMapping("/assignments/{traineeId}")
+  public String reassign(
+      @PathVariable Long traineeId,
+      @RequestParam(required = false) Long newTrainerId,
+      Principal principal,
+      RedirectAttributes redirectAttributes) {
+    User trainer = currentUser(principal);
+    try {
+      trainerAdviceService.reassignTrainer(trainer, traineeId, newTrainerId);
+      redirectAttributes.addFlashAttribute("successMessage", "担当トレーナーを変更しました。");
+    } catch (IllegalArgumentException e) {
+      redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+    }
+    return "redirect:/trainer/advice";
   }
 
   @AuditLog(action = "TRAINER_ADVICE_SEND", targetTable = "trainer_advices")

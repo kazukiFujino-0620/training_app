@@ -88,6 +88,89 @@ class TrainerAdviceServiceTest {
   }
 
   @Test
+  void listTraineesForAssignmentManagement_他のトレーナーが担当のトレーニーも含める() {
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
+    User assignedToOther = user(2, "ROLE_USER", 10L, 99L);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(trainer))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll()).thenReturn(List.of(assignedToOther));
+
+    List<User> result = service.listTraineesForAssignmentManagement(trainer);
+
+    assertThat(result).containsExactly(assignedToOther);
+  }
+
+  @Test
+  void listEligibleTrainers_スコープ内のORG_ADMINとSTORE_ADMINのみ返す() {
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
+    User orgAdminInScope = user(2, "ROLE_ORG_ADMIN", 10L);
+    User storeAdminOutOfScope = user(3, "ROLE_STORE_ADMIN", 999L);
+    User traineeInScope = user(4, "ROLE_USER", 10L);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(trainer))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll())
+        .thenReturn(List.of(orgAdminInScope, storeAdminOutOfScope, traineeInScope));
+
+    List<User> result = service.listEligibleTrainers(trainer);
+
+    assertThat(result).containsExactly(orgAdminInScope);
+  }
+
+  @Test
+  void reassignTrainer_担当範囲内のトレーニーを別のトレーナーへ変更できる() {
+    User actingTrainer = user(1, "ROLE_STORE_ADMIN", 10L);
+    User trainee = user(2, "ROLE_USER", 10L, 1L);
+    User newTrainer = user(3, "ROLE_STORE_ADMIN", 10L);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(actingTrainer))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll()).thenReturn(List.of(trainee, newTrainer));
+
+    service.reassignTrainer(actingTrainer, 2L, 3L);
+
+    verify(profileService).updateAssignedTrainer(2, 3L);
+  }
+
+  @Test
+  void reassignTrainer_newTrainerIdがnullの場合は未割り当てに戻す() {
+    User actingTrainer = user(1, "ROLE_STORE_ADMIN", 10L);
+    User trainee = user(2, "ROLE_USER", 10L, 1L);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(actingTrainer))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll()).thenReturn(List.of(trainee));
+
+    service.reassignTrainer(actingTrainer, 2L, null);
+
+    verify(profileService).updateAssignedTrainer(2, null);
+  }
+
+  @Test
+  void reassignTrainer_スコープ外のトレーニーは変更できない() {
+    User actingTrainer = user(1, "ROLE_STORE_ADMIN", 10L);
+    User outOfScopeTrainee = user(2, "ROLE_USER", 999L);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(actingTrainer))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll()).thenReturn(List.of(outOfScopeTrainee));
+
+    assertThatThrownBy(() -> service.reassignTrainer(actingTrainer, 2L, null))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(profileService, never()).updateAssignedTrainer(any(), any());
+  }
+
+  @Test
+  void reassignTrainer_スコープ外のトレーナーへは変更できない() {
+    User actingTrainer = user(1, "ROLE_STORE_ADMIN", 10L);
+    User trainee = user(2, "ROLE_USER", 10L);
+    User outOfScopeTrainer = user(3, "ROLE_STORE_ADMIN", 999L);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(actingTrainer))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll()).thenReturn(List.of(trainee, outOfScopeTrainer));
+
+    assertThatThrownBy(() -> service.reassignTrainer(actingTrainer, 2L, 3L))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(profileService, never()).updateAssignedTrainer(any(), any());
+  }
+
+  @Test
   void send_未割り当てのトレーニーへの初回送信で自動的に担当トレーナーとして割り当てられる() {
     User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
     User unassignedTrainee = user(2, "ROLE_USER", 10L, null);

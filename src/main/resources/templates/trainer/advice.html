@@ -47,6 +47,15 @@
     .training-preview .tp-item { padding: 4px 0; color: var(--text-secondary); border-top: 1px solid var(--border-color); }
     .training-preview .tp-item:first-of-type { border-top: none; }
     .training-preview .tp-empty { color: var(--text-muted); }
+    .assignment-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--border-color); flex-wrap: wrap;
+    }
+    .assignment-row:last-child { border-bottom: none; }
+    .assignment-row .assignment-trainee { font-size: 0.9rem; color: var(--text-primary); }
+    .assignment-row .assignment-current { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+    .assignment-row form { display: flex; align-items: center; gap: 8px; margin: 0; }
+    .assignment-row select { min-width: 160px; }
   </style>
 </head>
 <body class="bg-secondary">
@@ -91,6 +100,32 @@
         </div>
         <button type="submit" class="btn btn-primary">送信する</button>
       </form>
+    </div>
+
+    <div class="advice-manage-card">
+      <h2 style="margin:0 0 4px;font-size:1rem;color:var(--text-primary);">担当トレーナー管理</h2>
+      <p style="color:var(--text-muted);font-size:0.8rem;margin:0 0 12px;">トレーニーごとの担当トレーナーを変更できます（初回送信者が自動的に担当になります）</p>
+      <div th:if="${#lists.isEmpty(assignmentTrainees)}" class="advice-empty">担当範囲内にトレーニーがいません</div>
+      <div th:each="trainee : ${assignmentTrainees}" class="assignment-row">
+        <div>
+          <div class="assignment-trainee" th:text="${trainee.userName + '（' + trainee.email + '）'}"></div>
+          <div class="assignment-current">
+            <span th:if="${trainee.assignedTrainerId == null}">現在の担当: 未割当</span>
+            <span th:unless="${trainee.assignedTrainerId == null}"
+                  th:text="${'現在の担当: ' + (trainerNames[trainee.assignedTrainerId] ?: ('ID:' + trainee.assignedTrainerId))}"></span>
+          </div>
+        </div>
+        <form th:action="@{/trainer/advice/assignments/{id}(id=${trainee.userId})}" method="post">
+          <select name="newTrainerId" class="form-control">
+            <option value="">未割当に戻す</option>
+            <option th:each="candidate : ${eligibleTrainers}"
+                    th:value="${candidate.userId}"
+                    th:selected="${trainee.assignedTrainerId != null and trainee.assignedTrainerId == candidate.userId}"
+                    th:text="${candidate.userName}"></option>
+          </select>
+          <button type="submit" class="btn btn-outline btn-sm">変更</button>
+        </form>
+      </div>
     </div>
 
     <div class="advice-manage-card">
