@@ -80,8 +80,7 @@ class TrainerAdviceServiceTest {
     User unassigned = user(4, "ROLE_USER", 10L, null);
     when(organizationScopeResolver.resolveAccessibleOrganizationIds(trainerA))
         .thenReturn(Set.of(10L));
-    when(userService.findAll())
-        .thenReturn(List.of(assignedToA, assignedToB, unassigned));
+    when(userService.findAll()).thenReturn(List.of(assignedToA, assignedToB, unassigned));
 
     List<User> result = service.listTrainees(trainerA);
 
@@ -109,8 +108,7 @@ class TrainerAdviceServiceTest {
         .thenReturn(Set.of(10L));
     when(userService.findAll()).thenReturn(List.of(assignedToA));
 
-    assertThatThrownBy(
-            () -> service.send(trainerB, 3L, "私からもアドバイス", LocalDate.of(2026, 8, 23)))
+    assertThatThrownBy(() -> service.send(trainerB, 3L, "私からもアドバイス", LocalDate.of(2026, 8, 23)))
         .isInstanceOf(IllegalArgumentException.class);
     verify(profileService, never()).updateAssignedTrainer(any(), any());
     verify(trainerAdviceDao, never()).insert(any(TrainerAdvice.class));
