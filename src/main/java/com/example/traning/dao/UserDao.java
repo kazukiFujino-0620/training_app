@@ -71,4 +71,7 @@ public interface UserDao {
 
   @Update(sqlFile = true)
   int updateNotificationMethod(Integer userId, String notificationMethod);
+
+  @Update(sqlFile = true)
+  int updateAssignedTrainer(Integer userId, Long assignedTrainerId);
 }

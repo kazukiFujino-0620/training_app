@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.example.traning.organization.OrganizationScopeResolver;
 import com.example.traning.user.User;
+import com.example.traning.user.service.ProfileService;
 import com.example.traning.user.service.UserService;
 import java.time.LocalDate;
 import java.util.List;
@@ -31,16 +32,28 @@ class TrainerAdviceServiceTest {
   @Mock private TrainerAdviceDao trainerAdviceDao;
   @Mock private UserService userService;
   @Mock private OrganizationScopeResolver organizationScopeResolver;
+  @Mock private ProfileService profileService;
 
   private TrainerAdviceService service;
 
   @BeforeEach
   void setUp() {
-    service = new TrainerAdviceService(trainerAdviceDao, userService, organizationScopeResolver);
+    service =
+        new TrainerAdviceService(
+            trainerAdviceDao, userService, organizationScopeResolver, profileService);
   }
 
   private User user(int id, String role, Long organizationId) {
-    return User.builder().userId(id).role(role).organizationId(organizationId).build();
+    return user(id, role, organizationId, null);
+  }
+
+  private User user(int id, String role, Long organizationId, Long assignedTrainerId) {
+    return User.builder()
+        .userId(id)
+        .role(role)
+        .organizationId(organizationId)
+        .assignedTrainerId(assignedTrainerId)
+        .build();
   }
 
   @Test
@@ -57,6 +70,62 @@ class TrainerAdviceServiceTest {
     List<User> result = service.listTrainees(trainer);
 
     assertThat(result).containsExactly(traineeInScope);
+  }
+
+  @Test
+  void listTrainees_他のトレーナーが担当のトレーニーは除外する() {
+    User trainerA = user(1, "ROLE_STORE_ADMIN", 10L);
+    User assignedToA = user(2, "ROLE_USER", 10L, 1L);
+    User assignedToB = user(3, "ROLE_USER", 10L, 99L);
+    User unassigned = user(4, "ROLE_USER", 10L, null);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(trainerA))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll()).thenReturn(List.of(assignedToA, assignedToB, unassigned));
+
+    List<User> result = service.listTrainees(trainerA);
+
+    assertThat(result).containsExactlyInAnyOrder(assignedToA, unassigned);
+  }
+
+  @Test
+  void send_未割り当てのトレーニーへの初回送信で自動的に担当トレーナーとして割り当てられる() {
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
+    User unassignedTrainee = user(2, "ROLE_USER", 10L, null);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(trainer))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll()).thenReturn(List.of(unassignedTrainee));
+
+    service.send(trainer, 2L, "頑張りましょう", LocalDate.of(2026, 8, 23));
+
+    verify(profileService).updateAssignedTrainer(2, 1L);
+  }
+
+  @Test
+  void send_既に別のトレーナーが担当のトレーニーへは送信できない() {
+    User trainerB = user(2, "ROLE_STORE_ADMIN", 10L);
+    User assignedToA = user(3, "ROLE_USER", 10L, 1L);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(trainerB))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll()).thenReturn(List.of(assignedToA));
+
+    assertThatThrownBy(() -> service.send(trainerB, 3L, "私からもアドバイス", LocalDate.of(2026, 8, 23)))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(profileService, never()).updateAssignedTrainer(any(), any());
+    verify(trainerAdviceDao, never()).insert(any(TrainerAdvice.class));
+  }
+
+  @Test
+  void send_自分が担当のトレーニーへは再割り当てせず送信できる() {
+    User trainer = user(1, "ROLE_STORE_ADMIN", 10L);
+    User assignedToSelf = user(2, "ROLE_USER", 10L, 1L);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(trainer))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll()).thenReturn(List.of(assignedToSelf));
+
+    service.send(trainer, 2L, "続けましょう", LocalDate.of(2026, 8, 23));
+
+    verify(profileService, never()).updateAssignedTrainer(any(), any());
+    verify(trainerAdviceDao).insert(any(TrainerAdvice.class));
   }
 
   @Test

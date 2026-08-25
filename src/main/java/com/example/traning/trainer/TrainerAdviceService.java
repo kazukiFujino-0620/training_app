@@ -3,6 +3,7 @@ package com.example.traning.trainer;
 import com.example.traning.organization.OrganizationScopeResolver;
 import com.example.traning.user.Role;
 import com.example.traning.user.User;
+import com.example.traning.user.service.ProfileService;
 import com.example.traning.user.service.UserService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,22 +24,34 @@ public class TrainerAdviceService {
   private final TrainerAdviceDao trainerAdviceDao;
   private final UserService userService;
   private final OrganizationScopeResolver organizationScopeResolver;
+  private final ProfileService profileService;
 
   public TrainerAdviceService(
       TrainerAdviceDao trainerAdviceDao,
       UserService userService,
-      OrganizationScopeResolver organizationScopeResolver) {
+      OrganizationScopeResolver organizationScopeResolver,
+      ProfileService profileService) {
     this.trainerAdviceDao = trainerAdviceDao;
     this.userService = userService;
     this.organizationScopeResolver = organizationScopeResolver;
+    this.profileService = profileService;
   }
 
-  /** トレーナーの担当範囲（自店舗＋兼任店舗）内の一般ユーザー（ROLE_USER）一覧を返す。宛先選択用。 */
+  /**
+   * トレーナーの担当範囲（自店舗＋兼任店舗）内の一般ユーザー（ROLE_USER）のうち、 担当トレーナーが未割り当て、または自分が担当トレーナーであるユーザー一覧を返す（宛先選択用）。
+   *
+   * <p>ita4結合試験バグ6対応: 1トレーニーにつき担当トレーナーは1人のみとし、他のトレーナーからは 一覧・送信ともに見えなくする（{@link #send}
+   * で最初の送信時に自動的に割り当てられる）。
+   */
   public List<User> listTrainees(User trainer) {
     Set<Long> accessible = organizationScopeResolver.resolveAccessibleOrganizationIds(trainer);
     return userService.findAll().stream()
         .filter(u -> Role.USER.value().equals(u.getRole()))
         .filter(u -> accessible == null || accessible.contains(u.getOrganizationId()))
+        .filter(
+            u ->
+                u.getAssignedTrainerId() == null
+                    || u.getAssignedTrainerId().longValue() == trainer.getUserId().longValue())
         .collect(Collectors.toList());
   }
 
@@ -92,10 +105,14 @@ public class TrainerAdviceService {
       throw new IllegalArgumentException("対象日を選択してください");
     }
 
-    boolean isValidTarget =
-        listTrainees(trainer).stream().anyMatch(u -> u.getUserId().longValue() == targetUserId);
-    if (!isValidTarget) {
-      throw new IllegalArgumentException("この宛先にはメッセージを送信できません");
+    User target =
+        listTrainees(trainer).stream()
+            .filter(u -> u.getUserId().longValue() == targetUserId)
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("この宛先にはメッセージを送信できません"));
+
+    if (target.getAssignedTrainerId() == null) {
+      profileService.updateAssignedTrainer(target.getUserId(), trainer.getUserId().longValue());
     }
 
     TrainerAdvice advice = new TrainerAdvice();
