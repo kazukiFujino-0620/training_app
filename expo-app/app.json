@@ -3,6 +3,7 @@
     "name": "トレーニングアプリ",
     "slug": "training-app-mobile",
     "version": "1.0.0",
+    "scheme": "trainingapp",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",

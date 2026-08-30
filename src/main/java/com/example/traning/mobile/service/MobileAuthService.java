@@ -85,6 +85,29 @@ public class MobileAuthService {
     return issueFullTokens(userId, user.getEmail(), user.getRole(), req.getDeviceId());
   }
 
+  /**
+   * OAuth（Google/LINE）でのログイン。パスワード検証は行わず、呼び出し元（{@code MobileOAuthLoginService}）が
+   * 解決済みの{@link User}を渡す。MFAが有効な場合は仮トークンを返し、モバイル側は既存の{@code /mfa/verify}
+   * フローへ合流する。
+   *
+   * @throws IllegalArgumentException アカウントが無効な場合
+   */
+  @Transactional
+  public TokenResponse loginViaOAuth(User user, String deviceId) {
+    if (Boolean.FALSE.equals(user.getEnabled()) || user.getDeletedAt() != null) {
+      throw new IllegalArgumentException("アカウントが無効です");
+    }
+
+    Long userId = user.getUserId().longValue();
+
+    if (mfaService.isEnabled(userId)) {
+      String mfaTempToken = jwtService.generateMfaTempToken(userId, deviceId);
+      return TokenResponse.mfaPending(mfaTempToken);
+    }
+
+    return issueFullTokens(userId, user.getEmail(), user.getRole(), deviceId);
+  }
+
   @Transactional
   public TokenResponse verifyMfa(MfaVerifyRequest req) {
     Claims claims;
