@@ -50,10 +50,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     if ("POST".equals(method) && "/login".equals(path)) {
       if (ipBlockService.isBlocked(ip)) {
         log.warn("Blocked IP attempted login: ip={}", maskIp(ip));
-        res.setStatus(429);
-        res.setContentType("application/json;charset=UTF-8");
-        res.getWriter()
-            .write("{\"error\":\"アクセスが一時的に" + "ブロックされています。" + "しばらくしてから再試行" + "してください。\"}");
+        redirectLoginRateLimited(res);
         return;
       }
     }
@@ -86,6 +83,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
       chain.doFilter(req, res);
     } else {
       log.warn("Rate limit exceeded: path={}, method={}, ip={}", path, method, ip);
+      if (isLoginAttempt) {
+        // ブラウザのログインフォームからの通常のPOSTのため、JSONではなくログイン画面へリダイレクトして
+        // 既存のエラー表示（auth/login.html の param.reason 分岐）に乗せる。
+        redirectLoginRateLimited(res);
+        return;
+      }
       res.setStatus(429);
       res.setContentType("application/json;charset=UTF-8");
       res.getWriter()
@@ -93,6 +96,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
               "{\"error\":\"\\u30ea\\u30af\\u30a8\\u30b9\\u30c8\\u304c\\u591a\\u3059\\u304e\\u307e\\u3059\\u3002"
                   + "\\u3057\\u3070\\u3089\\u304f\\u3057\\u3066\\u304b\\u3089\\u518d\\u8a66\\u884c\\u3057\\u3066\\u304f\\u3060\\u3055\\u3044\\u3002\"}");
     }
+  }
+
+  private void redirectLoginRateLimited(HttpServletResponse res) throws IOException {
+    res.sendRedirect("/login?error&reason=rate_limited");
   }
 
   private Bucket resolveBucket(String path, String method, String ip, HttpServletRequest req) {
