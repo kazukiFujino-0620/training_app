@@ -61,8 +61,8 @@ public class TrainerAdviceService {
   }
 
   /**
-   * トレーナーの担当範囲内の一般ユーザー（ROLE_USER）を、担当トレーナーの割り当て状況に関わらず全員返す。 担当トレーナー変更UI（宛先一覧・現在の担当表示）用。{@link #listTrainees}
-   * とは異なり、他のトレーナーが 担当のトレーニーも含める。
+   * トレーナーの担当範囲内の一般ユーザー（ROLE_USER）を、担当トレーナーの割り当て状況に関わらず全員返す。 担当トレーナー変更UI（宛先一覧・現在の担当表示）用。{@link
+   * #listTrainees} とは異なり、他のトレーナーが 担当のトレーニーも含める。
    */
   public List<User> listTraineesForAssignmentManagement(User trainer) {
     Set<Long> accessible = organizationScopeResolver.resolveAccessibleOrganizationIds(trainer);
@@ -85,8 +85,8 @@ public class TrainerAdviceService {
   }
 
   /**
-   * トレーニーの担当トレーナーを変更する。操作者の担当範囲内のトレーニー・変更先トレーナーであることを検証する。 {@code newTrainerId}
-   * が{@code null}の場合は未割り当てに戻す。
+   * トレーニーの担当トレーナーを変更する。操作者の担当範囲内のトレーニー・変更先トレーナーであることを検証する。 {@code newTrainerId} が{@code
+   * null}の場合は未割り当てに戻す。
    *
    * @throws IllegalArgumentException トレーニー・変更先トレーナーが操作者の担当範囲外の場合
    */
