@@ -4,11 +4,13 @@ import com.example.traning.audit.AuditLog;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
+import com.example.traning.smarttrainer.coaching.AiFatigueCommentService;
 import com.example.traning.smarttrainer.coaching.AiTrainingSuggestionService;
 import com.example.traning.smarttrainer.prediction.AcwrService;
 import com.example.traning.smarttrainer.prediction.ChurnDetectionService;
 import com.example.traning.smarttrainer.prediction.OneRmPredictionService;
 import com.example.traning.smarttrainer.recommendation.DailyRecommendation;
+import com.example.traning.smarttrainer.recommendation.FatigueCalculator;
 import com.example.traning.smarttrainer.recommendation.RecommendationService;
 import com.example.traning.smarttrainer.recommendation.RecommendedItem;
 import com.example.traning.trainer.TrainerAdvice;
@@ -71,6 +73,8 @@ public class MenuController {
   private final com.example.traning.notice.NoticeService noticeService;
   private final TrainerAdviceService trainerAdviceService;
   private final AiTrainingSuggestionService aiTrainingSuggestionService;
+  private final AiFatigueCommentService aiFatigueCommentService;
+  private final FatigueCalculator fatigueCalculator;
 
   private static final Map<String, String> PART_LABEL_MAP =
       Map.of("CHEST", "胸", "BACK", "背中", "SHOULDER", "肩", "ARM", "腕", "LEG", "脚");
@@ -88,7 +92,9 @@ public class MenuController {
       ChurnDetectionService churnDetectionService,
       com.example.traning.notice.NoticeService noticeService,
       TrainerAdviceService trainerAdviceService,
-      AiTrainingSuggestionService aiTrainingSuggestionService) {
+      AiTrainingSuggestionService aiTrainingSuggestionService,
+      AiFatigueCommentService aiFatigueCommentService,
+      FatigueCalculator fatigueCalculator) {
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
@@ -102,6 +108,8 @@ public class MenuController {
     this.noticeService = noticeService;
     this.trainerAdviceService = trainerAdviceService;
     this.aiTrainingSuggestionService = aiTrainingSuggestionService;
+    this.aiFatigueCommentService = aiFatigueCommentService;
+    this.fatigueCalculator = fatigueCalculator;
   }
 
   @GetMapping("/menu")
@@ -186,65 +194,23 @@ public class MenuController {
     CalorieCalculator.CalorieEstimate menuCalorieEstimate =
         calorieCalculator.estimate(trainingList, itemMasterByNameForCalorie);
 
-    // 疲労マップ用データ（過去7日間の半減期モデル）
-    LocalDate fatigueStart = today.minusDays(6);
-    List<Training> fatigueTrainings =
-        trainingDao.selectByUserIdAndDateRange(userId.intValue(), fatigueStart, today);
+    // 疲労マップ用データ（過去7日間の半減期モデル）。FatigueCalculatorへ委譲する
+    // （旧実装はここに独自のインライン計算を持っており、ita5-3のWARMUP除外がこの画面だけ
+    // 反映されていなかったため、共通実装に統一した）。
+    FatigueCalculator.FatigueResult fatigueResult = fatigueCalculator.calculate(userId, today);
+    Map<String, Long> volumeByPart = fatigueResult.volumeByPart();
+    Map<String, Integer> setsByPart = fatigueResult.setsByPart();
+    Map<String, Integer> fatiguePct = fatigueResult.fatiguePct();
 
-    String[] partOrder = {"CHEST", "BACK", "SHOULDER", "ARM", "LEG"};
-    Map<String, Long> volumeByPart = new java.util.LinkedHashMap<>();
-    Map<String, Integer> setsByPart = new java.util.LinkedHashMap<>();
-    Map<String, Double> rawFatigueByPart = new java.util.LinkedHashMap<>();
-    for (String p : partOrder) {
-      volumeByPart.put(p, 0L);
-      setsByPart.put(p, 0);
-      rawFatigueByPart.put(p, 0.0);
-    }
-    for (Training ft : fatigueTrainings) {
-      String pc = ft.getPartCode();
-      if (pc == null || !volumeByPart.containsKey(pc)) continue;
-      List<TrainingDetail> fDetails = trainingDetailDao.selectByTrainingId(ft.getId());
-      long daysAgo = java.time.temporal.ChronoUnit.DAYS.between(ft.getTrainingDate(), today);
-      double decay = Math.pow(0.5, daysAgo / 2.0); // 48時間で疲労50%回復
-      long vol = 0;
-      int completedSets = 0;
-      for (TrainingDetail fd : fDetails) {
-        if (!fd.getIsCompleted()) continue;
-        if (fd.getWeight() != null && fd.getReps() != null) {
-          vol += Math.round(fd.getWeight() * fd.getReps());
-        }
-        completedSets++;
-      }
-      volumeByPart.merge(pc, vol, Long::sum);
-      setsByPart.merge(pc, completedSets, Integer::sum);
-      rawFatigueByPart.merge(pc, vol * decay, Double::sum);
-    }
-    // 各部位の生ボリューム（decay なし）で正規化 → トレーニング日=100%、日々回復
-    Map<String, Integer> fatiguePct = new java.util.LinkedHashMap<>();
-    for (String p : partOrder) {
-      long rawVol = volumeByPart.get(p);
-      double decayed = rawFatigueByPart.get(p);
-      int pct = rawVol > 0 ? (int) Math.round(decayed / rawVol * 100) : 0;
-      fatiguePct.put(p, pct);
-    }
     Map<String, String> partNameMap =
         partList.stream()
             .collect(
                 Collectors.toMap(
                     TrainingMaster::getPartCode, TrainingMaster::getPartName, (a, b) -> a));
 
-    log.info(
-        "疲労マップ: {}件取得, partCodes={}",
-        fatigueTrainings.size(),
-        fatigueTrainings.stream()
-            .map(Training::getPartCode)
-            .distinct()
-            .collect(Collectors.toList()));
-    log.info("疲労集計: volume={}, sets={}, pct={}", volumeByPart, setsByPart, fatiguePct);
-
     // Thymeleaf のMap変数キーアクセス問題を避けるため、List<Map>で渡す
     List<Map<String, Object>> fatigueRows = new ArrayList<>();
-    for (String p : partOrder) {
+    for (String p : FatigueCalculator.PART_ORDER) {
       Map<String, Object> row = new java.util.LinkedHashMap<>();
       row.put("partCode", p);
       row.put("partName", partNameMap.getOrDefault(p, p));
@@ -354,6 +320,16 @@ public class MenuController {
       model.addAttribute(
           "aiTrainingSuggestion",
           aiTrainingSuggestionService.getOrGenerateTodaySuggestion(userEntity).orElse(null));
+    }
+
+    // ita5-1 機能3: 筋肉疲労度マップのAI分析（種目登録のたびではなく、その日のトレーニングが
+    // 完了したタイミングで1日1回だけ生成する。確定済み設計）
+    boolean isTodayFullyCompleted =
+        isViewingToday && !trainingList.isEmpty() && trainingList.stream().allMatch(Training::isAllCompleted);
+    if (isTodayFullyCompleted) {
+      model.addAttribute(
+          "aiFatigueComment",
+          aiFatigueCommentService.getOrGenerateTodayComment(userEntity, fatigueResult).orElse(null));
     }
 
     return "menu";
