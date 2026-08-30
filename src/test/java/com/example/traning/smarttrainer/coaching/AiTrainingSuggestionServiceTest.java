@@ -89,8 +89,7 @@ class AiTrainingSuggestionServiceTest {
         new DailyRecommendation("LEG", "脚", "理由", List.of(item), false);
     when(recommendationService.getTodayRecommendation(1L)).thenReturn(recommendation);
     CoachingResult coachingResult =
-        new CoachingResult(
-            "生成コメント", List.of(new AiSuggestedItem("スクワット", 40.0, 60.0, 8, 12, 3)));
+        new CoachingResult("生成コメント", List.of(new AiSuggestedItem("スクワット", 40.0, 60.0, 8, 12, 3)));
     when(trainingCoach.generate(recommendation)).thenReturn(coachingResult);
     when(trainingCoach.source()).thenReturn("mock");
     when(personalRecordService.getByUserIdAndItem(1L, "スクワット")).thenReturn(Optional.empty());
@@ -102,7 +101,8 @@ class AiTrainingSuggestionServiceTest {
     assertThat(result.get().items()).hasSize(1);
     assertThat(result.get().items().get(0).weightMax()).isEqualTo(60.0);
 
-    ArgumentCaptor<AiTrainingSuggestion> captor = ArgumentCaptor.forClass(AiTrainingSuggestion.class);
+    ArgumentCaptor<AiTrainingSuggestion> captor =
+        ArgumentCaptor.forClass(AiTrainingSuggestion.class);
     verify(dao).insert(captor.capture());
     assertThat(captor.getValue().getUserId()).isEqualTo(1L);
     assertThat(captor.getValue().getPartCode()).isEqualTo("LEG");

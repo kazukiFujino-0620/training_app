@@ -5,7 +5,6 @@ import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
 import com.example.traning.smarttrainer.coaching.AiTrainingSuggestionService;
-import com.example.traning.smarttrainer.coaching.AiTrainingSuggestionView;
 import com.example.traning.smarttrainer.prediction.AcwrService;
 import com.example.traning.smarttrainer.prediction.ChurnDetectionService;
 import com.example.traning.smarttrainer.prediction.OneRmPredictionService;

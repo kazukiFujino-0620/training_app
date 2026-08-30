@@ -76,7 +76,8 @@ public class AiTrainingSuggestionService {
     entity.setSource(trainingCoach.source());
     dao.insert(entity);
 
-    return Optional.of(new AiTrainingSuggestionView(result.comment(), recommendation.partCode(), clampedItems));
+    return Optional.of(
+        new AiTrainingSuggestionView(result.comment(), recommendation.partCode(), clampedItems));
   }
 
   /** 提案重量が既存PRの{@link #PR_CLAMP_RATIO}倍を超える場合、その倍率まで丸める。既存PRが無い種目はそのまま返す。 */

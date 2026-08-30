@@ -17,18 +17,14 @@ public class MockTrainingCoach implements TrainingCoach {
   @Override
   public CoachingResult generate(DailyRecommendation recommendation) {
     if (recommendation.restDayRecommended()) {
-      return new CoachingResult(
-          "（モック）全部位がまだ疲労中のようです。今日は軽めの有酸素や休養に充ててみましょう。", List.of());
+      return new CoachingResult("（モック）全部位がまだ疲労中のようです。今日は軽めの有酸素や休養に充ててみましょう。", List.of());
     }
 
     List<AiSuggestedItem> items =
         recommendation.items().stream().map(MockTrainingCoach::toSuggestedItem).toList();
 
     String comment =
-        "（モック）"
-            + recommendation.partLabel()
-            + "の種目を中心に組んでみました。"
-            + recommendation.reasonLabel();
+        "（モック）" + recommendation.partLabel() + "の種目を中心に組んでみました。" + recommendation.reasonLabel();
 
     return new CoachingResult(comment, items);
   }

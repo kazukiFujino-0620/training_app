@@ -20,8 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * レート制限超過時のレスポンス形式を検証する。ブラウザのログインフォーム（POST /login）に対しては
- * JSON文字列をそのまま画面表示させてしまうユーザー体験上の不具合があったため、ログイン画面への
- * リダイレクトに変更した（/api/**等の他エンドポイントは引き続きJSONを返す）。
+ * JSON文字列をそのまま画面表示させてしまうユーザー体験上の不具合があったため、ログイン画面への リダイレクトに変更した（/api/**等の他エンドポイントは引き続きJSONを返す）。
  */
 @ExtendWith(MockitoExtension.class)
 class RateLimitFilterTest {
