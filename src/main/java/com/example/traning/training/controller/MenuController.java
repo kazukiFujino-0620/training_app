@@ -911,6 +911,7 @@ public class MenuController {
       t.setDetails(details);
       t.setPartName(partNameMap.getOrDefault(t.getPartCode(), t.getPartCode()));
       for (TrainingDetail d : details) {
+        if (SetType.fromValueOrMain(d.getSetType()) == SetType.WARMUP) continue;
         if (d.getWeight() != null && d.getReps() != null) {
           totalVolumeKg += Math.round(d.getWeight() * d.getReps());
         }
