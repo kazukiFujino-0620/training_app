@@ -47,6 +47,9 @@ public class SecurityConfig {
   private static final String OPENAPI_YAML = "/openapi.yaml";
   // LINE Messaging APIからのWebhook。署名検証（X-Line-Signature）はLineWebhookController側で行うため未認証で受ける。
   private static final String LINE_WEBHOOK_PATH = "/webhook/line";
+  // モバイルアプリのGoogle/LINEログイン（未認証状態から開始するため許可が必要）。/api/mobile/**とは別に
+  // セッションが使えるこちら側のチェーンに置く（MobileOAuthLoginController参照）。
+  private static final String MOBILE_OAUTH_PATH = "/mobile-oauth/**";
 
   /** 環境変数 APP_REMEMBER_ME_KEY から注入。未設定時は起動失敗させる。 */
   @Value("${app.security.remember-me-key}")
@@ -155,7 +158,8 @@ public class SecurityConfig {
                         SWAGGER_HTML,
                         API_DOCS_PATH,
                         OPENAPI_YAML,
-                        LINE_WEBHOOK_PATH)
+                        LINE_WEBHOOK_PATH,
+                        MOBILE_OAUTH_PATH)
                     .permitAll()
                     .requestMatchers(ADMIN_PATH)
                     // ita1-1 マルチテナント化 フェーズ3: ORG_ADMIN/STORE_ADMIN も /admin/** に到達可能とする。

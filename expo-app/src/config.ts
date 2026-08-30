@@ -3,3 +3,7 @@
 // GCP 本番: https://api.yourdomain.com/api/mobile
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api/mobile';
+
+// Google/LINEログイン（/mobile-oauth/**）はAPI_BASE_URLの/api/mobile配下ではなくサーバー直下にあるため、
+// サフィックスを除いたオリジンを別途持つ。
+export const SERVER_ORIGIN = API_BASE_URL.replace(/\/api\/mobile\/?$/, '');
