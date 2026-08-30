@@ -86,9 +86,8 @@ public class MobileAuthService {
   }
 
   /**
-   * OAuth（Google/LINE）でのログイン。パスワード検証は行わず、呼び出し元（{@code MobileOAuthLoginService}）が
-   * 解決済みの{@link User}を渡す。MFAが有効な場合は仮トークンを返し、モバイル側は既存の{@code /mfa/verify}
-   * フローへ合流する。
+   * OAuth（Google/LINE）でのログイン。パスワード検証は行わず、呼び出し元（{@code MobileOAuthLoginService}）が 解決済みの{@link
+   * User}を渡す。MFAが有効な場合は仮トークンを返し、モバイル側は既存の{@code /mfa/verify} フローへ合流する。
    *
    * @throws IllegalArgumentException アカウントが無効な場合
    */

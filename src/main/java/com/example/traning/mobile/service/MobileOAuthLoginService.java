@@ -54,7 +54,8 @@ public class MobileOAuthLoginService {
   @Value("${app.base-url}")
   private String baseUrl;
 
-  public MobileOAuthLoginService(HttpClient httpClient, ObjectMapper objectMapper, UserDao userDao) {
+  public MobileOAuthLoginService(
+      HttpClient httpClient, ObjectMapper objectMapper, UserDao userDao) {
     this.httpClient = httpClient;
     this.objectMapper = objectMapper;
     this.userDao = userDao;
@@ -105,7 +106,8 @@ public class MobileOAuthLoginService {
   }
 
   private User resolveGoogleUser(String code) {
-    String accessToken = exchangeCodeForToken(GOOGLE_TOKEN_URL, googleClientId, googleClientSecret, code, "google");
+    String accessToken =
+        exchangeCodeForToken(GOOGLE_TOKEN_URL, googleClientId, googleClientSecret, code, "google");
     JsonNode profile = fetchProfile(GOOGLE_USERINFO_URL, accessToken, "Googleプロフィール取得");
     String email = profile.path("email").asText(null);
     if (email == null || email.isBlank()) {
@@ -117,7 +119,8 @@ public class MobileOAuthLoginService {
   }
 
   private User resolveLineUser(String code) {
-    String accessToken = exchangeCodeForToken(LINE_TOKEN_URL, lineClientId, lineClientSecret, code, "line");
+    String accessToken =
+        exchangeCodeForToken(LINE_TOKEN_URL, lineClientId, lineClientSecret, code, "line");
     JsonNode profile = fetchProfile(LINE_PROFILE_URL, accessToken, "LINEプロフィール取得");
     String lineUserId = profile.path("userId").asText(null);
     if (lineUserId == null || lineUserId.isBlank()) {

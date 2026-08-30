@@ -20,7 +20,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
- * モバイルアプリのGoogle/LINEログイン用{@link MobileOAuthLoginService}を検証する。 HttpClient・UserDaoはMockitoでモックし、実際の外部サーバー・DBには接続しない。
+ * モバイルアプリのGoogle/LINEログイン用{@link MobileOAuthLoginService}を検証する。
+ * HttpClient・UserDaoはMockitoでモックし、実際の外部サーバー・DBには接続しない。
  */
 @ExtendWith(MockitoExtension.class)
 class MobileOAuthLoginServiceTest {
@@ -75,8 +76,7 @@ class MobileOAuthLoginServiceTest {
     when(tokenResponse.statusCode()).thenReturn(200);
     when(tokenResponse.body()).thenReturn("{\"access_token\":\"g-access-token\"}");
     when(profileResponse.statusCode()).thenReturn(200);
-    when(profileResponse.body())
-        .thenReturn("{\"email\":\"taro@example.com\",\"sub\":\"g-sub-1\"}");
+    when(profileResponse.body()).thenReturn("{\"email\":\"taro@example.com\",\"sub\":\"g-sub-1\"}");
     when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
         .thenReturn(tokenResponse, profileResponse);
     User existing = User.builder().userId(8).email("taro@example.com").build();

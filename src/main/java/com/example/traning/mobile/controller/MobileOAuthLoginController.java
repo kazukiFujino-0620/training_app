@@ -22,13 +22,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * モバイルアプリのGoogle/LINEログイン（Web版のログインボタンと同等の機能）。
  *
- * <p>{@code /api/mobile/**}はJWT認証のためステートレスに構成されており認可フローのstateをセッションに
- * 保持できないため、あえて{@code /api/mobile/**}の外（デフォルトのセッションベースSecurityFilterChain側）に
- * 配置している。モバイルアプリはシステムブラウザ（expo-web-browserの認証セッション）でこのエンドポイントを開き、
- * 完了後はカスタムURLスキーム（{@code trainingapp://oauth-callback}）へリダイレクトされる。
+ * <p>{@code /api/mobile/**}はJWT認証のためステートレスに構成されており認可フローのstateをセッションに 保持できないため、あえて{@code
+ * /api/mobile/**}の外（デフォルトのセッションベースSecurityFilterChain側）に
+ * 配置している。モバイルアプリはシステムブラウザ（expo-web-browserの認証セッション）でこのエンドポイントを開き、 完了後はカスタムURLスキーム（{@code
+ * trainingapp://oauth-callback}）へリダイレクトされる。
  *
- * <p>事前準備（本番反映時に別途必要）: Google Cloud Console / LINE Developersコンソール側で
- * {@code {baseUrl}/mobile-oauth/google/callback} ・ {@code {baseUrl}/mobile-oauth/line/callback}
+ * <p>事前準備（本番反映時に別途必要）: Google Cloud Console / LINE Developersコンソール側で {@code
+ * {baseUrl}/mobile-oauth/google/callback} ・ {@code {baseUrl}/mobile-oauth/line/callback}
  * を許可リダイレクトURIとして登録しておくこと。
  */
 @Slf4j
@@ -127,7 +127,8 @@ public class MobileOAuthLoginController {
     response.sendRedirect(url.toString());
   }
 
-  private void redirectWithError(HttpServletResponse response, String errorCode) throws IOException {
+  private void redirectWithError(HttpServletResponse response, String errorCode)
+      throws IOException {
     response.sendRedirect(APP_SCHEME_CALLBACK + "?error=" + encode(errorCode));
   }
 
