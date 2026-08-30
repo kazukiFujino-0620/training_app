@@ -74,4 +74,7 @@ public interface UserDao {
 
   @Update(sqlFile = true)
   int updateAssignedTrainer(Integer userId, Long assignedTrainerId);
+
+  @Update(sqlFile = true)
+  int updateAiAdviceConsent(Integer userId, boolean aiAdviceConsent);
 }

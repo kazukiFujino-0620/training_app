@@ -52,4 +52,9 @@ public class ProfileService {
   public void updateAssignedTrainer(Integer userId, Long assignedTrainerId) {
     userDao.updateAssignedTrainer(userId, assignedTrainerId);
   }
+
+  @Transactional
+  public void updateAiAdviceConsent(Integer userId, boolean aiAdviceConsent) {
+    userDao.updateAiAdviceConsent(userId, aiAdviceConsent);
+  }
 }

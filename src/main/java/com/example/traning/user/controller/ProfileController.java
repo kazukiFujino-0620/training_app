@@ -59,6 +59,21 @@ public class ProfileController {
     return "redirect:/user/profile";
   }
 
+  /** ita5-1: AI機能（トレーニング提案・疲労度分析・トレーナーアドバイス下書き）利用への同意の切替。 */
+  @AuditLog(action = "PROFILE_AI_ADVICE_CONSENT_UPDATE", targetTable = "users")
+  @PostMapping("/ai-advice-consent")
+  public String updateAiAdviceConsent(
+      @RequestParam(value = "aiAdviceConsent", required = false) Boolean aiAdviceConsent,
+      Principal principal,
+      RedirectAttributes redirectAttributes) {
+    User user = userService.getUserByEmail(principal.getName());
+    boolean consent = Boolean.TRUE.equals(aiAdviceConsent);
+    profileService.updateAiAdviceConsent(user.getUserId(), consent);
+    redirectAttributes.addFlashAttribute(
+        "successMessage", consent ? "AI機能を有効にしました" : "AI機能を無効にしました");
+    return "redirect:/user/profile";
+  }
+
   @AuditLog(action = "PROFILE_UPDATE", targetTable = "users")
   @PostMapping
   public String updateProfile(

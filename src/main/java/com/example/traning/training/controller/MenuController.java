@@ -4,6 +4,8 @@ import com.example.traning.audit.AuditLog;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
+import com.example.traning.smarttrainer.coaching.AiTrainingSuggestionService;
+import com.example.traning.smarttrainer.coaching.AiTrainingSuggestionView;
 import com.example.traning.smarttrainer.prediction.AcwrService;
 import com.example.traning.smarttrainer.prediction.ChurnDetectionService;
 import com.example.traning.smarttrainer.prediction.OneRmPredictionService;
@@ -69,6 +71,7 @@ public class MenuController {
   private final ChurnDetectionService churnDetectionService;
   private final com.example.traning.notice.NoticeService noticeService;
   private final TrainerAdviceService trainerAdviceService;
+  private final AiTrainingSuggestionService aiTrainingSuggestionService;
 
   private static final Map<String, String> PART_LABEL_MAP =
       Map.of("CHEST", "胸", "BACK", "背中", "SHOULDER", "肩", "ARM", "腕", "LEG", "脚");
@@ -85,7 +88,8 @@ public class MenuController {
       AcwrService acwrService,
       ChurnDetectionService churnDetectionService,
       com.example.traning.notice.NoticeService noticeService,
-      TrainerAdviceService trainerAdviceService) {
+      TrainerAdviceService trainerAdviceService,
+      AiTrainingSuggestionService aiTrainingSuggestionService) {
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
@@ -98,6 +102,7 @@ public class MenuController {
     this.churnDetectionService = churnDetectionService;
     this.noticeService = noticeService;
     this.trainerAdviceService = trainerAdviceService;
+    this.aiTrainingSuggestionService = aiTrainingSuggestionService;
   }
 
   @GetMapping("/menu")
@@ -341,6 +346,16 @@ public class MenuController {
 
     // ita2-5: ジム・店舗からのお知らせバナー
     model.addAttribute("activeNoticeCount", noticeService.getActiveForUser(userEntity).size());
+
+    // ita5-1 機能1: AIトレーニング提案（同意済みユーザーのみ、当日1回キャッシュ、本日分のみ表示）
+    boolean isViewingToday = selectedDate.isEqual(today);
+    model.addAttribute("isViewingToday", isViewingToday);
+    model.addAttribute("aiAdviceConsent", Boolean.TRUE.equals(userEntity.getAiAdviceConsent()));
+    if (isViewingToday) {
+      model.addAttribute(
+          "aiTrainingSuggestion",
+          aiTrainingSuggestionService.getOrGenerateTodaySuggestion(userEntity).orElse(null));
+    }
 
     return "menu";
   }

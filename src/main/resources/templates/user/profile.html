@@ -261,6 +261,40 @@
         </div>
       </div>
 
+      <!-- ita5-1: AI機能利用への同意 -->
+      <form th:action="@{/user/profile/ai-advice-consent}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+        <div class="profile-card">
+          <div class="card-header">AI機能の利用について</div>
+          <div class="card-body">
+            <p class="text-sm text-muted" style="margin-top:0;">
+              本アプリは以下の目的で、外部AI（Anthropic・OpenAI）に一部のトレーニングデータを送信します。
+            </p>
+            <ul class="text-sm text-muted">
+              <li>あなたのトレーニング内容を元にしたトレーニング提案の生成</li>
+              <li>筋肉疲労度の解釈コメントの生成</li>
+              <li>（トレーナーの場合）担当トレーニーへのアドバイス下書きの生成</li>
+            </ul>
+            <p class="text-sm text-muted">
+              送信するのは種目名・PR重量回数・疲労度%・目的モードのみです。氏名・メールアドレス・体重身長・生年月日などの個人情報は送信しません。
+            </p>
+            <div class="form-field" style="display:flex; align-items:center; gap:8px;">
+              <input type="checkbox"
+                     id="aiAdviceConsent"
+                     name="aiAdviceConsent"
+                     value="true"
+                     th:checked="${user.aiAdviceConsent}" />
+              <label for="aiAdviceConsent" style="margin:0;">AI機能の利用に同意する</label>
+            </div>
+          </div>
+        </div>
+        <div class="action-area">
+          <button type="submit" class="btn btn-secondary w-full py-3 font-bold">
+            保存
+          </button>
+        </div>
+      </form>
+
       <!-- F3 Phase1: 目的モード -->
       <form th:action="@{/user/profile/goal-mode}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
