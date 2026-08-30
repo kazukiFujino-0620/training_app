@@ -325,11 +325,15 @@ public class MenuController {
     // ita5-1 機能3: 筋肉疲労度マップのAI分析（種目登録のたびではなく、その日のトレーニングが
     // 完了したタイミングで1日1回だけ生成する。確定済み設計）
     boolean isTodayFullyCompleted =
-        isViewingToday && !trainingList.isEmpty() && trainingList.stream().allMatch(Training::isAllCompleted);
+        isViewingToday
+            && !trainingList.isEmpty()
+            && trainingList.stream().allMatch(Training::isAllCompleted);
     if (isTodayFullyCompleted) {
       model.addAttribute(
           "aiFatigueComment",
-          aiFatigueCommentService.getOrGenerateTodayComment(userEntity, fatigueResult).orElse(null));
+          aiFatigueCommentService
+              .getOrGenerateTodayComment(userEntity, fatigueResult)
+              .orElse(null));
     }
 
     return "menu";

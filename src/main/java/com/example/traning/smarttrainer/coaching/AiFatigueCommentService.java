@@ -10,8 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * ita5-1 機能3: 筋肉疲労度マップのAI分析。オンデマンド生成＋当日キャッシュ（機能1と同じ案B）。
  *
- * <p>呼び出し元（{@code MenuController}）は、その日のトレーニングが完了したタイミング（1日1回）でのみ
- * {@link #getOrGenerateTodayComment}を呼ぶこと（種目登録のたびに呼ばない、確定済み設計）。
+ * <p>呼び出し元（{@code MenuController}）は、その日のトレーニングが完了したタイミング（1日1回）でのみ {@link
+ * #getOrGenerateTodayComment}を呼ぶこと（種目登録のたびに呼ばない、確定済み設計）。
  */
 @Service
 public class AiFatigueCommentService {

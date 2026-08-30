@@ -5,7 +5,8 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * ita5-1 機能3のmock実装。GCPテスト環境では実際の外部AI（GPT-5 nano）を呼び出さず、 最も疲労度が高い部位を元にした簡易的な解釈コメントを返す。本番環境構築時に実API連携へ差し替える。
+ * ita5-1 機能3のmock実装。GCPテスト環境では実際の外部AI（GPT-5 nano）を呼び出さず、
+ * 最も疲労度が高い部位を元にした簡易的な解釈コメントを返す。本番環境構築時に実API連携へ差し替える。
  */
 @Component
 public class MockFatigueCoach implements FatigueCoach {
