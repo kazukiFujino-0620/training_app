@@ -67,8 +67,14 @@
                 15分後に再度お試しください。
             </span>
 
+            <!-- パターン5: レート制限超過（短時間に連続してログインを試行した場合） -->
+            <span th:if="${param.reason != null && #strings.contains(param.reason, 'rate_limited')}">
+                ログイン試行が多すぎます。<br>
+                しばらくしてから再度お試しください。
+            </span>
+
             <!-- パターン4: 通常の入力ミス（reasonが無い、またはそれ以外の場合） -->
-            <span th:if="${param.reason == null || (!#strings.contains(param.reason, 'oauth2_user') && !#strings.contains(param.reason, 'withdrawn') && !#strings.contains(param.reason, 'account_locked'))}">
+            <span th:if="${param.reason == null || (!#strings.contains(param.reason, 'oauth2_user') && !#strings.contains(param.reason, 'withdrawn') && !#strings.contains(param.reason, 'account_locked') && !#strings.contains(param.reason, 'rate_limited'))}">
                 ユーザー名またはパスワードが正しくありません
             </span>
             </div>
