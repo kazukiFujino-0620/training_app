@@ -790,6 +790,42 @@
           </div>
         </div><!-- /今日のおすすめメニュー -->
 
+        <!-- ita5-1 機能1: AIトレーニング提案（本日分のみ。同意していない場合は案内を表示） -->
+        <div class="card mt-6" th:if="${isViewingToday}">
+          <div class="card-header">
+            <h2 class="text-xl font-semibold" style="display:flex; align-items:center; gap:8px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/>
+              </svg>
+              AIトレーニング提案
+            </h2>
+          </div>
+          <div class="card-body">
+            <div th:unless="${aiAdviceConsent}" class="text-muted">
+              現在AI機能はオフになっています。<a th:href="@{/user/profile}">プロフィール設定</a>から有効にすると、
+              トレーニング内容に応じたAIからの提案・コメントが表示されます。
+            </div>
+            <div th:if="${aiAdviceConsent and aiTrainingSuggestion != null}">
+              <p class="text-muted mb-3" th:text="${aiTrainingSuggestion.comment()}"></p>
+              <div th:if="${#lists.isEmpty(aiTrainingSuggestion.items())}" class="text-muted">
+                本日は提案できる種目がありません。
+              </div>
+              <div th:each="item, iter : ${aiTrainingSuggestion.items()}"
+                   style="padding:10px 0; border-bottom:1px solid var(--border-color);">
+                <div style="font-weight:700;">
+                  <span th:text="${iter.count} + '. ' + ${item.itemName()}"></span>
+                </div>
+                <div class="text-sm text-muted">
+                  <span th:text="${item.weightMin()} + '-' + ${item.weightMax()} + 'kg × ' + ${item.repsMin()} + '-' + ${item.repsMax()} + '回 × ' + ${item.sets()} + 'セット'"></span>
+                </div>
+              </div>
+              <p class="text-xs text-muted mt-3">
+                ※AIの提案です。無理のない範囲で調整してください。
+              </p>
+            </div>
+          </div>
+        </div><!-- /AIトレーニング提案 -->
+
         <!-- お知らせ管理（ita2-5、ROLE_ADMIN/ROLE_ORG_ADMIN/ROLE_STORE_ADMINいずれも可） -->
         <div sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')" class="mt-8">
           <div class="card">
