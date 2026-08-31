@@ -7,8 +7,11 @@ import com.example.traning.user.service.UserService;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /** トレーナーアドバイス送信画面（ita4-4 (A)）。ORG_ADMIN/STORE_ADMIN専用。 */
@@ -26,11 +30,15 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class TrainerAdviceController {
 
   private final TrainerAdviceService trainerAdviceService;
+  private final TrainerAdviceDraftService trainerAdviceDraftService;
   private final UserService userService;
 
   public TrainerAdviceController(
-      TrainerAdviceService trainerAdviceService, UserService userService) {
+      TrainerAdviceService trainerAdviceService,
+      TrainerAdviceDraftService trainerAdviceDraftService,
+      UserService userService) {
     this.trainerAdviceService = trainerAdviceService;
+    this.trainerAdviceDraftService = trainerAdviceDraftService;
     this.userService = userService;
   }
 
@@ -104,6 +112,27 @@ public class TrainerAdviceController {
       redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
     }
     return "redirect:/trainer/advice";
+  }
+
+  /** ita5-1 機能2: トレーナーアドバイスのAI下書き生成。「AIで下書き」ボタン押下時のみ呼ばれる（自動生成はしない）。 */
+  @PostMapping("/draft")
+  @ResponseBody
+  public ResponseEntity<Map<String, String>> draft(
+      @RequestParam Long targetUserId,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate targetDate,
+      Principal principal) {
+    User trainer = currentUser(principal);
+    try {
+      Optional<String> generated =
+          trainerAdviceDraftService.generateDraft(trainer, targetUserId, targetDate);
+      if (generated.isEmpty()) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(Map.of("error", "AI機能を利用するには設定画面（プロフィール）で同意が必要です"));
+      }
+      return ResponseEntity.ok(Map.of("draft", generated.get()));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
   }
 
   @AuditLog(action = "TRAINER_ADVICE_DELETE", targetTable = "trainer_advices")

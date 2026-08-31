@@ -94,9 +94,13 @@
           </div>
         </div>
         <div class="form-group">
-          <label>メッセージ</label>
-          <textarea name="body" class="form-control" rows="4"
+          <label style="display:flex;align-items:center;justify-content:space-between;">
+            <span>メッセージ</span>
+            <button type="button" id="aiDraftButton" class="btn btn-outline btn-sm">🤖 AIで下書き</button>
+          </label>
+          <textarea name="body" id="adviceBody" class="form-control" rows="4"
                     placeholder="例: 今週も頻度高く進めていますね。この調子で続けましょう！"></textarea>
+          <div id="aiDraftMessage" style="display:none;font-size:0.78rem;color:var(--text-muted);margin-top:6px;"></div>
         </div>
         <button type="submit" class="btn btn-primary">送信する</button>
       </form>
@@ -148,7 +152,61 @@
   </main>
 
   <script th:src="@{/js/theme.js}"></script>
+  <script th:src="@{/js/csrf-helper.js}"></script>
   <script>
+    (function () {
+      var draftButton = document.getElementById('aiDraftButton');
+      var bodyTextarea = document.getElementById('adviceBody');
+      var draftMessage = document.getElementById('aiDraftMessage');
+      var userSelect = document.getElementById('targetUserId');
+      var dateInput = document.getElementById('targetDate');
+      if (!draftButton || !bodyTextarea || !userSelect || !dateInput) return;
+
+      function showDraftMessage(text) {
+        draftMessage.textContent = text;
+        draftMessage.style.display = text ? 'block' : 'none';
+      }
+
+      draftButton.addEventListener('click', function () {
+        var targetUserId = userSelect.value;
+        var targetDate = dateInput.value;
+        if (!targetUserId || !targetDate) {
+          showDraftMessage('宛先と対象日を選択してから下書きを生成してください');
+          return;
+        }
+
+        showDraftMessage('生成中...');
+        draftButton.disabled = true;
+
+        var params = new URLSearchParams();
+        params.set('targetUserId', targetUserId);
+        params.set('targetDate', targetDate);
+
+        fetchWithCsrf('/trainer/advice/draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString()
+        })
+          .then(function (res) {
+            return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+          })
+          .then(function (result) {
+            if (!result.ok) {
+              showDraftMessage(result.data.error || '下書きの生成に失敗しました');
+              return;
+            }
+            bodyTextarea.value = result.data.draft;
+            showDraftMessage('AIによる下書きです。内容を確認・編集してから送信してください。');
+          })
+          .catch(function () {
+            showDraftMessage('下書きの生成に失敗しました');
+          })
+          .finally(function () {
+            draftButton.disabled = false;
+          });
+      });
+    })();
+
     (function () {
       var userSelect = document.getElementById('targetUserId');
       var dateInput = document.getElementById('targetDate');
