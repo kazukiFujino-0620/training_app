@@ -24,6 +24,7 @@ const mockItems = [
 ];
 
 const navigation = { goBack: jest.fn() } as any;
+const route = { params: undefined } as any;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -33,7 +34,7 @@ beforeEach(() => {
 
 describe('BUG-4: AddExerciseScreen 部位フィルターの文字化け', () => {
   it('TC-1: 部位フィルターの全ラベルが正しい日本語文字列としてレンダリングされる（文字化けしない）', async () => {
-    await render(<AddExerciseScreen navigation={navigation} />);
+    await render(<AddExerciseScreen navigation={navigation} route={route} />);
     await waitFor(() => expect(masterApi.getItems).toHaveBeenCalled());
 
     const expectedLabels = ['すべて', '胸', '背中', '肩', '腕', '脚'];
@@ -43,7 +44,7 @@ describe('BUG-4: AddExerciseScreen 部位フィルターの文字化け', () => 
   });
 
   it('TC-2: 部位フィルターが flexWrap の View 実装になっており、6つの部位ラベルを直接内包している（横スクロールFlatList実装への回帰防止）', async () => {
-    const { container } = await render(<AddExerciseScreen navigation={navigation} />);
+    const { container } = await render(<AddExerciseScreen navigation={navigation} route={route} />);
     await waitFor(() => expect(masterApi.getItems).toHaveBeenCalled());
 
     const partRowCandidates = container.queryAll((el) => {
@@ -61,7 +62,7 @@ describe('BUG-4: AddExerciseScreen 部位フィルターの文字化け', () => 
   });
 
   it('TC-3: 部位フィルターボタン押下で種目一覧が正しく絞り込まれる（表示だけでなく機能も壊れていないことの確認）', async () => {
-    await render(<AddExerciseScreen navigation={navigation} />);
+    await render(<AddExerciseScreen navigation={navigation} route={route} />);
     await waitFor(() => expect(screen.getByText('ベンチプレス')).toBeTruthy());
     expect(screen.getByText('デッドリフト')).toBeTruthy();
 
@@ -74,7 +75,7 @@ describe('BUG-4: AddExerciseScreen 部位フィルターの文字化け', () => 
 
 describe('BUG-9: AddExerciseScreen キーボード表示時のレイアウト崩れ', () => {
   async function openSetInputModal() {
-    const result = await render(<AddExerciseScreen navigation={navigation} />);
+    const result = await render(<AddExerciseScreen navigation={navigation} route={route} />);
     await waitFor(() => expect(screen.getByText('ベンチプレス')).toBeTruthy());
 
     await fireEvent.press(screen.getByText('ベンチプレス'));
@@ -118,5 +119,46 @@ describe('BUG-9: AddExerciseScreen キーボード表示時のレイアウト崩
 
     await waitFor(() => expect(screen.getByPlaceholderText('重量')).toBeTruthy());
     expect(screen.getByPlaceholderText('回数')).toBeTruthy();
+  });
+});
+
+describe('ita5-1 機能1（仮連携）: AIトレーニング提案の登録画面への自動反映', () => {
+  it('route.params.aiSuggestionが種目マスタと一致する場合、セット入力モーダルが提案内容で自動的に開く', async () => {
+    const aiSuggestion = {
+      comment: 'テストコメント',
+      partCode: 'CHEST',
+      items: [
+        { itemName: 'ベンチプレス', weightMin: 60, weightMax: 70, repsMin: 8, repsMax: 10, sets: 2 },
+      ],
+    };
+
+    await render(
+      <AddExerciseScreen navigation={navigation} route={{ params: { aiSuggestion } } as any} />,
+    );
+
+    await waitFor(() => expect(screen.getByText('1種目を登録')).toBeTruthy());
+
+    const weightInputs = screen.getAllByPlaceholderText('重量');
+    const repsInputs = screen.getAllByPlaceholderText('回数');
+    expect(weightInputs).toHaveLength(2); // sets=2
+    expect(weightInputs[0].props.value).toBe('65'); // (60+70)/2
+    expect(repsInputs[0].props.value).toBe('9'); // (8+10)/2
+  });
+
+  it('マスタに存在しない種目名は反映対象から除外される', async () => {
+    const aiSuggestion = {
+      comment: 'テストコメント',
+      partCode: 'CHEST',
+      items: [
+        { itemName: '存在しない種目', weightMin: 10, weightMax: 20, repsMin: 8, repsMax: 10, sets: 1 },
+      ],
+    };
+
+    await render(
+      <AddExerciseScreen navigation={navigation} route={{ params: { aiSuggestion } } as any} />,
+    );
+
+    await waitFor(() => expect(masterApi.getItems).toHaveBeenCalled());
+    expect(screen.queryByText('1種目を登録')).toBeNull();
   });
 });

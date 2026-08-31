@@ -12,7 +12,7 @@ import org.seasar.doma.boot.ConfigAutowireable;
 public interface AiTrainingSuggestionDao {
 
   @Select
-  Optional<AiTrainingSuggestion> selectByUserIdAndDate(Long userId, LocalDate targetDate);
+  Optional<AiTrainingSuggestion> selectByUserIdAndWeekStart(Long userId, LocalDate weekStartDate);
 
   @Insert
   int insert(AiTrainingSuggestion suggestion);

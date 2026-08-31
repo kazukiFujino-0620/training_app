@@ -5,13 +5,15 @@ import {
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import { masterApi, trainingApi } from '../api/client';
-import type { TrainingItemMaster, TrainingHistory } from '../api/types';
+import type { TrainingItemMaster, TrainingHistory, AiTrainingSuggestion } from '../api/types';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'AddExercise'>;
+  route: RouteProp<AppStackParamList, 'AddExercise'>;
 };
 
 const PARTS = [
@@ -39,11 +41,12 @@ interface TrainingBlock {
   historyDateIndex: number;
 }
 
-export default function AddExerciseScreen({ navigation }: Props) {
+export default function AddExerciseScreen({ navigation, route }: Props) {
   const [items, setItems]         = useState<TrainingItemMaster[]>([]);
   const [loading, setLoading]     = useState(true);
   const [partCode, setPartCode]   = useState('');
   const [search, setSearch]       = useState('');
+  const aiSuggestion = route.params?.aiSuggestion;
 
   // ── 複数選択状態（種目一覧でチェックされたIDの集合） ────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -67,6 +70,61 @@ export default function AddExerciseScreen({ navigation }: Props) {
       }
     })();
   }, []);
+
+  // ita5-1 機能1（仮連携）: /menuの「AI提案」から遷移した場合、種目マスタ読み込み完了後に
+  // 提案種目を一括セット入力画面へ自動反映する（1回のみ）
+  useEffect(() => {
+    if (loading || !aiSuggestion || aiSuggestion.items.length === 0) return;
+    applyAiSuggestion(aiSuggestion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  async function applyAiSuggestion(suggestion: AiTrainingSuggestion) {
+    const matchedBlocks: TrainingBlock[] = [];
+    const unmatchedNames: string[] = [];
+
+    suggestion.items.forEach((aiItem) => {
+      const master = items.find((it) => it.itemName === aiItem.itemName);
+      if (!master) {
+        unmatchedNames.push(aiItem.itemName);
+        return;
+      }
+      const weight = Math.round(((aiItem.weightMin + aiItem.weightMax) / 2) * 2) / 2;
+      const reps = Math.round((aiItem.repsMin + aiItem.repsMax) / 2);
+      const setsCount = Math.max(1, aiItem.sets);
+      matchedBlocks.push({
+        item: master,
+        sets: Array.from({ length: setsCount }, () => ({
+          weight: String(weight),
+          reps: String(reps),
+          setType: 'MAIN' as const,
+        })),
+        history: [],
+        historyExpanded: false,
+        historyDateIndex: 0,
+      });
+    });
+
+    if (matchedBlocks.length === 0) {
+      Alert.alert('AI提案', '提案された種目が種目マスタに見つかりませんでした');
+      return;
+    }
+    if (unmatchedNames.length > 0) {
+      Alert.alert('一部の種目が見つかりません', `${unmatchedNames.join('、')} は反映できませんでした`);
+    }
+
+    setBlocks(matchedBlocks);
+    setBlocksVisible(true);
+
+    for (let i = 0; i < matchedBlocks.length; i++) {
+      try {
+        const { data } = await trainingApi.getTrainingHistory(matchedBlocks[i].item.itemName);
+        setBlocks((prev) => prev.map((b, bi) => (bi === i ? { ...b, history: data } : b)));
+      } catch {
+        // 履歴取得失敗は無視（記録なし扱い）
+      }
+    }
+  }
 
   const filtered = items.filter((item) => {
     const matchPart = !partCode || item.partCode === partCode;
