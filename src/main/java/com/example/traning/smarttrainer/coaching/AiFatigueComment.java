@@ -31,5 +31,5 @@ public class AiFatigueComment {
   private String source;
 
   @Column(name = "created_at")
-  private LocalDateTime createdAt;
+  private LocalDateTime createdAt = LocalDateTime.now();
 }

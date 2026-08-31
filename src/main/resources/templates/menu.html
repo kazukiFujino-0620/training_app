@@ -829,6 +829,9 @@
               <p class="text-xs text-muted mt-3">
                 ※AIの提案です。無理のない範囲で調整してください。
               </p>
+              <a th:if="${!#lists.isEmpty(aiTrainingSuggestion.items())}"
+                 th:href="@{/training/register(date=${selectedDate}, applyAiSuggestion=true)}"
+                 class="btn btn-outline btn-sm">この提案を登録画面に反映</a>
             </div>
           </div>
         </div><!-- /AIトレーニング提案 -->

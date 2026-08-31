@@ -77,6 +77,40 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 100);
   }
 
+  // ita5-1 機能1（仮連携）: AIトレーニング提案を登録画面に反映する
+  // （/menuの「この提案を登録画面に反映」から遷移した場合のみ。既存の登録済み種目には追記する形で追加し、上書きはしない）
+  if (window.aiSuggestionForRegister && window.aiSuggestionForRegister.items && window.aiSuggestionForRegister.items.length > 0) {
+    const partCode = window.aiSuggestionForRegister.partCode || "";
+
+    window.aiSuggestionForRegister.items.forEach((item) => {
+      const setsCount = Math.max(1, parseInt(item.sets, 10) || 1);
+      const weight = Math.round(((item.weightMin + item.weightMax) / 2) * 2) / 2;
+      const reps = Math.round((item.repsMin + item.repsMax) / 2);
+
+      const details = [];
+      for (let i = 0; i < setsCount; i++) {
+        details.push({ setNumber: i + 1, weight: weight, reps: reps, isCompleted: false });
+      }
+
+      selectedTrainings.push({
+        id: null,
+        menu: item.itemName,
+        partCode: partCode,
+        partName: "",
+        details: details,
+        memo: "AI提案（下書き）",
+      });
+    });
+
+    document.getElementById("initialState").style.display = "none";
+    document.getElementById("registerContent").style.display = "block";
+    document.getElementById("actionButtons").style.display = "flex";
+
+    setTimeout(() => {
+      renderTrainingBlocks();
+    }, 400);
+  }
+
   // ⭕ 独自の属性「data-vol-action」だけを監視するように変更（干渉を100%回避）
   const container = document.getElementById("trainingBlocksContainer");
   if (container) {
