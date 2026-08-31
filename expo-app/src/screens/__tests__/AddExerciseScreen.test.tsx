@@ -145,6 +145,52 @@ describe('ita5-1 機能1（仮連携）: AIトレーニング提案の登録画�
     expect(repsInputs[0].props.value).toBe('9'); // (8+10)/2
   });
 
+});
+
+describe('itバグ-10: AddExerciseScreen 登録前の並び替え', () => {
+  function blockTitleOrder(container: Awaited<ReturnType<typeof render>>['container']) {
+    return container
+      .queryAll((el) => {
+        if (el.type !== 'Text') return false;
+        const flat = StyleSheet.flatten(el.props.style);
+        return !!flat && flat.fontWeight === '700' && flat.fontSize === 16;
+      })
+      .map((el) => (Array.isArray(el.props.children) ? el.props.children.join('') : el.props.children))
+      .filter((text) => text === 'ベンチプレス' || text === 'デッドリフト');
+  }
+
+  it('TC-9: ▼ボタンを押すと1つ下の種目と順序が入れ替わる', async () => {
+    const { container } = await render(<AddExerciseScreen navigation={navigation} route={route} />);
+    await waitFor(() => expect(screen.getByText('ベンチプレス')).toBeTruthy());
+
+    await fireEvent.press(screen.getByText('ベンチプレス'));
+    await fireEvent.press(screen.getByText('デッドリフト'));
+    await fireEvent.press(screen.getByText(/次へ/));
+
+    await waitFor(() => expect(screen.getByText('2種目を登録')).toBeTruthy());
+    expect(blockTitleOrder(container)).toEqual(['ベンチプレス', 'デッドリフト']);
+
+    await fireEvent.press(screen.getAllByText('▼')[0]);
+
+    expect(blockTitleOrder(container)).toEqual(['デッドリフト', 'ベンチプレス']);
+  });
+
+  it('TC-10: 先頭の種目では▲ボタンが押せない（disabled）', async () => {
+    await render(<AddExerciseScreen navigation={navigation} route={route} />);
+    await waitFor(() => expect(screen.getByText('ベンチプレス')).toBeTruthy());
+
+    await fireEvent.press(screen.getByText('ベンチプレス'));
+    await fireEvent.press(screen.getByText('デッドリフト'));
+    await fireEvent.press(screen.getByText(/次へ/));
+
+    await waitFor(() => expect(screen.getByText('2種目を登録')).toBeTruthy());
+
+    const firstUpButton = screen.getAllByText('▲')[0].parent;
+    expect(firstUpButton?.props.accessibilityState?.disabled ?? firstUpButton?.props.disabled).toBeTruthy();
+  });
+});
+
+describe('ita5-1 機能1（仮連携）: AIトレーニング提案の登録画面への自動反映（続き）', () => {
   it('マスタに存在しない種目名は反映対象から除外される', async () => {
     const aiSuggestion = {
       comment: 'テストコメント',

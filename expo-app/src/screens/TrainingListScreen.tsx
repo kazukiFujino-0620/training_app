@@ -11,7 +11,7 @@ import type { AppStackParamList } from '../navigation/AppNavigator';
 import TrainingCard from '../components/TrainingCard';
 import ProgressBar from '../components/ProgressBar';
 import { trainingApi, noticeApi, coachingApi } from '../api/client';
-import { clearTokens } from '../auth/tokenStore';
+import { clearTokens, getUserName } from '../auth/tokenStore';
 import type { Training, AiTrainingSuggestion } from '../api/types';
 
 type Props = {
@@ -25,6 +25,12 @@ export default function TrainingListScreen({ navigation }: Props) {
   const [calories, setCalories] = useState<number | null>(null);
   const [noticeCount, setNoticeCount] = useState(0);
   const [aiSuggestion, setAiSuggestion] = useState<AiTrainingSuggestion | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+
+  // itバグ-18: ログインユーザー名をヘッダーに表示する
+  useEffect(() => {
+    getUserName().then(setUserName);
+  }, []);
 
   const today = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'short',
@@ -124,6 +130,7 @@ export default function TrainingListScreen({ navigation }: Props) {
         <View>
           <Text style={styles.dateText}>{today}</Text>
           <Text style={styles.headerTitle}>今日のトレーニング</Text>
+          {userName && <Text style={styles.userNameText}>ユーザー名: {userName}</Text>}
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity onPress={() => navigation.navigate('NoticeList')} style={styles.noticeButton}>
@@ -259,6 +266,7 @@ const styles = StyleSheet.create({
   },
   dateText: { fontSize: 12, color: '#888' },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#222' },
+  userNameText: { fontSize: 12, color: '#666', marginTop: 2 },
   headerActions: {
     flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center',
     marginTop: 8, gap: 12, rowGap: 6,

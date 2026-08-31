@@ -28,7 +28,8 @@ document.addEventListener("DOMContentLoaded", () => {
           setNumber: d.setNumber,
           weight: (d.weight !== null && !isNaN(d.weight)) ? parseFloat(d.weight) : 0,
           reps: (d.reps !== null && !isNaN(d.reps)) ? parseInt(d.reps, 10) : 0,
-          isCompleted: d.isCompleted || false
+          isCompleted: d.isCompleted || false,
+          setType: d.setType || "MAIN"
         }))
       }];
 
@@ -89,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const details = [];
       for (let i = 0; i < setsCount; i++) {
-        details.push({ setNumber: i + 1, weight: weight, reps: reps, isCompleted: false });
+        details.push({ setNumber: i + 1, weight: weight, reps: reps, isCompleted: false, setType: "MAIN" });
       }
 
       selectedTrainings.push({
@@ -131,6 +132,8 @@ document.addEventListener("DOMContentLoaded", () => {
       } else if (target.matches('button[data-vol-action="removeIndividualSet"]')) {
         toggleSetCompletion(parseInt(target.dataset.trainingIndex, 10), parseInt(target.dataset.setIndex, 10));
         removeIndividualSet(parseInt(target.dataset.trainingIndex, 10), parseInt(target.dataset.setIndex, 10));
+      } else if (target.matches('[data-vol-action="cycleSetType"]')) {
+        cycleSetType(parseInt(target.dataset.trainingIndex, 10), parseInt(target.dataset.setIndex, 10));
       }
     });
   }
@@ -309,6 +312,7 @@ function confirmSelection() {
           reps: 0,
           setNumber: 1,
           isCompleted: false,
+          setType: "MAIN",
         },
       ],
       memo: "",
@@ -388,6 +392,23 @@ function renderTrainingBlocks() {
   });
 }
 
+// itバグ-11: セット種別バッジ（/start/trainingと同じ見た目・タップでMAIN→WARMUP→DROP→MAINと循環）
+function setTypeBadgeHtml(setType, trainingIndex, setIndex) {
+  const st = setType || "MAIN";
+  const cls = st === "WARMUP" ? "set-type-warmup" : st === "DROP" ? "set-type-drop" : "set-type-main";
+  const label = st === "WARMUP" ? "WU" : st === "DROP" ? "DROP" : "SET";
+  return `<span class="set-type-badge ${cls}" data-vol-action="cycleSetType" data-training-index="${trainingIndex}" data-set-index="${setIndex}" data-set-type="${st}">${label}</span>`;
+}
+
+function cycleSetType(trainingIndex, setIndex) {
+  const training = selectedTrainings[trainingIndex];
+  const detail = training?.details[setIndex];
+  if (!detail) return;
+  const cycle = { MAIN: "DROP", DROP: "WARMUP", WARMUP: "MAIN" };
+  detail.setType = cycle[detail.setType || "MAIN"] || "MAIN";
+  renderSetRows(trainingIndex);
+}
+
 function renderSetRows(trainingIndex) {
   const training = selectedTrainings[trainingIndex];
   const setContainer = document.getElementById(`setContainer-${trainingIndex}`);
@@ -403,6 +424,7 @@ function renderSetRows(trainingIndex) {
     // ⭕ ここも data-vol-action に変更
     setDiv.innerHTML = `
             <span class="set-num">${setIndex + 1}</span>
+            ${setTypeBadgeHtml(detail.setType, trainingIndex, setIndex)}
             <div class="set-input-group">
                   <input type="number" class="weight" value="${detail.weight || ""}" step="0.5" placeholder="0"
                       data-training-index="${trainingIndex}" data-set-index="${setIndex}" data-field="weight">
@@ -471,12 +493,13 @@ function updateVolumeDisplay(trainingIndex) {
 
 function addSet(trainingIndex) {
   const training = selectedTrainings[trainingIndex];
-  let lastWeight = 0, lastReps = 0;
+  let lastWeight = 0, lastReps = 0, lastSetType = "MAIN";
 
   if (training.details.length > 0) {
     const lastSet = training.details[training.details.length - 1];
     lastWeight = (lastSet.weight && !isNaN(lastSet.weight)) ? parseFloat(lastSet.weight) : 0;
     lastReps = (lastSet.reps && !isNaN(lastSet.reps)) ? parseInt(lastSet.reps, 10) : 0;
+    lastSetType = lastSet.setType || "MAIN"; // 直前のセットと同じ種別を継承（/start/trainingと同じ挙動）
   }
 
   training.details.push({
@@ -484,6 +507,7 @@ function addSet(trainingIndex) {
     reps: lastReps,
     setNumber: training.details.length + 1,
     isCompleted: false,
+    setType: lastSetType,
   });
 
   renderSetRows(trainingIndex);
@@ -542,16 +566,18 @@ function saveRegister() {
       const weightInput = row.querySelector(".weight");
       const repsInput = row.querySelector(".reps");
       const completedButton = row.querySelector(".btn-check-set");
-      
+      const setTypeBadge = row.querySelector(".set-type-badge");
+
       const weightVal = weightInput ? parseFloat(weightInput.value) : 0;
       const repsVal = repsInput ? parseInt(repsInput.value, 10) : 0;
       const isCompleted = completedButton ? completedButton.classList.contains("active") : false;
-      
+
       selectedTrainings[blockIndex].details.push({
         setNumber: rowIndex + 1,
         weight: isNaN(weightVal) ? 0 : weightVal,
         reps: isNaN(repsVal) ? 0 : repsVal,
-        isCompleted: isCompleted
+        isCompleted: isCompleted,
+        setType: setTypeBadge?.dataset.setType || "MAIN"
       });
     });
   });

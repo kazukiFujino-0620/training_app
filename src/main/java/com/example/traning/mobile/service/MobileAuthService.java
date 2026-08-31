@@ -82,7 +82,8 @@ public class MobileAuthService {
       return TokenResponse.mfaPending(mfaTempToken);
     }
 
-    return issueFullTokens(userId, user.getEmail(), user.getRole(), req.getDeviceId());
+    return issueFullTokens(
+        userId, user.getEmail(), user.getRole(), req.getDeviceId(), user.getUserName());
   }
 
   /**
@@ -104,7 +105,7 @@ public class MobileAuthService {
       return TokenResponse.mfaPending(mfaTempToken);
     }
 
-    return issueFullTokens(userId, user.getEmail(), user.getRole(), deviceId);
+    return issueFullTokens(userId, user.getEmail(), user.getRole(), deviceId, user.getUserName());
   }
 
   @Transactional
@@ -147,7 +148,7 @@ public class MobileAuthService {
       throw new IllegalArgumentException("ユーザーが見つかりません");
     }
 
-    return issueFullTokens(userId, user.getEmail(), user.getRole(), deviceId);
+    return issueFullTokens(userId, user.getEmail(), user.getRole(), deviceId, user.getUserName());
   }
 
   @Transactional
@@ -171,7 +172,11 @@ public class MobileAuthService {
     refreshTokenDao.revokeByTokenHash(stored.getTokenHash(), LocalDateTime.now());
 
     return issueFullTokens(
-        stored.getUserId(), user.getEmail(), user.getRole(), stored.getDeviceId());
+        stored.getUserId(),
+        user.getEmail(),
+        user.getRole(),
+        stored.getDeviceId(),
+        user.getUserName());
   }
 
   @Transactional
@@ -180,7 +185,8 @@ public class MobileAuthService {
   }
 
   /** アクセストークン + リフレッシュトークンを発行して TokenResponse を返す */
-  private TokenResponse issueFullTokens(Long userId, String email, String role, String deviceId) {
+  private TokenResponse issueFullTokens(
+      Long userId, String email, String role, String deviceId, String userName) {
     String accessToken = jwtService.generateAccessToken(userId, email, role);
 
     String rawRefreshToken = UUID.randomUUID().toString();
@@ -196,6 +202,6 @@ public class MobileAuthService {
         LocalDateTime.now().plusSeconds(jwtService.getRefreshTokenValidityMs() / 1000));
     refreshTokenDao.insert(entity);
 
-    return TokenResponse.full(accessToken, rawRefreshToken, ACCESS_TOKEN_EXPIRES_IN_SEC);
+    return TokenResponse.full(accessToken, rawRefreshToken, ACCESS_TOKEN_EXPIRES_IN_SEC, userName);
   }
 }

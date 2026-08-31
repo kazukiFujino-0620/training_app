@@ -46,7 +46,13 @@ class MobileAuthServiceOAuthTest {
   }
 
   private User user(int id, String email, String role, boolean enabled) {
-    return User.builder().userId(id).email(email).role(role).enabled(enabled).build();
+    return User.builder()
+        .userId(id)
+        .email(email)
+        .role(role)
+        .enabled(enabled)
+        .userName("太郎")
+        .build();
   }
 
   @Test
@@ -63,6 +69,8 @@ class MobileAuthServiceOAuthTest {
     assertThat(result.isMfaRequired()).isFalse();
     assertThat(result.getAccessToken()).isEqualTo("access-token");
     assertThat(result.getRefreshToken()).isNotBlank();
+    // itバグ-18: モバイルのホーム画面ヘッダーにログインユーザー名を表示するため、レスポンスに含める
+    assertThat(result.getUserName()).isEqualTo("太郎");
     verify(refreshTokenDao).insert(any(MobileRefreshToken.class));
   }
 

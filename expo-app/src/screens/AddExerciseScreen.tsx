@@ -213,6 +213,17 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
     });
   }
 
+  // itバグ-10: 登録前の並び替え（上下ボタンで1つずつ移動）。登録順＝表示順になる
+  function moveBlock(blockIndex: number, direction: 'up' | 'down') {
+    setBlocks((prev) => {
+      const targetIndex = direction === 'up' ? blockIndex - 1 : blockIndex + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const next = [...prev];
+      [next[blockIndex], next[targetIndex]] = [next[targetIndex], next[blockIndex]];
+      return next;
+    });
+  }
+
   function toggleHistoryExpanded(blockIndex: number) {
     setBlocks((prev) => prev.map((b, bi) => {
       if (bi !== blockIndex) return b;
@@ -412,6 +423,22 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
                   <View key={block.item.id} style={styles.block}>
                     {/* ブロックヘッダー：種目名 + 前回記録ナビ + 削除 */}
                     <View style={styles.blockHeader}>
+                      <View style={styles.reorderBtnGroup}>
+                        <TouchableOpacity
+                          style={styles.reorderBtn}
+                          disabled={blockIndex === 0}
+                          onPress={() => moveBlock(blockIndex, 'up')}
+                        >
+                          <Text style={[styles.reorderBtnText, blockIndex === 0 && styles.reorderBtnTextDisabled]}>▲</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.reorderBtn}
+                          disabled={blockIndex === blocks.length - 1}
+                          onPress={() => moveBlock(blockIndex, 'down')}
+                        >
+                          <Text style={[styles.reorderBtnText, blockIndex === blocks.length - 1 && styles.reorderBtnTextDisabled]}>▼</Text>
+                        </TouchableOpacity>
+                      </View>
                       <Text style={styles.blockTitle} numberOfLines={1} ellipsizeMode="tail">
                         {block.item.itemName}
                       </Text>
@@ -608,6 +635,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   blockTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#222', paddingRight: 8 },
+  // itバグ-10: 登録前の並び替え（上下ボタン）
+  reorderBtnGroup: { flexDirection: 'column', gap: 2, marginRight: 8 },
+  reorderBtn: {
+    width: 26, height: 20, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f5f5f5', borderRadius: 5,
+  },
+  reorderBtnText: { fontSize: 11, color: '#4CAF50', fontWeight: '700' },
+  reorderBtnTextDisabled: { color: '#ccc' },
   blockRemoveText: { fontSize: 16, color: '#ccc', paddingHorizontal: 4, flexShrink: 0 },
   // 前回記録ナビ
   historyNav: {

@@ -87,7 +87,7 @@ export default function LoginScreen({ navigation }: Props) {
       if (data.mfaRequired && data.mfaTempToken) {
         navigation.navigate('Mfa', { mfaTempToken: data.mfaTempToken, deviceId });
       } else if (data.accessToken && data.refreshToken) {
-        await saveTokens(data.accessToken, data.refreshToken, deviceId);
+        await saveTokens(data.accessToken, data.refreshToken, deviceId, data.userName);
         navigation.replace('App' as any);
       }
     } catch (e: any) {

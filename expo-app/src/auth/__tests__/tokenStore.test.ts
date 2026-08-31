@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
-import { clearTokens, getOrCreateDeviceId } from '../tokenStore';
+import { clearTokens, getOrCreateDeviceId, saveTokens, getUserName } from '../tokenStore';
 
 // SEC-M1 / SEC-M2 単体テスト
 // 対象: src/auth/tokenStore.ts
@@ -87,5 +87,30 @@ describe('SEC-M2: clearTokens() のdevice_id削除（案A）', () => {
 
     expect(deviceId).not.toBe('old-device-id');
     expect(Crypto.randomUUID).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('itバグ-18: ログインユーザー名の保存・取得・削除', () => {
+  it('TC-6: saveTokensにuserNameを渡すと保存され、getUserName()で取得できる', async () => {
+    await saveTokens('access', 'refresh', 'device', '山田太郎');
+
+    expect(await getUserName()).toBe('山田太郎');
+  });
+
+  it('TC-7: userNameを渡さない場合は保存されない（既存値も上書きしない）', async () => {
+    store['user_name'] = '既存ユーザー';
+
+    await saveTokens('access', 'refresh', 'device');
+
+    expect(await getUserName()).toBe('既存ユーザー');
+  });
+
+  it('TC-8: clearTokens()はuser_nameも削除する', async () => {
+    store['user_name'] = '山田太郎';
+
+    await clearTokens();
+
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('user_name');
+    expect(await getUserName()).toBeNull();
   });
 });

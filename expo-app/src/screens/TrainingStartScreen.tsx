@@ -503,6 +503,26 @@ export default function TrainingStartScreen({ navigation }: Props) {
     }
   }
 
+  // itバグ-10: トレーニング順の変更（上下ボタンで1つずつ移動）
+  async function handleMoveSection(trainingId: number, direction: 'up' | 'down') {
+    const idx = trainings.findIndex((t) => t.id === trainingId);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= trainings.length) return;
+
+    const reordered = [...trainings];
+    [reordered[idx], reordered[targetIdx]] = [reordered[targetIdx], reordered[idx]];
+    const previous = trainings;
+    setTrainings(reordered);
+
+    try {
+      await trainingApi.reorder(reordered.map((t) => t.id));
+    } catch {
+      setTrainings(previous);
+      Alert.alert('エラー', '並び替えの保存に失敗しました');
+    }
+  }
+
   const intervalDisplay  = intervalRemaining !== null ? intervalRemaining : intervalDuration;
   const intervalFinished = intervalRemaining === 0;
   const intervalColor    = intervalFinished ? '#F44336' : intervalRunning ? '#4CAF50' : '#222';
@@ -638,10 +658,41 @@ export default function TrainingStartScreen({ navigation }: Props) {
                 </TouchableOpacity>
               </View>
             )}
-            <Text style={styles.partBadge}>
-              {PART_LABELS[section.partCode] ?? section.partCode}
-            </Text>
-            <Text style={styles.menuName}>{section.title}</Text>
+            <View style={styles.menuNameRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.partBadge}>
+                  {PART_LABELS[section.partCode] ?? section.partCode}
+                </Text>
+                <Text style={styles.menuName}>{section.title}</Text>
+              </View>
+              <View style={styles.reorderBtnGroup}>
+                <TouchableOpacity
+                  style={styles.reorderBtn}
+                  disabled={sections[0]?.trainingId === section.trainingId}
+                  onPress={() => handleMoveSection(section.trainingId, 'up')}
+                >
+                  <Text
+                    style={[
+                      styles.reorderBtnText,
+                      sections[0]?.trainingId === section.trainingId && styles.reorderBtnTextDisabled,
+                    ]}
+                  >▲</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.reorderBtn}
+                  disabled={sections[sections.length - 1]?.trainingId === section.trainingId}
+                  onPress={() => handleMoveSection(section.trainingId, 'down')}
+                >
+                  <Text
+                    style={[
+                      styles.reorderBtnText,
+                      sections[sections.length - 1]?.trainingId === section.trainingId &&
+                        styles.reorderBtnTextDisabled,
+                    ]}
+                  >▼</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
             {/* テーブルヘッダー（有酸素運動はセット概念が無いため表示しない） */}
             {section.partCode !== 'CARDIO' && (
               <View style={styles.tableHeaderRow}>
@@ -821,6 +872,15 @@ const styles = StyleSheet.create({
     borderRadius: 8, fontWeight: '600', marginBottom: 4,
   },
   menuName: { fontSize: 18, fontWeight: '800', color: '#222', marginBottom: 10 },
+  // itバグ-10: トレーニング順の変更（上下ボタン）
+  menuNameRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  reorderBtnGroup: { flexDirection: 'column', gap: 2, marginLeft: 8 },
+  reorderBtn: {
+    width: 28, height: 22, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f5f5f5', borderRadius: 6,
+  },
+  reorderBtnText: { fontSize: 12, color: '#4CAF50', fontWeight: '700' },
+  reorderBtnTextDisabled: { color: '#ccc' },
   // F-M2: スーパーセット
   sectionHeaderSuperset: { borderColor: '#7c3aed', borderStyle: 'dashed', borderWidth: 2, borderBottomWidth: 0 },
   supersetRow: {
