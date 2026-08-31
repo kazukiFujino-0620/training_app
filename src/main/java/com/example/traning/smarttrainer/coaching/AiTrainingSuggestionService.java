@@ -1,22 +1,27 @@
 package com.example.traning.smarttrainer.coaching;
 
+import com.example.traning.dao.TrainingMasterDao;
+import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
-import com.example.traning.smarttrainer.recommendation.DailyRecommendation;
-import com.example.traning.smarttrainer.recommendation.RecommendationService;
+import com.example.traning.smarttrainer.recommendation.FatigueCalculator;
 import com.example.traning.user.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * ita5-1 機能1: AIトレーニング提案。オンデマンド生成＋当日キャッシュ（案B）。
+ * ita5-1 機能1: AIトレーニング提案。週頭（月曜）に1回、7日分をまとめてオンデマンド生成し、週次キャッシュする（案B踏襲、頻度は週次）。
+ * 「反映」操作自体は1日分ずつ行う想定のため、呼び出し元は{@link #getTodayEntry(User)}で本日分のみを抽出して使う。
  *
  * <p>安全性チェック（案D）: 生成された重量が既存PRの{@link #PR_CLAMP_RATIO}倍を超える場合はクランプする。
  * フロント側では別途「AIの提案です。無理のない範囲で調整してください」という警告文言を常に表示する想定（UI側の責務）。
@@ -29,19 +34,19 @@ public class AiTrainingSuggestionService {
   private static final double PR_CLAMP_RATIO = 1.1;
 
   private final AiTrainingSuggestionDao dao;
-  private final RecommendationService recommendationService;
+  private final TrainingMasterDao trainingMasterDao;
   private final TrainingCoach trainingCoach;
   private final PersonalRecordService personalRecordService;
   private final ObjectMapper objectMapper;
 
   public AiTrainingSuggestionService(
       AiTrainingSuggestionDao dao,
-      RecommendationService recommendationService,
+      TrainingMasterDao trainingMasterDao,
       TrainingCoach trainingCoach,
       PersonalRecordService personalRecordService,
       ObjectMapper objectMapper) {
     this.dao = dao;
-    this.recommendationService = recommendationService;
+    this.trainingMasterDao = trainingMasterDao;
     this.trainingCoach = trainingCoach;
     this.personalRecordService = personalRecordService;
     this.objectMapper = objectMapper;
@@ -49,38 +54,74 @@ public class AiTrainingSuggestionService {
 
   /** 同意していないユーザーには{@code Optional.empty()}を返す（呼び出し元でAI機能の案内表示に使う）。 */
   @Transactional
-  public Optional<AiTrainingSuggestionView> getOrGenerateTodaySuggestion(User user) {
+  public Optional<List<AiSuggestedDay>> getOrGenerateThisWeekPlan(User user) {
     if (!Boolean.TRUE.equals(user.getAiAdviceConsent())) {
       return Optional.empty();
     }
 
     Long userId = user.getUserId().longValue();
-    LocalDate today = LocalDate.now();
+    LocalDate weekStartDate = LocalDate.now().with(DayOfWeek.MONDAY);
 
-    Optional<AiTrainingSuggestion> cached = dao.selectByUserIdAndDate(userId, today);
+    Optional<AiTrainingSuggestion> cached = dao.selectByUserIdAndWeekStart(userId, weekStartDate);
     if (cached.isPresent()) {
-      return Optional.of(toView(cached.get()));
+      return Optional.of(readDaysJson(cached.get().getItemsJson()));
     }
 
-    DailyRecommendation recommendation = recommendationService.getTodayRecommendation(userId);
-    CoachingResult result = trainingCoach.generate(recommendation);
-    List<AiSuggestedItem> clampedItems =
-        result.items().stream().map(item -> applySafetyClamp(userId, item)).toList();
+    Map<String, List<TrainingItemMaster>> masterItemsByPart = new LinkedHashMap<>();
+    for (String part : FatigueCalculator.PART_ORDER) {
+      masterItemsByPart.put(part, trainingMasterDao.selectItemsByPart(part));
+    }
+
+    Map<String, PersonalRecord> personalRecordsByItemName = new LinkedHashMap<>();
+    for (PersonalRecord pr : personalRecordService.getByUserId(userId)) {
+      personalRecordsByItemName.put(pr.getItemName(), pr);
+    }
+
+    List<AiSuggestedDay> days =
+        trainingCoach.generateWeeklyPlan(
+            weekStartDate, masterItemsByPart, personalRecordsByItemName);
+    List<AiSuggestedDay> clampedDays =
+        days.stream().map(day -> applySafetyClamp(userId, day)).toList();
 
     AiTrainingSuggestion entity = new AiTrainingSuggestion();
     entity.setUserId(userId);
-    entity.setTargetDate(today);
-    entity.setPartCode(recommendation.partCode());
-    entity.setComment(result.comment());
-    entity.setItemsJson(writeItemsJson(clampedItems));
+    entity.setWeekStartDate(weekStartDate);
+    entity.setItemsJson(writeDaysJson(clampedDays));
     entity.setSource(trainingCoach.source());
     dao.insert(entity);
 
-    return Optional.of(
-        new AiTrainingSuggestionView(result.comment(), recommendation.partCode(), clampedItems));
+    return Optional.of(clampedDays);
+  }
+
+  /**
+   * 今日の分だけを抽出する（{@code /menu}表示・登録画面への反映で使用。反映操作自体は1日分ずつ行う）。 通常は必ず一致する（週次生成した7日分のいずれかに本日が含まれるため）。
+   */
+  @Transactional
+  public Optional<AiSuggestedDay> getTodayEntry(User user) {
+    return getOrGenerateThisWeekPlan(user).flatMap(this::findToday);
+  }
+
+  private Optional<AiSuggestedDay> findToday(List<AiSuggestedDay> days) {
+    LocalDate today = LocalDate.now();
+    return days.stream().filter(d -> d.date().isEqual(today)).findFirst();
   }
 
   /** 提案重量が既存PRの{@link #PR_CLAMP_RATIO}倍を超える場合、その倍率まで丸める。既存PRが無い種目はそのまま返す。 */
+  private AiSuggestedDay applySafetyClamp(Long userId, AiSuggestedDay day) {
+    if (day.items().isEmpty()) {
+      return day;
+    }
+    List<AiSuggestedItem> clampedItems =
+        day.items().stream().map(item -> applySafetyClamp(userId, item)).toList();
+    return new AiSuggestedDay(
+        day.date(),
+        day.partCode(),
+        day.partLabel(),
+        day.comment(),
+        clampedItems,
+        day.restDayRecommended());
+  }
+
   private AiSuggestedItem applySafetyClamp(Long userId, AiSuggestedItem item) {
     Optional<PersonalRecord> pr = personalRecordService.getByUserIdAndItem(userId, item.itemName());
     if (pr.isEmpty() || pr.get().getMaxWeight() == null) {
@@ -105,22 +146,17 @@ public class AiTrainingSuggestionService {
         item.itemName(), clampedMin, clampedMax, item.repsMin(), item.repsMax(), item.sets());
   }
 
-  private AiTrainingSuggestionView toView(AiTrainingSuggestion entity) {
-    return new AiTrainingSuggestionView(
-        entity.getComment(), entity.getPartCode(), readItemsJson(entity.getItemsJson()));
-  }
-
-  private String writeItemsJson(List<AiSuggestedItem> items) {
+  private String writeDaysJson(List<AiSuggestedDay> days) {
     try {
-      return objectMapper.writeValueAsString(items);
+      return objectMapper.writeValueAsString(days);
     } catch (JsonProcessingException e) {
       throw new IllegalStateException("AIトレーニング提案のJSON変換に失敗しました", e);
     }
   }
 
-  private List<AiSuggestedItem> readItemsJson(String json) {
+  private List<AiSuggestedDay> readDaysJson(String json) {
     try {
-      return objectMapper.readValue(json, new TypeReference<List<AiSuggestedItem>>() {});
+      return objectMapper.readValue(json, new TypeReference<List<AiSuggestedDay>>() {});
     } catch (JsonProcessingException e) {
       throw new IllegalStateException("AIトレーニング提案のJSON復元に失敗しました", e);
     }

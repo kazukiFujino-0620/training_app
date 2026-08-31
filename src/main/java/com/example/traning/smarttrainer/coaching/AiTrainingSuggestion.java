@@ -10,7 +10,7 @@ import org.seasar.doma.GenerationType;
 import org.seasar.doma.Id;
 import org.seasar.doma.Table;
 
-/** AIトレーニング提案の当日キャッシュ（ita5-1 機能1）。1ユーザー・1対象日につき1件。 */
+/** AIトレーニング提案の週次キャッシュ（ita5-1 機能1）。1ユーザー・1週（月曜始まり）につき1件、7日分をまとめて保持する。 */
 @Entity
 @Table(name = "ai_training_suggestions")
 @Data
@@ -23,15 +23,11 @@ public class AiTrainingSuggestion {
   @Column(name = "user_id")
   private Long userId;
 
-  @Column(name = "target_date")
-  private LocalDate targetDate;
+  /** 対象週の月曜日（ISO週）。 */
+  @Column(name = "week_start_date")
+  private LocalDate weekStartDate;
 
-  @Column(name = "part_code")
-  private String partCode;
-
-  private String comment;
-
-  /** {@link AiSuggestedItem}のリストをJSONシリアライズしたもの。休養日推奨時は"[]"。 */
+  /** {@link AiSuggestedDay}のリスト（7日分）をJSONシリアライズしたもの。 */
   @Column(name = "items_json")
   private String itemsJson;
 

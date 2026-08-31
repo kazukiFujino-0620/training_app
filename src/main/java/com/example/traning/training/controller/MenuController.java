@@ -312,14 +312,14 @@ public class MenuController {
     // ita2-5: ジム・店舗からのお知らせバナー
     model.addAttribute("activeNoticeCount", noticeService.getActiveForUser(userEntity).size());
 
-    // ita5-1 機能1: AIトレーニング提案（同意済みユーザーのみ、当日1回キャッシュ、本日分のみ表示）
+    // ita5-1 機能1: AIトレーニング提案（同意済みユーザーのみ、週頭に1回7日分をまとめて生成・キャッシュし、本日分のみ表示）
     boolean isViewingToday = selectedDate.isEqual(today);
     model.addAttribute("isViewingToday", isViewingToday);
     model.addAttribute("aiAdviceConsent", Boolean.TRUE.equals(userEntity.getAiAdviceConsent()));
     if (isViewingToday) {
       model.addAttribute(
           "aiTrainingSuggestion",
-          aiTrainingSuggestionService.getOrGenerateTodaySuggestion(userEntity).orElse(null));
+          aiTrainingSuggestionService.getTodayEntry(userEntity).orElse(null));
     }
 
     // ita5-1 機能3: 筋肉疲労度マップのAI分析（種目登録のたびではなく、その日のトレーニングが
@@ -560,13 +560,13 @@ public class MenuController {
     Long userId = trainingService.getUserIdByEmail(principal.getName());
 
     // ita5-1 機能1（仮連携）: /menuの「この提案を登録画面に反映」から遷移した場合、
-    // 当日分のAIトレーニング提案（同意済み・生成済みのもの）をJS側に渡して種目を事前投入する。
-    // 過去日への反映は対象外（機能1自体が「本日分のみ」の設計のため）。
+    // 週次生成済みのAIトレーニング提案から本日分だけをJS側に渡して種目を事前投入する。
+    // 過去日への反映は対象外（反映操作自体は「本日分のみ」の設計のため）。
     if (Boolean.TRUE.equals(applyAiSuggestion) && selectedDate.isEqual(today)) {
       User userEntity = trainingService.getUserByEmail(principal.getName());
       model.addAttribute(
           "aiSuggestionForRegister",
-          aiTrainingSuggestionService.getOrGenerateTodaySuggestion(userEntity).orElse(null));
+          aiTrainingSuggestionService.getTodayEntry(userEntity).orElse(null));
     }
 
     List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
