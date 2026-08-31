@@ -222,3 +222,20 @@ export interface Notice {
   createdAt: string;
   deletedAt: string | null;
 }
+
+// ── AIトレーニング提案（ita5-1 機能1・仮連携） ────────────────────────────
+
+export interface AiSuggestedItem {
+  itemName: string;
+  weightMin: number;
+  weightMax: number;
+  repsMin: number;
+  repsMax: number;
+  sets: number;
+}
+
+export interface AiTrainingSuggestion {
+  comment: string;
+  partCode: string | null;
+  items: AiSuggestedItem[];
+}

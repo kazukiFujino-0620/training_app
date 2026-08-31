@@ -11,6 +11,7 @@ import TrainingStartScreen from '../screens/TrainingStartScreen';
 import GoalScreen from '../screens/GoalScreen';
 import HealthScreen from '../screens/HealthScreen';
 import NoticeListScreen from '../screens/NoticeListScreen';
+import type { AiTrainingSuggestion } from '../api/types';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -21,7 +22,7 @@ export type AppStackParamList = {
   TrainingList: undefined;
   TrainingStart: undefined;
   Exercise: { trainingId: number; menu: string };
-  AddExercise: undefined;
+  AddExercise: { aiSuggestion?: AiTrainingSuggestion } | undefined;
   Goal: {
     date: string;
     totalSets?: number;

@@ -10,9 +10,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import TrainingCard from '../components/TrainingCard';
 import ProgressBar from '../components/ProgressBar';
-import { trainingApi, noticeApi } from '../api/client';
+import { trainingApi, noticeApi, coachingApi } from '../api/client';
 import { clearTokens } from '../auth/tokenStore';
-import type { Training } from '../api/types';
+import type { Training, AiTrainingSuggestion } from '../api/types';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'TrainingList'>;
@@ -24,6 +24,7 @@ export default function TrainingListScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [calories, setCalories] = useState<number | null>(null);
   const [noticeCount, setNoticeCount] = useState(0);
+  const [aiSuggestion, setAiSuggestion] = useState<AiTrainingSuggestion | null>(null);
 
   const today = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'short',
@@ -46,6 +47,14 @@ export default function TrainingListScreen({ navigation }: Props) {
         setNoticeCount(notices.length);
       } catch {
         setNoticeCount(0);
+      }
+
+      // ita5-1 機能1（仮連携）: 当日のAIトレーニング提案（同意していない/提案が無い場合は204）
+      try {
+        const { data: suggestion } = await coachingApi.getTodayTrainingSuggestion();
+        setAiSuggestion(suggestion && suggestion.items?.length > 0 ? suggestion : null);
+      } catch {
+        setAiSuggestion(null);
       }
     } catch (e: any) {
       if (e.response?.status === 401) {
@@ -142,6 +151,21 @@ export default function TrainingListScreen({ navigation }: Props) {
           </Text>
           <Text style={styles.noticeBannerArrow}>確認する →</Text>
         </TouchableOpacity>
+      )}
+
+      {/* ita5-1 機能1（仮連携）: AIトレーニング提案 */}
+      {aiSuggestion && (
+        <View style={styles.aiSuggestionBanner}>
+          <Text style={styles.aiSuggestionText} numberOfLines={2}>
+            🤖 {aiSuggestion.comment}
+          </Text>
+          <TouchableOpacity
+            style={styles.aiSuggestionButton}
+            onPress={() => navigation.navigate('AddExercise', { aiSuggestion })}
+          >
+            <Text style={styles.aiSuggestionButtonText}>この提案を反映する</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* 全体プログレス */}
@@ -257,6 +281,17 @@ const styles = StyleSheet.create({
   },
   noticeBannerText: { fontSize: 13, fontWeight: '700', color: '#222' },
   noticeBannerArrow: { fontSize: 12, color: '#999' },
+  aiSuggestionBanner: {
+    marginHorizontal: 16, marginTop: 12, padding: 12,
+    backgroundColor: '#eef2ff', borderRadius: 10,
+    borderLeftWidth: 4, borderLeftColor: '#6366f1',
+  },
+  aiSuggestionText: { fontSize: 13, color: '#333', marginBottom: 8 },
+  aiSuggestionButton: {
+    alignSelf: 'flex-start', backgroundColor: '#6366f1',
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  aiSuggestionButtonText: { fontSize: 12, color: '#fff', fontWeight: '700' },
   progressContainer: { paddingHorizontal: 16, paddingTop: 12 },
   calorieContainer: { paddingHorizontal: 16, paddingTop: 8 },
   calorieText: { fontSize: 13, color: '#666', fontWeight: '600' },

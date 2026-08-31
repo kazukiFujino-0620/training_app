@@ -83,6 +83,7 @@ import type {
   HealthSummaryResponse,
   TrainingCalorieResponse,
   Notice,
+  AiTrainingSuggestion,
 } from './types';
 
 export const authApi = {
@@ -123,6 +124,12 @@ export const trainingApi = {
     client.post<{ supersetGroupId: number }>('/training/superset/group', { trainingIds }),
   ungroupSuperset: (supersetGroupId: number) =>
     client.post('/training/superset/ungroup', { supersetGroupId }),
+};
+
+export const coachingApi = {
+  /** ita5-1 機能1（仮連携）: 当日のAIトレーニング提案。同意していない/提案が無い場合は204（dataはundefined）。 */
+  getTodayTrainingSuggestion: () =>
+    client.get<AiTrainingSuggestion>('/coaching/training-suggestion/today'),
 };
 
 export const masterApi = {
