@@ -6,12 +6,11 @@ import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/**
- * itバグ-13: テンプレート一覧・編集画面での種目グループ化表示に使う{@link TrainingTemplate#getItemGroups()}を検証する。
- */
+/** itバグ-13: テンプレート一覧・編集画面での種目グループ化表示に使う{@link TrainingTemplate#getItemGroups()}を検証する。 */
 class TrainingTemplateItemGroupTest {
 
-  private TrainingTemplateItem item(String itemName, int setNumber, String setType, Integer weight) {
+  private TrainingTemplateItem item(
+      String itemName, int setNumber, String setType, Integer weight) {
     TrainingTemplateItem item = new TrainingTemplateItem();
     item.setItemName(itemName);
     item.setSetNumber(setNumber);
@@ -64,7 +63,8 @@ class TrainingTemplateItemGroupTest {
 
     List<TrainingTemplate.ItemGroup> groups = template.getItemGroups();
 
-    assertThat(groups).extracting(TrainingTemplate.ItemGroup::itemName)
+    assertThat(groups)
+        .extracting(TrainingTemplate.ItemGroup::itemName)
         .containsExactly("スクワット", "ベンチプレス");
     assertThat(groups.get(0).sets()).hasSize(2);
   }
