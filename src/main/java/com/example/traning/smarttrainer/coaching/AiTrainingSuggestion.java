@@ -38,5 +38,5 @@ public class AiTrainingSuggestion {
   private String source;
 
   @Column(name = "created_at")
-  private LocalDateTime createdAt;
+  private LocalDateTime createdAt = LocalDateTime.now();
 }

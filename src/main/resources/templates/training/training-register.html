@@ -603,6 +603,8 @@
     <!-- 既存トレーニングデータ（初期表示用） -->
     <script th:inline="javascript">
         window.existingTrainings = /*[[${existingTrainings}]]*/ [];
+        /* ita5-1 機能1（仮連携）: /menuの「この提案を登録画面に反映」経由の場合のみ設定される */
+        window.aiSuggestionForRegister = /*[[${aiSuggestionForRegister}]]*/ null;
     </script>
 
     <!-- JavaScript -->

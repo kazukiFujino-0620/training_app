@@ -552,11 +552,22 @@ public class MenuController {
           @org.springframework.format.annotation.DateTimeFormat(
               iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
           LocalDate selectedDate,
+      @RequestParam(name = "applyAiSuggestion", required = false) Boolean applyAiSuggestion,
       Model model,
       Principal principal) {
     LocalDate today = LocalDate.now();
     if (selectedDate == null) selectedDate = today;
     Long userId = trainingService.getUserIdByEmail(principal.getName());
+
+    // ita5-1 機能1（仮連携）: /menuの「この提案を登録画面に反映」から遷移した場合、
+    // 当日分のAIトレーニング提案（同意済み・生成済みのもの）をJS側に渡して種目を事前投入する。
+    // 過去日への反映は対象外（機能1自体が「本日分のみ」の設計のため）。
+    if (Boolean.TRUE.equals(applyAiSuggestion) && selectedDate.isEqual(today)) {
+      User userEntity = trainingService.getUserByEmail(principal.getName());
+      model.addAttribute(
+          "aiSuggestionForRegister",
+          aiTrainingSuggestionService.getOrGenerateTodaySuggestion(userEntity).orElse(null));
+    }
 
     List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
 
