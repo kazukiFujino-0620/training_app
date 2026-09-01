@@ -24,6 +24,8 @@ export interface TokenResponse {
   expiresIn?: number;
   mfaRequired: boolean;
   mfaTempToken?: string;
+  /** itバグ-18: ホーム画面ヘッダーでのログインユーザー名表示に使う */
+  userName?: string;
 }
 
 // ── トレーニング ───────────────────────────────────────────────────────────

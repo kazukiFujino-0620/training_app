@@ -46,7 +46,7 @@ client.interceptors.response.use(
         deviceId,
       });
 
-      await saveTokens(data.accessToken, data.refreshToken, deviceId);
+      await saveTokens(data.accessToken, data.refreshToken, deviceId, data.userName);
       refreshQueue.forEach((cb) => cb(data.accessToken));
       refreshQueue = [];
       original.headers.Authorization = `Bearer ${data.accessToken}`;
@@ -124,6 +124,9 @@ export const trainingApi = {
     client.post<{ supersetGroupId: number }>('/training/superset/group', { trainingIds }),
   ungroupSuperset: (supersetGroupId: number) =>
     client.post('/training/superset/ungroup', { supersetGroupId }),
+  /** itバグ-10: トレーニング順の変更。当日の対象トレーニング全件のIDを希望の並び順で渡す */
+  reorder: (orderedIds: number[]) =>
+    client.post('/training/reorder', orderedIds),
 };
 
 export const coachingApi = {

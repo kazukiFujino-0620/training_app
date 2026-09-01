@@ -187,7 +187,7 @@ public class TemplateController {
         .forEach(
             item -> byItem.computeIfAbsent(item.getItemName(), k -> new ArrayList<>()).add(item));
 
-    // 当日の既存種目チェック（重複警告用）
+    // 当日の既存種目チェック（重複スキップ用、itバグ-14）
     List<Training> existingToday = trainingService.getFullTrainingData(userId, trainingDate);
     Set<String> existingMenus =
         existingToday.stream().map(Training::getMenu).collect(Collectors.toSet());
@@ -198,6 +198,10 @@ public class TemplateController {
 
     for (Map.Entry<String, List<TrainingTemplateItem>> entry : byItem.entrySet()) {
       String itemName = entry.getKey();
+      // itバグ-14: 当日すでに同名種目が登録済みの場合は重複登録せずスキップする
+      if (existingMenus.contains(itemName)) {
+        continue;
+      }
       List<TrainingTemplateItem> itemSets = entry.getValue();
 
       Training training = new Training();

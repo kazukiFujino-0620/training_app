@@ -36,7 +36,7 @@ export default function MfaScreen({ navigation, route }: Props) {
         ...(useBackup ? { backupCode: code } : { otp: code }),
       });
       if (data.accessToken && data.refreshToken) {
-        await saveTokens(data.accessToken, data.refreshToken, deviceId);
+        await saveTokens(data.accessToken, data.refreshToken, deviceId, data.userName);
         navigation.replace('App' as any);
       }
     } catch (e: any) {

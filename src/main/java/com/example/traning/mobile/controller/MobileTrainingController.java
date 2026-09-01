@@ -476,6 +476,24 @@ public class MobileTrainingController {
     }
   }
 
+  /**
+   * itバグ-10: トレーニング順の変更（並び替え）。渡された順に{@code display_order}を振り直す。
+   * 当日の対象トレーニング全件のIDを、希望の並び順で渡すこと（部分的な入れ替えでも全件分の配列を渡す）。
+   */
+  @PostMapping("/reorder")
+  @Transactional
+  @AuditLog(action = "MOBILE_TRAINING_REORDER", targetTable = "trainings")
+  public ResponseEntity<?> reorder(
+      @AuthenticationPrincipal Long userId, @RequestBody List<Long> orderedIds) {
+    try {
+      trainingService.reorderTrainings(orderedIds, userId);
+      return ResponseEntity.noContent().build();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+          .body(java.util.Map.of("message", e.getMessage()));
+    }
+  }
+
   private boolean isOwnedByUser(TrainingDetail detail, Long userId) {
     Training training = trainingDao.selectById(detail.getTrainingId());
     return training != null && userId.equals(training.getUserId());
