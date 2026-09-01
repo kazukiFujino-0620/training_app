@@ -62,12 +62,16 @@ public class TemplateController {
 
     List<TrainingMaster> parts = trainingMasterDao.selectAllParts();
     java.util.Map<String, List<TrainingItemMaster>> itemsByPart = new java.util.LinkedHashMap<>();
+    java.util.Map<String, String> partLabels = new java.util.LinkedHashMap<>();
     for (TrainingMaster part : parts) {
       itemsByPart.put(
           part.getPartCode(), trainingMasterDao.selectActiveItemsByPart(part.getPartCode()));
+      partLabels.put(part.getPartCode(), part.getPartName());
     }
     model.addAttribute("parts", parts);
     model.addAttribute("itemsByPart", itemsByPart);
+    // itバグ-13: 一覧のテンプレート部位バッジを日本語表示するためのコード→名称マップ
+    model.addAttribute("partLabels", partLabels);
 
     return "training/template";
   }

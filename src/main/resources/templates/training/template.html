@@ -35,34 +35,39 @@
         <p style="font-size:0.9rem;">「＋ 作成」ボタンからよく使う種目セットを登録できます。</p>
       </div>
 
-      <!-- テンプレート一覧 -->
+      <!-- テンプレート一覧（itバグ-13: 種目ごとのブロック表示。/start/trainingの見た目に寄せる） -->
       <div class="template-grid">
         <div th:each="tmpl : ${templates}" class="template-card">
           <div class="template-card-header">
-            <div class="template-card-name" th:text="${tmpl.name}">テンプレート名</div>
-            <div class="template-card-part" th:text="${tmpl.partCode}">部位</div>
+            <div>
+              <span class="template-card-name" th:text="${tmpl.name}">テンプレート名</span>
+              <span th:if="${tmpl.partCode != null and !#strings.isEmpty(tmpl.partCode)}"
+                    class="template-part-badge" th:text="${partLabels[tmpl.partCode] ?: tmpl.partCode}">部位</span>
+            </div>
+            <div class="template-card-actions">
+              <button class="btn btn-primary btn-sm"
+                      th:onclick="'applyTemplateToday(' + ${tmpl.id} + ')'">今日に適用</button>
+              <button class="btn btn-secondary btn-sm"
+                      th:onclick="'openEditModal(' + ${tmpl.id} + ')'">編集</button>
+              <button class="btn btn-danger btn-sm"
+                      th:onclick="'deleteTemplateById(' + ${tmpl.id} + ')'">削除</button>
+            </div>
           </div>
-          <div class="template-card-body">
-            <div th:each="item : ${tmpl.items}" class="template-item-row">
-              <span th:text="${item.itemName}">種目名</span>
-              <span>
-                Set<span th:text="${item.setNumber}">1</span>
-                <span th:text="'[' + ${item.setType} + ']'">[MAIN]</span>
-                <span th:if="${item.weight != null}" th:text="${item.weight + 'kg'}"></span>
-                <span th:if="${item.reps != null}" th:text="${' × ' + item.reps + '回'}"></span>
+          <div th:if="${#lists.isEmpty(tmpl.items)}" class="template-exercise-block" style="color:var(--text-muted); font-size:0.85rem;">
+            種目が登録されていません
+          </div>
+          <div th:each="group : ${tmpl.itemGroups}" class="template-exercise-block">
+            <div class="template-exercise-name" th:text="${group.itemName}">種目名</div>
+            <div th:each="set, iter : ${group.sets}" class="template-set-row">
+              <span class="template-set-num" th:text="${iter.count}">1</span>
+              <span class="template-set-badge"
+                    th:classappend="${set.setType == 'WARMUP' ? 'set-type-warmup' : (set.setType == 'DROP' ? 'set-type-drop' : 'set-type-main')}"
+                    th:text="${set.setType == 'WARMUP' ? 'WU' : (set.setType == 'DROP' ? 'DROP' : 'SET')}">SET</span>
+              <span class="template-set-val">
+                <span th:if="${set.weight != null}" th:text="${set.weight + 'kg'}">0kg</span>
+                <span th:if="${set.reps != null}" th:text="${' × ' + set.reps + '回'}"> × 0回</span>
               </span>
             </div>
-            <div th:if="${#lists.isEmpty(tmpl.items)}" style="color:var(--text-muted); font-size:0.85rem;">
-              種目が登録されていません
-            </div>
-          </div>
-          <div class="template-card-actions">
-            <button class="btn btn-primary btn-sm"
-                    th:onclick="'applyTemplateToday(' + ${tmpl.id} + ')'">今日に適用</button>
-            <button class="btn btn-secondary btn-sm"
-                    th:onclick="'openEditModal(' + ${tmpl.id} + ')'">編集</button>
-            <button class="btn btn-danger btn-sm"
-                    th:onclick="'deleteTemplateById(' + ${tmpl.id} + ')'">削除</button>
           </div>
         </div>
       </div>
@@ -70,19 +75,10 @@
     </div>
   </main>
 
-  <!-- 種目選択スケルトン（JSでcloneして使用） -->
-  <div id="itemSelectTpl" style="display:none;">
-    <select class="tpl-input tpl-item-name">
-      <option value="">-- 種目を選択 --</option>
-      <th:block th:each="part : ${parts}">
-        <optgroup th:label="${part.partName}" th:attr="data-part-code=${part.partCode}">
-          <th:block th:each="item : ${itemsByPart[part.partCode]}">
-            <option th:value="${item.itemName}" th:text="${item.itemName}"></option>
-          </th:block>
-        </optgroup>
-      </th:block>
-    </select>
-  </div>
+  <!-- itバグ-13: 種目ピッカー用データ（部位ごとの種目一覧） -->
+  <script th:inline="javascript">
+    window.itemsByPart = /*[[${itemsByPart}]]*/ {};
+  </script>
 
   <!-- 作成・編集モーダル -->
   <div id="templateModal" class="template-modal-overlay hidden">
@@ -111,14 +107,16 @@
         <input type="text" id="tplMemo" class="form-control" placeholder="任意" maxlength="500">
       </div>
 
+      <!-- itバグ-13: 種目を先に選び、種目ごとにセットを組む2段階フロー（/training/registerと同じ考え方） -->
       <div class="form-group">
         <label class="form-label">種目・セット構成</label>
-        <div class="template-item-builder" id="tplItemBuilder">
-          <!-- 行はJSで動的生成 -->
-        </div>
-        <button type="button" class="btn btn-outline w-full" onclick="addTplItemRow()" style="margin-top:0.5rem;">
-          ＋ セットを追加
+        <div id="tplConfigBlocks"><!-- 選択済み種目のセット構成ブロック（JSで動的生成） --></div>
+        <button type="button" class="btn btn-outline w-full" onclick="toggleExercisePicker()" style="margin-top:0.5rem;">
+          ＋ 種目を追加
         </button>
+        <div id="tplExercisePicker" class="template-exercise-picker hidden">
+          <!-- チェック式の種目グリッド（JSで動的生成） -->
+        </div>
       </div>
 
       <div style="display:flex; justify-content:space-between; margin-top:1.5rem; gap:0.5rem;">
@@ -139,92 +137,133 @@
     };
   }
 
-  function setTypeLabelHtml(st) {
-    const map = { WARMUP: { label: 'WU', cls: 'tpl-badge-warmup' }, MAIN: { label: 'SET', cls: 'tpl-badge-main' }, DROP: { label: 'DROP', cls: 'tpl-badge-drop' } };
-    const info = map[st] || map.MAIN;
-    return `<button type="button" class="tpl-badge-btn ${info.cls}" data-set-type="${st}" onclick="cycleTplBadge(this)">${info.label}</button>`;
+  // itバグ-13: 種目ごとのセット構成をグループ化した状態で保持する
+  // 構造: [{ itemName, sets: [{ setType, weight, reps }] }]
+  let tplExercises = [];
+
+  const SET_TYPE_INFO = {
+    MAIN: { label: 'SET', cls: 'tpl-badge-main' },
+    WARMUP: { label: 'WU', cls: 'tpl-badge-warmup' },
+    DROP: { label: 'DROP', cls: 'tpl-badge-drop' }
+  };
+  const SET_TYPE_CYCLE = { MAIN: 'DROP', DROP: 'WARMUP', WARMUP: 'MAIN' };
+
+  function toggleExercisePicker() {
+    const picker = document.getElementById('tplExercisePicker');
+    const opening = picker.classList.contains('hidden');
+    if (opening) renderExercisePicker();
+    picker.classList.toggle('hidden', !opening);
   }
 
-  function cycleTplBadge(btn) {
-    const cycle = { MAIN: 'DROP', DROP: 'WARMUP', WARMUP: 'MAIN' };
-    const next = cycle[btn.dataset.setType] || 'MAIN';
-    const map = { WARMUP: { label: 'WU', cls: 'tpl-badge-warmup' }, MAIN: { label: 'SET', cls: 'tpl-badge-main' }, DROP: { label: 'DROP', cls: 'tpl-badge-drop' } };
-    const info = map[next];
-    btn.dataset.setType = next;
-    btn.textContent = info.label;
-    btn.className = `tpl-badge-btn ${info.cls}`;
-  }
+  function renderExercisePicker() {
+    const picker = document.getElementById('tplExercisePicker');
+    const partCode = document.getElementById('tplPartCode').value;
+    const selectedNames = new Set(tplExercises.map(ex => ex.itemName));
 
-  function buildFilteredSelect(partCode, selectedValue) {
-    const tplSelect = document.querySelector('#itemSelectTpl select');
-    const newSelect = tplSelect.cloneNode(true);
-    newSelect.className = 'tpl-input tpl-item-name';
+    let candidates = [];
     if (partCode) {
-      Array.from(newSelect.querySelectorAll('optgroup')).forEach(og => {
-        if (og.dataset.partCode !== partCode) og.remove();
-      });
+      candidates = window.itemsByPart[partCode] || [];
+    } else {
+      Object.values(window.itemsByPart || {}).forEach(list => candidates.push(...list));
     }
-    if (selectedValue) newSelect.value = selectedValue;
-    return newSelect;
+    candidates = candidates.filter(item => !selectedNames.has(item.itemName));
+
+    if (candidates.length === 0) {
+      picker.innerHTML = '<div class="exercise-picker-empty">追加できる種目がありません</div>';
+      return;
+    }
+    picker.innerHTML = candidates
+      .map(item => `<button type="button" class="exercise-chip" onclick="addExerciseToConfig('${item.itemName.replace(/'/g, "\\'")}')">${item.itemName}</button>`)
+      .join('');
   }
 
-  function updateAllExerciseSelects() {
-    const partCode = document.getElementById('tplPartCode').value;
-    document.querySelectorAll('#tplItemBuilder .tpl-item-name').forEach(sel => {
-      const currentValue = sel.value;
-      const newSel = buildFilteredSelect(partCode, currentValue);
-      sel.replaceWith(newSel);
+  function addExerciseToConfig(itemName) {
+    tplExercises.push({ itemName, sets: [{ setType: 'MAIN', weight: null, reps: null }] });
+    document.getElementById('tplExercisePicker').classList.add('hidden');
+    renderConfigBlocks();
+  }
+
+  function removeConfigExercise(exIdx) {
+    tplExercises.splice(exIdx, 1);
+    renderConfigBlocks();
+  }
+
+  function addConfigSet(exIdx) {
+    const sets = tplExercises[exIdx].sets;
+    const last = sets[sets.length - 1];
+    sets.push({ setType: 'MAIN', weight: last ? last.weight : null, reps: last ? last.reps : null });
+    renderConfigBlocks();
+  }
+
+  function removeConfigSet(exIdx, setIdx) {
+    const sets = tplExercises[exIdx].sets;
+    if (sets.length <= 1) return;
+    sets.splice(setIdx, 1);
+    renderConfigBlocks();
+  }
+
+  function cycleConfigSetType(exIdx, setIdx) {
+    const set = tplExercises[exIdx].sets[setIdx];
+    set.setType = SET_TYPE_CYCLE[set.setType] || 'MAIN';
+    renderConfigBlocks();
+  }
+
+  function updateConfigValue(exIdx, setIdx, field, value) {
+    tplExercises[exIdx].sets[setIdx][field] = value === '' ? null : value;
+  }
+
+  function renderConfigBlocks() {
+    const container = document.getElementById('tplConfigBlocks');
+    if (tplExercises.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+    container.innerHTML = tplExercises.map((ex, exIdx) => {
+      const rows = ex.sets.map((set, setIdx) => {
+        const info = SET_TYPE_INFO[set.setType] || SET_TYPE_INFO.MAIN;
+        return `
+          <div class="config-set-row">
+            <span class="config-set-num">${setIdx + 1}</span>
+            <button type="button" class="tpl-badge-btn ${info.cls}" onclick="cycleConfigSetType(${exIdx}, ${setIdx})">${info.label}</button>
+            <input type="number" class="tpl-input" placeholder="kg" step="0.5"
+                   value="${set.weight ?? ''}" oninput="updateConfigValue(${exIdx}, ${setIdx}, 'weight', this.value)">
+            <span style="font-size:0.8rem; color:var(--text-muted);">×</span>
+            <input type="number" class="tpl-input" placeholder="回"
+                   value="${set.reps ?? ''}" oninput="updateConfigValue(${exIdx}, ${setIdx}, 'reps', this.value)">
+            <button type="button" class="config-set-remove" ${ex.sets.length <= 1 ? 'disabled' : ''}
+                    onclick="removeConfigSet(${exIdx}, ${setIdx})">✕</button>
+          </div>`;
+      }).join('');
+      return `
+        <div class="template-config-block">
+          <div class="config-block-header">
+            <span class="config-block-name">${ex.itemName}</span>
+            <button type="button" class="config-block-remove" onclick="removeConfigExercise(${exIdx})">✕</button>
+          </div>
+          ${rows}
+          <button type="button" class="config-block-add-set" onclick="addConfigSet(${exIdx})">＋ セット追加</button>
+        </div>`;
+    }).join('');
+  }
+
+  // フラットな items 配列（itemName・setNumber単位）を種目ごとにグループ化する
+  function groupItemsToExercises(items) {
+    const grouped = [];
+    const indexByName = new Map();
+    (items || []).forEach(item => {
+      let idx = indexByName.get(item.itemName);
+      if (idx === undefined) {
+        idx = grouped.length;
+        indexByName.set(item.itemName, idx);
+        grouped.push({ itemName: item.itemName, sets: [] });
+      }
+      grouped[idx].sets.push({
+        setType: item.setType || 'MAIN',
+        weight: item.weight ?? null,
+        reps: item.reps ?? null
+      });
     });
-  }
-
-  function addTplItemRow(itemName, setNum, setType, weight, reps) {
-    const builder = document.getElementById('tplItemBuilder');
-    const st = setType || 'MAIN';
-    const div = document.createElement('div');
-    div.className = 'template-item-builder-row';
-
-    // 種目セレクト（現在の部位でフィルタリング）
-    const partCode = document.getElementById('tplPartCode').value;
-    const select = buildFilteredSelect(partCode, itemName);
-    div.appendChild(select);
-
-    // セット種別バッジ
-    const badgeWrap = document.createElement('span');
-    badgeWrap.innerHTML = setTypeLabelHtml(st);
-    div.appendChild(badgeWrap.firstChild);
-
-    // 重量
-    const weightInput = document.createElement('input');
-    weightInput.type = 'number';
-    weightInput.className = 'tpl-input tpl-input-sm tpl-weight';
-    weightInput.placeholder = 'kg';
-    weightInput.step = '0.5';
-    if (weight) weightInput.value = weight;
-    div.appendChild(weightInput);
-
-    // ×
-    const times = document.createElement('span');
-    times.style.cssText = 'font-size:0.8rem; color:var(--text-muted);';
-    times.textContent = '×';
-    div.appendChild(times);
-
-    // 回数
-    const repsInput = document.createElement('input');
-    repsInput.type = 'number';
-    repsInput.className = 'tpl-input tpl-input-sm tpl-reps';
-    repsInput.placeholder = '回';
-    if (reps) repsInput.value = reps;
-    div.appendChild(repsInput);
-
-    // 削除ボタン
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.style.cssText = 'color:#f44336; border:none; background:none; cursor:pointer; font-size:1rem;';
-    delBtn.textContent = '✕';
-    delBtn.onclick = () => div.remove();
-    div.appendChild(delBtn);
-
-    builder.appendChild(div);
+    return grouped;
   }
 
   function openCreateModal() {
@@ -233,8 +272,9 @@
     document.getElementById('tplName').value = '';
     document.getElementById('tplPartCode').value = '';
     document.getElementById('tplMemo').value = '';
-    document.getElementById('tplItemBuilder').innerHTML = '';
-    addTplItemRow();
+    tplExercises = [];
+    document.getElementById('tplExercisePicker').classList.add('hidden');
+    renderConfigBlocks();
     document.getElementById('templateModal').classList.remove('hidden');
   }
 
@@ -247,13 +287,11 @@
         editingTemplateId = templateId;
         document.getElementById('templateModalTitle').textContent = 'テンプレートを編集';
         document.getElementById('tplName').value = tmpl.name || '';
-        document.getElementById('tplPartCode').value = tmpl.partCode || 'CHEST';
+        document.getElementById('tplPartCode').value = tmpl.partCode || '';
         document.getElementById('tplMemo').value = tmpl.memo || '';
-        document.getElementById('tplItemBuilder').innerHTML = '';
-        (tmpl.items || []).forEach(item => {
-          addTplItemRow(item.itemName, item.setNumber, item.setType, item.weight, item.reps);
-        });
-        if (!tmpl.items || tmpl.items.length === 0) addTplItemRow();
+        tplExercises = groupItemsToExercises(tmpl.items);
+        document.getElementById('tplExercisePicker').classList.add('hidden');
+        renderConfigBlocks();
         document.getElementById('templateModal').classList.remove('hidden');
       });
   }
@@ -269,23 +307,18 @@
     const partCode = document.getElementById('tplPartCode').value;
     const memo = document.getElementById('tplMemo').value.trim();
 
-    const rows = document.querySelectorAll('#tplItemBuilder .template-item-builder-row');
     const items = [];
     let displayOrder = 0;
-    rows.forEach((row, idx) => {
-      const itemName = row.querySelector('.tpl-item-name')?.value.trim();
-      if (!itemName) return;
-      const badge = row.querySelector('.tpl-badge-btn');
-      const setType = badge?.dataset.setType || 'MAIN';
-      const weight = row.querySelector('.tpl-weight')?.value;
-      const reps = row.querySelector('.tpl-reps')?.value;
-      items.push({
-        itemName,
-        setNumber: idx + 1,
-        setType,
-        weight: weight ? parseFloat(weight) : null,
-        reps: reps ? parseInt(reps, 10) : null,
-        displayOrder: displayOrder++
+    tplExercises.forEach(ex => {
+      ex.sets.forEach((set, setIdx) => {
+        items.push({
+          itemName: ex.itemName,
+          setNumber: setIdx + 1,
+          setType: set.setType || 'MAIN',
+          weight: set.weight !== null && set.weight !== '' ? parseFloat(set.weight) : null,
+          reps: set.reps !== null && set.reps !== '' ? parseInt(set.reps, 10) : null,
+          displayOrder: displayOrder++
+        });
       });
     });
 
@@ -332,8 +365,12 @@
     }).catch(() => alert('通信エラーが発生しました。'));
   }
 
-  // 部位変更時に全種目セレクトを更新
-  document.getElementById('tplPartCode').addEventListener('change', updateAllExerciseSelects);
+  // 部位変更時、種目ピッカーが開いていれば表示中の候補を再フィルタする
+  document.getElementById('tplPartCode').addEventListener('change', function() {
+    if (!document.getElementById('tplExercisePicker').classList.contains('hidden')) {
+      renderExercisePicker();
+    }
+  });
 
   // モーダル外クリックで閉じる
   document.getElementById('templateModal').addEventListener('click', function(e) {
