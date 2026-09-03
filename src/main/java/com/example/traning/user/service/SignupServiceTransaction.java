@@ -76,6 +76,9 @@ public class SignupServiceTransaction {
       // （まだ公式アカウントの友だち追加はしていないためline_friend_addedはfalseで初期化、追加後はWebhookで更新される）。
       user.setNotificationMethod(signupForm.getLineId() != null ? "LINE" : "EMAIL");
       user.setLineFriendAdded(false);
+      // ai_advice_consentも同様にDB上NOT NULL（DEFAULT FALSE）。DomaのINSERTはDEFAULT句に頼らないため、
+      // 未同意の初期状態としてfalseを明示する。
+      user.setAiAdviceConsent(false);
 
       userDao.insert(user);
       log.info("User registered successfully - isOAuth2: {}", signupForm.isOAuth2Signup());
