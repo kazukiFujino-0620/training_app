@@ -26,12 +26,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.ui.Model;
 import org.springframework.ui.ExtendedModelMap;
+import org.springframework.ui.Model;
 
 /**
- * ita3-3: ROLE_ADMIN（全組織アクセス可）であっても、一般ユーザー（デフォルト組織所属）は
- * `/admin/users`・`/admin/all-users-training` の一覧から除外されることを検証する。
+ * ita3-3: ROLE_ADMIN（全組織アクセス可）であっても、一般ユーザー（デフォルト組織所属）は `/admin/users`・`/admin/all-users-training`
+ * の一覧から除外されることを検証する。
  */
 @ExtendWith(MockitoExtension.class)
 class AdminControllerGeneralUserFilterTest {
@@ -72,8 +72,7 @@ class AdminControllerGeneralUserFilterTest {
     when(userDetails.getUsername()).thenReturn("admin@example.com");
     when(userService.getUserByEmail("admin@example.com")).thenReturn(admin);
     SecurityContextHolder.getContext()
-        .setAuthentication(
-            new UsernamePasswordAuthenticationToken(userDetails, null, List.of()));
+        .setAuthentication(new UsernamePasswordAuthenticationToken(userDetails, null, List.of()));
     when(organizationScopeResolver.resolveAccessibleOrganizationIds(admin)).thenReturn(null);
   }
 

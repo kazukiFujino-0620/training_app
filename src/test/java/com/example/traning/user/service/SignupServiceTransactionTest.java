@@ -88,7 +88,8 @@ class SignupServiceTransactionTest {
     when(inviteCodeService.redeem("INVALID001"))
         .thenThrow(new IllegalArgumentException("招待コードが見つかりません"));
 
-    assertThatThrownBy(() -> transaction.execute(form)).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> transaction.execute(form))
+        .isInstanceOf(IllegalArgumentException.class);
     verify(userDao, never()).insert(any(User.class));
   }
 

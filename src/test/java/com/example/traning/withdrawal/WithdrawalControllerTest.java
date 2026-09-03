@@ -77,8 +77,7 @@ class WithdrawalControllerTest {
     when(withdrawalService.isGeneralUser(loginUser)).thenReturn(true);
     when(request.getSession(false)).thenReturn(session);
 
-    String view =
-        controller.submit(null, null, true, principal, request, redirectAttributes);
+    String view = controller.submit(null, null, true, principal, request, redirectAttributes);
 
     verify(withdrawalService).selfDeleteImmediately(10L);
     verify(withdrawalService, never()).createRequest(anyLong(), any(), any());
@@ -94,8 +93,7 @@ class WithdrawalControllerTest {
         .when(withdrawalService)
         .selfDeleteImmediately(10L);
 
-    String view =
-        controller.submit(null, null, true, principal, request, redirectAttributes);
+    String view = controller.submit(null, null, true, principal, request, redirectAttributes);
 
     assertThat(view).isEqualTo("redirect:/user/withdrawal");
     verify(redirectAttributes).addFlashAttribute(eq("errorMessage"), eq("既に退会申請中です"));
@@ -105,8 +103,7 @@ class WithdrawalControllerTest {
   void submit_ジム所属ユーザーはcreateRequestを呼ぶ() {
     when(withdrawalService.isGeneralUser(loginUser)).thenReturn(false);
 
-    String view =
-        controller.submit("OTHER", "テスト", true, principal, request, redirectAttributes);
+    String view = controller.submit("OTHER", "テスト", true, principal, request, redirectAttributes);
 
     verify(withdrawalService).createRequest(10L, "OTHER", "テスト");
     verify(withdrawalService, never()).selfDeleteImmediately(anyLong());
@@ -115,8 +112,7 @@ class WithdrawalControllerTest {
 
   @Test
   void submit_未チェックの場合はサービスを呼ばずエラーを表示する() {
-    String view =
-        controller.submit(null, null, false, principal, request, redirectAttributes);
+    String view = controller.submit(null, null, false, principal, request, redirectAttributes);
 
     assertThat(view).isEqualTo("redirect:/user/withdrawal");
     verify(withdrawalService, times(0)).isGeneralUser(any());
