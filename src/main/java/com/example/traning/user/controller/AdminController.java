@@ -3,6 +3,7 @@ package com.example.traning.user.controller;
 import com.example.traning.audit.AuditLog;
 import com.example.traning.body.BodyMeasurement;
 import com.example.traning.body.BodyMeasurementService;
+import com.example.traning.common.WebErrorCode;
 import com.example.traning.export.DataExportService;
 import com.example.traning.mfa.MfaService;
 import com.example.traning.organization.Organization;
@@ -228,6 +229,7 @@ public class AdminController {
       org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
     if (result.hasErrors()) {
       redirectAttributes.addFlashAttribute("errorMessage", "入力内容に誤りがあります。再度ご確認ください。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
       return "redirect:/admin/user/edit/" + form.getUserId();
     }
     Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -237,6 +239,7 @@ public class AdminController {
     // 自分自身を無効化できないよう防止
     if (currentEmail.equals(existing.getEmail()) && Boolean.FALSE.equals(form.getEnabled())) {
       redirectAttributes.addFlashAttribute("errorMessage", "自分自身のアカウントを無効にすることはできません。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
       return "redirect:/admin/user/edit/" + form.getUserId();
     }
     // 自分自身を管理者権限から降格できないよう防止（ロックアウト防止）
@@ -244,6 +247,7 @@ public class AdminController {
         && Role.ADMIN.value().equals(existing.getRole())
         && !Role.ADMIN.value().equals(form.getRole())) {
       redirectAttributes.addFlashAttribute("errorMessage", "自分自身の管理者権限を外すことはできません。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
       return "redirect:/admin/user/edit/" + form.getUserId();
     }
 
@@ -251,6 +255,7 @@ public class AdminController {
     Role adminRole = Role.fromValue(currentAdmin.getRole());
     if (!isRoleChangeAllowed(adminRole, form.getRole())) {
       redirectAttributes.addFlashAttribute("errorMessage", "その権限へ変更する権限がありません。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
       return "redirect:/admin/user/edit/" + form.getUserId();
     }
 

@@ -1,6 +1,7 @@
 package com.example.traning.smarttrainer.controller;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.common.WebErrorCode;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.smarttrainer.service.TrainingItemMasterService;
@@ -102,12 +103,14 @@ public class AdminMasterController {
       @RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) {
     if (file.isEmpty()) {
       redirectAttributes.addFlashAttribute("errorMessage", "ファイルを選択してください。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
       return "redirect:/admin/master";
     }
 
     String originalFilename = file.getOriginalFilename();
     if (originalFilename == null || !originalFilename.toLowerCase().endsWith(".csv")) {
       redirectAttributes.addFlashAttribute("errorMessage", "CSVファイル（.csv）を選択してください。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
       return "redirect:/admin/master";
     }
 
@@ -122,6 +125,7 @@ public class AdminMasterController {
       // 例外の詳細（内部パス等を含み得る）はログにのみ記録し、ユーザー向けメッセージには含めない。
       log.error("CSVファイルのアップロードに失敗しました", e);
       redirectAttributes.addFlashAttribute("errorMessage", "アップロードに失敗しました。時間をおいて再度お試しください。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INTERNAL_ERROR);
     }
 
     return "redirect:/admin/master";
@@ -134,6 +138,9 @@ public class AdminMasterController {
     MasterUpdateResult result = masterUpdateTask.executeMasterUpdate();
     redirectAttributes.addFlashAttribute(
         result.success() ? "successMessage" : "errorMessage", result.message());
+    if (!result.success()) {
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.OPERATION_FAILED);
+    }
     return "redirect:/admin/master";
   }
 

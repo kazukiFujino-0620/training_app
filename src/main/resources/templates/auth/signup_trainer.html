@@ -41,7 +41,7 @@
             <p class="login-subtitle">配布された招待コードでトレーナーアカウントを作成</p>
         </div>
 
-        <div th:if="${errorMessage}" class="alert alert-danger mb-4" th:text="${errorMessage}"></div>
+        <div th:replace="~{common :: errorMessageFragment}"></div>
 
         <!-- Trainer Signup Form -->
         <form th:action="@{/signup/trainer}" th:object="${trainerSignupForm}" method="post" class="login-form">

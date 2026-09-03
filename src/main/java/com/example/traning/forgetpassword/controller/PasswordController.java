@@ -1,5 +1,7 @@
 package com.example.traning.forgetpassword.controller;
 
+import com.example.traning.common.WebErrorCode;
+import com.example.traning.common.WebErrorSupport;
 import com.example.traning.forgetpassword.form.PasswordForgetForm;
 import com.example.traning.forgetpassword.service.PasswordResetService;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +45,10 @@ public class PasswordController {
       passwordResetService.createResetToken(form.getEmail());
     } catch (Exception e) {
       log.error("トークン作成中にエラーが発生しました", e);
-      model.addAttribute("errorMessage", "ご入力いただいたメールアドレスには送信できませんでした。再度お試しいただくか、管理者へお問い合わせください。");
+      WebErrorSupport.setError(
+          model,
+          "ご入力いただいたメールアドレスには送信できませんでした。再度お試しいただくか、管理者へお問い合わせください。",
+          WebErrorCode.INTERNAL_ERROR);
       return "password/forget";
     }
 
@@ -74,18 +79,19 @@ public class PasswordController {
       Model model) {
 
     if (password.length() < 8 || password.length() > 100) {
-      model.addAttribute("errorMessage", "パスワードは8〜100文字で入力してください");
+      WebErrorSupport.setError(model, "パスワードは8〜100文字で入力してください", WebErrorCode.VALIDATION_ERROR);
       model.addAttribute("token", token);
       return "auth/reset_password";
     }
     if (!password.matches(
         "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).+$")) {
-      model.addAttribute("errorMessage", "パスワードは大文字・小文字・数字・記号をそれぞれ1文字以上含む必要があります");
+      WebErrorSupport.setError(
+          model, "パスワードは大文字・小文字・数字・記号をそれぞれ1文字以上含む必要があります", WebErrorCode.VALIDATION_ERROR);
       model.addAttribute("token", token);
       return "auth/reset_password";
     }
     if (!password.equals(passwordConfirm)) {
-      model.addAttribute("errorMessage", "パスワードが一致しません");
+      WebErrorSupport.setError(model, "パスワードが一致しません", WebErrorCode.VALIDATION_ERROR);
       model.addAttribute("token", token);
       return "auth/reset_password";
     }
@@ -95,7 +101,8 @@ public class PasswordController {
       passwordResetService.updatePassword(token, password);
       return "redirect:/login?resetSuccess"; // 成功したらログイン画面へ
     } catch (Exception e) {
-      model.addAttribute("errorMessage", "無効なトークンか、期限が切れています。");
+      log.warn("パスワードリセット失敗: {}", e.getMessage());
+      WebErrorSupport.setError(model, "無効なトークンか、期限が切れています。", WebErrorCode.TOKEN_INVALID_OR_EXPIRED);
       return "auth/reset_password";
     }
   }

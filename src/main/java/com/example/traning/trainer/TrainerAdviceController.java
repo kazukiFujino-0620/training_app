@@ -1,6 +1,7 @@
 package com.example.traning.trainer;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.common.WebErrorCode;
 import com.example.traning.user.Role;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
@@ -92,6 +93,7 @@ public class TrainerAdviceController {
       redirectAttributes.addFlashAttribute("successMessage", "担当トレーナーを変更しました。");
     } catch (IllegalArgumentException e) {
       redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
     }
     return "redirect:/trainer/advice";
   }
@@ -110,6 +112,7 @@ public class TrainerAdviceController {
       redirectAttributes.addFlashAttribute("successMessage", "メッセージを送信しました。");
     } catch (IllegalArgumentException e) {
       redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
     }
     return "redirect:/trainer/advice";
   }
@@ -140,12 +143,8 @@ public class TrainerAdviceController {
   public String delete(
       @PathVariable Long id, Principal principal, RedirectAttributes redirectAttributes) {
     User trainer = currentUser(principal);
-    try {
-      trainerAdviceService.delete(trainer, id);
-      redirectAttributes.addFlashAttribute("successMessage", "メッセージを取り下げました。");
-    } catch (Exception e) {
-      redirectAttributes.addFlashAttribute("errorMessage", "取り下げに失敗しました。");
-    }
+    trainerAdviceService.delete(trainer, id);
+    redirectAttributes.addFlashAttribute("successMessage", "メッセージを取り下げました。");
     return "redirect:/trainer/advice";
   }
 }

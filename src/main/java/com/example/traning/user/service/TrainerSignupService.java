@@ -41,6 +41,7 @@ public class TrainerSignupService {
    * @throws IllegalArgumentException パスワード不一致、または招待コードが無効な場合（{@link
    *     InviteCodeService#redeem}の例外をそのまま透過）
    * @throws AccountRestoreRequiredException 論理削除済みユーザーが同じメールで再登録しようとした場合
+   * @throws EmailDuplicateException 有効な既存ユーザーとメールアドレスが重複する場合
    */
   @Transactional(rollbackFor = Exception.class)
   public void register(TrainerSignupForm form) {
@@ -51,6 +52,11 @@ public class TrainerSignupService {
     if (userDao.selectSoftDeletedByEmail(form.getEmail()).isPresent()) {
       accountRestoreService.initiateRestore(form.getEmail());
       throw new AccountRestoreRequiredException();
+    }
+    // 追加: 有効な既存ユーザーとのメール重複
+    if (userDao.selectByEmail(form.getEmail()).isPresent()) {
+      throw new EmailDuplicateException(
+          "この内容では登録できませんでした。入力内容をご確認いただくか、既にアカウントをお持ちの場合はログインをお試しください。");
     }
 
     // 招待コードの検証・使用回数インクリメントを先に行う。ここで例外が出れば
@@ -73,7 +79,14 @@ public class TrainerSignupService {
     user.setNotificationMethod("EMAIL");
     user.setLineFriendAdded(false);
 
-    userDao.insert(user);
+    try {
+      userDao.insert(user);
+    } catch (org.springframework.dao.DuplicateKeyException e) {
+      // doma-spring-bootの永続化例外変換により、org.seasar.doma.jdbc.UniqueConstraintExceptionは
+      // ここに到達する前にDuplicateKeyExceptionへ変換される（実機検証で判明）。
+      throw new EmailDuplicateException(
+          "この内容では登録できませんでした。入力内容をご確認いただくか、既にアカウントをお持ちの場合はログインをお試しください。");
+    }
     log.info(
         "Trainer registered successfully - organizationId: {}", inviteCode.getOrganizationId());
   }
