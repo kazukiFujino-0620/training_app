@@ -106,14 +106,16 @@ public class WithdrawalService {
 
   @Transactional
   public void createRequest(Long userId, String reasonType, String reasonText) {
+    User user = userDao.selectById(userId.intValue());
+    if (isGeneralUser(user)) {
+      throw new IllegalStateException("この操作はジム所属ユーザーのみ利用できます");
+    }
     withdrawalRequestDao
         .selectPendingByUserId(userId)
         .ifPresent(
             r -> {
               throw new IllegalStateException("既に退会申請中です");
             });
-
-    User user = userDao.selectById(userId.intValue());
 
     WithdrawalRequest req = new WithdrawalRequest();
     req.setUserId(userId);
@@ -139,6 +141,10 @@ public class WithdrawalService {
 
   @Transactional
   public void cancelRequest(Long userId) {
+    User user = userDao.selectById(userId.intValue());
+    if (isGeneralUser(user)) {
+      throw new IllegalStateException("この操作はジム所属ユーザーのみ利用できます");
+    }
     WithdrawalRequest req =
         withdrawalRequestDao
             .selectPendingByUserId(userId)

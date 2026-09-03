@@ -142,4 +142,28 @@ class WithdrawalServiceTest {
 
     verify(trainingDao, never()).deleteByUserId(anyLong());
   }
+
+  @Test
+  void createRequest_一般ユーザーは拒否される() {
+    User general = user(1, Organization.DEFAULT_STORE_ORGANIZATION_ID);
+    when(userDao.selectById(1)).thenReturn(general);
+
+    assertThatThrownBy(() -> service.createRequest(1L, "OTHER", "テスト"))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("ジム所属ユーザー");
+
+    verify(withdrawalRequestDao, never()).insert(any(WithdrawalRequest.class));
+  }
+
+  @Test
+  void cancelRequest_一般ユーザーは拒否される() {
+    User general = user(1, Organization.DEFAULT_STORE_ORGANIZATION_ID);
+    when(userDao.selectById(1)).thenReturn(general);
+
+    assertThatThrownBy(() -> service.cancelRequest(1L))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("ジム所属ユーザー");
+
+    verify(withdrawalRequestDao, never()).update(any(WithdrawalRequest.class));
+  }
 }
