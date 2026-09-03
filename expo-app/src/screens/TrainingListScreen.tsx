@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  Alert, ActivityIndicator, RefreshControl, AppState,
+  Alert, ActivityIndicator, RefreshControl, AppState, Modal, Pressable,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +26,7 @@ export default function TrainingListScreen({ navigation }: Props) {
   const [noticeCount, setNoticeCount] = useState(0);
   const [aiSuggestion, setAiSuggestion] = useState<AiTrainingSuggestion | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // itバグ-18: ログインユーザー名をヘッダーに表示する
   useEffect(() => {
@@ -127,25 +128,56 @@ export default function TrainingListScreen({ navigation }: Props) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* ヘッダー */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.dateText}>{today}</Text>
-          <Text style={styles.headerTitle}>今日のトレーニング</Text>
-          {userName && <Text style={styles.userNameText}>ユーザー名: {userName}</Text>}
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity onPress={() => navigation.navigate('NoticeList')} style={styles.noticeButton}>
-            <Text style={styles.noticeButtonText}>
-              🔔 お知らせ{noticeCount > 0 ? `(${noticeCount})` : ''}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Health')} style={styles.healthButton}>
-            <Text style={styles.healthButtonText}>❤️ ヘルスケア</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={styles.logoutText}>ログアウト</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.dateText}>{today}</Text>
+            <Text style={styles.headerTitle}>今日のトレーニング</Text>
+            {userName && <Text style={styles.userNameText}>ユーザー名: {userName}</Text>}
+          </View>
+          <TouchableOpacity
+            onPress={() => setMenuOpen(true)}
+            style={styles.menuButton}
+            accessibilityLabel="メニュー"
+          >
+            <Feather name="menu" size={22} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ヘッダーメニュー（お知らせ・ヘルスケア・退会・ログアウト） */}
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+          <View style={styles.menuCard}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setMenuOpen(false); navigation.navigate('NoticeList'); }}
+            >
+              <Text style={styles.menuItemText}>
+                お知らせ{noticeCount > 0 ? `（${noticeCount}）` : ''}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setMenuOpen(false); navigation.navigate('Health'); }}
+            >
+              <Text style={styles.menuItemText}>ヘルスケア</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemLast]}
+              onPress={() => { setMenuOpen(false); navigation.navigate('Withdrawal'); }}
+            >
+              <Text style={styles.menuItemDangerText}>退会</Text>
+            </TouchableOpacity>
+            <View style={styles.menuGap} />
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemLast]}
+              onPress={() => { setMenuOpen(false); handleLogout(); }}
+            >
+              <Text style={styles.menuItemMutedText}>ログアウト</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* お知らせバナー（ita2-5） */}
       {noticeCount > 0 && (
@@ -267,20 +299,26 @@ const styles = StyleSheet.create({
   dateText: { fontSize: 12, color: '#888' },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#222' },
   userNameText: { fontSize: 12, color: '#666', marginTop: 2 },
-  headerActions: {
-    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center',
-    marginTop: 8, gap: 12, rowGap: 6,
+  headerRow: {
+    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
   },
-  noticeButton: {
-    backgroundColor: '#fff8e1', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+  menuButton: { padding: 6, marginTop: 2 },
+  menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' },
+  menuCard: {
+    position: 'absolute', top: 68, right: 14, width: 200,
+    backgroundColor: '#fff', borderRadius: 12, paddingVertical: 4,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
   },
-  noticeButtonText: { fontSize: 12, color: '#f9a825', fontWeight: '600' },
-  healthButton: {
-    backgroundColor: '#fdecea', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+  menuItem: {
+    paddingHorizontal: 16, paddingVertical: 13,
+    borderBottomWidth: 1, borderBottomColor: '#f2f2f2',
   },
-  healthButtonText: { fontSize: 12, color: '#e53935', fontWeight: '600' },
-  logoutButton: { marginLeft: 'auto' },
-  logoutText: { fontSize: 13, color: '#999' },
+  menuItemLast: { borderBottomWidth: 0 },
+  menuItemText: { fontSize: 14, fontWeight: '600', color: '#333' },
+  menuItemDangerText: { fontSize: 14, fontWeight: '600', color: '#e53935' },
+  menuItemMutedText: { fontSize: 14, fontWeight: '600', color: '#888' },
+  menuGap: { height: 8, backgroundColor: '#fafafa', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#f2f2f2' },
   noticeBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginHorizontal: 16, marginTop: 12, padding: 12,

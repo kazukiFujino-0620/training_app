@@ -1,6 +1,8 @@
 package com.example.traning.user.service;
 
 import com.example.traning.dao.UserDao;
+import com.example.traning.organization.InviteCode;
+import com.example.traning.organization.InviteCodeService;
 import com.example.traning.organization.Organization;
 import com.example.traning.smarttrainer.recommendation.GoalMode;
 import com.example.traning.user.Role;
@@ -20,14 +22,17 @@ public class SignupServiceTransaction {
   private final UserDao userDao;
   private final PasswordEncoder passwordEncoder;
   private final AccountRestoreService accountRestoreService;
+  private final InviteCodeService inviteCodeService;
 
   public SignupServiceTransaction(
       UserDao userDao,
       PasswordEncoder passwordEncoder,
-      AccountRestoreService accountRestoreService) {
+      AccountRestoreService accountRestoreService,
+      InviteCodeService inviteCodeService) {
     this.userDao = userDao;
     this.passwordEncoder = passwordEncoder;
     this.accountRestoreService = accountRestoreService;
+    this.inviteCodeService = inviteCodeService;
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -69,9 +74,14 @@ public class SignupServiceTransaction {
       // current_goal_modeはDB上NOT NULL。Domaの自動生成INSERTは全列を明示的に列挙するため、
       // ここで未設定のままだとNULLが明示的にバインドされDBのDEFAULT句が効かず登録に失敗する。
       user.setCurrentGoalMode(GoalMode.MAINTENANCE.name());
-      // organization_idも同様にDB上NOT NULL。招待コードによる組織割り当て（フェーズ4）が
-      // 実装されるまでは、デフォルト店舗に割り当てる（既存ユーザーと同じ扱い）。
-      user.setOrganizationId(Organization.DEFAULT_STORE_ORGANIZATION_ID);
+      // organization_idも同様にDB上NOT NULL。招待コード入力時はその組織へ、未入力時は
+      // 一般ユーザー向けデフォルト組織へ割り当てる（ita3-3）。無効なコードはIllegalArgumentExceptionで拒否。
+      Long organizationId = Organization.DEFAULT_STORE_ORGANIZATION_ID;
+      if (signupForm.getInviteCode() != null && !signupForm.getInviteCode().isBlank()) {
+        InviteCode inviteCode = inviteCodeService.redeem(signupForm.getInviteCode().trim());
+        organizationId = inviteCode.getOrganizationId();
+      }
+      user.setOrganizationId(organizationId);
       // notification_method/line_friend_addedもDB上NOT NULL。LINEサインアップ者は通知方法をLINEに寄せる
       // （まだ公式アカウントの友だち追加はしていないためline_friend_addedはfalseで初期化、追加後はWebhookで更新される）。
       user.setNotificationMethod(signupForm.getLineId() != null ? "LINE" : "EMAIL");

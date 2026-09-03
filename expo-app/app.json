@@ -12,7 +12,9 @@
       "bundleIdentifier": "jp.mydns.trainingapp",
       "entitlements": {},
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -21,7 +23,18 @@
     "plugins": [
       "expo-asset",
       "expo-font",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-notifications",
         {
@@ -46,6 +59,12 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d70124ac-e7e0-41c9-8e21-1da22dc93984"
+      }
+    },
+    "owner": "fighter0413"
   }
 }

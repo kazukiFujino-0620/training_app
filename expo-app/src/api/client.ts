@@ -84,6 +84,7 @@ import type {
   TrainingCalorieResponse,
   Notice,
   AiTrainingSuggestion,
+  WithdrawalStatus,
 } from './types';
 
 export const authApi = {
@@ -158,4 +159,16 @@ export const healthApi = {
   sync: (req: HealthSyncRequest) =>
     client.post<HealthSyncResponse>('/health/sync', req),
   getSummary: () => client.get<HealthSummaryResponse>('/health/summary'),
+};
+
+export const withdrawalApi = {
+  /** ita3-3: 一般ユーザーか（即時削除フロー）、ジム所属ユーザーか（申請制フロー）、申請中かを取得する。 */
+  getStatus: () => client.get<WithdrawalStatus>('/withdrawal/status'),
+  /** ジム所属ユーザー向け：退会を申請する（管理者承認後に削除）。 */
+  request: (reasonType?: string, reasonText?: string) =>
+    client.post('/withdrawal/request', { reasonType, reasonText }),
+  /** ジム所属ユーザー向け：申請中の退会申請をキャンセルする。 */
+  cancel: () => client.post('/withdrawal/cancel'),
+  /** 一般ユーザー向け：申請を挟まず即座にアカウント・データを削除する。 */
+  deleteImmediately: () => client.post('/withdrawal/delete-immediately'),
 };

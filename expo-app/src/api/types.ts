@@ -241,3 +241,9 @@ export interface AiTrainingSuggestion {
   partCode: string | null;
   items: AiSuggestedItem[];
 }
+
+/** ita3-3: 退会画面の表示分岐に使う現在状態。 */
+export interface WithdrawalStatus {
+  isGeneralUser: boolean;
+  hasPendingRequest: boolean;
+}

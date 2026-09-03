@@ -14,6 +14,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 public class UserController {
@@ -30,14 +31,26 @@ public class UserController {
     return "redirect:/login";
   }
 
+  /** ita3-3: 登録用LP（アプリ紹介・招待コード入力）。QR/URL経由での未ログインアクセスを想定。 */
+  @GetMapping("/welcome")
+  public String welcome(@RequestParam(required = false) String inviteCode, Model model) {
+    model.addAttribute("inviteCode", inviteCode == null ? "" : inviteCode);
+    return "welcome";
+  }
+
   @GetMapping("/login")
   public String login() {
     return "auth/login";
   }
 
   @GetMapping("/signup")
-  public String signup(Model model) {
-    model.addAttribute("signupForm", new SignupForm());
+  public String signup(@RequestParam(required = false) String inviteCode, Model model) {
+    SignupForm signupForm = new SignupForm();
+    // ita3-3: 登録LPのQR/URL（例: /signup?inviteCode=XXX）からの遷移時にコードを事前入力する
+    if (inviteCode != null && !inviteCode.isBlank()) {
+      signupForm.setInviteCode(inviteCode);
+    }
+    model.addAttribute("signupForm", signupForm);
     return "auth/signup";
   }
 
@@ -56,6 +69,9 @@ public class UserController {
       }
     } catch (AccountRestoreRequiredException e) {
       return "redirect:/account/restore/sent";
+    } catch (IllegalArgumentException e) {
+      model.addAttribute("errorMessage", e.getMessage());
+      return "auth/signup";
     } catch (Exception e) {
       log.error("予期せぬエラーが発生しました。", e);
       model.addAttribute("errorMessage", "登録中にエラーが発生しました。時間をおいて再度お試しください。");

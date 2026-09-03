@@ -11,6 +11,7 @@ import TrainingStartScreen from '../screens/TrainingStartScreen';
 import GoalScreen from '../screens/GoalScreen';
 import HealthScreen from '../screens/HealthScreen';
 import NoticeListScreen from '../screens/NoticeListScreen';
+import WithdrawalScreen from '../screens/WithdrawalScreen';
 import type { AiTrainingSuggestion } from '../api/types';
 
 export type AuthStackParamList = {
@@ -32,6 +33,7 @@ export type AppStackParamList = {
   };
   Health: undefined;
   NoticeList: undefined;
+  Withdrawal: undefined;
 };
 
 type RootStackParamList = {
@@ -92,6 +94,11 @@ function AppNavigator() {
       <AppStack.Screen
         name="NoticeList"
         component={NoticeListScreen}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="Withdrawal"
+        component={WithdrawalScreen}
         options={{ headerShown: false }}
       />
     </AppStack.Navigator>

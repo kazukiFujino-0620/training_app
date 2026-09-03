@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>プライバシーポリシー - トレーニング管理システム</title>
+  <link rel="stylesheet" th:href="@{/css/main.css}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .legal-page { max-width: 760px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .legal-page h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
+    .legal-page .legal-updated { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2.5rem; }
+    .legal-page h2 { font-size: 1.1rem; margin-top: 2.2rem; margin-bottom: 0.7rem; border-left: 4px solid var(--primary-color, #2563eb); padding-left: 0.6rem; }
+    .legal-page p, .legal-page li { font-size: 0.92rem; line-height: 1.9; color: var(--text-secondary); }
+    .legal-page ul { padding-left: 1.4rem; }
+    .legal-page table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.88rem; }
+    .legal-page th, .legal-page td { border: 1px solid var(--border-color); padding: 0.5rem 0.7rem; text-align: left; vertical-align: top; }
+    .legal-page th { background: var(--bg-tertiary); white-space: nowrap; }
+    .legal-draft-note {
+      background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.4);
+      border-radius: 8px; padding: 1rem 1.2rem; font-size: 0.85rem; margin-bottom: 2rem; color: var(--text-primary);
+    }
+  </style>
+</head>
+<body class="bg-secondary">
+  <main class="main-content" style="padding-top: 2rem;">
+    <div class="legal-page">
+      <div class="legal-draft-note">
+        <strong>本ページは審査提出準備用のドラフトです。</strong>
+        運営者名・連絡先は仮のプレースホルダーです。正式公開前に、実際の事業者情報の反映と内容の法務確認が必要です。
+      </div>
+
+      <h1>プライバシーポリシー</h1>
+      <p class="legal-updated">制定日：2026年9月2日（ドラフト）</p>
+
+      <p>
+        [運営者名を記入]（以下「当社」といいます）は、トレーニング記録アプリ「LIFTLOG（仮称）」
+        （以下「本サービス」といいます）における利用者の個人情報の取り扱いについて、以下のとおりプライバシーポリシー（以下「本ポリシー」といいます）を定めます。
+      </p>
+
+      <h2>1. 取得する情報</h2>
+      <p>本サービスは、利用者から以下の情報を取得します。</p>
+      <table>
+        <tr><th>区分</th><th>項目</th></tr>
+        <tr><td>アカウント情報</td><td>メールアドレス、パスワード（ハッシュ化して保存）、ユーザー名</td></tr>
+        <tr><td>身体情報（任意）</td><td>身長、体重、体脂肪率、性別、生年月日</td></tr>
+        <tr><td>トレーニング記録</td><td>実施種目、重量、回数、セット種別、トレーニング日時、メモ</td></tr>
+        <tr><td>ヘルスケアデータ（連携同意時のみ）</td><td>Apple HealthKit / Google Health Connect経由で取得する体重・歩数・心拍数・睡眠データ</td></tr>
+        <tr><td>通知関連情報</td><td>プッシュ通知トークン、LINE公式アカウント連携時の LINEユーザーID</td></tr>
+        <tr><td>利用状況・ログ</td><td>ログイン日時、IPアドレス、操作履歴（不正利用防止・監査目的）</td></tr>
+      </table>
+
+      <h2>2. 利用目的</h2>
+      <ul>
+        <li>本サービスの提供・維持・改善のため</li>
+        <li>トレーニング記録の保存・自己ベスト算出・消費カロリー算出のため</li>
+        <li>AIによるトレーニングメニュー提案・アドバイス生成のため</li>
+        <li>プッシュ通知・メール・LINEによるお知らせ配信のため</li>
+        <li>不正利用の防止、利用規約違反への対応のため</li>
+        <li>お問い合わせへの対応のため</li>
+      </ul>
+
+      <h2>3. ヘルスケアデータの取り扱いについて</h2>
+      <p>
+        本サービスは、利用者の明示的な同意がある場合に限り、Apple HealthKitまたはGoogle Health Connectと連携し、
+        体重・歩数・心拍数・睡眠等のデータを取得します。取得したヘルスケアデータは本サービス内でのみ利用し、
+        広告目的での第三者提供は行いません。連携はいつでも端末の設定画面から解除できます。
+      </p>
+
+      <h2>4. 第三者提供</h2>
+      <p>
+        当社は、次の場合を除き、あらかじめ利用者の同意を得ることなく、第三者に個人情報を提供しません。
+      </p>
+      <ul>
+        <li>法令に基づく場合</li>
+        <li>人の生命、身体または財産の保護のために必要がある場合であって、本人の同意を得ることが困難であるとき</li>
+        <li>利用者が所属するジム・店舗の管理者に対し、当該利用者のトレーニング記録・アドバイス対応履歴を共有する場合（サービスの性質上必要な範囲に限る）</li>
+      </ul>
+
+      <h2>5. 外部送信・連携サービス</h2>
+      <table>
+        <tr><th>サービス</th><th>目的</th></tr>
+        <tr><td>Google / LINEログイン（OAuth2）</td><td>ソーシャルログインのため</td></tr>
+        <tr><td>LINE公式アカウント</td><td>トレーニングサマリー等の通知配信のため（利用者が連携した場合のみ）</td></tr>
+        <tr><td>Firebase Cloud Messaging</td><td>モバイルアプリへのプッシュ通知配信のため</td></tr>
+      </table>
+
+      <h2>6. データの保存期間・削除</h2>
+      <p>
+        利用者が退会（アカウント削除）を申請した場合、当社は法令等で保存が義務付けられる場合を除き、
+        合理的な期間内に個人情報を削除します。退会申請はWeb版サービスの設定画面から行えます。
+        <span style="color:#c0392b;">［TODO: モバイルアプリからも退会申請できるようにする対応が必要（App Store審査ガイドライン5.1.1(v)対応）。対応後に本文を更新］</span>
+      </p>
+
+      <h2>7. 安全管理措置</h2>
+      <p>
+        当社は、取得した個人情報の漏えい、滅失またはき損の防止その他の安全管理のために必要かつ適切な措置を講じます。
+        パスワードはハッシュ化して保存し、通信は暗号化（HTTPS/TLS）しています。
+      </p>
+
+      <h2>8. Cookie等の利用</h2>
+      <p>
+        Web版サービスでは、ログイン状態の維持等のためにCookieを使用します。ブラウザの設定によりCookieを無効化できますが、
+        その場合一部機能が利用できなくなることがあります。
+      </p>
+
+      <h2>9. 未成年者の利用について</h2>
+      <p>
+        未成年者が本サービスを利用する場合は、保護者の同意を得た上でご利用ください。
+      </p>
+
+      <h2>10. プライバシーポリシーの変更</h2>
+      <p>
+        当社は、必要に応じて本ポリシーの内容を変更することがあります。変更後の内容は本ページに掲載した時点から効力を生じるものとします。
+      </p>
+
+      <h2>11. お問い合わせ窓口</h2>
+      <p>
+        本ポリシーに関するお問い合わせは、下記までご連絡ください。<br>
+        [運営者名を記入]<br>
+        お問い合わせ先メールアドレス：[連絡先メールアドレスを記入]
+      </p>
+    </div>
+  </main>
+</body>
+</html>
