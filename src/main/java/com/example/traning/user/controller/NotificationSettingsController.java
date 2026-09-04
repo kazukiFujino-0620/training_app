@@ -1,5 +1,6 @@
 package com.example.traning.user.controller;
 
+import com.example.traning.common.WebErrorCode;
 import com.example.traning.line.LineAccountLinkService;
 import com.example.traning.user.User;
 import com.example.traning.user.service.ProfileService;
@@ -8,6 +9,7 @@ import jakarta.servlet.http.HttpSession;
 import java.security.Principal;
 import java.util.Set;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -25,6 +27,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  */
 @Controller
 @RequestMapping("/user/notifications")
+@Slf4j
 public class NotificationSettingsController {
 
   private static final String STATE_SESSION_KEY = "line_link_oauth_state";
@@ -65,11 +68,13 @@ public class NotificationSettingsController {
       RedirectAttributes redirectAttributes) {
     if (!VALID_METHODS.contains(notificationMethod)) {
       redirectAttributes.addFlashAttribute("errorMessage", "不正な通知方法です");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
       return "redirect:/user/notifications";
     }
     User user = userService.getUserByEmail(principal.getName());
     if (LINE_REQUIRED_METHODS.contains(notificationMethod) && user.getLineId() == null) {
       redirectAttributes.addFlashAttribute("errorMessage", "LINE通知を選択するには、先にLINEアカウントと連携してください");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
       return "redirect:/user/notifications";
     }
     profileService.updateNotificationMethod(user.getUserId(), notificationMethod);
@@ -98,10 +103,12 @@ public class NotificationSettingsController {
 
     if (error != null) {
       redirectAttributes.addFlashAttribute("errorMessage", "LINE連携がキャンセルされました");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
       return "redirect:/user/notifications";
     }
     if (expectedState == null || !expectedState.equals(state)) {
       redirectAttributes.addFlashAttribute("errorMessage", "LINE連携の検証に失敗しました。もう一度お試しください");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
       return "redirect:/user/notifications";
     }
 
@@ -110,9 +117,13 @@ public class NotificationSettingsController {
       lineAccountLinkService.completeLink(user.getUserId(), code);
       redirectAttributes.addFlashAttribute("successMessage", "LINEアカウントと連携しました");
     } catch (IllegalArgumentException e) {
+      log.warn("LINE連携失敗（他ユーザーと連携済み）: {}", e.getMessage());
       redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
     } catch (IllegalStateException e) {
+      log.warn("LINE連携失敗（LINE API通信エラー）", e);
       redirectAttributes.addFlashAttribute("errorMessage", "LINE連携に失敗しました。時間をおいて再度お試しください");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INTERNAL_ERROR);
     }
     return "redirect:/user/notifications";
   }

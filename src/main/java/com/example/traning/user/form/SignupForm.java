@@ -42,6 +42,9 @@ public class SignupForm {
 
   private String lineId;
 
+  /** 招待コード（任意）。未入力時は一般ユーザー（デフォルト組織）として登録される。 */
+  private String inviteCode;
+
   // 任意の身体情報
   @DecimalMin(value = "100.0", message = "身長は100cm以上で入力してください")
   @DecimalMax(value = "250.0", message = "身長は250cm以下で入力してください")

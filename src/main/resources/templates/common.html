@@ -127,6 +127,17 @@
     <script th:src="@{/js/session-monitor.js}"></script>
 </th:block>
 
+<th:block th:fragment="errorMessageFragment">
+    <div th:if="${errorMessage}" class="error-message" th:attr="data-error-code=${errorCode}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        <span th:text="${errorMessage}"></span>
+    </div>
+</th:block>
+
 <th:block th:fragment="sessionModalsFragment">
     <!-- ── セッションタイムアウト警告モーダル ─────────────────────── -->
     <div id="sessionWarningModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
@@ -195,7 +206,7 @@
             </p>
             <div class="flex justify-center gap-4 mt-2">
                 <a href="#" class="text-muted hover:text-primary text-sm">利用規約</a>
-                <a href="#" class="text-muted hover:text-primary text-sm">プライバシー</a>
+                <a th:href="@{/privacy}" class="text-muted hover:text-primary text-sm">プライバシー</a>
                 <a href="#" class="text-muted hover:text-primary text-sm">サポート</a>
             </div>
         </div>

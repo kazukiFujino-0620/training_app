@@ -29,6 +29,10 @@ public class SecurityConfig {
   private static final String PUBLIC_PATHS = "/signup";
   // ita4-3: トレーナー用登録ルート（招待コード必須の別フォーム）。/signupとは別に許可が必要。
   private static final String TRAINER_SIGNUP_PATH = "/signup/trainer";
+  // 登録LP（アプリ紹介・招待コード入力）。未ログインでの閲覧が前提のため許可が必要。
+  private static final String WELCOME_PATH = "/welcome";
+  // App Store/Google Play審査対応: プライバシーポリシーは未ログインでも閲覧可能にする必要がある。
+  private static final String PRIVACY_PATH = "/privacy";
   private static final String LOGIN_PATH = "/login";
   private static final String PASSWORD_PATH = "/password/**";
   private static final String RESTORE_PATH = "/account/restore/**";
@@ -145,6 +149,8 @@ public class SecurityConfig {
                 auth.requestMatchers(
                         PUBLIC_PATHS,
                         TRAINER_SIGNUP_PATH,
+                        WELCOME_PATH,
+                        PRIVACY_PATH,
                         LOGIN_PATH,
                         PASSWORD_PATH,
                         RESTORE_PATH,

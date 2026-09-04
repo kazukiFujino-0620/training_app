@@ -87,6 +87,14 @@
             <span>ログアウトしました</span>
         </div>
         
+        <div th:if="${param.accountDeleted}" class="success-message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span>アカウントを削除しました。ご利用ありがとうございました。</span>
+        </div>
+
         <div th:if="${param.registered}" class="success-message">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -166,7 +174,7 @@
         <div class="login-footer">
             <p>アカウントをお持ちでないですか？</p>
             <span class="mx-2 text-muted">|</span>
-            <a th:href="@{/signup}" class="text-primary">新規登録</a>
+            <a th:href="@{/welcome}" class="text-primary">新規登録</a>
             <span class="mx-2 text-muted">|</span>
             <a th:href="@{/password/forget}" class="text-primary">パスワードをお忘れの方</a>
         </div>

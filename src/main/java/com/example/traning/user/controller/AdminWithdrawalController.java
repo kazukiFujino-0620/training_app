@@ -1,5 +1,6 @@
 package com.example.traning.user.controller;
 
+import com.example.traning.common.WebErrorCode;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
 import com.example.traning.withdrawal.WithdrawalService;
@@ -45,9 +46,17 @@ public class AdminWithdrawalController {
     try {
       withdrawalService.approveRequest(id, adminUser);
       redirectAttributes.addFlashAttribute("successMessage", "退会申請を承認し、データを削除しました");
+    } catch (IllegalStateException e) {
+      log.warn("Withdrawal approval rejected - requestId: {}, reason: {}", id, e.getMessage());
+      redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
+    } catch (org.springframework.web.server.ResponseStatusException e) {
+      // GlobalControllerAdviceの専用ハンドラー（403等）に処理を委ねる
+      throw e;
     } catch (Exception e) {
       log.error("Withdrawal approval failed - requestId: {}", id, e);
-      redirectAttributes.addFlashAttribute("errorMessage", "処理に失敗しました: " + e.getMessage());
+      redirectAttributes.addFlashAttribute("errorMessage", "処理に失敗しました。時間をおいて再度お試しください。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INTERNAL_ERROR);
     }
     return "redirect:/admin/withdrawal";
   }
@@ -59,8 +68,17 @@ public class AdminWithdrawalController {
     try {
       withdrawalService.rejectRequest(id, adminUser);
       redirectAttributes.addFlashAttribute("successMessage", "退会申請を拒否しました");
+    } catch (IllegalStateException e) {
+      log.warn("Withdrawal rejection rejected - requestId: {}, reason: {}", id, e.getMessage());
+      redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
+    } catch (org.springframework.web.server.ResponseStatusException e) {
+      // GlobalControllerAdviceの専用ハンドラー（403等）に処理を委ねる
+      throw e;
     } catch (Exception e) {
-      redirectAttributes.addFlashAttribute("errorMessage", "処理に失敗しました: " + e.getMessage());
+      log.error("Withdrawal rejection failed - requestId: {}", id, e);
+      redirectAttributes.addFlashAttribute("errorMessage", "処理に失敗しました。時間をおいて再度お試しください。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INTERNAL_ERROR);
     }
     return "redirect:/admin/withdrawal";
   }

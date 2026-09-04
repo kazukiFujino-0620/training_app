@@ -1,9 +1,12 @@
 package com.example.traning.withdrawal;
 
+import com.example.traning.common.WebErrorCode;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import java.security.Principal;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,8 +31,11 @@ public class WithdrawalController {
   @GetMapping
   public String index(Model model, Principal principal) {
     User loginUser = userService.getUserByEmail(principal.getName());
-    boolean hasPending = withdrawalService.hasPendingRequest(loginUser.getUserId().longValue());
+    boolean isGeneralUser = withdrawalService.isGeneralUser(loginUser);
+    boolean hasPending =
+        !isGeneralUser && withdrawalService.hasPendingRequest(loginUser.getUserId().longValue());
     model.addAttribute("loginUser", loginUser);
+    model.addAttribute("isGeneralUser", isGeneralUser);
     model.addAttribute("hasPending", hasPending);
     return "user/withdrawal";
   }
@@ -40,18 +46,39 @@ public class WithdrawalController {
       @RequestParam(required = false) String reasonText,
       @RequestParam(defaultValue = "false") boolean confirmed,
       Principal principal,
+      HttpServletRequest request,
       RedirectAttributes redirectAttributes) {
     if (!confirmed) {
       redirectAttributes.addFlashAttribute("errorMessage", "確認チェックボックスにチェックを入れてください");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
       return "redirect:/user/withdrawal";
     }
 
     User loginUser = userService.getUserByEmail(principal.getName());
+
+    if (withdrawalService.isGeneralUser(loginUser)) {
+      try {
+        withdrawalService.selfDeleteImmediately(loginUser.getUserId().longValue());
+      } catch (IllegalStateException e) {
+        redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
+        return "redirect:/user/withdrawal";
+      }
+      // 削除済みアカウントの認証状態を残さないため、セッション・認証情報を破棄してログイン画面へ
+      SecurityContextHolder.clearContext();
+      jakarta.servlet.http.HttpSession session = request.getSession(false);
+      if (session != null) {
+        session.invalidate();
+      }
+      return "redirect:/login?accountDeleted";
+    }
+
     try {
       withdrawalService.createRequest(loginUser.getUserId().longValue(), reasonType, reasonText);
       redirectAttributes.addFlashAttribute("successMessage", "退会申請を受け付けました。確認メールをお送りしました。");
     } catch (IllegalStateException e) {
       redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
     }
     return "redirect:/user/withdrawal";
   }
@@ -64,6 +91,7 @@ public class WithdrawalController {
       redirectAttributes.addFlashAttribute("successMessage", "退会申請をキャンセルしました");
     } catch (IllegalStateException e) {
       redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
     }
     return "redirect:/user/withdrawal";
   }
