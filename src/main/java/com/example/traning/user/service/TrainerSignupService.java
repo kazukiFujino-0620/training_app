@@ -71,13 +71,14 @@ public class TrainerSignupService {
     user.setEnabled(true);
     user.setCreateDatetime(LocalDateTime.now());
     user.setUpdatedDatetime(LocalDateTime.now());
-    // current_goal_mode/organization_id/notification_method/line_friend_addedはDB上NOT NULL。
-    // Domaの自動生成INSERTは全列を明示的に列挙するため、ここで未設定のままだとNULLが明示的に
-    // バインドされDBのDEFAULT句が効かず登録に失敗する（ita1-1/ita2結合試験で発見した既知パターン）。
+    // current_goal_mode/organization_id/notification_method/line_friend_added/ai_advice_consentは
+    // DB上NOT NULL。Domaの自動生成INSERTは全列を明示的に列挙するため、ここで未設定のままだとNULLが
+    // 明示的にバインドされDBのDEFAULT句が効かず登録に失敗する（ita1-1/ita2結合試験で発見した既知パターン）。
     user.setCurrentGoalMode(GoalMode.MAINTENANCE.name());
     user.setOrganizationId(inviteCode.getOrganizationId());
     user.setNotificationMethod("EMAIL");
     user.setLineFriendAdded(false);
+    user.setAiAdviceConsent(false);
 
     try {
       userDao.insert(user);
