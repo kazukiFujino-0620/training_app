@@ -1,6 +1,6 @@
 package com.example.traning.common;
 
-/** Web画面（Thymeleaf）向けのエラー識別子。ログ相関・QA問い合わせ照合・将来の多言語対応で使う。 */
+/** Web画面（Thymeleaf）向けのエラー識別子。ログ相関・QA問い合わせ照合に使う。 */
 public final class WebErrorCode {
 
   private WebErrorCode() {}
