@@ -22,7 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-/** ita3-3: 一般ユーザー登録での招待コード解決（未入力=デフォルト組織、入力=招待コードの組織）を検証する。 */
+/** 一般ユーザー登録での招待コード解決（未入力=デフォルト組織、入力=招待コードの組織）を検証する。 */
 @ExtendWith(MockitoExtension.class)
 class SignupServiceTransactionTest {
 

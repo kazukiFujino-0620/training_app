@@ -81,7 +81,7 @@ public class SignupServiceTransaction {
     // ここで未設定のままだとNULLが明示的にバインドされDBのDEFAULT句が効かず登録に失敗する。
     user.setCurrentGoalMode(GoalMode.MAINTENANCE.name());
     // organization_idも同様にDB上NOT NULL。招待コード入力時はその組織へ、未入力時は
-    // 一般ユーザー向けデフォルト組織へ割り当てる（ita3-3）。無効なコードはIllegalArgumentExceptionで拒否。
+    // 一般ユーザー向けデフォルト組織へ割り当てる。無効なコードはIllegalArgumentExceptionで拒否。
     Long organizationId = Organization.DEFAULT_STORE_ORGANIZATION_ID;
     if (signupForm.getInviteCode() != null && !signupForm.getInviteCode().isBlank()) {
       InviteCode inviteCode = inviteCodeService.redeem(signupForm.getInviteCode().trim());

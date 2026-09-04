@@ -136,8 +136,8 @@ public class AdminController {
   /**
    * アクセス可能な組織（ROLE_ADMINはnull＝全組織）でユーザー一覧を絞り込む。
    *
-   * <p>ROLE_ADMIN（全組織アクセス可）であっても、一般ユーザー（招待コードなし登録・デフォルト組織所属）は 通常のジム運営画面のクエリからは除外する（ita3-3
-   * セキュリティ対応）。ADMIN権限侵害時の被害範囲を 最小化する目的であり、DB直接アクセス等の技術的な閲覧経路までは塞がない。
+   * <p>ROLE_ADMIN（全組織アクセス可）であっても、一般ユーザー（招待コードなし登録・デフォルト組織所属）は
+   * 通常のジム運営画面のクエリからは除外する（セキュリティ対応）。ADMIN権限侵害時の被害範囲を 最小化する目的であり、DB直接アクセス等の技術的な閲覧経路までは塞がない。
    */
   private List<User> filterByAccessibleOrganizations(List<User> users) {
     java.util.Set<Long> accessibleOrganizationIds =

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * モバイル: 退会画面API（ita3-3関連）。
+ * モバイル: 退会画面API。
  *
  * <p>ジム所属ユーザーはWeb版と同じ申請制（管理者承認後に削除）、招待コードなし登録の一般ユーザーは 申請を挟まず即時削除となる。どちらのフローを使うかは{@link
  * #status}が返す{@code isGeneralUser}で判定する。

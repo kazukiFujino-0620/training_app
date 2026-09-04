@@ -13,8 +13,6 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-// ita3-3: モバイル退会画面の単体テスト
-// 対象: src/screens/WithdrawalScreen.tsx
 // 一般ユーザー（招待コードなし登録）は即時削除、ジム所属ユーザーは申請制、の分岐を検証する。
 
 jest.mock('../../api/client', () => ({

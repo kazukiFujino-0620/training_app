@@ -42,7 +42,7 @@ public class SignupForm {
 
   private String lineId;
 
-  /** ita3-3: 招待コード（任意）。未入力時は一般ユーザー（デフォルト組織）として登録される。 */
+  /** 招待コード（任意）。未入力時は一般ユーザー（デフォルト組織）として登録される。 */
   private String inviteCode;
 
   // 任意の身体情報

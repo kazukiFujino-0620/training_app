@@ -16,7 +16,7 @@ import org.thymeleaf.web.servlet.IServletWebExchange;
 import org.thymeleaf.web.servlet.JakartaServletWebApplication;
 
 /**
- * ita3-3: 登録LP（welcome.html）がSpring Bootコンテキストを起動せずにThymeleafとして正しく解釈できることを検証する。
+ * 登録LP（welcome.html）がSpring Bootコンテキストを起動せずにThymeleafとして正しく解釈できることを検証する。
  * DB/OAuth2設定等の実行環境に依存せず、テンプレート構文（th:href/th:src/th:value等）の妥当性のみを確認する。
  */
 class WelcomeTemplateRenderTest {

@@ -21,7 +21,7 @@ const REASON_OPTIONS = [
   { value: 'OTHER', label: 'その他' },
 ];
 
-/** ita3-3: 退会画面。ジム所属ユーザーは申請制（管理者承認後に削除）、一般ユーザーは即時削除。 */
+/** 退会画面。ジム所属ユーザーは申請制（管理者承認後に削除）、一般ユーザーは即時削除。 */
 export default function WithdrawalScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [isGeneralUser, setIsGeneralUser] = useState(false);

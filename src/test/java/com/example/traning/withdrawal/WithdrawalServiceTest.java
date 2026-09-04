@@ -31,7 +31,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/** ita3-3: 一般ユーザー（招待コードなし登録）の即時退会と、ジム所属ユーザーの申請制退会の分岐を検証する。 */
+/** 一般ユーザー（招待コードなし登録）の即時退会と、ジム所属ユーザーの申請制退会の分岐を検証する。 */
 @ExtendWith(MockitoExtension.class)
 class WithdrawalServiceTest {
 

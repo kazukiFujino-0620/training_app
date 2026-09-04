@@ -34,7 +34,7 @@ public class UserController {
     return "redirect:/login";
   }
 
-  /** ita3-3: 登録用LP（アプリ紹介・招待コード入力）。QR/URL経由での未ログインアクセスを想定。 */
+  /** 登録用LP（アプリ紹介・招待コード入力）。QR/URL経由での未ログインアクセスを想定。 */
   @GetMapping("/welcome")
   public String welcome(@RequestParam(required = false) String inviteCode, Model model) {
     model.addAttribute("inviteCode", inviteCode == null ? "" : inviteCode);
@@ -49,7 +49,7 @@ public class UserController {
   @GetMapping("/signup")
   public String signup(@RequestParam(required = false) String inviteCode, Model model) {
     SignupForm signupForm = new SignupForm();
-    // ita3-3: 登録LPのQR/URL（例: /signup?inviteCode=XXX）からの遷移時にコードを事前入力する
+    // 登録LPのQR/URL（例: /signup?inviteCode=XXX）からの遷移時にコードを事前入力する
     if (inviteCode != null && !inviteCode.isBlank()) {
       signupForm.setInviteCode(inviteCode);
     }

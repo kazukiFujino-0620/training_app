@@ -162,7 +162,7 @@ export const healthApi = {
 };
 
 export const withdrawalApi = {
-  /** ita3-3: 一般ユーザーか（即時削除フロー）、ジム所属ユーザーか（申請制フロー）、申請中かを取得する。 */
+  /** 一般ユーザーか（即時削除フロー）、ジム所属ユーザーか（申請制フロー）、申請中かを取得する。 */
   getStatus: () => client.get<WithdrawalStatus>('/withdrawal/status'),
   /** ジム所属ユーザー向け：退会を申請する（管理者承認後に削除）。 */
   request: (reasonType?: string, reasonText?: string) =>

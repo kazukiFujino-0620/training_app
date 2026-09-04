@@ -30,7 +30,7 @@ import org.springframework.ui.ExtendedModelMap;
 import org.springframework.ui.Model;
 
 /**
- * ita3-3: ROLE_ADMIN（全組織アクセス可）であっても、一般ユーザー（デフォルト組織所属）は `/admin/users`・`/admin/all-users-training`
+ * ROLE_ADMIN（全組織アクセス可）であっても、一般ユーザー（デフォルト組織所属）は `/admin/users`・`/admin/all-users-training`
  * の一覧から除外されることを検証する。
  */
 @ExtendWith(MockitoExtension.class)

@@ -25,7 +25,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.ui.Model;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-/** ita3-3: Web版退会画面の一般ユーザー（即時削除）/ジム所属ユーザー（申請制）分岐を検証する。 */
+/** Web版退会画面の一般ユーザー（即時削除）/ジム所属ユーザー（申請制）分岐を検証する。 */
 @ExtendWith(MockitoExtension.class)
 class WithdrawalControllerTest {
 
