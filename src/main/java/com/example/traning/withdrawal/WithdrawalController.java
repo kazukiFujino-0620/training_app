@@ -1,5 +1,6 @@
 package com.example.traning.withdrawal;
 
+import com.example.traning.common.WebErrorCode;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,6 +50,7 @@ public class WithdrawalController {
       RedirectAttributes redirectAttributes) {
     if (!confirmed) {
       redirectAttributes.addFlashAttribute("errorMessage", "確認チェックボックスにチェックを入れてください");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
       return "redirect:/user/withdrawal";
     }
 
@@ -59,6 +61,7 @@ public class WithdrawalController {
         withdrawalService.selfDeleteImmediately(loginUser.getUserId().longValue());
       } catch (IllegalStateException e) {
         redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
         return "redirect:/user/withdrawal";
       }
       // 削除済みアカウントの認証状態を残さないため、セッション・認証情報を破棄してログイン画面へ
@@ -75,6 +78,7 @@ public class WithdrawalController {
       redirectAttributes.addFlashAttribute("successMessage", "退会申請を受け付けました。確認メールをお送りしました。");
     } catch (IllegalStateException e) {
       redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
     }
     return "redirect:/user/withdrawal";
   }
@@ -87,6 +91,7 @@ public class WithdrawalController {
       redirectAttributes.addFlashAttribute("successMessage", "退会申請をキャンセルしました");
     } catch (IllegalStateException e) {
       redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
     }
     return "redirect:/user/withdrawal";
   }

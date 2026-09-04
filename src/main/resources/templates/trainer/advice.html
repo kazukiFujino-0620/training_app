@@ -68,7 +68,7 @@
     </div>
 
     <div th:if="${successMessage}" class="alert alert-success mb-4" th:text="${successMessage}"></div>
-    <div th:if="${errorMessage}" class="alert alert-danger mb-4" th:text="${errorMessage}"></div>
+    <div th:replace="~{common :: errorMessageFragment}"></div>
 
     <div class="advice-manage-card">
       <form th:action="@{/trainer/advice}" method="post">
