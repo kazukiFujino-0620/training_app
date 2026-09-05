@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Image,
   Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { useFonts, Oswald_700Bold } from '@expo-google-fonts/oswald';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,10 +27,19 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 };
 
 export default function LoginScreen({ navigation }: Props) {
+  const [fontsLoaded] = useFonts({ Oswald_700Bold });
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'line' | null>(null);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+      </View>
+    );
+  }
 
   async function handleOAuthLogin(provider: 'google' | 'line') {
     setOauthLoading(provider);
@@ -111,8 +120,8 @@ export default function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.container}>
-        <Feather name="activity" size={56} color="#4CAF50" style={styles.logo} />
-        <Text style={styles.title}>トレーニングアプリ</Text>
+        <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+        <Text style={styles.title}>RepLog</Text>
         <Text style={styles.subtitle}>アカウントにログイン</Text>
 
         <TextInput
@@ -178,12 +187,13 @@ export default function LoginScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#f5f5f5' },
+  splash: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' },
   container: {
     flex: 1, justifyContent: 'center', paddingHorizontal: 32,
   },
-  logo: { alignSelf: 'center', marginBottom: 8 },
+  logo: { width: 56, height: 56, alignSelf: 'center', marginBottom: 8 },
   title: {
-    fontSize: 26, fontWeight: '800', color: '#222',
+    fontSize: 26, fontFamily: 'Oswald_700Bold', color: '#16233D',
     textAlign: 'center', marginBottom: 4,
   },
   subtitle: {
