@@ -8,10 +8,10 @@
     <meta name="theme-color" content="#111111">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIFTLOG（仮） - 筋トレ記録アプリ</title>
+    <title>RepLog - 筋トレ記録アプリ</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Expanded:wght@700;800&family=Big+Shoulders+Display:wght@700;800;900&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #ffffff;
@@ -50,11 +50,11 @@
   header.top { padding: 1.4rem 0; border-bottom: 2px solid var(--border); }
   .top-row { display: flex; align-items: center; justify-content: space-between; }
   .wordmark {
-    font-family: "Big Shoulders Display", sans-serif;
-    font-size: 1.7rem; font-weight: 900; letter-spacing: 0.01em;
-    display: flex; align-items: center; gap: 0.4rem;
+    font-family: "Archivo Expanded", sans-serif;
+    font-size: 1.5rem; font-weight: 800; letter-spacing: 0.01em; color: #16233D;
+    display: flex; align-items: center; gap: 0.5rem;
   }
-  .wordmark .dot { width: 12px; height: 12px; border-radius: 0; background: var(--accent); border: 2px solid var(--border); }
+  .wordmark img { width: 28px; height: 28px; }
   nav.top-links {
     display: flex; align-items: center; gap: 1.8rem; font-size: 0.78rem; letter-spacing: 0.02em;
     color: var(--text-primary); font-weight: 700;
@@ -251,7 +251,7 @@
   <div class="container">
     <header class="top">
       <div class="top-row">
-        <div class="wordmark"><span class="dot"></span> LIFTLOG</div>
+        <div class="wordmark"><img th:src="@{/images/logo-icon.png}" alt="RepLog"> RepLog</div>
         <nav class="top-links">
           <a href="#features">できること</a>
           <a href="#join">はじめる</a>
@@ -266,9 +266,9 @@
       <div class="hero-mark" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 11-14h-8l1-6z"/></svg>
       </div>
-      <span class="eyebrow">筋トレ記録アプリ「LIFTLOG（仮称）」</span>
+      <span class="eyebrow">筋トレ記録アプリ「RepLog」</span>
       <h1 class="hero-title">重量も、回数も、<br>成長も、<span class="accent-word">全部記録する。</span></h1>
-      <p class="hero-sub"><strong>LIFTLOG（仮称）</strong>は、筋トレ・トレーニング記録専用アプリです。<br>自己ベストの自動更新、AIによる次回メニュー提案、消費カロリーの<span style="white-space: nowrap;">正確な算出</span>。<br>トレーニングを"なんとなく"から"数字で見える"に変えます。</p>
+      <p class="hero-sub"><strong>RepLog</strong>は、筋トレ・トレーニング記録専用アプリです。<br>自己ベストの自動更新、AIによる次回メニュー提案、消費カロリーの<span style="white-space: nowrap;">正確な算出</span>。<br>トレーニングを"なんとなく"から"数字で見える"に変えます。</p>
 
       <div class="code-panel" id="join">
         <h2>招待コードをお持ちの方</h2>
@@ -426,7 +426,7 @@
   <footer class="site-foot">
     <div class="container">
       <div class="foot-row">
-        <div class="wordmark" style="font-size:0.9rem;"><span class="dot"></span> LIFTLOG</div>
+        <div class="wordmark" style="font-size:0.9rem;"><img th:src="@{/images/logo-icon.png}" alt="RepLog" style="width:20px;height:20px;"> RepLog</div>
         <div class="foot-links">
           <a href="#">利用規約</a>
           <a th:href="@{/privacy}">プライバシーポリシー</a>
