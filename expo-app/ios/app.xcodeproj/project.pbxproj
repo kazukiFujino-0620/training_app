@@ -12,6 +12,7 @@
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		6D7747C86B7971A5D1693983 /* libPods-app.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 16F970FCA4C59140C3C24E16 /* libPods-app.a */; };
 		70021C6FD69448138DE05A77 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 583F1B292B776513FD677AD6 /* ExpoModulesProvider.swift */; };
+		9FE30F4A270D4D00843DDDB1 /* Oswald_700Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E09236C1B70C4BB3AA082A2D /* Oswald_700Bold.ttf */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
@@ -27,6 +28,7 @@
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = app/SplashScreen.storyboard; sourceTree = "<group>"; };
 		B695D0425AE65DE9E5B1E45C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = app/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		E09236C1B70C4BB3AA082A2D /* Oswald_700Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = Oswald_700Bold.ttf; path = app/Resources/Oswald_700Bold.ttf; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = app/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* app-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "app-Bridging-Header.h"; path = "app/app-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -75,6 +77,15 @@
 			name = app;
 			sourceTree = "<group>";
 		};
+		468194146BCC49879C8E4666 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E09236C1B70C4BB3AA082A2D /* Oswald_700Bold.ttf */,
+			);
+			name = Resources;
+			path = "";
+			sourceTree = "<group>";
+		};
 		5B07B19FBA1E5A6A55B23F50 /* ExpoModulesProviders */ = {
 			isa = PBXGroup;
 			children = (
@@ -109,6 +120,7 @@
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				71223DBE660E88A44C987EB8 /* Pods */,
 				5B07B19FBA1E5A6A55B23F50 /* ExpoModulesProviders */,
+				468194146BCC49879C8E4666 /* Resources */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -199,6 +211,7 @@
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
 				174E651A726C8B798DFA7515 /* PrivacyInfo.xcprivacy in Resources */,
+				9FE30F4A270D4D00843DDDB1 /* Oswald_700Bold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
