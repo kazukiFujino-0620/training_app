@@ -23,9 +23,9 @@ import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.dto.PreviousTrainingResponse;
 import com.example.traning.training.service.CalorieCalculator;
 import com.example.traning.training.service.TrainingService;
+import com.example.traning.training.service.TrainingStatsService;
 import com.example.traning.user.User;
 import com.example.traning.weekly.WeeklyProgram;
-import com.example.traning.weekly.WeeklyProgramService;
 import jakarta.validation.Valid;
 import java.security.Principal;
 import java.time.LocalDate;
@@ -65,7 +65,6 @@ public class MenuController {
   private final TrainingMasterDao trainingMasterDao;
   private final TrainingService trainingService;
   private final CalorieCalculator calorieCalculator;
-  private final WeeklyProgramService weeklyProgramService;
   private final RecommendationService recommendationService;
   private final OneRmPredictionService oneRmPredictionService;
   private final AcwrService acwrService;
@@ -75,9 +74,7 @@ public class MenuController {
   private final AiTrainingSuggestionService aiTrainingSuggestionService;
   private final AiFatigueCommentService aiFatigueCommentService;
   private final FatigueCalculator fatigueCalculator;
-
-  private static final Map<String, String> PART_LABEL_MAP =
-      Map.of("CHEST", "胸", "BACK", "背中", "SHOULDER", "肩", "ARM", "腕", "LEG", "脚");
+  private final TrainingStatsService trainingStatsService;
 
   public MenuController(
       TrainingDao trainingDao,
@@ -85,7 +82,6 @@ public class MenuController {
       TrainingMasterDao trainingMasterDao,
       TrainingService trainingService,
       CalorieCalculator calorieCalculator,
-      WeeklyProgramService weeklyProgramService,
       RecommendationService recommendationService,
       OneRmPredictionService oneRmPredictionService,
       AcwrService acwrService,
@@ -94,13 +90,13 @@ public class MenuController {
       TrainerAdviceService trainerAdviceService,
       AiTrainingSuggestionService aiTrainingSuggestionService,
       AiFatigueCommentService aiFatigueCommentService,
-      FatigueCalculator fatigueCalculator) {
+      FatigueCalculator fatigueCalculator,
+      TrainingStatsService trainingStatsService) {
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
     this.trainingService = trainingService;
     this.calorieCalculator = calorieCalculator;
-    this.weeklyProgramService = weeklyProgramService;
     this.recommendationService = recommendationService;
     this.oneRmPredictionService = oneRmPredictionService;
     this.acwrService = acwrService;
@@ -110,6 +106,7 @@ public class MenuController {
     this.aiTrainingSuggestionService = aiTrainingSuggestionService;
     this.aiFatigueCommentService = aiFatigueCommentService;
     this.fatigueCalculator = fatigueCalculator;
+    this.trainingStatsService = trainingStatsService;
   }
 
   @GetMapping("/menu")
@@ -220,49 +217,15 @@ public class MenuController {
       fatigueRows.add(row);
     }
 
-    // R1: 今月のトレーニング回数
-    int monthlyCount =
-        trainingDao.countByUserIdAndMonth(userId, today.getYear(), today.getMonthValue());
-
-    // R2: 今週（月曜起点）の部位カバレッジ
-    LocalDate weekStart =
-        today.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
-    java.util.Set<String> weekPartsDoneSet =
-        new java.util.HashSet<>(
-            trainingDao.selectDistinctPartsByUserIdAndDateRange(userId, weekStart, today));
-    String[][] partDefs = {
-      {"CHEST", "胸"}, {"BACK", "背中"}, {"SHOULDER", "肩"}, {"ARM", "腕"}, {"LEG", "脚"}
-    };
-    List<Map<String, Object>> weekParts = new ArrayList<>();
-    for (String[] pd : partDefs) {
-      Map<String, Object> pi = new java.util.LinkedHashMap<>();
-      pi.put("name", pd[1]);
-      pi.put("done", weekPartsDoneSet.contains(pd[0]));
-      weekParts.add(pi);
-    }
-
-    // R3: 前週比ボリューム
-    LocalDate prevWeekStart = weekStart.minusWeeks(1);
-    LocalDate prevWeekEnd = weekStart.minusDays(1);
-    Double thisWeekVolume =
-        trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, weekStart, today);
-    Double prevWeekVolume =
-        trainingDetailDao.selectTotalVolumeByUserIdAndDateRange(userId, prevWeekStart, prevWeekEnd);
-    String volumeChangeText;
-    boolean volumeChangePositive = true;
-    if (prevWeekVolume == null || prevWeekVolume == 0.0) {
-      volumeChangeText = "前週データなし";
-    } else {
-      double thisVol = thisWeekVolume != null ? thisWeekVolume : 0.0;
-      int pctChange = (int) Math.round((thisVol - prevWeekVolume) / prevWeekVolume * 100);
-      volumeChangePositive = pctChange >= 0;
-      volumeChangeText = pctChange >= 0 ? "+" + pctChange + "%" : pctChange + "%";
-    }
-
-    // 週間プログラム: 今日の予定
-    WeeklyProgram todayProgram = weeklyProgramService.getTodayProgram(userId).orElse(null);
-    String todayPartLabel =
-        todayProgram != null ? PART_LABEL_MAP.getOrDefault(todayProgram.getPartCode(), "") : null;
+    // R1〜R3・今日の予定: 統計バー算出ロジックはita7-2でモバイル(MobileStatsController)と共用するため
+    // TrainingStatsServiceへ切り出し済み。Web側の出力（モデル属性の型・値）は切り出し前と完全に同一。
+    TrainingStatsService.TrainingStats stats = trainingStatsService.getStats(userId, today);
+    int monthlyCount = stats.monthlyCount();
+    List<Map<String, Object>> weekParts = stats.weekPartsAsMapList();
+    String volumeChangeText = stats.volumeChangeText();
+    boolean volumeChangePositive = stats.volumeChangePositive();
+    WeeklyProgram todayProgram = stats.todayProgram();
+    String todayPartLabel = stats.todayPartLabel();
 
     model.addAttribute("loginUser", userEntity);
     model.addAttribute("targetMonth", yearMonth);

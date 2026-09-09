@@ -89,6 +89,7 @@ import type {
   SaveBodyMeasurementRequest,
   MobileProfile,
   UpdateProfileRequest,
+  MobileTrainingStatsResponse,
 } from './types';
 
 export const authApi = {
@@ -182,6 +183,11 @@ export const profileApi = {
   updateGoalMode: (goalMode: string) => client.patch('/profile/goal-mode', { goalMode }),
   updateAiAdviceConsent: (aiAdviceConsent: boolean) =>
     client.patch('/profile/ai-advice-consent', { aiAdviceConsent }),
+};
+
+/** ita7-2: カレンダータブ下の統計バー（今月・先週比・今週の部位・今日の予定） */
+export const statsApi = {
+  getTraining: () => client.get<MobileTrainingStatsResponse>('/stats/training'),
 };
 
 export const withdrawalApi = {
