@@ -22,7 +22,22 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./node_modules/@expo-google-fonts/oswald/700Bold/Oswald_700Bold.ttf"
+          ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#16233D",
+          "image": "./assets/icon.png",
+          "resizeMode": "contain"
+        }
+      ],
       [
         "expo-secure-store",
         {

@@ -9,13 +9,17 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnable
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 
 import expo.modules.ReactActivityDelegateWrapper
+import expo.modules.splashscreen.SplashScreenManager
 
 class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     // Set the theme to AppTheme BEFORE onCreate to support
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.
-    setTheme(R.style.AppTheme);
+    // setTheme(R.style.AppTheme)
+    // expo-splash-screen: keep the native splash (Theme.App.SplashScreen from
+    // AndroidManifest) visible until SplashScreen.hideAsync() is called from JS.
+    SplashScreenManager.registerOnActivity(this)
     super.onCreate(null)
   }
 

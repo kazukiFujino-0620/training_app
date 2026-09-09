@@ -55,6 +55,10 @@
     <array>
       <string>audio</string>
     </array>
+    <key>UIAppFonts</key>
+    <array>
+      <string>Oswald_700Bold.ttf</string>
+    </array>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>

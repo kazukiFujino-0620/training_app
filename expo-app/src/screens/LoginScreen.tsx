@@ -27,19 +27,16 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 };
 
 export default function LoginScreen({ navigation }: Props) {
-  const [fontsLoaded] = useFonts({ Oswald_700Bold });
+  // app.json の expo-font config plugin でビルド時に埋め込み済みのため、
+  // ネイティブ本番/開発ビルドでは即座に true になる。Expo Go 実行時のみ
+  // 実際に非同期ロードが発生するが、ロード完了を待って画面全体をブロックすると
+  // 起動体感が悪化するため、フォント未ロードの間もこのまま画面を描画する
+  // （フォント確定前は一瞬システムデフォルトフォントで表示され、ロード完了後に再描画される）。
+  useFonts({ Oswald_700Bold });
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'line' | null>(null);
-
-  if (!fontsLoaded) {
-    return (
-      <View style={styles.splash}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-      </View>
-    );
-  }
 
   async function handleOAuthLogin(provider: 'google' | 'line') {
     setOauthLoading(provider);
@@ -187,7 +184,6 @@ export default function LoginScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#f5f5f5' },
-  splash: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' },
   container: {
     flex: 1, justifyContent: 'center', paddingHorizontal: 32,
   },
