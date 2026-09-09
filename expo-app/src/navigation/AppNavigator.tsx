@@ -12,6 +12,8 @@ import GoalScreen from '../screens/GoalScreen';
 import HealthScreen from '../screens/HealthScreen';
 import NoticeListScreen from '../screens/NoticeListScreen';
 import WithdrawalScreen from '../screens/WithdrawalScreen';
+import BodyMeasurementScreen from '../screens/BodyMeasurementScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import type { AiTrainingSuggestion } from '../api/types';
 
 export type AuthStackParamList = {
@@ -22,8 +24,9 @@ export type AuthStackParamList = {
 export type AppStackParamList = {
   TrainingList: undefined;
   TrainingStart: undefined;
-  Exercise: { trainingId: number; menu: string };
-  AddExercise: { aiSuggestion?: AiTrainingSuggestion } | undefined;
+  /** date未指定時は当日として扱う（後方互換） */
+  Exercise: { trainingId: number; menu: string; date?: string };
+  AddExercise: { aiSuggestion?: AiTrainingSuggestion; date?: string } | undefined;
   Goal: {
     date: string;
     totalSets?: number;
@@ -34,6 +37,8 @@ export type AppStackParamList = {
   Health: undefined;
   NoticeList: undefined;
   Withdrawal: undefined;
+  BodyMeasurement: undefined;
+  Profile: undefined;
 };
 
 type RootStackParamList = {
@@ -99,6 +104,16 @@ function AppNavigator() {
       <AppStack.Screen
         name="Withdrawal"
         component={WithdrawalScreen}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="BodyMeasurement"
+        component={BodyMeasurementScreen}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="Profile"
+        component={ProfileScreen}
         options={{ headerShown: false }}
       />
     </AppStack.Navigator>

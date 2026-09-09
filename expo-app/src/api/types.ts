@@ -247,3 +247,43 @@ export interface WithdrawalStatus {
   isGeneralUser: boolean;
   hasPendingRequest: boolean;
 }
+
+// ── 体重・体脂肪率の手動記録（ita7-1 1-2） ────────────────────────────────
+
+export interface BodyMeasurement {
+  id: number;
+  measuredDate: string;
+  weightKg: number;
+  bodyFatPct: number | null;
+  memo: string | null;
+  source: string;
+}
+
+export interface SaveBodyMeasurementRequest {
+  measuredDate: string;
+  weightKg: number;
+  bodyFatPct?: number | null;
+  memo?: string | null;
+}
+
+// ── プロフィール編集（ita7-1 1-3） ────────────────────────────────────────
+
+export type GoalMode = 'BULKING' | 'CUTTING' | 'MAINTENANCE';
+
+export interface MobileProfile {
+  userName: string | null;
+  heightCm: number | null;
+  weightKg: number | null;
+  gender: string | null;
+  birthDate: string | null;
+  currentGoalMode: string | null;
+  aiAdviceConsent: boolean | null;
+}
+
+export interface UpdateProfileRequest {
+  userName?: string;
+  heightCm?: number;
+  weightKg?: number;
+  gender?: string;
+  birthDate?: string;
+}

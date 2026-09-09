@@ -85,6 +85,10 @@ import type {
   Notice,
   AiTrainingSuggestion,
   WithdrawalStatus,
+  BodyMeasurement,
+  SaveBodyMeasurementRequest,
+  MobileProfile,
+  UpdateProfileRequest,
 } from './types';
 
 export const authApi = {
@@ -113,6 +117,9 @@ export const trainingApi = {
     client.patch<SetUpdateResponse>(`/training/sets/${id}`, req),
   updateMemo: (id: number, memo: string) =>
     client.patch(`/training/${id}/memo`, { memo }),
+  /** ita7-1 1-1: トレーニング本体（種目名・部位・日付）の更新（過去分編集対応） */
+  updateTraining: (id: number, req: { menu: string; partCode: string; trainingDate: string }) =>
+    client.patch(`/training/${id}`, req),
   completeTraining: (trainingId: number, durationSec?: number) =>
     client.post('/training/complete', { trainingId, durationSec }),
   addSet: (trainingId: number, req: AddSetRequest) =>
@@ -159,6 +166,22 @@ export const healthApi = {
   sync: (req: HealthSyncRequest) =>
     client.post<HealthSyncResponse>('/health/sync', req),
   getSummary: () => client.get<HealthSummaryResponse>('/health/summary'),
+};
+
+/** ita7-1 1-2: 体重・体脂肪率の手動記録 */
+export const bodyMeasurementApi = {
+  getAll: () => client.get<BodyMeasurement[]>('/body'),
+  save: (req: SaveBodyMeasurementRequest) => client.post('/body', req),
+  delete: (id: number) => client.delete(`/body/${id}`),
+};
+
+/** ita7-1 1-3: プロフィール編集 */
+export const profileApi = {
+  get: () => client.get<MobileProfile>('/profile'),
+  update: (req: UpdateProfileRequest) => client.patch('/profile', req),
+  updateGoalMode: (goalMode: string) => client.patch('/profile/goal-mode', { goalMode }),
+  updateAiAdviceConsent: (aiAdviceConsent: boolean) =>
+    client.patch('/profile/ai-advice-consent', { aiAdviceConsent }),
 };
 
 export const withdrawalApi = {

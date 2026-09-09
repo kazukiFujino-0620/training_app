@@ -4,6 +4,7 @@ import {
   Alert, ActivityIndicator, RefreshControl, AppState, Modal, Pressable,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,7 +19,28 @@ type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'TrainingList'>;
 };
 
+/** ローカル日付のYYYY-MM-DD文字列を返す（UTC変換によるズレを避けるためtoISOStringは使わない） */
+function toDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function todayDateString(): string {
+  return toDateString(new Date());
+}
+
+function formatDateLabel(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  return d.toLocaleDateString('ja-JP', {
+    year: 'numeric', month: 'long', day: 'numeric', weekday: 'short',
+  });
+}
+
 export default function TrainingListScreen({ navigation }: Props) {
+  const [date, setDate] = useState(todayDateString());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,17 +55,18 @@ export default function TrainingListScreen({ navigation }: Props) {
     getUserName().then(setUserName);
   }, []);
 
-  const today = new Date().toLocaleDateString('ja-JP', {
-    year: 'numeric', month: 'long', day: 'numeric', weekday: 'short',
-  });
+  const today = todayDateString();
+  const isToday = date === today;
+  const isPast = date < today;
+  const isFuture = date > today;
 
   const load = useCallback(async () => {
     try {
-      const { data } = await trainingApi.getToday();
+      const { data } = await trainingApi.getToday(date);
       setTrainings(data);
 
       try {
-        const { data: calorieData } = await trainingApi.getTodayCalories();
+        const { data: calorieData } = await trainingApi.getTodayCalories(date);
         setCalories(calorieData.available ? calorieData.calories : null);
       } catch {
         setCalories(null);
@@ -56,11 +79,15 @@ export default function TrainingListScreen({ navigation }: Props) {
         setNoticeCount(0);
       }
 
-      // ita5-1 機能1（仮連携）: 当日のAIトレーニング提案（同意していない/提案が無い場合は204）
-      try {
-        const { data: suggestion } = await coachingApi.getTodayTrainingSuggestion();
-        setAiSuggestion(suggestion && suggestion.items?.length > 0 ? suggestion : null);
-      } catch {
+      // ita5-1 機能1（仮連携）: 当日のAIトレーニング提案（同意していない/提案が無い場合は204）。当日以外では表示しない
+      if (isToday) {
+        try {
+          const { data: suggestion } = await coachingApi.getTodayTrainingSuggestion();
+          setAiSuggestion(suggestion && suggestion.items?.length > 0 ? suggestion : null);
+        } catch {
+          setAiSuggestion(null);
+        }
+      } else {
         setAiSuggestion(null);
       }
     } catch (e: any) {
@@ -74,7 +101,7 @@ export default function TrainingListScreen({ navigation }: Props) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [navigation]);
+  }, [navigation, date, isToday]);
 
   // 画面フォーカス時に再取得
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -109,6 +136,12 @@ export default function TrainingListScreen({ navigation }: Props) {
     navigation.replace('Auth' as any);
   }
 
+  function handleSelectDate(day: { dateString: string }) {
+    setDate(day.dateString);
+    setCalendarOpen(false);
+    setLoading(true);
+  }
+
   const totalSets     = trainings.reduce((s, t) => s + t.details.length, 0);
   const completedSets = trainings.reduce(
     (s, t) => s + t.details.filter((d) => d.completed).length, 0,
@@ -129,11 +162,19 @@ export default function TrainingListScreen({ navigation }: Props) {
       {/* ヘッダー */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.dateText}>{today}</Text>
-            <Text style={styles.headerTitle}>今日のトレーニング</Text>
+          <TouchableOpacity
+            style={styles.dateTouchable}
+            onPress={() => setCalendarOpen(true)}
+            accessibilityLabel="日付を選択"
+          >
+            <Text style={styles.dateText}>
+              {formatDateLabel(date)} <Feather name="chevron-down" size={12} color="#888" />
+            </Text>
+            <Text style={styles.headerTitle}>
+              {isToday ? '今日のトレーニング' : isPast ? '過去のトレーニング' : '予定のトレーニング'}
+            </Text>
             {userName && <Text style={styles.userNameText}>ユーザー名: {userName}</Text>}
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setMenuOpen(true)}
             style={styles.menuButton}
@@ -144,7 +185,36 @@ export default function TrainingListScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {/* ヘッダーメニュー（お知らせ・ヘルスケア・退会・ログアウト） */}
+      {/* カレンダー（日付選択、ita7-1 1-1） */}
+      <Modal
+        visible={calendarOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCalendarOpen(false)}
+      >
+        <Pressable style={styles.calendarBackdrop} onPress={() => setCalendarOpen(false)}>
+          <Pressable style={styles.calendarCard} onPress={() => {}}>
+            <Calendar
+              current={date}
+              onDayPress={handleSelectDate}
+              markedDates={{ [date]: { selected: true, selectedColor: '#4CAF50' } }}
+              theme={{
+                todayTextColor: '#4CAF50',
+                selectedDayBackgroundColor: '#4CAF50',
+                arrowColor: '#4CAF50',
+              }}
+            />
+            <TouchableOpacity
+              style={styles.calendarTodayButton}
+              onPress={() => handleSelectDate({ dateString: today })}
+            >
+              <Text style={styles.calendarTodayButtonText}>今日に戻る</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ヘッダーメニュー（お知らせ・体重記録・ヘルスケア・プロフィール・退会・ログアウト） */}
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
           <View style={styles.menuCard}>
@@ -161,6 +231,18 @@ export default function TrainingListScreen({ navigation }: Props) {
               onPress={() => { setMenuOpen(false); navigation.navigate('Health'); }}
             >
               <Text style={styles.menuItemText}>ヘルスケア</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setMenuOpen(false); navigation.navigate('BodyMeasurement'); }}
+            >
+              <Text style={styles.menuItemText}>体重記録</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setMenuOpen(false); navigation.navigate('Profile'); }}
+            >
+              <Text style={styles.menuItemText}>プロフィール</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.menuItem, styles.menuItemLast]}
@@ -192,7 +274,7 @@ export default function TrainingListScreen({ navigation }: Props) {
         </TouchableOpacity>
       )}
 
-      {/* ita5-1 機能1（仮連携）: AIトレーニング提案 */}
+      {/* ita5-1 機能1（仮連携）: AIトレーニング提案（当日のみ） */}
       {aiSuggestion && (
         <View style={styles.aiSuggestionBanner}>
           <Text style={styles.aiSuggestionText} numberOfLines={2}>
@@ -200,7 +282,7 @@ export default function TrainingListScreen({ navigation }: Props) {
           </Text>
           <TouchableOpacity
             style={styles.aiSuggestionButton}
-            onPress={() => navigation.navigate('AddExercise', { aiSuggestion })}
+            onPress={() => navigation.navigate('AddExercise', { aiSuggestion, date })}
           >
             <Text style={styles.aiSuggestionButtonText}>この提案を反映する</Text>
           </TouchableOpacity>
@@ -228,7 +310,7 @@ export default function TrainingListScreen({ navigation }: Props) {
           <TrainingCard
             training={item}
             onPress={() =>
-              navigation.navigate('Exercise', { trainingId: item.id, menu: item.menu })
+              navigation.navigate('Exercise', { trainingId: item.id, menu: item.menu, date })
             }
             onDelete={() => handleDelete(item.id)}
           />
@@ -236,10 +318,14 @@ export default function TrainingListScreen({ navigation }: Props) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Feather name="clipboard" size={48} color="#aaa" style={styles.emptyIcon} />
-            <Text style={styles.emptyText}>今日のトレーニングはありません</Text>
-            <Text style={styles.emptySubText}>
-              ＋ボタンから種目を追加してください
+            <Text style={styles.emptyText}>
+              {isToday ? '今日のトレーニングはありません' : 'この日のトレーニングはありません'}
             </Text>
+            {!isPast && (
+              <Text style={styles.emptySubText}>
+                ＋ボタンから種目を追加してください
+              </Text>
+            )}
           </View>
         }
         contentContainerStyle={styles.list}
@@ -249,22 +335,15 @@ export default function TrainingListScreen({ navigation }: Props) {
       />
 
       {/* フッター */}
-      <View style={styles.footer}>
-        {trainings.length > 0 ? (
-          isAllTrainingsCompleted ? (
-            // 全種目完了済み：「トレーニング開始」を非表示、「種目追加」のみ全幅
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => navigation.navigate('AddExercise')}
-            >
-              <Text style={styles.addButtonText}>＋ 種目を追加</Text>
-            </TouchableOpacity>
-          ) : (
-            // 未完了あり：両ボタンを表示
+      {/* ita7-1 1-1: 過去日は編集・削除のみ対応のため、+追加・▶開始とも非表示にする */}
+      {!isPast && (
+        <View style={styles.footer}>
+          {trainings.length > 0 && !isFuture && !isAllTrainingsCompleted ? (
+            // 当日・未完了あり：両ボタンを表示
             <View style={styles.buttonRow}>
               <TouchableOpacity
                 style={styles.addButtonOutline}
-                onPress={() => navigation.navigate('AddExercise')}
+                onPress={() => navigation.navigate('AddExercise', { date })}
               >
                 <Text style={styles.addButtonOutlineText}>＋ 種目を追加</Text>
               </TouchableOpacity>
@@ -275,16 +354,18 @@ export default function TrainingListScreen({ navigation }: Props) {
                 <Text style={styles.startButtonText}>▶ トレーニング開始</Text>
               </TouchableOpacity>
             </View>
-          )
-        ) : (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => navigation.navigate('AddExercise')}
-          >
-            <Text style={styles.addButtonText}>＋ 種目を追加</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+          ) : (
+            // 当日で全種目完了済み、または未来日（種目の有無を問わずライブセッションは開始不可）：
+            // 「種目追加」のみ全幅表示
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => navigation.navigate('AddExercise', { date })}
+            >
+              <Text style={styles.addButtonText}>＋ 種目を追加</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -296,6 +377,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff',
     borderBottomWidth: 1, borderBottomColor: '#eee',
   },
+  dateTouchable: { flexShrink: 1 },
   dateText: { fontSize: 12, color: '#888' },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#222' },
   userNameText: { fontSize: 12, color: '#666', marginTop: 2 },
@@ -303,6 +385,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
   },
   menuButton: { padding: 6, marginTop: 2 },
+  calendarBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center',
+  },
+  calendarCard: {
+    width: '90%', backgroundColor: '#fff', borderRadius: 16, padding: 12,
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  calendarTodayButton: {
+    marginTop: 8, alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 16,
+  },
+  calendarTodayButtonText: { color: '#4CAF50', fontWeight: '700', fontSize: 13 },
   menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' },
   menuCard: {
     position: 'absolute', top: 68, right: 14, width: 200,
