@@ -287,3 +287,21 @@ export interface UpdateProfileRequest {
   gender?: string;
   birthDate?: string;
 }
+
+// ── 統計バー（ita7-2、カレンダータブ下） ──────────────────────────────────────
+
+export interface WeekPartCoverage {
+  name: string;
+  done: boolean;
+}
+
+/** Web版 /menu の統計バー（今月・先週比・今週の部位・今日の予定）と同じ内容 */
+export interface MobileTrainingStatsResponse {
+  monthlyCount: number;
+  /** 例: "+12%"、データが無い場合は "前週データなし" */
+  volumeChangeText: string;
+  volumeChangePositive: boolean;
+  weekParts: WeekPartCoverage[];
+  /** 今日の曜日別プログラムで設定された部位名。未設定の場合はnull */
+  todayPartLabel: string | null;
+}
