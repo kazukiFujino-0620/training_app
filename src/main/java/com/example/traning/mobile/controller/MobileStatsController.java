@@ -29,9 +29,7 @@ public class MobileStatsController {
     this.trainingStatsService = trainingStatsService;
   }
 
-  /**
-   * カレンダータブ下の統計バー（今月・先週比・今週の部位・今日の予定）と、カレンダー上の実施日ドット表示用の当月実施日一覧を返す（ita7-3）。
-   */
+  /** カレンダータブ下の統計バー（今月・先週比・今週の部位・今日の予定）と、カレンダー上の実施日ドット表示用の当月実施日一覧を返す（ita7-3）。 */
   @GetMapping("/training")
   public ResponseEntity<MobileTrainingStatsResponse> getTrainingStats(
       @AuthenticationPrincipal Long userId) {

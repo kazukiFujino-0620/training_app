@@ -93,8 +93,8 @@ public class TrainingStatsService {
   }
 
   /**
-   * カレンダータブの実施日ドット表示用（ita7-3）。指定した年月にトレーニングを実施した日付一覧を返す。
-   * Web版・モバイル版共用のロジックとして {@link #getStats} と同様にここへ切り出す。
+   * カレンダータブの実施日ドット表示用（ita7-3）。指定した年月にトレーニングを実施した日付一覧を返す。 Web版・モバイル版共用のロジックとして {@link #getStats}
+   * と同様にここへ切り出す。
    */
   @Transactional(readOnly = true)
   public List<LocalDate> getTrainingDatesInMonth(Long userId, java.time.YearMonth yearMonth) {
