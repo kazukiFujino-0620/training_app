@@ -30,6 +30,11 @@ public class MobileTrainingStatsResponse {
   /** 今日の曜日別プログラムで設定された部位名。未設定の場合はnull */
   private String todayPartLabel;
 
+  /**
+   * 当月のトレーニング実施日一覧（"yyyy-MM-dd"形式、重複無し）。カレンダータブの実施日ドット表示用（ita7-3）。
+   */
+  private List<String> trainingDates;
+
   @Data
   @NoArgsConstructor
   @AllArgsConstructor

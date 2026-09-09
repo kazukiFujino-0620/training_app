@@ -81,6 +81,10 @@ public interface TrainingDao {
   @Select
   int countByUserIdAndMonth(Long userId, int year, int month);
 
+  /** モバイルのカレンダータブでの実施日ドット表示用（ita7-3）。当月の実施日一覧（重複無し）を返す。 */
+  @Select
+  List<LocalDate> selectDistinctTrainingDatesByUserIdAndMonth(Long userId, int year, int month);
+
   @Select
   List<String> selectDistinctPartsByUserIdAndDateRange(
       Long userId, LocalDate startDate, LocalDate endDate);

@@ -3,6 +3,7 @@ package com.example.traning.mobile.controller;
 import com.example.traning.mobile.dto.MobileTrainingStatsResponse;
 import com.example.traning.training.service.TrainingStatsService;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,16 +29,23 @@ public class MobileStatsController {
     this.trainingStatsService = trainingStatsService;
   }
 
-  /** カレンダータブ下の統計バー（今月・先週比・今週の部位・今日の予定）を返す。 */
+  /**
+   * カレンダータブ下の統計バー（今月・先週比・今週の部位・今日の予定）と、カレンダー上の実施日ドット表示用の当月実施日一覧を返す（ita7-3）。
+   */
   @GetMapping("/training")
   public ResponseEntity<MobileTrainingStatsResponse> getTrainingStats(
       @AuthenticationPrincipal Long userId) {
-    TrainingStatsService.TrainingStats stats =
-        trainingStatsService.getStats(userId, LocalDate.now());
+    LocalDate today = LocalDate.now();
+    TrainingStatsService.TrainingStats stats = trainingStatsService.getStats(userId, today);
 
     List<MobileTrainingStatsResponse.PartCoverage> weekParts =
         stats.weekParts().stream()
             .map(pc -> new MobileTrainingStatsResponse.PartCoverage(pc.name(), pc.done()))
+            .toList();
+
+    List<String> trainingDates =
+        trainingStatsService.getTrainingDatesInMonth(userId, YearMonth.from(today)).stream()
+            .map(LocalDate::toString)
             .toList();
 
     MobileTrainingStatsResponse response =
@@ -46,7 +54,8 @@ public class MobileStatsController {
             stats.volumeChangeText(),
             stats.volumeChangePositive(),
             weekParts,
-            stats.todayPartLabel());
+            stats.todayPartLabel(),
+            trainingDates);
     return ResponseEntity.ok(response);
   }
 }

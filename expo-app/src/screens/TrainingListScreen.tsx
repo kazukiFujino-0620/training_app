@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Alert, ActivityIndicator, RefreshControl, AppState, Modal, Pressable, ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Calendar } from 'react-native-calendars';
+import { Calendar, DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -20,6 +20,54 @@ type Props = {
 };
 
 type TabKey = 'calendar' | 'training';
+
+/** カレンダーの日付セル単位の状態（ita7-3: 選択枠線・今日強調・実施日ドットを個別に見分けるため） */
+type CalendarDayMarking = { selected?: boolean; isToday?: boolean; done?: boolean };
+
+/**
+ * カレンダーの日付セル。react-native-calendars の `dayComponent` として渡す。
+ * ita7-3: 選択中の日付＝枠線、今日＝文字色強調（太字＋アクセントカラー）、実施日＝下にドット、を
+ * 独立したスタイルとして重ね合わせて表示する（重なる場合は両方見える）。
+ */
+function CalendarDayCell({
+  date,
+  state,
+  marking,
+  onPress,
+}: {
+  date?: DateData;
+  state?: string;
+  marking?: CalendarDayMarking;
+  onPress?: (date?: DateData) => void;
+}) {
+  if (!date) return null;
+  const isSelected = !!marking?.selected;
+  const isToday = !!marking?.isToday;
+  const isDone = !!marking?.done;
+  const isDisabled = state === 'disabled';
+
+  return (
+    <TouchableOpacity
+      onPress={() => onPress?.(date)}
+      disabled={isDisabled}
+      style={styles.calDayCell}
+      accessibilityLabel={`${date.dateString}${isDone ? '（トレーニング実施済み）' : ''}`}
+    >
+      <View style={[styles.calDayCircle, isSelected && styles.calDayCircleSelected]}>
+        <Text
+          style={[
+            styles.calDayText,
+            isDisabled && styles.calDayTextDisabled,
+            isToday && styles.calDayTextToday,
+          ]}
+        >
+          {date.day}
+        </Text>
+      </View>
+      <View style={styles.calDayDotSlot}>{isDone && <View style={styles.calDayDot} />}</View>
+    </TouchableOpacity>
+  );
+}
 
 /** ローカル日付のYYYY-MM-DD文字列を返す（UTC変換によるズレを避けるためtoISOStringは使わない） */
 function toDateString(d: Date): string {
@@ -47,6 +95,9 @@ export default function TrainingListScreen({ navigation }: Props) {
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // ita7-3: カレンダータブの選択日プレビューカード用（フルスクリーンのloadingとは分離し、
+  // カレンダー・統計バーを表示したまま概要部分だけ読み込み中にする）
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [calories, setCalories] = useState<number | null>(null);
   const [noticeCount, setNoticeCount] = useState(0);
   const [aiSuggestion, setAiSuggestion] = useState<AiTrainingSuggestion | null>(null);
@@ -66,6 +117,7 @@ export default function TrainingListScreen({ navigation }: Props) {
   const isFuture = date > today;
 
   const load = useCallback(async () => {
+    setPreviewLoading(true);
     try {
       const { data } = await trainingApi.getToday(date);
       setTrainings(data);
@@ -105,6 +157,7 @@ export default function TrainingListScreen({ navigation }: Props) {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setPreviewLoading(false);
     }
   }, [navigation, date, isToday]);
 
@@ -131,6 +184,36 @@ export default function TrainingListScreen({ navigation }: Props) {
     return () => sub.remove();
   }, [load]);
 
+  // ita7-3: カレンダーの日付セルごとの状態（選択枠線・今日強調・実施日ドット）をまとめる。
+  // 実施日一覧は統計バーAPI（当月分）を流用し、DB変更・新規APIは追加しない
+  const markedDates = useMemo(() => {
+    const md: Record<string, CalendarDayMarking> = {};
+    (stats?.trainingDates ?? []).forEach((d) => {
+      md[d] = { ...(md[d] ?? {}), done: true };
+    });
+    md[date] = { ...(md[date] ?? {}), selected: true };
+    md[today] = { ...(md[today] ?? {}), isToday: true };
+    return md;
+  }, [stats, date, today]);
+
+  // ita7-3: 選択中の日付プレビューカードの概要テキスト。既存のトレーニング一覧取得API（日付指定）で
+  // 取得済みの`trainings`をそのまま流用する（新規APIは追加しない）
+  const previewSummary = useMemo(() => {
+    if (trainings.length === 0) return '未実施';
+    const menuNames = trainings.map((t) => t.menu).filter(Boolean);
+    const partNames = Array.from(
+      new Set(trainings.map((t) => t.partName).filter((p): p is string => !!p)),
+    );
+    const completedCount = trainings.filter((t) => t.allCompleted).length;
+    const namesLabel = menuNames.join('・');
+    const partsLabel = partNames.length > 0 ? `（${partNames.join('・')}）` : '';
+    const statusLabel =
+      completedCount === trainings.length
+        ? `全${trainings.length}種目完了`
+        : `${completedCount}/${trainings.length}種目完了`;
+    return `${namesLabel}${partsLabel} ${statusLabel}`;
+  }, [trainings]);
+
   async function handleDelete(id: number) {
     Alert.alert('種目を削除', 'この種目を削除しますか？', [
       { text: 'キャンセル', style: 'cancel' },
@@ -153,11 +236,11 @@ export default function TrainingListScreen({ navigation }: Props) {
     navigation.replace('Auth' as any);
   }
 
-  // ita7-2: カレンダーで日付をタップすると、自動的に「トレーニング」タブへ切り替える
+  // ita7-3: カレンダーで日付をタップしても、選択状態になるだけでタブ遷移はしない
+  // （選択日の概要はカレンダー直下のプレビューカードに表示。「トレーニング」タブへは
+  // プレビューカードの「この日のトレーニングを見る」ボタンからのみ遷移する）
   function handleSelectDate(day: { dateString: string }) {
     setDate(day.dateString);
-    setActiveTab('training');
-    setLoading(true);
   }
 
   const totalSets     = trainings.reduce((s, t) => s + t.details.length, 0);
@@ -279,18 +362,32 @@ export default function TrainingListScreen({ navigation }: Props) {
             <Calendar
               current={date}
               onDayPress={handleSelectDate}
-              markedDates={{ [date]: { selected: true, selectedColor: '#4CAF50' } }}
-              theme={{
-                todayTextColor: '#4CAF50',
-                selectedDayBackgroundColor: '#4CAF50',
-                arrowColor: '#4CAF50',
-              }}
+              markedDates={markedDates}
+              dayComponent={CalendarDayCell}
+              theme={{ arrowColor: '#4CAF50' }}
             />
             <TouchableOpacity
               style={styles.calendarTodayButton}
               onPress={() => handleSelectDate({ dateString: today })}
             >
               <Text style={styles.calendarTodayButtonText}>今日に戻る</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 選択日プレビューカード（ita7-3新規）: タップでは遷移せず、ここに概要を表示する。
+              「この日のトレーニングを見る」ボタンからのみ「トレーニング」タブへ遷移する */}
+          <View style={styles.previewCard}>
+            <Text style={styles.previewDate}>{formatDateLabel(date)}</Text>
+            {previewLoading ? (
+              <ActivityIndicator size="small" color="#4CAF50" style={styles.previewLoading} />
+            ) : (
+              <Text style={styles.previewSummary}>{previewSummary}</Text>
+            )}
+            <TouchableOpacity
+              style={styles.previewButton}
+              onPress={() => setActiveTab('training')}
+            >
+              <Text style={styles.previewButtonText}>この日のトレーニングを見る</Text>
             </TouchableOpacity>
           </View>
 
@@ -511,6 +608,32 @@ const styles = StyleSheet.create({
     marginTop: 8, alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 16,
   },
   calendarTodayButtonText: { color: '#4CAF50', fontWeight: '700', fontSize: 13 },
+  // ita7-3: カレンダーの日付セル（選択枠線・今日強調・実施日ドットを個別に重ね合わせる）
+  calDayCell: { alignItems: 'center', justifyContent: 'center', width: 32, height: 40 },
+  calDayCircle: {
+    width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: 'transparent',
+  },
+  calDayCircleSelected: { borderColor: '#4CAF50' },
+  calDayText: { fontSize: 14, color: '#2d2d2d' },
+  calDayTextDisabled: { color: '#d5d5d5' },
+  calDayTextToday: { color: '#4CAF50', fontWeight: '800' },
+  calDayDotSlot: { height: 8, alignItems: 'center', justifyContent: 'center' },
+  calDayDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#4CAF50' },
+  // ita7-3: 選択日プレビューカード（カレンダー直下・統計バーより上）
+  previewCard: {
+    marginHorizontal: 14, marginTop: 4, marginBottom: 10, backgroundColor: '#fff', borderRadius: 14, padding: 14,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  previewDate: { fontSize: 13, color: '#888', fontWeight: '700', marginBottom: 6 },
+  previewSummary: { fontSize: 15, color: '#222', fontWeight: '600', lineHeight: 21 },
+  previewLoading: { alignSelf: 'flex-start', marginVertical: 2 },
+  previewButton: {
+    alignSelf: 'flex-start', marginTop: 10, paddingVertical: 8, paddingHorizontal: 14,
+    borderRadius: 10, backgroundColor: '#e6f4ec',
+  },
+  previewButtonText: { color: '#2e8b52', fontWeight: '700', fontSize: 13 },
   // ita7-2: 統計バー（今月・先週比・今日の予定・今週の部位）
   statsRow: { flexDirection: 'row', gap: 8, marginHorizontal: 14 },
   statCard: {
