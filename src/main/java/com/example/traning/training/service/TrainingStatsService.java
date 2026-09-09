@@ -19,8 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * ホーム画面（Web版 /menu）の統計バー（今月の回数・先週比ボリューム・今週の部位カバレッジ・今日の曜日別プログラム）を算出する。
  *
- * <p>元々は {@code MenuController.menu()} に直書きされていたロジック（ita7-2でモバイルにも同じ統計を表示するために切り出し）。
- * Web側（{@code MenuController}）・モバイル側（{@code MobileStatsController}）の両方から呼び出す共通ロジックとして提供する。
+ * <p>元々は {@code MenuController.menu()} に直書きされていたロジック（ita7-2でモバイルにも同じ統計を表示するために切り出し）。 Web側（{@code
+ * MenuController}）・モバイル側（{@code MobileStatsController}）の両方から呼び出す共通ロジックとして提供する。
  * Web用テンプレート（menu.html）が既存の {@code Map<String,Object>}（キー: name, done）で {@code weekParts}
  * にアクセスしているため、切り出し後もWeb側の出力が完全に同一になるよう {@link #weekPartsAsMapList()} を用意している。
  */
@@ -78,7 +78,8 @@ public class TrainingStatsService {
     // 週間プログラム: 今日の予定
     WeeklyProgram todayProgram = weeklyProgramService.getTodayProgram(userId).orElse(null);
     String todayPartCode = todayProgram != null ? todayProgram.getPartCode() : null;
-    String todayPartLabel = todayPartCode != null ? PART_LABEL_MAP.getOrDefault(todayPartCode, "") : null;
+    String todayPartLabel =
+        todayPartCode != null ? PART_LABEL_MAP.getOrDefault(todayPartCode, "") : null;
 
     return new TrainingStats(
         monthlyCount,

@@ -15,8 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
  * モバイルのカレンダータブ下に表示する統計バー用API（ita7-2）。
  *
  * <p>Web版 {@code MenuController.menu()} 内にあった統計算出ロジックを {@link TrainingStatsService}
- * へ切り出し、Web・モバイル双方から共用している。Web用API（{@code /api/**}）とは別Controller・別DTOとする
- * （CLAUDE.md方針）。
+ * へ切り出し、Web・モバイル双方から共用している。Web用API（{@code /api/**}）とは別Controller・別DTOとする （CLAUDE.md方針）。
  */
 @RestController
 @RequestMapping("/api/mobile/stats")
@@ -33,7 +32,8 @@ public class MobileStatsController {
   @GetMapping("/training")
   public ResponseEntity<MobileTrainingStatsResponse> getTrainingStats(
       @AuthenticationPrincipal Long userId) {
-    TrainingStatsService.TrainingStats stats = trainingStatsService.getStats(userId, LocalDate.now());
+    TrainingStatsService.TrainingStats stats =
+        trainingStatsService.getStats(userId, LocalDate.now());
 
     List<MobileTrainingStatsResponse.PartCoverage> weekParts =
         stats.weekParts().stream()

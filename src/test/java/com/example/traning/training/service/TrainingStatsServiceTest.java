@@ -20,8 +20,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * ita7-2: Web版 {@code MenuController.menu()} から切り出した統計バー算出ロジック（
- * {@link TrainingStatsService}）の検証。DAO/WeeklyProgramServiceはMockitoでモックし、DBには依存しない。
+ * ita7-2: Web版 {@code MenuController.menu()} から切り出した統計バー算出ロジック（ {@link
+ * TrainingStatsService}）の検証。DAO/WeeklyProgramServiceはMockitoでモックし、DBには依存しない。
  * 切り出し前のMenuControllerの挙動（R1〜R3・今日の予定）と完全に同一の結果になることを保証する。
  */
 @ExtendWith(MockitoExtension.class)
@@ -80,8 +80,12 @@ class TrainingStatsServiceTest {
     assertThat(stats.weekParts().get(4).done()).isFalse();
 
     // Web用Map変換も同じ内容になっていること
-    assertThat(stats.weekPartsAsMapList().get(0)).containsEntry("name", "胸").containsEntry("done", true);
-    assertThat(stats.weekPartsAsMapList().get(3)).containsEntry("name", "腕").containsEntry("done", false);
+    assertThat(stats.weekPartsAsMapList().get(0))
+        .containsEntry("name", "胸")
+        .containsEntry("done", true);
+    assertThat(stats.weekPartsAsMapList().get(3))
+        .containsEntry("name", "腕")
+        .containsEntry("done", false);
   }
 
   @Test
