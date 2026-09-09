@@ -47,6 +47,8 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
   const [partCode, setPartCode]   = useState('');
   const [search, setSearch]       = useState('');
   const aiSuggestion = route.params?.aiSuggestion;
+  // ita7-1 1-1: TrainingListScreenで選択中の日付（未来日への事前登録用）。未指定時は当日registerされる
+  const targetDate = route.params?.date;
 
   // ── 複数選択状態（種目一覧でチェックされたIDの集合） ────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -272,6 +274,7 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
         const { data } = await trainingApi.addTraining({
           menu: t.item.itemName,
           partCode: t.item.partCode,
+          trainingDate: targetDate,
           sets: t.validSets.map((s) => ({
             weight: parseFloat(s.weight) || 0,
             reps: parseInt(s.reps, 10) || 0,

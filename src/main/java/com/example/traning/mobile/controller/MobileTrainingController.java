@@ -12,6 +12,7 @@ import com.example.traning.mobile.dto.TrainingCalorieResponse;
 import com.example.traning.mobile.dto.TrainingHistoryResponse;
 import com.example.traning.mobile.dto.UpdateSetRequest;
 import com.example.traning.mobile.dto.UpdateTrainingMemoRequest;
+import com.example.traning.mobile.dto.UpdateTrainingRequest;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
 import com.example.traning.training.SetType;
@@ -158,6 +159,24 @@ public class MobileTrainingController {
     if (!userId.equals(training.getUserId())) return ResponseEntity.status(403).build();
 
     trainingDao.updateMemoById(id, req.getMemo(), LocalDateTime.now());
+    return ResponseEntity.noContent().build();
+  }
+
+  /** トレーニング本体（種目名・部位・日付）を更新する（ita7-1、過去分編集対応。自分のトレーニングのみ）。 */
+  @PatchMapping("/{id}")
+  @Transactional
+  @AuditLog(action = "MOBILE_TRAINING_UPDATE", targetTable = "trainings")
+  public ResponseEntity<Void> updateTraining(
+      @AuthenticationPrincipal Long userId,
+      @PathVariable Long id,
+      @Valid @RequestBody UpdateTrainingRequest req) {
+
+    Training training = trainingDao.selectById(id);
+    if (training == null) return ResponseEntity.notFound().build();
+    if (!userId.equals(training.getUserId())) return ResponseEntity.status(403).build();
+
+    trainingDao.updateBasicInfoById(
+        id, req.getMenu(), req.getPartCode(), req.getTrainingDate(), LocalDateTime.now());
     return ResponseEntity.noContent().build();
   }
 

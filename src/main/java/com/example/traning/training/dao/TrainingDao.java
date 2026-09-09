@@ -115,6 +115,11 @@ public interface TrainingDao {
   @Update(sqlFile = true)
   int updateMemoById(Long id, String memo, LocalDateTime updatedDatetime);
 
+  /** モバイル版トレーニング本体（種目名・部位・日付）更新対応（ita7-1）。セットは対象外。 */
+  @Update(sqlFile = true)
+  int updateBasicInfoById(
+      Long id, String menu, String partCode, LocalDate trainingDate, LocalDateTime updatedDatetime);
+
   @Update(sqlFile = true)
   int clearSupersetGroup(Long supersetGroupId, LocalDateTime updatedDatetime);
 
