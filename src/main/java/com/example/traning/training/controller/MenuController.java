@@ -45,6 +45,7 @@ import org.springframework.ui.Model;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -163,7 +164,8 @@ public class MenuController {
     }
 
     // ita4-4 (A) 追加対応: 未読のトレーナーアドバイスがある日付をカレンダー上でハイライトする
-    // （/notices・/detailのいずれかで閲覧するとハイライトのみ消える。本文自体は履歴として残る）
+    // （ita7-1で/detailは廃止。/noticesで閲覧する、または/menuの詳細モーダルを実際に開くと
+    // ハイライトのみ消える。本文自体は履歴として残る。詳細モーダル分の既読化はmarkTrainingAdviceRead参照）
     Set<String> unreadAdviceDates =
         trainerAdviceService.getActiveForUser(userId).stream()
             .filter(a -> a.getReadAt() == null)
@@ -209,13 +211,13 @@ public class MenuController {
             .map(Training::getMenu)
             .filter(m -> m != null && !m.isEmpty())
             .collect(Collectors.toList());
-    List<TrainerAdvice> advicesForSelectedDate =
-        trainerAdviceService.getActiveForUserAndDate(userId, selectedDate);
+    // team-lead指摘（2026-09-11）: 既読化はページ読み込み時ではなく、ユーザーが実際に
+    // 詳細モーダルを開いたタイミングで行う（markTrainingAdviceReadAjax参照）。
+    // ここでは表示用に未読状態だけを判定し、DBの更新は行わない。
     List<AdviceItem> adviceItems =
-        advicesForSelectedDate.stream()
+        trainerAdviceService.getActiveForUserAndDate(userId, selectedDate).stream()
             .map(a -> new AdviceItem(a.getBody(), a.getReadAt() == null))
             .toList();
-    trainerAdviceService.markAsRead(advicesForSelectedDate);
     model.addAttribute("totalVolume", totalVolumeKg);
     model.addAttribute("duration", duration);
     model.addAttribute("trainingCourse", trainingCourse);
@@ -455,6 +457,24 @@ public class MenuController {
                 })
             .toList();
     return ResponseEntity.ok(result);
+  }
+
+  /**
+   * ita7-1 2-2で移植した詳細モーダルを実際に開いたタイミングで、その日付宛のトレーナーアドバイスを 既読にする（team-lead指摘、2026-09-11:
+   * menu()のページ読み込み時点で既読化すると、 ユーザーが実際にアドバイスを見ていなくても既読扱いになってしまうため、モーダルを開く操作に紐付けた）。
+   */
+  @PostMapping("/api/training-advice/mark-read")
+  @ResponseBody
+  public ResponseEntity<Void> markTrainingAdviceRead(
+      @RequestParam
+          @org.springframework.format.annotation.DateTimeFormat(
+              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+          LocalDate date,
+      Principal principal) {
+    Long userId = trainingService.getUserIdByEmail(principal.getName());
+    List<TrainerAdvice> advices = trainerAdviceService.getActiveForUserAndDate(userId, date);
+    trainerAdviceService.markAsRead(advices);
+    return ResponseEntity.ok().build();
   }
 
   /** menu.html詳細モーダル表示用のトレーナーアドバイス投影（未読なら{@code unread=true}）。 */

@@ -56,12 +56,39 @@ function selectDate(date) {
 
 // ita7-1 2-2: 過去分編集画面（/detail、廃止済み）の閲覧レイアウトをmenu.htmlへ
 // モーダルとして埋め込むための開閉制御（表示内容はMenuController.menu()がサーバー側で描画済み）。
-function openTrainingDetailModal() {
+//
+// team-lead指摘（2026-09-11）: トレーナーアドバイスの既読化は、ページ読み込み時点ではなく
+// 「ユーザーが実際にこのモーダルを開いたタイミング」で行う必要があるため、モーダルを開く
+// このタイミングでAjaxにより既読化APIを呼び出す（common.jsのdata-action汎用ディスパッチャが
+// ボタンのdata-date属性を第一引数として渡してくれる）。
+function openTrainingDetailModal(date) {
     document.getElementById('trainingDetailModal')?.classList.remove('hidden');
+    if (date) {
+        markTrainingAdviceRead(date);
+    }
 }
 
 function closeTrainingDetailModal() {
     document.getElementById('trainingDetailModal')?.classList.add('hidden');
+}
+
+function markTrainingAdviceRead(date) {
+    const token = document.querySelector('meta[name="_csrf"]')?.content;
+    const header = document.querySelector('meta[name="_csrf_header"]')?.content;
+    if (!token || !header) return;
+
+    fetch('/api/training-advice/mark-read?date=' + encodeURIComponent(date), {
+        method: 'POST',
+        headers: { [header]: token }
+    }).then(res => {
+        if (!res.ok) return;
+        // カレンダー上の未読バッジ（💬）はこの画面上ではもう不要なため消す
+        // （本文自体は既読後も履歴として残るため、モーダルの内容には手を入れない）。
+        const cell = document.querySelector('.calendar-cell[data-date="' + date + '"] .calendar-advice-dot');
+        if (cell) cell.remove();
+    }).catch(() => {
+        // 既読化APIの通信失敗はモーダル閲覧自体を妨げないため無視する
+    });
 }
 
 window.openTrainingDetailModal = openTrainingDetailModal;

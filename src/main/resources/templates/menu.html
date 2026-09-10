@@ -343,6 +343,7 @@
                     type="button"
                     th:if="${not #lists.isEmpty(trainingList)}"
                     data-action="openTrainingDetailModal"
+                    th:data-date="${selectedDate != null ? selectedDate : today}"
                     class="btn btn-outline btn-sm"
                   >
                     詳細を見る
