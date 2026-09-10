@@ -7,10 +7,9 @@ import java.util.Optional;
  * 画面ID→タイトル・ヘッダーの戻り先URL・戻り先ラベルの静的マップ（ita2-4）。
  *
  * <p>{@code common.js}のリクエストパス文字列分岐（{@code window.location.pathname}の場当たり的な比較）を廃止し、
- * 画面ごとの戻り先を1箇所で管理するために導入した。ita7-1で唯一{@link #backUrl()}が{@code null}だった{@code
- * START_TRAINING}（{@code /start/training}）を廃止したため、現時点では全画面が固定の戻り先を持つ。今後
- * 戻り先を1つに決められない画面を追加する場合は{@code backUrl}に{@code null}を指定すれば、{@code
- * common.html}側が{@code history.back()}にフォールバックする。
+ * 画面ごとの戻り先を1箇所で管理するために導入した。ita7-1で唯一{@link #backUrl()}が{@code null}だった{@code START_TRAINING}（{@code
+ * /start/training}）を廃止したため、現時点では全画面が固定の戻り先を持つ。今後 戻り先を1つに決められない画面を追加する場合は{@code backUrl}に{@code
+ * null}を指定すれば、{@code common.html}側が{@code history.back()}にフォールバックする。
  */
 public enum ScreenId {
   PR("/pr", "自己記録（PR）", "/menu", "メニューに戻る"),
