@@ -304,4 +304,6 @@ export interface MobileTrainingStatsResponse {
   weekParts: WeekPartCoverage[];
   /** 今日の曜日別プログラムで設定された部位名。未設定の場合はnull */
   todayPartLabel: string | null;
+  /** 当月のトレーニング実施日一覧（"yyyy-MM-dd"形式）。カレンダーの実施日ドット表示用（ita7-3） */
+  trainingDates: string[];
 }

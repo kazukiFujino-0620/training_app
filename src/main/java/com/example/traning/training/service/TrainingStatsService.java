@@ -92,6 +92,16 @@ public class TrainingStatsService {
         todayPartLabel);
   }
 
+  /**
+   * カレンダータブの実施日ドット表示用（ita7-3）。指定した年月にトレーニングを実施した日付一覧を返す。 Web版・モバイル版共用のロジックとして {@link #getStats}
+   * と同様にここへ切り出す。
+   */
+  @Transactional(readOnly = true)
+  public List<LocalDate> getTrainingDatesInMonth(Long userId, java.time.YearMonth yearMonth) {
+    return trainingDao.selectDistinctTrainingDatesByUserIdAndMonth(
+        userId, yearMonth.getYear(), yearMonth.getMonthValue());
+  }
+
   /** 今週、指定した部位のトレーニングを実施済みかどうか（部位コード＋日本語名＋実施済みフラグ）。 */
   public record PartCoverage(String partCode, String name, boolean done) {}
 
