@@ -47,10 +47,6 @@
                             <span>テンプレート管理</span>
                         </a>
 
-                        <div th:if="${showReorderMenu}" class="settings-item" id="openReorderModal" style="cursor:pointer;">
-                            <span>トレーニング順変更</span>
-                        </div>
-
                         <a class="settings-item" href="/pr" style="text-decoration:none;display:block;">
                             <span>自己記録（PR）</span>
                         </a>
@@ -141,9 +137,6 @@
         <div class="modal-content" style="max-width:420px; text-align:center;">
             <h3 style="color:var(--warning-color);">セッションの期限が近づいています</h3>
             <p>セッションが <strong id="sessionCountdown">15:00</strong> 後に切れます。</p>
-            <p id="sessionTrainingNote" style="display:none; color:var(--danger-color); font-size:0.9rem;">
-                未保存のデータがある場合は先に保存してください。
-            </p>
             <div style="display:flex; gap:1rem; justify-content:center; margin-top:1.5rem;">
                 <button id="sessionContinueBtn" class="btn btn-primary">続ける</button>
                 <button id="sessionLogoutBtn" class="btn btn-secondary">ログアウト</button>
@@ -156,9 +149,6 @@
         <div class="modal-content" style="max-width:420px; text-align:center;">
             <h3 style="color:var(--danger-color);">セッションが切れました</h3>
             <p>セッションが切れました。再ログインしてください。</p>
-            <p id="sessionExpiredTrainingNote" style="display:none; color:var(--danger-color); font-size:0.9rem;">
-                データを保存するにはログインし直してください。
-            </p>
             <div style="margin-top:1.5rem;">
                 <a href="/login" class="btn btn-primary">ログインする</a>
             </div>
@@ -166,35 +156,8 @@
     </div>
 </th:block>
 
-<th:block th:fragment="reorderModalFragment">
-    <div id="reorderModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-        <div class="modal-content" style="max-width:480px; width:90%;">
-            <h3 style="margin-bottom:1rem;">トレーニング順変更</h3>
-            <div id="reorderList" style="min-height:60px;"></div>
-            <div style="display:flex; gap:0.75rem; justify-content:flex-end; margin-top:1.5rem;">
-                <button id="reorderCancelBtn" class="btn btn-secondary">キャンセル</button>
-                <button id="reorderSaveBtn" class="btn btn-primary">保存</button>
-            </div>
-        </div>
-    </div>
-    <script th:src="@{/js/reorder-modal.js}"></script>
-</th:block>
-
 <th:block th:fragment="footerFragment">
     <div th:replace="~{common :: sessionModalsFragment}"></div>
-
-    <!-- ── トレーニング順変更モーダル ──────────────────────────────── -->
-    <div id="reorderModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-        <div class="modal-content" style="max-width:480px; width:90%;">
-            <h3 style="margin-bottom:1rem;">トレーニング順変更</h3>
-            <div id="reorderList" style="min-height:60px;"></div>
-            <div style="display:flex; gap:0.75rem; justify-content:flex-end; margin-top:1.5rem;">
-                <button id="reorderCancelBtn" class="btn btn-secondary">キャンセル</button>
-                <button id="reorderSaveBtn" class="btn btn-primary">保存</button>
-            </div>
-        </div>
-    </div>
-    <script th:src="@{/js/reorder-modal.js}"></script>
 
     <footer class="bg-tertiary text-center py-4 mt-8">
         <div class="container">

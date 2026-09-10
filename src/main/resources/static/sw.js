@@ -32,15 +32,16 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
+    // ita7-1 2-3: /start/training廃止に伴い遷移先を/menuに変更。
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
             for (const client of clientList) {
-                if (client.url.includes('/start/training') && 'focus' in client) {
+                if (client.url.includes('/menu') && 'focus' in client) {
                     return client.focus();
                 }
             }
             if (clients.openWindow) {
-                return clients.openWindow('/start/training');
+                return clients.openWindow('/menu');
             }
         })
     );

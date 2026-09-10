@@ -349,7 +349,8 @@
             </th:block>
             　期日 <span th:text="${#temporals.format(gp.goal().targetDate, 'yyyy/MM/dd')}"></span>
           </span>
-          <a th:href="@{/training/register}" class="goal-row-link">記録する →</a>
+          <!-- ita7-1 2-1: /training/register廃止に伴い遷移先を/menuに変更（Webからの新規登録手段はモバイルに統合） -->
+          <a th:href="@{/menu}" class="goal-row-link">記録する →</a>
         </div>
       </th:block>
 

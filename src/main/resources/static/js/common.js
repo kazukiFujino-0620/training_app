@@ -20,7 +20,8 @@ if (document.getElementById('current-clock')) {
 }
 
 // ログアウトボタン（メニュー画面のみ表示）とhistory.back()ボタン（戻り先URLが
-// 画面ID方式で決められない画面、例: /start/training のみ）の挙動を初期化する。
+// 画面ID方式で決められない画面向けのフォールバック。ita7-1で唯一の該当画面
+// /start/trainingを廃止したため現時点では使用例なし）の挙動を初期化する。
 // それ以外の画面の「戻る」はサーバー側（ScreenId、common.html）が描画する通常の
 // リンクであり、JS側での分岐は不要（ita2-4でパス文字列分岐を廃止）。
 function initializeLogoutButton() {
