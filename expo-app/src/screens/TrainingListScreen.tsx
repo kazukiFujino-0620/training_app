@@ -90,8 +90,9 @@ function formatDateLabel(dateStr: string): string {
 
 export default function TrainingListScreen({ navigation }: Props) {
   const [date, setDate] = useState(todayDateString());
-  // ita7-2: 「カレンダー」「トレーニング」の2タブ構成。日々の記録操作が主動線のため「トレーニング」を初期表示にする
-  const [activeTab, setActiveTab] = useState<TabKey>('training');
+  // ita7-2: 「カレンダー」「トレーニング」の2タブ構成。アプリ起動時はまず月間の実施状況を
+  // 把握できるよう「カレンダー」を初期表示にする（2026-09-10変更）
+  const [activeTab, setActiveTab] = useState<TabKey>('calendar');
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
