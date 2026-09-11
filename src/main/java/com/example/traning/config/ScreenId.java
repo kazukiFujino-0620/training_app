@@ -7,15 +7,13 @@ import java.util.Optional;
  * 画面ID→タイトル・ヘッダーの戻り先URL・戻り先ラベルの静的マップ（ita2-4）。
  *
  * <p>{@code common.js}のリクエストパス文字列分岐（{@code window.location.pathname}の場当たり的な比較）を廃止し、
- * 画面ごとの戻り先を1箇所で管理するために導入した。{@link #backUrl()}が{@code null}の画面（{@link
- * #START_TRAINING}のみ）は、遷移元が複数あり固定の戻り先を1つに決められないため、ブラウザの{@code history.back()}を維持する。
+ * 画面ごとの戻り先を1箇所で管理するために導入した。ita7-1で唯一{@link #backUrl()}が{@code null}だった{@code START_TRAINING}（{@code
+ * /start/training}）を廃止したため、現時点では全画面が固定の戻り先を持つ。今後 戻り先を1つに決められない画面を追加する場合は{@code backUrl}に{@code
+ * null}を指定すれば、{@code common.html}側が{@code history.back()}にフォールバックする。
  */
 public enum ScreenId {
   PR("/pr", "自己記録（PR）", "/menu", "メニューに戻る"),
-  TRAINING_DETAIL("/detail", "トレーニング詳細", "/menu", "メニューに戻る"),
   TRAINING_TEMPLATE("/training/template", "テンプレート管理", "/menu", "メニューに戻る"),
-  TRAINING_REGISTER("/training/register", "種目を登録", "/menu", "メニューに戻る"),
-  START_TRAINING("/start/training", "トレーニング実施", null, null),
   USER_PROFILE("/user/profile", "プロフィール", "/menu", "メニューに戻る"),
   USER_NOTIFICATIONS("/user/notifications", "通知設定", "/user/profile", "プロフィールに戻る"),
   USER_GOALS("/user/goals", "目標設定", "/menu", "メニューに戻る"),

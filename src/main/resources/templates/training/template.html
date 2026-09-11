@@ -361,7 +361,10 @@
       if (data.duplicateItems && data.duplicateItems.length > 0) {
         alert('以下の種目は当日すでに追加されているためスキップしました:\n' + data.duplicateItems.join('\n'));
       }
-      window.location.href = '/start/training?date=' + today;
+      // ita7-1 2-1: /start/training廃止に伴い遷移先を/menuに変更。
+      // /api/templates/{id}/applyはこの時点で既にtrainingsレコードを作成済みのため、
+      // /menuに遷移すればそのまま当日の一覧に反映された状態で表示される。
+      window.location.href = '/menu?date=' + today;
     }).catch(() => alert('通信エラーが発生しました。'));
   }
 

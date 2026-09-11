@@ -1,6 +1,5 @@
 package com.example.traning.training.controller;
 
-import com.example.traning.audit.AuditLog;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
@@ -26,10 +25,8 @@ import com.example.traning.training.service.TrainingService;
 import com.example.traning.training.service.TrainingStatsService;
 import com.example.traning.user.User;
 import com.example.traning.weekly.WeeklyProgram;
-import jakarta.validation.Valid;
 import java.security.Principal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,10 +44,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -169,7 +164,8 @@ public class MenuController {
     }
 
     // ita4-4 (A) 追加対応: 未読のトレーナーアドバイスがある日付をカレンダー上でハイライトする
-    // （/notices・/detailのいずれかで閲覧するとハイライトのみ消える。本文自体は履歴として残る）
+    // （ita7-1で/detailは廃止。/noticesで閲覧する、または/menuの詳細モーダルを実際に開くと
+    // ハイライトのみ消える。本文自体は履歴として残る。詳細モーダル分の既読化はmarkTrainingAdviceRead参照）
     Set<String> unreadAdviceDates =
         trainerAdviceService.getActiveForUser(userId).stream()
             .filter(a -> a.getReadAt() == null)
@@ -190,6 +186,42 @@ public class MenuController {
                     (a, b) -> a));
     CalorieCalculator.CalorieEstimate menuCalorieEstimate =
         calorieCalculator.estimate(trainingList, itemMasterByNameForCalorie);
+
+    // ita7-1 2-2: /detail画面（過去分編集画面）の閲覧内容をmenu.htmlの詳細モーダルへ統合するため、
+    // 合計ボリューム・所要時間・トレーニングコース・トレーナーアドバイスをここで算出する
+    // （旧trainingDetail()メソッドと同一ロジック。/detail自体は廃止）。
+    long totalVolumeKg = 0;
+    for (Training t : trainingList) {
+      if (t.getDetails() == null) continue;
+      for (TrainingDetail d : t.getDetails()) {
+        if (SetType.fromValueOrMain(d.getSetType()) == SetType.WARMUP) continue;
+        if (d.getWeight() != null && d.getReps() != null) {
+          totalVolumeKg += Math.round(d.getWeight() * d.getReps());
+        }
+      }
+    }
+    String duration =
+        trainingList.stream()
+            .map(Training::getDuration)
+            .filter(d -> d != null && !d.isEmpty() && !d.equals("00:00:00"))
+            .findFirst()
+            .orElse("00:00:00");
+    List<String> trainingCourse =
+        trainingList.stream()
+            .map(Training::getMenu)
+            .filter(m -> m != null && !m.isEmpty())
+            .collect(Collectors.toList());
+    // team-lead指摘（2026-09-11）: 既読化はページ読み込み時ではなく、ユーザーが実際に
+    // 詳細モーダルを開いたタイミングで行う（markTrainingAdviceReadAjax参照）。
+    // ここでは表示用に未読状態だけを判定し、DBの更新は行わない。
+    List<AdviceItem> adviceItems =
+        trainerAdviceService.getActiveForUserAndDate(userId, selectedDate).stream()
+            .map(a -> new AdviceItem(a.getBody(), a.getReadAt() == null))
+            .toList();
+    model.addAttribute("totalVolume", totalVolumeKg);
+    model.addAttribute("duration", duration);
+    model.addAttribute("trainingCourse", trainingCourse);
+    model.addAttribute("advices", adviceItems);
 
     // 疲労マップ用データ（過去7日間の半減期モデル）。FatigueCalculatorへ委譲する
     // （旧実装はここに独自のインライン計算を持っており、ita5-3のWARMUP除外がこの画面だけ
@@ -251,7 +283,6 @@ public class MenuController {
     model.addAttribute("volumeChangePositive", volumeChangePositive);
     model.addAttribute("todayProgram", todayProgram);
     model.addAttribute("todayPartLabel", todayPartLabel);
-    model.addAttribute("showReorderMenu", true);
     model.addAttribute("calorieEstimate", menuCalorieEstimate);
 
     // F3 Phase1: 今日のおすすめメニュー（ルールベース推奨）
@@ -302,46 +333,6 @@ public class MenuController {
     return "menu";
   }
 
-  @AuditLog(action = "TRAINING_SAVE", targetTable = "trainings")
-  @PostMapping("/menu/save")
-  public String save(@ModelAttribute Training training, Principal principal) {
-    Long userId = trainingService.getUserIdByEmail(principal.getName());
-    training.setUserId(userId);
-
-    if (training.getId() == null) {
-      training.setCreateDatetime(LocalDateTime.now());
-    }
-    training.setUpdatedDatetime(LocalDateTime.now());
-
-    trainingService.save(training, principal);
-
-    return "redirect:/menu?date=" + training.getTrainingDate();
-  }
-
-  @AuditLog(action = "TRAINING_DELETE", targetTable = "trainings")
-  @PostMapping("/menu/delete")
-  public String delete(@RequestParam("id") Long id, Principal principal) {
-    log.info("削除リクエストが来ました！ ID: {}", id);
-
-    // ★ 所有者チェック: 自分のトレーニングでなければ拒否
-    Training training = trainingService.getTrainingById(id);
-    if (training == null) {
-      log.warn("削除対象が存在しません ID: {}", id);
-      return "redirect:/menu";
-    }
-
-    Long currentUserId = trainingService.getUserIdByEmail(principal.getName());
-    if (!training.getUserId().equals(currentUserId)) {
-      log.warn("不正な削除リクエスト: ユーザー {} がトレーニング {} を削除しようとしました", currentUserId, id);
-      return "redirect:/menu";
-    }
-
-    LocalDate date = training.getTrainingDate();
-    trainingService.deleteTraining(id);
-
-    return "redirect:/menu?date=" + date;
-  }
-
   @GetMapping("/api/training-items")
   @ResponseBody
   public List<TrainingItemMaster> getItems(
@@ -356,92 +347,6 @@ public class MenuController {
       return trainingMasterDao.selectActiveItemsByPart(partCode);
     }
     return trainingMasterDao.selectItemsByPart(partCode);
-  }
-
-  @GetMapping("/start/training")
-  public String startTraining(
-      @RequestParam("date")
-          @org.springframework.format.annotation.DateTimeFormat(
-              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
-          LocalDate selectedDate,
-      Model model,
-      Principal principal) {
-    Long userId = trainingService.getUserIdByEmail(principal.getName());
-    List<Training> trainingList = trainingService.getFullTrainingData(userId, selectedDate);
-    List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
-
-    // タイマーの復元用に最初の training の duration を取得
-    String restoredDuration = "00:00:00";
-    if (!trainingList.isEmpty() && trainingList.get(0).getDuration() != null) {
-      restoredDuration = trainingList.get(0).getDuration();
-    }
-
-    model.addAttribute("selectedDate", selectedDate);
-    model.addAttribute("currentUserId", userId);
-    model.addAttribute("trainingList", trainingList);
-    model.addAttribute("partList", partList);
-    model.addAttribute("restoredDuration", restoredDuration);
-    model.addAttribute("showReorderMenu", true);
-
-    return "training/start_training";
-  }
-
-  @AuditLog(action = "TRAINING_SAVE", targetTable = "trainings")
-  @PostMapping("/api/training/save")
-  @ResponseBody
-  public Long apiSaveTraining(@Valid @RequestBody Training training, Principal principal) {
-    training.setUserId(trainingService.getUserIdByEmail(principal.getName()));
-
-    if (training.getCreateDatetime() == null) {
-      training.setCreateDatetime(LocalDateTime.now());
-    }
-    training.setUpdatedDatetime(LocalDateTime.now());
-
-    trainingService.save(training, principal);
-
-    return training.getId();
-  }
-
-  @AuditLog(action = "TRAINING_FINISH", targetTable = "trainings")
-  @PostMapping("/api/training/finish")
-  @ResponseBody
-  public ResponseEntity<String> finishTrainig(
-      @Valid @RequestBody List<Training> trainingList, Principal principal) {
-    try {
-      // ★ IDOR 対策: ログインユーザーが所有するトレーニングのみ保存を許可
-      Long currentUserId = trainingService.getUserIdByEmail(principal.getName());
-
-      for (Training t : trainingList) {
-        // 1. セットデータ確認
-        if (t.getDetails() == null || t.getDetails().isEmpty()) {
-          return ResponseEntity.badRequest().body("セットデータが空の種目があります。");
-        }
-
-        // 2. トレーニングが実在するか確認
-        if (t.getId() == null || t.getId() <= 0) {
-          log.warn("不正なトレーニングID: {}", t.getId());
-          return ResponseEntity.badRequest().body("不正なトレーニングIDです。");
-        }
-
-        Training existingTraining = trainingService.getTrainingById(t.getId());
-        if (existingTraining == null) {
-          log.warn("トレーニングが見つかりません: ID={}", t.getId());
-          return ResponseEntity.notFound().build();
-        }
-
-        // 3. 所有者確認: 自分のトレーニングでなければ拒否
-        if (!existingTraining.getUserId().equals(currentUserId)) {
-          log.warn("不正なアクセス検知: ユーザー {} がトレーニング {} を保存しようとしました", currentUserId, t.getId());
-          return ResponseEntity.status(HttpStatus.FORBIDDEN).body("このトレーニングを変更する権限がありません。");
-        }
-      }
-
-      trainingService.saveAll(trainingList);
-      return ResponseEntity.ok("保存に成功しました");
-    } catch (Exception e) {
-      log.error("トレーニング保存エラー", e);
-      return ResponseEntity.internalServerError().body("登録に失敗しました。時間をおいて再度お試しください。");
-    }
   }
 
   @GetMapping("/api/training/{id}")
@@ -463,123 +368,6 @@ public class MenuController {
     }
 
     return ResponseEntity.ok(training);
-  }
-
-  @AuditLog(action = "TRAINING_UPDATE", targetTable = "trainings")
-  @PostMapping("/api/training/update/{id}")
-  @ResponseBody
-  public ResponseEntity<Void> updateTraining(
-      @PathVariable Long id, @Valid @RequestBody Training training, Principal principal) {
-    Training existingTraining = trainingService.getTrainingById(id);
-    if (existingTraining == null) {
-      return ResponseEntity.notFound().build();
-    }
-
-    training.setId(id);
-    training.setUserId(existingTraining.getUserId());
-    training.setTrainingDate(existingTraining.getTrainingDate());
-    training.setCreateDatetime(existingTraining.getCreateDatetime());
-
-    Long currentUserId = trainingService.getUserIdByEmail(principal.getName());
-    if (!training.getUserId().equals(currentUserId)) {
-      log.warn("不正な更新リクエスト: ユーザー {} がトレーニング {} を更新しようとしました", currentUserId, id);
-      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-    }
-
-    trainingService.save(training, principal);
-    return ResponseEntity.ok().build();
-  }
-
-  @AuditLog(action = "TRAINING_DELETE", targetTable = "trainings")
-  @PostMapping("/api/training/delete/{id}")
-  @ResponseBody
-  public ResponseEntity<Void> deleteTraining(@PathVariable Long id, Principal principal) {
-    Training existingTraining = trainingService.getTrainingById(id);
-    if (existingTraining == null) {
-      return ResponseEntity.notFound().build();
-    }
-
-    Long currentUserId = trainingService.getUserIdByEmail(principal.getName());
-    if (!existingTraining.getUserId().equals(currentUserId)) {
-      log.warn("不正な削除リクエスト: ユーザー {} がトレーニング {} を削除しようとしました", currentUserId, id);
-      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-    }
-
-    trainingService.deleteTraining(id);
-    return ResponseEntity.ok().build();
-  }
-
-  @GetMapping("/training/register")
-  public String trainingRegister(
-      @RequestParam(name = "date", required = false)
-          @org.springframework.format.annotation.DateTimeFormat(
-              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
-          LocalDate selectedDate,
-      @RequestParam(name = "applyAiSuggestion", required = false) Boolean applyAiSuggestion,
-      Model model,
-      Principal principal) {
-    LocalDate today = LocalDate.now();
-    if (selectedDate == null) selectedDate = today;
-    Long userId = trainingService.getUserIdByEmail(principal.getName());
-
-    // ita5-1 機能1（仮連携）: /menuの「この提案を登録画面に反映」から遷移した場合、
-    // 週次生成済みのAIトレーニング提案から本日分だけをJS側に渡して種目を事前投入する。
-    // 過去日への反映は対象外（反映操作自体は「本日分のみ」の設計のため）。
-    if (Boolean.TRUE.equals(applyAiSuggestion) && selectedDate.isEqual(today)) {
-      User userEntity = trainingService.getUserByEmail(principal.getName());
-      model.addAttribute(
-          "aiSuggestionForRegister",
-          aiTrainingSuggestionService.getTodayEntry(userEntity).orElse(null));
-    }
-
-    List<TrainingMaster> partList = trainingMasterDao.selectAllParts();
-
-    // 同日の既存トレーニングを取得（画面初期表示用）
-    // Thymeleaf の JS インライン展開で使うため Map のネスト構造で渡す
-    List<Training> existingList =
-        trainingDao.selectByUserIdAndDate(userId.intValue(), selectedDate);
-    for (Training t : existingList) {
-      t.setDetails(trainingDetailDao.selectByTrainingId(t.getId()));
-      t.setPartName(trainingMasterDao.selectNameByCode(t.getPartCode()));
-    }
-    List<Map<String, Object>> existingTrainings =
-        existingList.stream()
-            .map(
-                t -> {
-                  Map<String, Object> tm = new LinkedHashMap<>();
-                  tm.put("id", t.getId());
-                  tm.put("menu", t.getMenu());
-                  tm.put("partCode", t.getPartCode());
-                  tm.put("partName", t.getPartName() != null ? t.getPartName() : "");
-                  tm.put("memo", t.getMemo() != null ? t.getMemo() : "");
-                  List<Map<String, Object>> details =
-                      t.getDetails() == null
-                          ? new ArrayList<>()
-                          : t.getDetails().stream()
-                              .map(
-                                  d -> {
-                                    Map<String, Object> dm = new LinkedHashMap<>();
-                                    dm.put("setNumber", d.getSetNumber());
-                                    dm.put("weight", d.getWeight() != null ? d.getWeight() : 0.0);
-                                    dm.put("reps", d.getReps() != null ? d.getReps() : 0);
-                                    dm.put("isCompleted", d.getIsCompleted());
-                                    dm.put(
-                                        "setType", SetType.fromValueOrMain(d.getSetType()).name());
-                                    return dm;
-                                  })
-                              .toList();
-                  tm.put("details", details);
-                  return tm;
-                })
-            .toList();
-
-    model.addAttribute("selectedDate", selectedDate);
-    model.addAttribute("userId", userId);
-    model.addAttribute("partList", partList);
-    model.addAttribute("showReorderMenu", true);
-    model.addAttribute("existingTrainings", existingTrainings);
-
-    return "training/training-register";
   }
 
   @GetMapping("/api/training-parts")
@@ -621,66 +409,6 @@ public class MenuController {
     PreviousTrainingResponse response = trainingService.getPreviousTraining(userId, itemName);
 
     return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(response);
-  }
-
-  @PostMapping("/api/training/superset/group")
-  @ResponseBody
-  public ResponseEntity<Map<String, Long>> groupSuperset(
-      @RequestBody Map<String, List<Long>> body, Principal principal) {
-    List<Long> trainingIds = body.get("trainingIds");
-    if (trainingIds == null || trainingIds.size() != 2) {
-      return ResponseEntity.badRequest().build();
-    }
-    try {
-      Long userId = trainingService.getUserIdByEmail(principal.getName());
-      Long groupId = trainingService.groupSuperset(trainingIds, userId);
-      return ResponseEntity.ok(Map.of("supersetGroupId", groupId));
-    } catch (IllegalArgumentException e) {
-      log.warn("スーパーセットグループ化失敗: {}", e.getMessage());
-      return ResponseEntity.badRequest().build();
-    }
-  }
-
-  @PostMapping("/api/training/superset/ungroup")
-  @ResponseBody
-  public ResponseEntity<Void> ungroupSuperset(
-      @RequestBody Map<String, Long> body, Principal principal) {
-    Long supersetGroupId = body.get("supersetGroupId");
-    if (supersetGroupId == null) {
-      return ResponseEntity.badRequest().build();
-    }
-    try {
-      Long userId = trainingService.getUserIdByEmail(principal.getName());
-      trainingService.ungroupSuperset(supersetGroupId, userId);
-      return ResponseEntity.ok().build();
-    } catch (IllegalArgumentException e) {
-      log.warn("スーパーセット解除失敗: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-    }
-  }
-
-  @GetMapping("/api/training/superset/candidates")
-  @ResponseBody
-  public ResponseEntity<List<Map<String, Object>>> getSupersetCandidates(
-      @RequestParam
-          @org.springframework.format.annotation.DateTimeFormat(
-              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
-          LocalDate date,
-      Principal principal) {
-    Long userId = trainingService.getUserIdByEmail(principal.getName());
-    List<Training> candidates = trainingService.getCandidatesForSuperset(userId, date);
-    List<Map<String, Object>> result =
-        candidates.stream()
-            .map(
-                t -> {
-                  Map<String, Object> m = new java.util.LinkedHashMap<>();
-                  m.put("trainingId", t.getId());
-                  m.put("menu", t.getMenu());
-                  m.put("partName", trainingMasterDao.selectNameByCode(t.getPartCode()));
-                  return m;
-                })
-            .collect(Collectors.toList());
-    return ResponseEntity.ok(result);
   }
 
   @GetMapping("/api/training-items-grouped")
@@ -731,211 +459,24 @@ public class MenuController {
     return ResponseEntity.ok(result);
   }
 
-  @PostMapping("/api/training/reorder")
+  /**
+   * ita7-1 2-2で移植した詳細モーダルを実際に開いたタイミングで、その日付宛のトレーナーアドバイスを 既読にする（team-lead指摘、2026-09-11:
+   * menu()のページ読み込み時点で既読化すると、 ユーザーが実際にアドバイスを見ていなくても既読扱いになってしまうため、モーダルを開く操作に紐付けた）。
+   */
+  @PostMapping("/api/training-advice/mark-read")
   @ResponseBody
-  public ResponseEntity<Void> reorderTrainings(
-      @RequestBody List<Long> orderedIds, Principal principal) {
-    Long userId = trainingService.getUserIdByEmail(principal.getName());
-    try {
-      trainingService.reorderTrainings(orderedIds, userId);
-      return ResponseEntity.ok().build();
-    } catch (IllegalArgumentException e) {
-      log.warn("不正な順序変更リクエスト: ユーザー {} - {}", userId, e.getMessage());
-      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-    }
-  }
-
-  @AuditLog(action = "TRAINING_BULK", targetTable = "trainings")
-  @PostMapping("/api/training/register-bulk")
-  @ResponseBody
-  public ResponseEntity<String> registerBulkTraining(
-      @RequestBody Map<String, Object> data, Principal principal) {
-    try {
-      String dateStr = (String) data.get("date");
-      if (dateStr == null || dateStr.trim().isEmpty()) {
-        return ResponseEntity.badRequest().body("日付が指定されていません。");
-      }
-      @SuppressWarnings("unchecked")
-      List<Map<String, Object>> trainingsData = (List<Map<String, Object>>) data.get("trainings");
-      if (trainingsData == null || trainingsData.isEmpty()) {
-        return ResponseEntity.badRequest().body("トレーニングデータが指定されていません。");
-      }
-
-      LocalDate trainingDate = LocalDate.parse(dateStr);
-      Long userId = trainingService.getUserIdByEmail(principal.getName());
-
-      for (int arrayIdx = 0; arrayIdx < trainingsData.size(); arrayIdx++) {
-        Map<String, Object> trainingMap = trainingsData.get(arrayIdx);
-        Training training;
-
-        if (trainingMap.get("id") != null && !trainingMap.get("id").toString().isEmpty()) {
-          Long id = Long.valueOf(trainingMap.get("id").toString());
-          Training existingTraining = trainingService.getTrainingById(id);
-
-          if (existingTraining != null) {
-            // IDOR 防止: 取得したレコードがログインユーザーのものか確認する
-            if (!existingTraining.getUserId().equals(userId)) {
-              log.warn("不正な一括登録リクエスト: ユーザー {} がトレーニング {} を更新しようとしました", userId, id);
-              return ResponseEntity.status(HttpStatus.FORBIDDEN).body("このトレーニングを変更する権限がありません。");
-            }
-            training = existingTraining;
-          } else {
-            training = new Training();
-            training.setUserId(userId);
-            training.setCreateDatetime(LocalDateTime.now());
-          }
-        } else {
-          // id が無い場合は完全に新規登録データとして作成
-          training = new Training();
-          training.setUserId(userId);
-          training.setCreateDatetime(LocalDateTime.now());
-        }
-
-        // 画面から変更されうる共通項目を上書き
-        training.setTrainingDate(trainingDate);
-        training.setMenu((String) trainingMap.get("menu"));
-        training.setPartCode((String) trainingMap.get("partCode"));
-        training.setUpdatedDatetime(LocalDateTime.now());
-        // 配列インデックスを display_order として設定（新規・既存共通）
-        training.setDisplayOrder(arrayIdx);
-
-        // 新規登録の時だけ完了フラグを初期化
-        if (training.getId() == null) {
-          training.setIsCompleted(false);
-          training.setIsAllCompleted(false);
-        }
-
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> detailsData =
-            (List<Map<String, Object>>) trainingMap.get("details");
-        List<TrainingDetail> details = new ArrayList<>();
-
-        for (int i = 0; i < detailsData.size(); i++) {
-          Map<String, Object> detailMap = detailsData.get(i);
-          TrainingDetail detail = new TrainingDetail();
-          Object weightObj = detailMap.get("weight");
-          if (weightObj != null) {
-            detail.setWeight(((Number) weightObj).doubleValue());
-          } else {
-            detail.setWeight(1.0);
-          }
-
-          Object repsObj = detailMap.get("reps");
-          if (repsObj != null) {
-            detail.setReps(((Number) repsObj).intValue());
-          } else {
-            detail.setReps(0);
-          }
-
-          detail.setSetNumber(i + 1);
-          Object completedObj = detailMap.getOrDefault("isCompleted", false);
-          detail.setIsCompleted(Boolean.parseBoolean(completedObj.toString()));
-          Object setTypeObj = detailMap.get("setType");
-          if (setTypeObj instanceof String s && SetType.isValid(s)) {
-            detail.setSetType(s);
-          }
-          details.add(detail);
-        }
-
-        training.setDetails(details);
-        // サービスを呼び出して保存（更新、または登録）
-        trainingService.save(training, principal);
-      }
-
-      return ResponseEntity.ok("保存に成功しました");
-    } catch (Exception e) {
-      log.error("一括登録エラー", e);
-      return ResponseEntity.internalServerError().body("登録に失敗しました。時間をおいて再度お試しください。");
-    }
-  }
-
-  @GetMapping("/detail")
-  public String trainingDetail(
-      @RequestParam(name = "date", required = false)
+  public ResponseEntity<Void> markTrainingAdviceRead(
+      @RequestParam
           @org.springframework.format.annotation.DateTimeFormat(
               iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
           LocalDate date,
-      Model model,
       Principal principal) {
-
-    LocalDate today = LocalDate.now();
-    if (date == null) date = today;
-
     Long userId = trainingService.getUserIdByEmail(principal.getName());
-    List<Training> trainings = trainingDao.selectByUserIdAndDate(userId.intValue(), date);
-
-    // 部位コード → 部位名のマップを構築
-    List<TrainingMaster> parts = trainingMasterDao.selectAllParts();
-    Map<String, String> partNameMap =
-        parts.stream()
-            .collect(
-                Collectors.toMap(
-                    TrainingMaster::getPartCode, TrainingMaster::getPartName, (a, b) -> a));
-
-    // 各トレーニングにセット詳細と部位名をセット、合計ボリュームを集計
-    long totalVolumeKg = 0;
-    for (Training t : trainings) {
-      List<TrainingDetail> details = trainingDetailDao.selectByTrainingId(t.getId());
-      t.setDetails(details);
-      t.setPartName(partNameMap.getOrDefault(t.getPartCode(), t.getPartCode()));
-      for (TrainingDetail d : details) {
-        if (SetType.fromValueOrMain(d.getSetType()) == SetType.WARMUP) continue;
-        if (d.getWeight() != null && d.getReps() != null) {
-          totalVolumeKg += Math.round(d.getWeight() * d.getReps());
-        }
-      }
-    }
-
-    // トレーニング時間: 全種目共通（finish時に同じ値を書き込む）の最初の非ゼロ値を使用
-    String duration =
-        trainings.stream()
-            .map(Training::getDuration)
-            .filter(d -> d != null && !d.isEmpty() && !d.equals("00:00:00"))
-            .findFirst()
-            .orElse("00:00:00");
-
-    User loginUser = trainingService.getUserByEmail(principal.getName());
-
-    // ita2-2: 消費カロリーは力学的仕事量ベース（挙上重量×可動域×回数）で計算する
-    Map<String, com.example.traning.entity.TrainingItemMaster> itemMasterByName =
-        trainingMasterDao.selectAllItems().stream()
-            .collect(
-                Collectors.toMap(
-                    com.example.traning.entity.TrainingItemMaster::getItemName,
-                    item -> item,
-                    (a, b) -> a));
-    CalorieCalculator.CalorieEstimate calorieEstimate =
-        calorieCalculator.estimate(trainings, itemMasterByName);
-
-    // トレーニングコース（種目の順序リスト）
-    List<String> course =
-        trainings.stream()
-            .map(Training::getMenu)
-            .filter(m -> m != null && !m.isEmpty())
-            .collect(Collectors.toList());
-
-    // ita4-4 (A) 追加対応: この日付宛のトレーナーアドバイスを表示する（既読状態は閲覧時に更新、本文は消えない）
-    List<TrainerAdvice> advicesForDate = trainerAdviceService.getActiveForUserAndDate(userId, date);
-    List<AdviceItem> adviceItems =
-        advicesForDate.stream()
-            .map(a -> new AdviceItem(a.getBody(), a.getReadAt() == null))
-            .toList();
-    trainerAdviceService.markAsRead(advicesForDate);
-
-    model.addAttribute("loginUser", loginUser);
-    model.addAttribute("trainings", trainings);
-    model.addAttribute("date", date);
-    model.addAttribute("today", today);
-    model.addAttribute("totalVolume", totalVolumeKg);
-    model.addAttribute("duration", duration);
-    model.addAttribute("calorieEstimate", calorieEstimate);
-    model.addAttribute("isToday", date.equals(today));
-    model.addAttribute("trainingCourse", course);
-    model.addAttribute("advices", adviceItems);
-
-    return "training/detail";
+    List<TrainerAdvice> advices = trainerAdviceService.getActiveForUserAndDate(userId, date);
+    trainerAdviceService.markAsRead(advices);
+    return ResponseEntity.ok().build();
   }
 
-  /** /detail画面表示用のトレーナーアドバイス投影（未読なら{@code unread=true}）。 */
+  /** menu.html詳細モーダル表示用のトレーナーアドバイス投影（未読なら{@code unread=true}）。 */
   public record AdviceItem(String body, boolean unread) {}
 }

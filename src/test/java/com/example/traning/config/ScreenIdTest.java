@@ -10,15 +10,18 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-/** ita2-4（ヘッダー戻る/閉じる対応）: {@link ScreenId#fromPath}が全26画面を正しく解決できるかの検証。 */
+/**
+ * ita2-4（ヘッダー戻る/閉じる対応）: {@link ScreenId#fromPath}が全画面を正しく解決できるかの検証。
+ *
+ * <p>ita7-1でWebから廃止された{@code TRAINING_DETAIL}・{@code TRAINING_REGISTER}・{@code
+ * START_TRAINING}の3画面分のenumエントリは削除済みのため、現在の対象は23画面。
+ */
 class ScreenIdTest {
 
   static Stream<Arguments> exactMatchScreens() {
     return Stream.of(
         arguments("/pr", ScreenId.PR, "/menu", "メニューに戻る"),
-        arguments("/detail", ScreenId.TRAINING_DETAIL, "/menu", "メニューに戻る"),
         arguments("/training/template", ScreenId.TRAINING_TEMPLATE, "/menu", "メニューに戻る"),
-        arguments("/training/register", ScreenId.TRAINING_REGISTER, "/menu", "メニューに戻る"),
         arguments("/user/profile", ScreenId.USER_PROFILE, "/menu", "メニューに戻る"),
         arguments("/user/goals", ScreenId.USER_GOALS, "/menu", "メニューに戻る"),
         arguments("/user/body", ScreenId.USER_BODY, "/menu", "メニューに戻る"),
@@ -76,18 +79,14 @@ class ScreenIdTest {
   }
 
   @Test
-  void トレーニング実施画面は遷移元が複数あるため戻り先URLがnullでhistory_backを維持する() {
-    Optional<ScreenId> resolved = ScreenId.fromPath("/start/training");
-
-    assertThat(resolved).contains(ScreenId.START_TRAINING);
-    assertThat(resolved.get().backUrl()).isNull();
-    assertThat(resolved.get().backLabel()).isNull();
-  }
-
-  @Test
   void 未登録の画面パスは空を返す() {
     assertThat(ScreenId.fromPath("/menu")).isEmpty(); // メニュー画面自体はScreenId対象外（ログアウト特別扱い）
     assertThat(ScreenId.fromPath("/unknown/path")).isEmpty();
+    // ita7-1でWebから廃止された画面（旧TRAINING_DETAIL/TRAINING_REGISTER/START_TRAINING）も
+    // enumのエントリごと削除したため、未登録パスとして扱われることを確認する。
+    assertThat(ScreenId.fromPath("/detail")).isEmpty();
+    assertThat(ScreenId.fromPath("/training/register")).isEmpty();
+    assertThat(ScreenId.fromPath("/start/training")).isEmpty();
   }
 
   @Test

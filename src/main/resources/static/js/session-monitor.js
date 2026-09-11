@@ -3,16 +3,9 @@
 
     const SESSION_TIMEOUT_MS    = 2 * 60 * 60 * 1000;
     const WARN_BEFORE_MS        = 15 * 60 * 1000;
-    const PING_INTERVAL_TRAINING = 3 * 60 * 1000;
-    const PING_INTERVAL_DEFAULT  = 10 * 60 * 1000;
+    const PING_INTERVAL_DEFAULT = 10 * 60 * 1000;
 
     const SESSION_START_KEY = 'sessionStart';
-
-    const isTrainingPage = window.location.pathname === '/start/training';
-
-    // トレーニング画面のみ：ネットワーク瞬断での誤ログアウトを防ぐためリトライカウンター
-    const PING_FAIL_MAX = 3;
-    let pingFailCount = 0;
 
     let countdownTimerId = null;
 
@@ -28,9 +21,6 @@
         const modal = document.getElementById('sessionWarningModal');
         if (!modal || !modal.classList.contains('hidden')) return;
 
-        const note = document.getElementById('sessionTrainingNote');
-        if (note) note.style.display = isTrainingPage ? '' : 'none';
-
         modal.classList.remove('hidden');
         startCountdown();
     }
@@ -45,9 +35,6 @@
         hideWarningModal();
         const modal = document.getElementById('sessionExpiredModal');
         if (!modal) return;
-
-        const note = document.getElementById('sessionExpiredTrainingNote');
-        if (note) note.style.display = isTrainingPage ? '' : 'none';
 
         modal.classList.remove('hidden');
     }
@@ -83,7 +70,6 @@
             });
 
             if (res.ok) {
-                pingFailCount = 0;
                 resetSessionStart();
                 hideWarningModal();
                 return;
@@ -94,11 +80,6 @@
                 return;
             }
         } catch (_) {
-            // トレーニング画面のみ：瞬断で即ログアウトしないようリトライ判定
-            if (isTrainingPage) {
-                pingFailCount++;
-                if (pingFailCount < PING_FAIL_MAX) return;
-            }
             showExpiredModal();
         }
     }
@@ -117,11 +98,10 @@
             resetSessionStart();
         }
 
-        const interval = isTrainingPage ? PING_INTERVAL_TRAINING : PING_INTERVAL_DEFAULT;
         setInterval(async () => {
             await sendPing();
             checkWarning();
-        }, interval);
+        }, PING_INTERVAL_DEFAULT);
 
         const continueBtn = document.getElementById('sessionContinueBtn');
         if (continueBtn) {
@@ -134,15 +114,6 @@
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
                 document.getElementById('logoutForm')?.submit();
-            });
-        }
-
-        // トレーニング画面のみ：スマホ画面ロック後の復帰時に即pingを送る
-        if (isTrainingPage) {
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible') {
-                    sendPing();
-                }
             });
         }
     }
