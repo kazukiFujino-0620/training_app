@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>お知らせ一覧 - トレーニング管理システム</title>
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    .notice-page { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+    .notice-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .notice-card h2 { margin: 0 0 8px; font-size: 1.05rem; color: var(--text-primary); }
+    .notice-card h2::before { content: "📢 "; }
+    .notice-card .notice-date { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px; }
+    .notice-card .notice-body { color: var(--text-primary); font-size: 0.92rem; line-height: 1.7; white-space: pre-wrap; }
+    .notice-empty { text-align: center; color: var(--text-muted); padding: 48px 16px; font-size: 0.9rem; }
+    .section-label {
+      font-size: 0.8rem; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.04em; margin: 24px 0 12px;
+    }
+    .section-label:first-of-type { margin-top: 0; }
+    .advice-card {
+      background: var(--primary-soft, var(--bg-tertiary));
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--primary-color);
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+    }
+    .advice-card .advice-header {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;
+    }
+    .advice-card .advice-trainer { font-weight: 700; color: var(--primary-color); }
+    .advice-card .advice-trainer::before { content: "💬 "; }
+    .advice-card .advice-body { color: var(--text-primary); font-size: 0.92rem; line-height: 1.7; white-space: pre-wrap; }
+    .advice-card.unread {
+      border-left-color: var(--danger-color, #ef4444);
+      box-shadow: 0 0 0 1px var(--danger-color, #ef4444);
+    }
+    .advice-card .advice-new-badge {
+      display: inline-block; font-size: 0.68rem; font-weight: 700; color: #fff;
+      background: var(--danger-color, #ef4444); border-radius: 5px; padding: 1px 6px;
+      margin-right: 6px; letter-spacing: 0.03em;
+    }
+  </style>
+</head>
+<body class="bg-secondary">
+  <header th:replace="~{common :: headerFragment}"></header>
+
+  <main class="notice-page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h1 style="color:var(--text-primary);font-size:1.5rem;font-weight:700;margin:0;">お知らせ</h1>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">ジム・店舗からのお知らせです</p>
+      </div>
+    </div>
+
+    <!-- ita4-4 (A): トレーナーからのアドバイス（時系列・自由記述、Q3=C案）。閲覧しても消えない履歴として表示する。 -->
+    <div th:if="${!#lists.isEmpty(advices)}">
+      <div class="section-label">トレーナーからのメッセージ</div>
+      <div th:each="advice : ${advices}" th:class="${'advice-card' + (advice.unread() ? ' unread' : '')}">
+        <div class="advice-header">
+          <span>
+            <span class="advice-new-badge" th:if="${advice.unread()}">NEW</span>
+            <span class="advice-trainer" th:text="${advice.trainerName()}">トレーナー</span>
+          </span>
+          <span th:text="${#temporals.format(advice.createdAt(), 'yyyy/MM/dd HH:mm')}">2026/08/16</span>
+        </div>
+        <div class="advice-body" th:text="${advice.body()}">本文</div>
+      </div>
+    </div>
+
+    <div class="section-label" th:if="${!#lists.isEmpty(advices)}">お知らせ</div>
+    <div th:if="${#lists.isEmpty(notices) and #lists.isEmpty(advices)}" class="notice-empty">
+      現在お知らせはありません
+    </div>
+
+    <div th:each="notice : ${notices}" class="notice-card" th:attr="data-notice-id=${notice.id}">
+      <h2 th:text="${notice.title}">お知らせタイトル</h2>
+      <div class="notice-date" th:text="${#temporals.format(notice.createdAt, 'yyyy/MM/dd HH:mm')}">2026/08/16</div>
+      <div class="notice-body" th:text="${notice.body}">本文</div>
+    </div>
+  </main>
+
+  <script th:src="@{/js/common.js}"></script>
+  <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+      var csrfToken = document.querySelector('meta[name="_csrf"]').content;
+      var csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+      var cards = document.querySelectorAll('.notice-card');
+      if (cards.length === 0) return;
+
+      // 一覧を開いて表示した時点で「閲覧済み」として全件dismissする
+      // （既読管理は行わず、閲覧＝以後非表示という仕様のため）
+      cards.forEach(function (card) {
+        var id = card.getAttribute('data-notice-id');
+        var headers = {};
+        headers[csrfHeader] = csrfToken;
+        fetch('/api/notices/' + id + '/dismiss', { method: 'POST', headers: headers });
+      });
+    });
+  </script>
+</body>
+</html>

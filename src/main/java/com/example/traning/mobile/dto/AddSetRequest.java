@@ -15,6 +15,6 @@ public class AddSetRequest {
   @Min(value = 0, message = "回数は0以上である必要があります")
   private Integer reps;
 
-  /** WARMUP / MAIN / DROPSET など。未指定時は MAIN */
+  /** {@link com.example.traning.training.SetType} の name()。未指定時は MAIN */
   private String setType = "MAIN";
 }

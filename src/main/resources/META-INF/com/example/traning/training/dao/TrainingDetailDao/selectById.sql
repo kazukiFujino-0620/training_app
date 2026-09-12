@@ -9,7 +9,11 @@ SELECT
   is_completed,
   create_datetime,
   updated_datetime,
-  deleted_at
+  deleted_at,
+  duration_min,
+  distance_km,
+  avg_heart_rate_bpm,
+  calories_kcal
 FROM
   training_details
 WHERE

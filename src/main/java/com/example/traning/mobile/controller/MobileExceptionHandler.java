@@ -28,6 +28,11 @@ public class MobileExceptionHandler {
     return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
   }
 
+  @ExceptionHandler(IllegalStateException.class)
+  public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException ex) {
+    return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+  }
+
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
     String msg =

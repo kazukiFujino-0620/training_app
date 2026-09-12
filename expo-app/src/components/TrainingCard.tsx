@@ -10,13 +10,15 @@ interface Props {
 
 const PART_LABELS: Record<string, string> = {
   CHEST: '胸', BACK: '背中', SHOULDER: '肩',
-  ARM: '腕', LEG: '脚',
+  ARM: '腕', LEG: '脚', CARDIO: 'カーディオ',
 };
 
 export default function TrainingCard({ training, onPress, onDelete }: Props) {
+  const isCardio = training.partCode === 'CARDIO';
   const completed = training.details.filter((d) => d.completed).length;
   const total = training.details.length;
   const allDone = completed === total && total > 0;
+  const cardioDetail = training.details[0];
 
   return (
     <TouchableOpacity
@@ -38,19 +40,34 @@ export default function TrainingCard({ training, onPress, onDelete }: Props) {
 
       <Text style={styles.menu}>{training.menu}</Text>
 
-      <View style={styles.footer}>
-        <Text style={styles.setInfo}>
-          {total} セット　{completed} / {total} 完了
-        </Text>
-        <View style={styles.progressTrack}>
-          <View
-            style={[
-              styles.progressFill,
-              { width: total > 0 ? `${(completed / total) * 100}%` : '0%' },
-            ]}
-          />
+      {isCardio ? (
+        <View style={styles.footer}>
+          {cardioDetail?.completed ? (
+            <Text style={styles.setInfo}>
+              {cardioDetail.durationMin != null ? `${cardioDetail.durationMin}分　` : ''}
+              {cardioDetail.distanceKm != null ? `${cardioDetail.distanceKm}km　` : ''}
+              {cardioDetail.avgHeartRateBpm != null ? `平均${cardioDetail.avgHeartRateBpm}bpm　` : ''}
+              {cardioDetail.caloriesKcal != null ? `${cardioDetail.caloriesKcal}kcal` : ''}
+            </Text>
+          ) : (
+            <Text style={styles.setInfo}>未実施</Text>
+          )}
         </View>
-      </View>
+      ) : (
+        <View style={styles.footer}>
+          <Text style={styles.setInfo}>
+            {total} セット　{completed} / {total} 完了
+          </Text>
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: total > 0 ? `${(completed / total) * 100}%` : '0%' },
+              ]}
+            />
+          </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }

@@ -1,5 +1,6 @@
 package com.example.traning.user.controller;
 
+import com.example.traning.common.WebErrorCode;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
 import com.example.traning.withdrawal.WithdrawalService;
@@ -16,9 +17,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequestMapping("/admin/withdrawal")
-// 退会承認（データ削除を伴う）は影響が大きいため、ita1-1フェーズ3では意図的にADMIN限定のまま据え置く
-// （ORG_ADMIN/STORE_ADMINへの開放要否は要ユーザー判断、設計書7-4参照）。
-@PreAuthorize("hasRole('ADMIN')")
+// 退会承認（データ削除を伴う）はito1-1未実施分でORG_ADMIN/STORE_ADMINにも開放（ユーザー判断済み）。
+// 自組織・自店舗（＋兼任店舗）スコープ外の申請は WithdrawalService 側で操作を拒否する。
+@PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
 @Slf4j
 public class AdminWithdrawalController {
 
@@ -34,7 +35,7 @@ public class AdminWithdrawalController {
   public String index(Model model, Principal principal) {
     User loginUser = userService.getUserByEmail(principal.getName());
     model.addAttribute("loginUser", loginUser);
-    model.addAttribute("requests", withdrawalService.findAllPendingWithUser());
+    model.addAttribute("requests", withdrawalService.findAllPendingWithUser(loginUser));
     return "admin/withdrawal";
   }
 
@@ -43,11 +44,19 @@ public class AdminWithdrawalController {
       @PathVariable Long id, Principal principal, RedirectAttributes redirectAttributes) {
     User adminUser = userService.getUserByEmail(principal.getName());
     try {
-      withdrawalService.approveRequest(id, adminUser.getUserId().longValue());
+      withdrawalService.approveRequest(id, adminUser);
       redirectAttributes.addFlashAttribute("successMessage", "退会申請を承認し、データを削除しました");
+    } catch (IllegalStateException e) {
+      log.warn("Withdrawal approval rejected - requestId: {}, reason: {}", id, e.getMessage());
+      redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
+    } catch (org.springframework.web.server.ResponseStatusException e) {
+      // GlobalControllerAdviceの専用ハンドラー（403等）に処理を委ねる
+      throw e;
     } catch (Exception e) {
       log.error("Withdrawal approval failed - requestId: {}", id, e);
-      redirectAttributes.addFlashAttribute("errorMessage", "処理に失敗しました: " + e.getMessage());
+      redirectAttributes.addFlashAttribute("errorMessage", "処理に失敗しました。時間をおいて再度お試しください。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INTERNAL_ERROR);
     }
     return "redirect:/admin/withdrawal";
   }
@@ -57,10 +66,19 @@ public class AdminWithdrawalController {
       @PathVariable Long id, Principal principal, RedirectAttributes redirectAttributes) {
     User adminUser = userService.getUserByEmail(principal.getName());
     try {
-      withdrawalService.rejectRequest(id, adminUser.getUserId().longValue());
+      withdrawalService.rejectRequest(id, adminUser);
       redirectAttributes.addFlashAttribute("successMessage", "退会申請を拒否しました");
+    } catch (IllegalStateException e) {
+      log.warn("Withdrawal rejection rejected - requestId: {}, reason: {}", id, e.getMessage());
+      redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
+    } catch (org.springframework.web.server.ResponseStatusException e) {
+      // GlobalControllerAdviceの専用ハンドラー（403等）に処理を委ねる
+      throw e;
     } catch (Exception e) {
-      redirectAttributes.addFlashAttribute("errorMessage", "処理に失敗しました: " + e.getMessage());
+      log.error("Withdrawal rejection failed - requestId: {}", id, e);
+      redirectAttributes.addFlashAttribute("errorMessage", "処理に失敗しました。時間をおいて再度お試しください。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INTERNAL_ERROR);
     }
     return "redirect:/admin/withdrawal";
   }

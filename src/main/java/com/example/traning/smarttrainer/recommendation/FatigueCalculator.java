@@ -1,5 +1,6 @@
 package com.example.traning.smarttrainer.recommendation;
 
+import com.example.traning.training.SetType;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -52,7 +53,8 @@ public class FatigueCalculator {
       int completedSets = 0;
       for (TrainingDetail fd : fDetails) {
         if (!fd.getIsCompleted()) continue;
-        if (fd.getWeight() != null && fd.getReps() != null) {
+        boolean isWarmup = SetType.fromValueOrMain(fd.getSetType()) == SetType.WARMUP;
+        if (!isWarmup && fd.getWeight() != null && fd.getReps() != null) {
           vol += Math.round(fd.getWeight() * fd.getReps());
         }
         completedSets++;

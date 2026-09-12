@@ -82,7 +82,30 @@ public class MobileAuthService {
       return TokenResponse.mfaPending(mfaTempToken);
     }
 
-    return issueFullTokens(userId, user.getEmail(), user.getRole(), req.getDeviceId());
+    return issueFullTokens(
+        userId, user.getEmail(), user.getRole(), req.getDeviceId(), user.getUserName());
+  }
+
+  /**
+   * OAuth（Google/LINE）でのログイン。パスワード検証は行わず、呼び出し元（{@code MobileOAuthLoginService}）が 解決済みの{@link
+   * User}を渡す。MFAが有効な場合は仮トークンを返し、モバイル側は既存の{@code /mfa/verify} フローへ合流する。
+   *
+   * @throws IllegalArgumentException アカウントが無効な場合
+   */
+  @Transactional
+  public TokenResponse loginViaOAuth(User user, String deviceId) {
+    if (Boolean.FALSE.equals(user.getEnabled()) || user.getDeletedAt() != null) {
+      throw new IllegalArgumentException("アカウントが無効です");
+    }
+
+    Long userId = user.getUserId().longValue();
+
+    if (mfaService.isEnabled(userId)) {
+      String mfaTempToken = jwtService.generateMfaTempToken(userId, deviceId);
+      return TokenResponse.mfaPending(mfaTempToken);
+    }
+
+    return issueFullTokens(userId, user.getEmail(), user.getRole(), deviceId, user.getUserName());
   }
 
   @Transactional
@@ -125,7 +148,7 @@ public class MobileAuthService {
       throw new IllegalArgumentException("ユーザーが見つかりません");
     }
 
-    return issueFullTokens(userId, user.getEmail(), user.getRole(), deviceId);
+    return issueFullTokens(userId, user.getEmail(), user.getRole(), deviceId, user.getUserName());
   }
 
   @Transactional
@@ -149,7 +172,11 @@ public class MobileAuthService {
     refreshTokenDao.revokeByTokenHash(stored.getTokenHash(), LocalDateTime.now());
 
     return issueFullTokens(
-        stored.getUserId(), user.getEmail(), user.getRole(), stored.getDeviceId());
+        stored.getUserId(),
+        user.getEmail(),
+        user.getRole(),
+        stored.getDeviceId(),
+        user.getUserName());
   }
 
   @Transactional
@@ -158,7 +185,8 @@ public class MobileAuthService {
   }
 
   /** アクセストークン + リフレッシュトークンを発行して TokenResponse を返す */
-  private TokenResponse issueFullTokens(Long userId, String email, String role, String deviceId) {
+  private TokenResponse issueFullTokens(
+      Long userId, String email, String role, String deviceId, String userName) {
     String accessToken = jwtService.generateAccessToken(userId, email, role);
 
     String rawRefreshToken = UUID.randomUUID().toString();
@@ -174,6 +202,6 @@ public class MobileAuthService {
         LocalDateTime.now().plusSeconds(jwtService.getRefreshTokenValidityMs() / 1000));
     refreshTokenDao.insert(entity);
 
-    return TokenResponse.full(accessToken, rawRefreshToken, ACCESS_TOKEN_EXPIRES_IN_SEC);
+    return TokenResponse.full(accessToken, rawRefreshToken, ACCESS_TOKEN_EXPIRES_IN_SEC, userName);
   }
 }

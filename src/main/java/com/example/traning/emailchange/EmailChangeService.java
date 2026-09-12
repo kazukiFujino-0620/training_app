@@ -3,6 +3,7 @@ package com.example.traning.emailchange;
 import com.example.traning.common.MailService;
 import com.example.traning.dao.UserDao;
 import com.example.traning.user.User;
+import com.example.traning.user.service.EmailDuplicateException;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,7 +33,7 @@ public class EmailChangeService {
     }
     // 新メールの重複チェック
     if (userDao.selectByEmail(newEmail).isPresent()) {
-      throw new IllegalArgumentException("そのメールアドレスはすでに使用されています");
+      throw new EmailDuplicateException("そのメールアドレスはすでに使用されています");
     }
     // 既存トークン削除
     emailChangeTokenDao.deleteByUserId(userId);
@@ -60,7 +61,7 @@ public class EmailChangeService {
     }
     // 重複再チェック
     if (userDao.selectByEmail(ect.newEmail).isPresent()) {
-      throw new IllegalArgumentException("そのメールアドレスはすでに使用されています");
+      throw new EmailDuplicateException("そのメールアドレスはすでに使用されています");
     }
     // メール更新
     userDao.updateEmail(ect.userId, ect.newEmail);

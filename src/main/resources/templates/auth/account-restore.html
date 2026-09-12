@@ -38,7 +38,7 @@
             <p class="login-subtitle">以前のデータを引き継いでアカウントを復元します</p>
         </div>
 
-        <div th:if="${errorMessage}" class="error-message" th:text="${errorMessage}"></div>
+        <div th:replace="~{common :: errorMessageFragment}"></div>
 
         <div class="info-message">
             <p>ボタンをクリックすると、アカウントが復元されます。<br>

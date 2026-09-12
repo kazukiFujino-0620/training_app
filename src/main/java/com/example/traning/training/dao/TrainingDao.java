@@ -81,6 +81,10 @@ public interface TrainingDao {
   @Select
   int countByUserIdAndMonth(Long userId, int year, int month);
 
+  /** モバイルのカレンダータブでの実施日ドット表示用（ita7-3）。当月の実施日一覧（重複無し）を返す。 */
+  @Select
+  List<LocalDate> selectDistinctTrainingDatesByUserIdAndMonth(Long userId, int year, int month);
+
   @Select
   List<String> selectDistinctPartsByUserIdAndDateRange(
       Long userId, LocalDate startDate, LocalDate endDate);
@@ -110,6 +114,15 @@ public interface TrainingDao {
 
   @Update(sqlFile = true)
   int updateSupersetGroupIdById(Long id, Long supersetGroupId, LocalDateTime updatedDatetime);
+
+  /** モバイル版トレーニングメモ欄対応（ita4-4）。単体のtrainingのmemoのみ更新する。 */
+  @Update(sqlFile = true)
+  int updateMemoById(Long id, String memo, LocalDateTime updatedDatetime);
+
+  /** モバイル版トレーニング本体（種目名・部位・日付）更新対応（ita7-1）。セットは対象外。 */
+  @Update(sqlFile = true)
+  int updateBasicInfoById(
+      Long id, String menu, String partCode, LocalDate trainingDate, LocalDateTime updatedDatetime);
 
   @Update(sqlFile = true)
   int clearSupersetGroup(Long supersetGroupId, LocalDateTime updatedDatetime);

@@ -24,6 +24,8 @@ export interface TokenResponse {
   expiresIn?: number;
   mfaRequired: boolean;
   mfaTempToken?: string;
+  /** itバグ-18: ホーム画面ヘッダーでのログインユーザー名表示に使う */
+  userName?: string;
 }
 
 // ── トレーニング ───────────────────────────────────────────────────────────
@@ -36,6 +38,14 @@ export interface TrainingDetail {
   reps: number;
   /** バックエンドの @JsonProperty("completed") に対応 */
   completed: boolean;
+  /** 有酸素運動（ita2-1）の実施時間（分）。開始〜完了のタイマーから自動反映。筋トレ種目ではnull */
+  durationMin: number | null;
+  /** 有酸素運動（ita2-1）の距離（km）。マシンの表示値を手入力。筋トレ種目ではnull */
+  distanceKm: number | null;
+  /** 有酸素運動（ita2-1）の平均心拍数（bpm）。マシンの表示値を手入力。筋トレ種目ではnull */
+  avgHeartRateBpm: number | null;
+  /** 有酸素運動（ita2-1）の消費カロリー（kcal）。マシンの表示値を手入力。筋トレ種目ではnull */
+  caloriesKcal: number | null;
 }
 
 export interface Training {
@@ -50,6 +60,14 @@ export interface Training {
   details: TrainingDetail[];
   /** スーパーセットグループID（F-M2）。NULL=単独種目、同値=同一グループ */
   supersetGroupId?: number | null;
+  /** トレーニングメモ（ita4-4、500文字以内） */
+  memo?: string | null;
+}
+
+/** 当日の推定消費カロリー（ita2-3）。全種目完了前、または計算対象データが無い場合はavailable=false */
+export interface TrainingCalorieResponse {
+  available: boolean;
+  calories: number | null;
 }
 
 export interface AddSetRequest {
@@ -70,6 +88,14 @@ export interface SetUpdateRequest {
   weight?: number;
   reps?: number;
   isCompleted?: boolean;
+  /** 有酸素運動（ita2-1）の実施時間（分）。開始〜完了のタイマーから自動反映 */
+  durationMin?: number;
+  /** 有酸素運動（ita2-1）の距離（km）。マシンの表示値を手入力 */
+  distanceKm?: number;
+  /** 有酸素運動（ita2-1）の平均心拍数（bpm）。マシンの表示値を手入力 */
+  avgHeartRateBpm?: number;
+  /** 有酸素運動（ita2-1）の消費カロリー（kcal）。マシンの表示値を手入力 */
+  caloriesKcal?: number;
 }
 
 export interface SetUpdateResponse {
@@ -186,4 +212,121 @@ export interface HealthSummaryResponse {
         source: string;
       }
     | null;
+}
+
+/** ジム・店舗からのお知らせ（ita2-5）。閲覧（一覧画面表示）した時点でdismiss扱いとなり以後表示されなくなる */
+export interface Notice {
+  id: number;
+  organizationId: number;
+  title: string;
+  body: string;
+  createdBy: number;
+  createdAt: string;
+  deletedAt: string | null;
+}
+
+// ── AIトレーニング提案（ita5-1 機能1・仮連携） ────────────────────────────
+// itバグ-21対応（2026-09-11）: 「（モック）」文言のためTrainingListScreenからの
+// 呼び出しは廃止し「今日のおすすめメニュー」（下記DailyRecommendation）に差し替えた。
+// ita5-1の本番AI連携が稼働した際に同じ枠へ戻す2段階移行のため、型・APIとも削除せず残す。
+
+export interface AiSuggestedItem {
+  itemName: string;
+  weightMin: number;
+  weightMax: number;
+  repsMin: number;
+  repsMax: number;
+  sets: number;
+}
+
+export interface AiTrainingSuggestion {
+  comment: string;
+  partCode: string | null;
+  items: AiSuggestedItem[];
+}
+
+// ── 今日のおすすめメニュー（ルールベース推奨、F3 Phase1） ───────────────────
+// itバグ-21対応: モバイル「トレーニング」タブのAI提案（モック）カードをこちらに差し替えた。
+
+export interface RecommendedItem {
+  itemName: string;
+  weightMin: number;
+  weightMax: number;
+  repsMin: number;
+  repsMax: number;
+  sets: number;
+}
+
+export interface DailyRecommendation {
+  partCode: string | null;
+  partLabel: string | null;
+  reasonLabel: string | null;
+  items: RecommendedItem[];
+  restDayRecommended: boolean;
+}
+
+/** 退会画面の表示分岐に使う現在状態。 */
+export interface WithdrawalStatus {
+  isGeneralUser: boolean;
+  hasPendingRequest: boolean;
+}
+
+// ── 体重・体脂肪率の手動記録（ita7-1 1-2） ────────────────────────────────
+
+export interface BodyMeasurement {
+  id: number;
+  measuredDate: string;
+  weightKg: number;
+  bodyFatPct: number | null;
+  memo: string | null;
+  source: string;
+}
+
+export interface SaveBodyMeasurementRequest {
+  measuredDate: string;
+  weightKg: number;
+  bodyFatPct?: number | null;
+  memo?: string | null;
+}
+
+// ── プロフィール編集（ita7-1 1-3） ────────────────────────────────────────
+
+export type GoalMode = 'BULKING' | 'CUTTING' | 'MAINTENANCE';
+
+export interface MobileProfile {
+  userName: string | null;
+  heightCm: number | null;
+  weightKg: number | null;
+  gender: string | null;
+  birthDate: string | null;
+  currentGoalMode: string | null;
+  aiAdviceConsent: boolean | null;
+}
+
+export interface UpdateProfileRequest {
+  userName?: string;
+  heightCm?: number;
+  weightKg?: number;
+  gender?: string;
+  birthDate?: string;
+}
+
+// ── 統計バー（ita7-2、カレンダータブ下） ──────────────────────────────────────
+
+export interface WeekPartCoverage {
+  name: string;
+  done: boolean;
+}
+
+/** Web版 /menu の統計バー（今月・先週比・今週の部位・今日の予定）と同じ内容 */
+export interface MobileTrainingStatsResponse {
+  monthlyCount: number;
+  /** 例: "+12%"、データが無い場合は "前週データなし" */
+  volumeChangeText: string;
+  volumeChangePositive: boolean;
+  weekParts: WeekPartCoverage[];
+  /** 今日の曜日別プログラムで設定された部位名。未設定の場合はnull */
+  todayPartLabel: string | null;
+  /** 当月のトレーニング実施日一覧（"yyyy-MM-dd"形式）。カレンダーの実施日ドット表示用（ita7-3） */
+  trainingDates: string[];
 }

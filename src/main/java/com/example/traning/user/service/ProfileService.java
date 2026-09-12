@@ -42,4 +42,19 @@ public class ProfileService {
   public void updateGoalMode(Integer userId, String goalMode) {
     userDao.updateGoalMode(userId, goalMode, LocalDateTime.now());
   }
+
+  @Transactional
+  public void updateNotificationMethod(Integer userId, String notificationMethod) {
+    userDao.updateNotificationMethod(userId, notificationMethod);
+  }
+
+  @Transactional
+  public void updateAssignedTrainer(Integer userId, Long assignedTrainerId) {
+    userDao.updateAssignedTrainer(userId, assignedTrainerId);
+  }
+
+  @Transactional
+  public void updateAiAdviceConsent(Integer userId, boolean aiAdviceConsent) {
+    userDao.updateAiAdviceConsent(userId, aiAdviceConsent);
+  }
 }

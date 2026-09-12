@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @ControllerAdvice
 @Slf4j
@@ -49,6 +50,21 @@ public class GlobalControllerAdvice {
   @ModelAttribute("currentUri")
   public String addCurrentUriToModel(HttpServletRequest request) {
     return request.getRequestURI();
+  }
+
+  /**
+   * ita2-4: 共通ヘッダーの「戻る」ボタンの戻り先URL・ラベルを{@link ScreenId}から解決してテンプレートに渡す。 未登録の画面（{@link
+   * ScreenId#fromPath}が空を返す場合）は{@code screenBackUrl}が{@code null}のままとなり、 {@code
+   * common.html}側で{@code history.back()}ボタンにフォールバックする。
+   */
+  @ModelAttribute
+  public void addScreenBackTargetToModel(Model model, HttpServletRequest request) {
+    ScreenId.fromPath(request.getRequestURI())
+        .ifPresent(
+            screen -> {
+              model.addAttribute("screenBackUrl", screen.backUrl());
+              model.addAttribute("screenBackLabel", screen.backLabel());
+            });
   }
 
   // ── 例外ハンドラー ──────────────────────────────────────────────────────
@@ -149,6 +165,54 @@ public class GlobalControllerAdvice {
     ModelAndView mav = new ModelAndView(viewName);
     mav.setStatus(status);
     mav.addObject("message", reason);
+    return mav;
+  }
+
+  /**
+   * ita2-5: {@code @PreAuthorize} が投げる {@link
+   * org.springframework.security.access.AccessDeniedException} を処理する。
+   *
+   * <p>{@code AccessDeniedException} も {@link RuntimeException} のサブクラスのため、専用ハンドラーが無いと下の {@code
+   * handleRuntimeException} に握りつぶされ、常に500になってしまう（{@link ResponseStatusException} と同種の既存バグ、
+   * NoticeController実装中に発見）。URLパターンレベルの認可（{@code authorizeHttpRequests}）はServletフィルタ側で {@code
+   * ExceptionTranslationFilter} が正しく403に変換するため影響を受けないが、メソッドレベルの {@code @PreAuthorize}
+   * のみで保護している箇所はDispatcherServlet内で例外解決されるためこのハンドラーが必要。
+   */
+  @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+  public ModelAndView handleAccessDeniedException(
+      org.springframework.security.access.AccessDeniedException ex,
+      HttpServletRequest request,
+      HttpServletResponse response)
+      throws IOException {
+    String requestUri = request.getRequestURI();
+    String safeRequestUri =
+        requestUri == null ? null : requestUri.replace('\r', '_').replace('\n', '_');
+    log.warn("Access denied: path={}", safeRequestUri);
+
+    String accept = request.getHeader("Accept");
+    if (accept != null && accept.contains("application/json")) {
+      response.setStatus(HttpStatus.FORBIDDEN.value());
+      response.setContentType("application/json;charset=UTF-8");
+      response.getWriter().write("{\"error\":\"この操作を行う権限がありません。\"}");
+      return null;
+    }
+
+    ModelAndView mav = new ModelAndView("error/403");
+    mav.setStatus(HttpStatus.FORBIDDEN);
+    mav.addObject("message", "この操作を行う権限がありません。");
+    return mav;
+  }
+
+  /**
+   * ita2-4結合試験で発見: 存在しないURL（テンプレート内の壊れたリンク等）へのアクセス時、Springが投げる {@link NoResourceFoundException}
+   * は専用ハンドラーが無いと下の汎用 {@code handleException(Exception)} に 握りつぶされ常に500になっていた（本来404であるべき）。
+   */
+  @ExceptionHandler(NoResourceFoundException.class)
+  @ResponseStatus(HttpStatus.NOT_FOUND)
+  public ModelAndView handleNoResourceFoundException(NoResourceFoundException ex) {
+    log.warn("No resource found: {}", ex.getResourcePath());
+    ModelAndView mav = new ModelAndView("error/404");
+    mav.addObject("message", "お探しのページが見つかりませんでした。");
     return mav;
   }
 

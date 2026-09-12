@@ -16,7 +16,7 @@ public class AddTrainingRequest {
   private String menu;
 
   @NotBlank(message = "部位コードは必須です")
-  @Pattern(regexp = "^(CHEST|BACK|LEG|SHOULDER|ARM)$", message = "部位コードが不正です")
+  @Pattern(regexp = "^(CHEST|BACK|LEG|SHOULDER|ARM|CARDIO)$", message = "部位コードが不正です")
   private String partCode;
 
   /** 未指定時は当日 */

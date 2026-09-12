@@ -8,6 +8,10 @@ SELECT
   td.is_completed,
   td.create_datetime,
   td.updated_datetime,
+  td.duration_min,
+  td.distance_km,
+  td.avg_heart_rate_bpm,
+  td.calories_kcal,
   t.menu
 FROM
   training_details td

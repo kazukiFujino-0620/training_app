@@ -1,8 +1,10 @@
 package com.example.traning.emailchange;
 
+import com.example.traning.common.WebErrorCode;
 import com.example.traning.dao.UserDao;
 import com.example.traning.training.service.TrainingService;
 import com.example.traning.user.User;
+import com.example.traning.user.service.EmailDuplicateException;
 import java.security.Principal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -54,8 +56,13 @@ public class EmailChangeController {
       emailChangeService.initiateChange(
           user.getUserId().longValue(), user.getEmail(), newEmail, currentPassword);
       return "redirect:/user/email?sent=true";
+    } catch (EmailDuplicateException e) {
+      redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.EMAIL_DUPLICATE);
+      return "redirect:/user/email";
     } catch (IllegalArgumentException e) {
       redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
       return "redirect:/user/email";
     }
   }
@@ -65,8 +72,13 @@ public class EmailChangeController {
     try {
       emailChangeService.confirmChange(token);
       return "redirect:/user/email?changed=true";
+    } catch (EmailDuplicateException e) {
+      redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.EMAIL_DUPLICATE);
+      return "redirect:/user/email";
     } catch (IllegalArgumentException e) {
       redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.TOKEN_INVALID_OR_EXPIRED);
       return "redirect:/user/email";
     }
   }

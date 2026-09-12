@@ -1,15 +1,59 @@
-import React from 'react';
+import React, { Suspense } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import LoginScreen from '../screens/LoginScreen';
 import MfaScreen from '../screens/MfaScreen';
-import TrainingListScreen from '../screens/TrainingListScreen';
-import ExerciseScreen from '../screens/ExerciseScreen';
-import AddExerciseScreen from '../screens/AddExerciseScreen';
-import TrainingStartScreen from '../screens/TrainingStartScreen';
-import GoalScreen from '../screens/GoalScreen';
-import HealthScreen from '../screens/HealthScreen';
+import type { RecommendedItem } from '../api/types';
+
+// AppStack配下の画面は、未ログイン時にも起動のたびにJS評価コストが発生していた
+// （AppNavigator.tsxの静的importにより、ログイン前後を問わずモジュール本体が評価される）。
+// itバグ-25対応: React.lazyで遅延importし、実際に画面へ遷移するまで評価を遅らせる。
+// LoginScreen/MfaScreenは起動直後（未ログイン時）に必ず表示されるため対象外。
+const TrainingListScreen = React.lazy(() => import('../screens/TrainingListScreen'));
+const ExerciseScreen = React.lazy(() => import('../screens/ExerciseScreen'));
+const AddExerciseScreen = React.lazy(() => import('../screens/AddExerciseScreen'));
+const TrainingStartScreen = React.lazy(() => import('../screens/TrainingStartScreen'));
+const GoalScreen = React.lazy(() => import('../screens/GoalScreen'));
+const HealthScreen = React.lazy(() => import('../screens/HealthScreen'));
+const NoticeListScreen = React.lazy(() => import('../screens/NoticeListScreen'));
+const WithdrawalScreen = React.lazy(() => import('../screens/WithdrawalScreen'));
+const BodyMeasurementScreen = React.lazy(() => import('../screens/BodyMeasurementScreen'));
+const ProfileScreen = React.lazy(() => import('../screens/ProfileScreen'));
+
+// 画面モジュールの読み込み中に表示するフォールバック。
+// App.tsx起動時スプラッシュの配色（白背景 + 緑のActivityIndicator）に合わせている。
+function ScreenLoadingFallback() {
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#4CAF50" />
+    </View>
+  );
+}
+
+// React Navigationの`component`にはSuspense境界を持つ安定したコンポーネント参照を渡す必要があるため、
+// レンダー関数の外（モジュールスコープ）で一度だけラップする（レンダーの度に新しい関数を生成しない）。
+function withSuspense<P extends object>(LazyComponent: React.ComponentType<P>) {
+  return function SuspendedScreen(props: P) {
+    return (
+      <Suspense fallback={<ScreenLoadingFallback />}>
+        <LazyComponent {...props} />
+      </Suspense>
+    );
+  };
+}
+
+const TrainingListScreenLazy = withSuspense(TrainingListScreen);
+const ExerciseScreenLazy = withSuspense(ExerciseScreen);
+const AddExerciseScreenLazy = withSuspense(AddExerciseScreen);
+const TrainingStartScreenLazy = withSuspense(TrainingStartScreen);
+const GoalScreenLazy = withSuspense(GoalScreen);
+const HealthScreenLazy = withSuspense(HealthScreen);
+const NoticeListScreenLazy = withSuspense(NoticeListScreen);
+const WithdrawalScreenLazy = withSuspense(WithdrawalScreen);
+const BodyMeasurementScreenLazy = withSuspense(BodyMeasurementScreen);
+const ProfileScreenLazy = withSuspense(ProfileScreen);
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -19,8 +63,11 @@ export type AuthStackParamList = {
 export type AppStackParamList = {
   TrainingList: undefined;
   TrainingStart: undefined;
-  Exercise: { trainingId: number; menu: string };
-  AddExercise: undefined;
+  /** date未指定時は当日として扱う（後方互換） */
+  Exercise: { trainingId: number; menu: string; date?: string };
+  // itバグ-21対応: 「今日のおすすめメニュー」（ルールベース）・AI提案（将来のita5-1本番連携）の
+  // どちらから遷移してもitems配列の形状は共通のため、この最小限の形で受け取る。
+  AddExercise: { aiSuggestion?: { items: RecommendedItem[] }; date?: string } | undefined;
   Goal: {
     date: string;
     totalSets?: number;
@@ -29,6 +76,10 @@ export type AppStackParamList = {
     sessionElapsed?: number;
   };
   Health: undefined;
+  NoticeList: undefined;
+  Withdrawal: undefined;
+  BodyMeasurement: undefined;
+  Profile: undefined;
 };
 
 type RootStackParamList = {
@@ -58,32 +109,52 @@ function AppNavigator() {
     <AppStack.Navigator>
       <AppStack.Screen
         name="TrainingList"
-        component={TrainingListScreen}
+        component={TrainingListScreenLazy}
         options={{ headerShown: false }}
       />
       <AppStack.Screen
         name="Exercise"
-        component={ExerciseScreen}
+        component={ExerciseScreenLazy}
         options={({ route }) => ({ title: route.params.menu })}
       />
       <AppStack.Screen
         name="TrainingStart"
-        component={TrainingStartScreen}
+        component={TrainingStartScreenLazy}
         options={{ title: 'トレーニング中', gestureEnabled: false }}
       />
       <AppStack.Screen
         name="AddExercise"
-        component={AddExerciseScreen}
+        component={AddExerciseScreenLazy}
         options={{ title: '種目を追加' }}
       />
       <AppStack.Screen
         name="Goal"
-        component={GoalScreen}
+        component={GoalScreenLazy}
         options={{ headerShown: false, gestureEnabled: false }}
       />
       <AppStack.Screen
         name="Health"
-        component={HealthScreen}
+        component={HealthScreenLazy}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="NoticeList"
+        component={NoticeListScreenLazy}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="Withdrawal"
+        component={WithdrawalScreenLazy}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="BodyMeasurement"
+        component={BodyMeasurementScreenLazy}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="Profile"
+        component={ProfileScreenLazy}
         options={{ headerShown: false }}
       />
     </AppStack.Navigator>
@@ -107,3 +178,12 @@ export default function RootNavigator({ initialRoute }: RootNavigatorProps) {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+});

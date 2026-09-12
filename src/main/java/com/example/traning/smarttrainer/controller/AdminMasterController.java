@@ -1,10 +1,14 @@
 package com.example.traning.smarttrainer.controller;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.common.WebErrorCode;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
+import com.example.traning.smarttrainer.service.TrainingItemMasterService;
 import com.example.traning.smarttrainer.task.MasterUpdateTask;
 import com.example.traning.smarttrainer.task.MasterUpdateTask.MasterUpdateResult;
+import com.example.traning.user.User;
+import com.example.traning.user.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +22,8 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,7 +37,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  * トレーニングマスタ（種目マスタ）のCSV取り込み・登録を管理者が行うための画面。
  *
  * <p>既存の夜間バッチ（{@link MasterUpdateTask}）はそのまま残し、本コントローラーは (1) 取り込み用CSVファイルのアップロード、(2) バッチの即時手動起動、(3)
- * 現在のマスタデータのCSVダウンロード、 の3操作を管理者向けに提供する。
+ * 現在のマスタデータのCSVダウンロード、(4) 組織・店舗固有種目の個別追加（ita1-1 未実施分）、の4操作を管理者向けに提供する。CSV一括登録・エクスポート（(1)〜(3)）は
+ * 引き続きプラットフォーム共通種目専用のまま変更しない。
  */
 @Controller
 @RequestMapping("/admin/master")
@@ -41,21 +48,49 @@ public class AdminMasterController {
 
   private final MasterUpdateTask masterUpdateTask;
   private final TrainingMasterDao trainingMasterDao;
+  private final TrainingItemMasterService trainingItemMasterService;
+  private final UserService userService;
 
   @Value("${batch.master.update.file-path}")
   private String filePath;
 
   public AdminMasterController(
-      MasterUpdateTask masterUpdateTask, TrainingMasterDao trainingMasterDao) {
+      MasterUpdateTask masterUpdateTask,
+      TrainingMasterDao trainingMasterDao,
+      TrainingItemMasterService trainingItemMasterService,
+      UserService userService) {
     this.masterUpdateTask = masterUpdateTask;
     this.trainingMasterDao = trainingMasterDao;
+    this.trainingItemMasterService = trainingItemMasterService;
+    this.userService = userService;
+  }
+
+  private User getCurrentAdminUser() {
+    Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    String email = (principal instanceof UserDetails ud) ? ud.getUsername() : "";
+    return userService.getUserByEmail(email);
   }
 
   @GetMapping
   public String index(Model model) {
     model.addAttribute("itemCount", trainingMasterDao.selectAllItems().size());
     model.addAttribute("filePath", filePath);
+    model.addAttribute("parts", trainingMasterDao.selectAllParts());
     return "admin/master_management";
+  }
+
+  /**
+   * 種目の個別追加（ita1-1 未実施分）。CSV一括登録とは別に、組織・店舗固有の種目を1件ずつ登録する。 公開範囲（共通/自組織/自店舗）は操作者のロールに応じてサーバー側で自動決定する。
+   */
+  @AuditLog(action = "ADMIN_MASTER_ITEM_ADD", targetTable = "training_item_master")
+  @PostMapping("/item")
+  public String addItem(
+      @RequestParam String partCode,
+      @RequestParam String itemName,
+      RedirectAttributes redirectAttributes) {
+    trainingItemMasterService.addItem(partCode, itemName, getCurrentAdminUser());
+    redirectAttributes.addFlashAttribute("successMessage", "種目を追加しました。");
+    return "redirect:/admin/master";
   }
 
   /**
@@ -68,12 +103,14 @@ public class AdminMasterController {
       @RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) {
     if (file.isEmpty()) {
       redirectAttributes.addFlashAttribute("errorMessage", "ファイルを選択してください。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
       return "redirect:/admin/master";
     }
 
     String originalFilename = file.getOriginalFilename();
     if (originalFilename == null || !originalFilename.toLowerCase().endsWith(".csv")) {
       redirectAttributes.addFlashAttribute("errorMessage", "CSVファイル（.csv）を選択してください。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.VALIDATION_ERROR);
       return "redirect:/admin/master";
     }
 
@@ -85,8 +122,10 @@ public class AdminMasterController {
       redirectAttributes.addFlashAttribute(
           "successMessage", "CSVファイルをアップロードしました。反映するには「今すぐ取り込む」を実行するか、次回の夜間バッチをお待ちください。");
     } catch (IOException e) {
+      // 例外の詳細（内部パス等を含み得る）はログにのみ記録し、ユーザー向けメッセージには含めない。
       log.error("CSVファイルのアップロードに失敗しました", e);
-      redirectAttributes.addFlashAttribute("errorMessage", "アップロードに失敗しました: " + e.getMessage());
+      redirectAttributes.addFlashAttribute("errorMessage", "アップロードに失敗しました。時間をおいて再度お試しください。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INTERNAL_ERROR);
     }
 
     return "redirect:/admin/master";
@@ -99,6 +138,9 @@ public class AdminMasterController {
     MasterUpdateResult result = masterUpdateTask.executeMasterUpdate();
     redirectAttributes.addFlashAttribute(
         result.success() ? "successMessage" : "errorMessage", result.message());
+    if (!result.success()) {
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.OPERATION_FAILED);
+    }
     return "redirect:/admin/master";
   }
 

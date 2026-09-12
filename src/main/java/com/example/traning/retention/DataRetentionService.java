@@ -1,5 +1,6 @@
 package com.example.traning.retention;
 
+import com.example.traning.user.Role;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +24,7 @@ public class DataRetentionService {
    * @throws RetentionPolicyException 保護期間内かつ非 ADMIN の場合
    */
   public void assertCanPhysicalDelete(String role, LocalDateTime createDatetime) {
-    if ("ROLE_ADMIN".equals(role)) {
+    if (Role.ADMIN.value().equals(role)) {
       return;
     }
     if (!isExpired(createDatetime)) {

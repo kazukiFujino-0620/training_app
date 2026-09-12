@@ -6,6 +6,7 @@ import com.example.traning.entity.TrainingMaster;
 import com.example.traning.organization.Organization;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -238,9 +239,10 @@ public class MasterUpdateService {
       entity.setItemName(itemName);
       entity.setDisplayOrder(existing.getDisplayOrder());
       entity.setMasterFlg(masterFlg);
-      // organization_idはDB上NOT NULL。BatchUpdateは全列を明示的に列挙する自動生成SQLのため、
-      // 既存値を引き継がないとNULLで上書きされてしまう。
+      // organization_id・range_of_motion_mはDB上NOT NULL。BatchUpdateは全列を明示的に列挙する
+      // 自動生成SQLのため、既存値を引き継がないとNULLで上書きされてしまう。
       entity.setOrganizationId(existing.getOrganizationId());
+      entity.setRangeOfMotionM(existing.getRangeOfMotionM());
       updatedItems.add(entity);
       return;
     }
@@ -254,8 +256,11 @@ public class MasterUpdateService {
     entity.setPartCode(partsCode);
     entity.setItemName(itemName);
     entity.setMasterFlg(masterFlg);
-    // CSV一括登録の種目はプラットフォーム共通種目として扱う（組織固有種目の登録UIはフェーズ4）。
+    // CSV一括登録の種目はプラットフォーム共通種目として扱う（組織固有種目の登録UIはita1-1未実施分で対応）。
     entity.setOrganizationId(Organization.ALL_ORGANIZATION_ID);
+    // range_of_motion_mはDB上NOT NULL（DEFAULT 0.40）。BatchInsertは全列を明示的に列挙する自動生成SQLのため、
+    // ここで未設定のままだとNULLが明示的にバインドされDBのDEFAULT句が効かず登録に失敗する（ita2結合試験で発見）。
+    entity.setRangeOfMotionM(new BigDecimal("0.40"));
 
     // --- 部位ごとの連番ロジック ---
     // その部位が初めて登場なら1、次からは+1する

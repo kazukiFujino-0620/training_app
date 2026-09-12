@@ -67,8 +67,14 @@
                 15分後に再度お試しください。
             </span>
 
+            <!-- パターン5: レート制限超過（短時間に連続してログインを試行した場合） -->
+            <span th:if="${param.reason != null && #strings.contains(param.reason, 'rate_limited')}">
+                ログイン試行が多すぎます。<br>
+                しばらくしてから再度お試しください。
+            </span>
+
             <!-- パターン4: 通常の入力ミス（reasonが無い、またはそれ以外の場合） -->
-            <span th:if="${param.reason == null || (!#strings.contains(param.reason, 'oauth2_user') && !#strings.contains(param.reason, 'withdrawn') && !#strings.contains(param.reason, 'account_locked'))}">
+            <span th:if="${param.reason == null || (!#strings.contains(param.reason, 'oauth2_user') && !#strings.contains(param.reason, 'withdrawn') && !#strings.contains(param.reason, 'account_locked') && !#strings.contains(param.reason, 'rate_limited'))}">
                 ユーザー名またはパスワードが正しくありません
             </span>
             </div>
@@ -81,6 +87,14 @@
             <span>ログアウトしました</span>
         </div>
         
+        <div th:if="${param.accountDeleted}" class="success-message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span>アカウントを削除しました。ご利用ありがとうございました。</span>
+        </div>
+
         <div th:if="${param.registered}" class="success-message">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -96,10 +110,11 @@
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>
                 </svg>
-                <input 
-                    type="email" 
-                    name="username" 
-                    class="form-control" 
+                <input
+                    type="email"
+                    name="username"
+                    th:value="${param.email != null ? param.email[0] : ''}"
+                    class="form-control"
                     placeholder="メールアドレス"
                     required
                     autocomplete="username">
@@ -157,10 +172,6 @@
         
         <!-- Footer -->
         <div class="login-footer">
-            <p>アカウントをお持ちでないですか？</p>
-            <span class="mx-2 text-muted">|</span>
-            <a th:href="@{/signup}" class="text-primary">新規登録</a>
-            <span class="mx-2 text-muted">|</span>
             <a th:href="@{/password/forget}" class="text-primary">パスワードをお忘れの方</a>
         </div>
     </div>

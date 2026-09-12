@@ -27,6 +27,12 @@ import org.springframework.security.web.session.HttpSessionEventPublisher;
 public class SecurityConfig {
 
   private static final String PUBLIC_PATHS = "/signup";
+  // ita4-3: トレーナー用登録ルート（招待コード必須の別フォーム）。/signupとは別に許可が必要。
+  private static final String TRAINER_SIGNUP_PATH = "/signup/trainer";
+  // 登録LP（アプリ紹介・招待コード入力）。未ログインでの閲覧が前提のため許可が必要。
+  private static final String WELCOME_PATH = "/welcome";
+  // App Store/Google Play審査対応: プライバシーポリシーは未ログインでも閲覧可能にする必要がある。
+  private static final String PRIVACY_PATH = "/privacy";
   private static final String LOGIN_PATH = "/login";
   private static final String PASSWORD_PATH = "/password/**";
   private static final String RESTORE_PATH = "/account/restore/**";
@@ -43,6 +49,11 @@ public class SecurityConfig {
   private static final String SWAGGER_HTML = "/swagger-ui.html";
   private static final String API_DOCS_PATH = "/v3/api-docs/**";
   private static final String OPENAPI_YAML = "/openapi.yaml";
+  // LINE Messaging APIからのWebhook。署名検証（X-Line-Signature）はLineWebhookController側で行うため未認証で受ける。
+  private static final String LINE_WEBHOOK_PATH = "/webhook/line";
+  // モバイルアプリのGoogle/LINEログイン（未認証状態から開始するため許可が必要）。/api/mobile/**とは別に
+  // セッションが使えるこちら側のチェーンに置く（MobileOAuthLoginController参照）。
+  private static final String MOBILE_OAUTH_PATH = "/mobile-oauth/**";
 
   /** 環境変数 APP_REMEMBER_ME_KEY から注入。未設定時は起動失敗させる。 */
   @Value("${app.security.remember-me-key}")
@@ -137,6 +148,9 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers(
                         PUBLIC_PATHS,
+                        TRAINER_SIGNUP_PATH,
+                        WELCOME_PATH,
+                        PRIVACY_PATH,
                         LOGIN_PATH,
                         PASSWORD_PATH,
                         RESTORE_PATH,
@@ -149,7 +163,9 @@ public class SecurityConfig {
                         SWAGGER_UI_PATH,
                         SWAGGER_HTML,
                         API_DOCS_PATH,
-                        OPENAPI_YAML)
+                        OPENAPI_YAML,
+                        LINE_WEBHOOK_PATH,
+                        MOBILE_OAUTH_PATH)
                     .permitAll()
                     .requestMatchers(ADMIN_PATH)
                     // ita1-1 マルチテナント化 フェーズ3: ORG_ADMIN/STORE_ADMIN も /admin/** に到達可能とする。
@@ -157,7 +173,9 @@ public class SecurityConfig {
                     // 各コントローラーの @PreAuthorize / IDOR チェックで絞り込む。
                     .hasAnyRole("ADMIN", "ORG_ADMIN", "STORE_ADMIN")
                     .requestMatchers(USER_PATH)
-                    .hasAnyRole("USER", "ADMIN")
+                    // ORG_ADMIN/STORE_ADMINも自分自身のプロフィール・通知設定（LINE連携含む）を
+                    // 利用できる必要があるため許可する（ita4-1結合試験で発見）。
+                    .hasAnyRole("USER", "ADMIN", "ORG_ADMIN", "STORE_ADMIN")
                     .requestMatchers("/auth/mfa", "/auth/mfa/verify")
                     .authenticated()
                     .anyRequest()
@@ -215,7 +233,11 @@ public class SecurityConfig {
                                     + "frame-ancestors 'none';")))
 
         // ── CSRF 保護 ───────────────────────────────────────────────────
-        .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
+        // LINE Webhookは外部サーバーからのPOSTでCSRFトークンを持たないため、署名検証（Controller側）を条件に除外する
+        .csrf(
+            csrf ->
+                csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .ignoringRequestMatchers(LINE_WEBHOOK_PATH))
 
         // ── OAuth2 ログイン ─────────────────────────────────────────────
         .oauth2Login(

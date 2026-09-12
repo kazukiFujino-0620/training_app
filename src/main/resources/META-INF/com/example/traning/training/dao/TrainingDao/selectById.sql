@@ -2,6 +2,7 @@ SELECT
   id,
   is_all_completed,
   user_id,
+  organization_id,
   training_date,
   part_code,
   superset_group_id,

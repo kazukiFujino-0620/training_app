@@ -110,13 +110,16 @@ java -jar target/TraningApp-*.jar --migrate-only=true
 | 機能             | 概要                                               |
 | ---------------- | -------------------------------------------------- |
 | トレーニング記録 | 種目・セット・重量・回数の記録、スーパーセット対応 |
+| テンプレート機能 | よく使う種目構成をテンプレート登録し、日付を指定して一括適用 |
 | カレンダー表示   | 月別トレーニング履歴と筋肉マップ                   |
-| 自己ベスト管理   | 種目ごとの最高重量・回数を自動記録                 |
+| 自己ベスト管理   | 種目ごとの最高重量・回数を自動記録（同一セットの実測値として連動更新） |
 | 目標設定         | 体重・種目別の目標管理                             |
+| 組織（マルチテナント）対応 | 組織・店舗単位でのデータスコープ分離（`ROLE_ORG_ADMIN`／`ROLE_STORE_ADMIN`） |
+| ヘルスケア連携   | HealthKit（iOS）／Health Connect（Android）と同期し、体重・歩数・心拍数・消費カロリー・睡眠を取得（モバイルのみ、読み取り専用） |
 | Smart Trainer    | AI によるトレーニング提案                          |
 | 管理者機能       | ユーザー管理、トレーニング集計、監査ログ           |
 | モバイル API     | `/api/mobile/` 配下の REST API（JWT 認証）         |
-| MFA              | TOTP による二段階認証                              |
+| MFA              | TOTP による二段階認証（バックアップコード対応）    |
 
 ---
 
@@ -125,7 +128,10 @@ java -jar target/TraningApp-*.jar --migrate-only=true
 ```
 src/main/java/com/example/traning/
 ├── training/        # トレーニング記録・メニュー画面
+├── template/        # トレーニングテンプレート機能
 ├── user/            # ユーザー管理・管理者機能
+├── organization/    # 組織（マルチテナント）スコープ
+├── health/          # ヘルスケア連携（HealthKit / Health Connect）
 ├── mobile/          # モバイルアプリ向け REST API
 ├── goal/            # 目標設定
 ├── pr/              # 自己ベスト（Personal Record）

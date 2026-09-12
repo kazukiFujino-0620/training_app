@@ -4,6 +4,7 @@ import com.example.traning.body.BodyMeasurement;
 import com.example.traning.dao.UserDao;
 import com.example.traning.goal.GoalDao;
 import com.example.traning.goal.TrainingGoal;
+import com.example.traning.training.SetType;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -134,11 +135,6 @@ public class DataExportService {
 
   private String resolveSetTypeLabel(String setType) {
     if (setType == null) return "";
-    return switch (setType) {
-      case "WARMUP" -> "ウォームアップ";
-      case "MAIN" -> "メイン";
-      case "DROP" -> "ドロップ";
-      default -> setType;
-    };
+    return SetType.isValid(setType) ? SetType.valueOf(setType).getLabel() : setType;
   }
 }

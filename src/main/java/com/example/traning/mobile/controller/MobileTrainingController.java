@@ -1,25 +1,34 @@
 package com.example.traning.mobile.controller;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.dao.UserDao;
+import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.mobile.dto.AddSetRequest;
 import com.example.traning.mobile.dto.AddTrainingRequest;
 import com.example.traning.mobile.dto.CompleteTrainingRequest;
 import com.example.traning.mobile.dto.SetUpdateResponse;
+import com.example.traning.mobile.dto.TrainingCalorieResponse;
 import com.example.traning.mobile.dto.TrainingHistoryResponse;
 import com.example.traning.mobile.dto.UpdateSetRequest;
+import com.example.traning.mobile.dto.UpdateTrainingMemoRequest;
+import com.example.traning.mobile.dto.UpdateTrainingRequest;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
+import com.example.traning.training.SetType;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
+import com.example.traning.training.service.CalorieCalculator;
 import com.example.traning.training.service.TrainingService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -45,18 +54,24 @@ public class MobileTrainingController {
   private final TrainingDetailDao trainingDetailDao;
   private final PersonalRecordService personalRecordService;
   private final UserDao userDao;
+  private final TrainingMasterDao trainingMasterDao;
+  private final CalorieCalculator calorieCalculator;
 
   public MobileTrainingController(
       TrainingService trainingService,
       TrainingDao trainingDao,
       TrainingDetailDao trainingDetailDao,
       PersonalRecordService personalRecordService,
-      UserDao userDao) {
+      UserDao userDao,
+      TrainingMasterDao trainingMasterDao,
+      CalorieCalculator calorieCalculator) {
     this.trainingService = trainingService;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.personalRecordService = personalRecordService;
     this.userDao = userDao;
+    this.trainingMasterDao = trainingMasterDao;
+    this.calorieCalculator = calorieCalculator;
   }
 
   /** 当日（またはdate指定日）のトレーニング一覧を返す。 各 Training に details リスト（セット情報）が含まれる。 */
@@ -67,6 +82,33 @@ public class MobileTrainingController {
     LocalDate targetDate = (date != null) ? LocalDate.parse(date) : LocalDate.now();
     List<Training> trainings = trainingService.getFullTrainingData(userId, targetDate);
     return ResponseEntity.ok(trainings);
+  }
+
+  /**
+   * 当日（またはdate指定日）の推定消費カロリーを返す（ita2-3）。 その日の全種目が完了済み（isAllCompleted）の場合のみ計算・返却し、
+   * 未完了があればavailable=falseを返す。
+   */
+  @GetMapping("/today/calories")
+  public ResponseEntity<TrainingCalorieResponse> getTodayCalories(
+      @AuthenticationPrincipal Long userId, @RequestParam(required = false) String date) {
+
+    LocalDate targetDate = (date != null) ? LocalDate.parse(date) : LocalDate.now();
+    List<Training> trainings = trainingService.getFullTrainingData(userId, targetDate);
+
+    boolean allCompleted =
+        !trainings.isEmpty() && trainings.stream().allMatch(Training::isAllCompleted);
+    if (!allCompleted) {
+      return ResponseEntity.ok(new TrainingCalorieResponse(false, null));
+    }
+
+    Map<String, TrainingItemMaster> itemMasterByName =
+        trainingMasterDao.selectAllItems().stream()
+            .collect(Collectors.toMap(TrainingItemMaster::getItemName, item -> item, (a, b) -> a));
+    CalorieCalculator.CalorieEstimate estimate =
+        calorieCalculator.estimate(trainings, itemMasterByName);
+
+    boolean available = estimate.type == CalorieCalculator.CalorieType.CALCULATED;
+    return ResponseEntity.ok(new TrainingCalorieResponse(available, estimate.calories));
   }
 
   /** 当日のトレーニングに種目を追加する。 sets が空でも登録可能（後からセットを追加する想定はなし）。 */
@@ -96,11 +138,46 @@ public class MobileTrainingController {
       detail.setWeight(s.getWeight());
       detail.setReps(s.getReps());
       detail.setCount(s.getReps());
-      detail.setSetType(s.getSetType() != null ? s.getSetType() : "MAIN");
+      detail.setSetType(SetType.fromValueOrMain(s.getSetType()).name());
       trainingDetailDao.insert(detail);
     }
 
     return ResponseEntity.status(201).body(training.getId());
+  }
+
+  /** トレーニングのメモを更新する（ita4-4、自分のトレーニングのみ）。 */
+  @PatchMapping("/{id}/memo")
+  @Transactional
+  @AuditLog(action = "MOBILE_TRAINING_MEMO_UPDATE", targetTable = "trainings")
+  public ResponseEntity<Void> updateMemo(
+      @AuthenticationPrincipal Long userId,
+      @PathVariable Long id,
+      @Valid @RequestBody UpdateTrainingMemoRequest req) {
+
+    Training training = trainingDao.selectById(id);
+    if (training == null) return ResponseEntity.notFound().build();
+    if (!userId.equals(training.getUserId())) return ResponseEntity.status(403).build();
+
+    trainingDao.updateMemoById(id, req.getMemo(), LocalDateTime.now());
+    return ResponseEntity.noContent().build();
+  }
+
+  /** トレーニング本体（種目名・部位・日付）を更新する（ita7-1、過去分編集対応。自分のトレーニングのみ）。 */
+  @PatchMapping("/{id}")
+  @Transactional
+  @AuditLog(action = "MOBILE_TRAINING_UPDATE", targetTable = "trainings")
+  public ResponseEntity<Void> updateTraining(
+      @AuthenticationPrincipal Long userId,
+      @PathVariable Long id,
+      @Valid @RequestBody UpdateTrainingRequest req) {
+
+    Training training = trainingDao.selectById(id);
+    if (training == null) return ResponseEntity.notFound().build();
+    if (!userId.equals(training.getUserId())) return ResponseEntity.status(403).build();
+
+    trainingDao.updateBasicInfoById(
+        id, req.getMenu(), req.getPartCode(), req.getTrainingDate(), LocalDateTime.now());
+    return ResponseEntity.noContent().build();
   }
 
   /** 種目をソフトデリートする（自分のトレーニングのみ） */
@@ -142,7 +219,7 @@ public class MobileTrainingController {
     detail.setWeight(req.getWeight());
     detail.setReps(req.getReps());
     detail.setCount(req.getReps());
-    detail.setSetType(req.getSetType() != null ? req.getSetType() : "MAIN");
+    detail.setSetType(SetType.fromValueOrMain(req.getSetType()).name());
     trainingDetailDao.insert(detail);
 
     return ResponseEntity.status(201).body(detail);
@@ -195,10 +272,15 @@ public class MobileTrainingController {
       detail.setCount(req.getReps());
     }
     if (req.getIsCompleted() != null) detail.setIsCompleted(req.getIsCompleted());
+    // 有酸素運動（ita2-1）固有項目。筋トレ種目では常にnullのまま送られてくるため更新スキップされる。
+    if (req.getDurationMin() != null) detail.setDurationMin(req.getDurationMin());
+    if (req.getDistanceKm() != null) detail.setDistanceKm(req.getDistanceKm());
+    if (req.getAvgHeartRateBpm() != null) detail.setAvgHeartRateBpm(req.getAvgHeartRateBpm());
+    if (req.getCaloriesKcal() != null) detail.setCaloriesKcal(req.getCaloriesKcal());
     detail.setUpdatedDatetime(LocalDateTime.now());
     trainingDetailDao.update(detail);
 
-    // PR更新チェック（セット完了かつ重量・回数が指定された場合）
+    // PR更新チェック（セット完了かつ重量・回数が指定された場合。有酸素運動はweightを送らないため自然に対象外）
     boolean isPR = false;
     String prMessage = null;
     Integer recommendedIntervalSeconds = null;
@@ -410,6 +492,24 @@ public class MobileTrainingController {
       return ResponseEntity.noContent().build();
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+    }
+  }
+
+  /**
+   * itバグ-10: トレーニング順の変更（並び替え）。渡された順に{@code display_order}を振り直す。
+   * 当日の対象トレーニング全件のIDを、希望の並び順で渡すこと（部分的な入れ替えでも全件分の配列を渡す）。
+   */
+  @PostMapping("/reorder")
+  @Transactional
+  @AuditLog(action = "MOBILE_TRAINING_REORDER", targetTable = "trainings")
+  public ResponseEntity<?> reorder(
+      @AuthenticationPrincipal Long userId, @RequestBody List<Long> orderedIds) {
+    try {
+      trainingService.reorderTrainings(orderedIds, userId);
+      return ResponseEntity.noContent().build();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+          .body(java.util.Map.of("message", e.getMessage()));
     }
   }
 

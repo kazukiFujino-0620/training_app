@@ -3,6 +3,7 @@ package com.example.traning.training.service;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
+import com.example.traning.training.SetType;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -66,16 +67,19 @@ public class TrainingService {
       logger.info("トレーニングデータ保存完了 - ID: {}", training.getId());
 
       // PR更新（トランザクション外・失敗してもメイン保存に影響しない）
-      // WARMUP / DROP は PR 計算から除外（MAIN のみ対象）
-      for (TrainingDetail detail : training.getDetails()) {
-        String st = detail.getSetType();
-        if ("WARMUP".equals(st) || "DROP".equals(st)) continue;
-        personalRecordService.updateIfBetter(
-            training.getUserId(),
-            training.getMenu(),
-            detail.getWeight(),
-            detail.getReps(),
-            training.getTrainingDate());
+      // WARMUP / DROP は PR 計算から除外（MAIN のみ対象）、未完了セットも対象外
+      // 有酸素運動（ita2-1）は重量×回数の概念が無いためPR対象外
+      if (!"CARDIO".equals(training.getPartCode())) {
+        for (TrainingDetail detail : training.getDetails()) {
+          if (SetType.fromValueOrMain(detail.getSetType()).isVolumeExcluded()) continue;
+          if (!detail.getIsCompleted()) continue;
+          personalRecordService.updateIfBetter(
+              training.getUserId(),
+              training.getMenu(),
+              detail.getWeight(),
+              detail.getReps(),
+              training.getTrainingDate());
+        }
       }
     } catch (Exception e) {
       logger.error("トレーニングデータ保存中にエラー発生", e);
@@ -182,11 +186,14 @@ public class TrainingService {
         }
 
         // PR更新（WARMUP/DROPを除くMAINセットのみ。save()と同様の処理）
-        if (currentDbData != null && training.getDetails() != null) {
+        // 有酸素運動（ita2-1）は重量×回数の概念が無いためPR対象外
+        if (currentDbData != null
+            && training.getDetails() != null
+            && !"CARDIO".equals(currentDbData.getPartCode())) {
           for (TrainingDetail detail : training.getDetails()) {
-            String st = detail.getSetType();
-            if ("WARMUP".equals(st) || "DROP".equals(st)) continue;
+            if (SetType.fromValueOrMain(detail.getSetType()).isVolumeExcluded()) continue;
             if (detail.getWeight() == null || detail.getReps() == null) continue;
+            if (!detail.getIsCompleted()) continue;
             personalRecordService.updateIfBetter(
                 currentDbData.getUserId(),
                 currentDbData.getMenu(),
@@ -461,6 +468,20 @@ public class TrainingService {
 
   public List<Training> getCandidatesForSuperset(Long userId, LocalDate date) {
     return trainingDao.selectCandidatesForSuperset(userId, date);
+  }
+
+  @Transactional
+  public void reorderTrainings(List<Long> orderedIds, Long userId) {
+    for (Long id : orderedIds) {
+      Training t = trainingDao.selectById(id);
+      if (t == null || !t.getUserId().equals(userId)) {
+        throw new IllegalArgumentException("このトレーニングを変更する権限がありません");
+      }
+    }
+    LocalDateTime now = LocalDateTime.now();
+    for (int i = 0; i < orderedIds.size(); i++) {
+      trainingDao.updateDisplayOrder(orderedIds.get(i), i, now);
+    }
   }
 
   private List<Double> getSafeVolumeData(

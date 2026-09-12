@@ -1,21 +1,84 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Image,
   Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { useFonts, Oswald_700Bold } from '@expo-google-fonts/oswald';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/AppNavigator';
 import { authApi } from '../api/client';
 import { saveTokens, getOrCreateDeviceId } from '../auth/tokenStore';
+import { SERVER_ORIGIN } from '../config';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 };
 
+const OAUTH_REDIRECT_URL = Linking.createURL('oauth-callback');
+
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  cancelled: 'ログインがキャンセルされました',
+  invalid_state: 'ログインの検証に失敗しました。もう一度お試しください',
+  not_registered:
+    'このアカウントはまだ登録されていません。先にWebサイトでGoogle/LINEログインを行ってください',
+  provider_error: '認証サーバーとの通信に失敗しました。時間をおいて再度お試しください',
+};
+
 export default function LoginScreen({ navigation }: Props) {
+  // app.json の expo-font config plugin でビルド時に埋め込み済みのため、
+  // ネイティブ本番/開発ビルドでは即座に true になる。Expo Go 実行時のみ
+  // 実際に非同期ロードが発生するが、ロード完了を待って画面全体をブロックすると
+  // 起動体感が悪化するため、フォント未ロードの間もこのまま画面を描画する
+  // （フォント確定前は一瞬システムデフォルトフォントで表示され、ロード完了後に再描画される）。
+  useFonts({ Oswald_700Bold });
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<'google' | 'line' | null>(null);
+
+  async function handleOAuthLogin(provider: 'google' | 'line') {
+    setOauthLoading(provider);
+    try {
+      const deviceId = await getOrCreateDeviceId();
+      const startUrl =
+        `${SERVER_ORIGIN}/mobile-oauth/${provider}/start?deviceId=${encodeURIComponent(deviceId)}`;
+      const result = await WebBrowser.openAuthSessionAsync(startUrl, OAUTH_REDIRECT_URL);
+
+      if (result.type !== 'success' || !result.url) {
+        return;
+      }
+
+      const { queryParams } = Linking.parse(result.url);
+      const error = queryParams?.error as string | undefined;
+      if (error) {
+        Alert.alert('ログイン失敗', OAUTH_ERROR_MESSAGES[error] ?? 'ログインに失敗しました');
+        return;
+      }
+
+      const mfaRequired = queryParams?.mfaRequired as string | undefined;
+      const mfaTempToken = queryParams?.mfaTempToken as string | undefined;
+      if (mfaRequired === 'true' && mfaTempToken) {
+        navigation.navigate('Mfa', { mfaTempToken, deviceId });
+        return;
+      }
+
+      const accessToken = queryParams?.accessToken as string | undefined;
+      const refreshToken = queryParams?.refreshToken as string | undefined;
+      if (accessToken && refreshToken) {
+        await saveTokens(accessToken, refreshToken, deviceId);
+        navigation.replace('App' as any);
+        return;
+      }
+
+      Alert.alert('ログイン失敗', 'ログインに失敗しました');
+    } catch (e: any) {
+      Alert.alert('ログイン失敗', e.message ?? 'ログインに失敗しました');
+    } finally {
+      setOauthLoading(null);
+    }
+  }
 
   async function handleLogin() {
     if (!email.trim() || !password) {
@@ -30,7 +93,7 @@ export default function LoginScreen({ navigation }: Props) {
       if (data.mfaRequired && data.mfaTempToken) {
         navigation.navigate('Mfa', { mfaTempToken: data.mfaTempToken, deviceId });
       } else if (data.accessToken && data.refreshToken) {
-        await saveTokens(data.accessToken, data.refreshToken, deviceId);
+        await saveTokens(data.accessToken, data.refreshToken, deviceId, data.userName);
         navigation.replace('App' as any);
       }
     } catch (e: any) {
@@ -54,8 +117,8 @@ export default function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.container}>
-        <Text style={styles.logo}>💪</Text>
-        <Text style={styles.title}>トレーニングアプリ</Text>
+        <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+        <Text style={styles.title}>RepLog</Text>
         <Text style={styles.subtitle}>アカウントにログイン</Text>
 
         <TextInput
@@ -88,6 +151,32 @@ export default function LoginScreen({ navigation }: Props) {
             ? <ActivityIndicator color="#fff" />
             : <Text style={styles.buttonText}>ログイン</Text>}
         </TouchableOpacity>
+
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>または</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <TouchableOpacity
+          style={[styles.oauthButton, styles.googleButton, oauthLoading && styles.buttonDisabled]}
+          onPress={() => handleOAuthLogin('google')}
+          disabled={oauthLoading !== null}
+        >
+          {oauthLoading === 'google'
+            ? <ActivityIndicator color="#444" />
+            : <Text style={styles.googleButtonText}>Googleでログイン</Text>}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.oauthButton, styles.lineButton, oauthLoading && styles.buttonDisabled]}
+          onPress={() => handleOAuthLogin('line')}
+          disabled={oauthLoading !== null}
+        >
+          {oauthLoading === 'line'
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.lineButtonText}>LINEでログイン</Text>}
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -98,9 +187,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1, justifyContent: 'center', paddingHorizontal: 32,
   },
-  logo: { fontSize: 56, textAlign: 'center', marginBottom: 8 },
+  logo: { width: 56, height: 56, alignSelf: 'center', marginBottom: 8 },
   title: {
-    fontSize: 26, fontWeight: '800', color: '#222',
+    fontSize: 26, fontFamily: 'Oswald_700Bold', color: '#16233D',
     textAlign: 'center', marginBottom: 4,
   },
   subtitle: {
@@ -116,4 +205,16 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  divider: {
+    flexDirection: 'row', alignItems: 'center', marginTop: 24, marginBottom: 16,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#e0e0e0' },
+  dividerText: { marginHorizontal: 12, color: '#999', fontSize: 12 },
+  oauthButton: {
+    borderRadius: 10, padding: 16, alignItems: 'center', marginBottom: 12,
+  },
+  googleButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dadce0' },
+  googleButtonText: { color: '#3c4043', fontSize: 15, fontWeight: '700' },
+  lineButton: { backgroundColor: '#06C755' },
+  lineButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

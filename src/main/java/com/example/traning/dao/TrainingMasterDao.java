@@ -16,6 +16,10 @@ public interface TrainingMasterDao {
   @Insert
   int insert(TrainingMaster trainingMaster);
 
+  /** 管理画面からの個別種目追加（ita1-1 未実施分）に使用する単発INSERT。 */
+  @Insert
+  int insertItem(TrainingItemMaster item);
+
   @Select
   List<TrainingMaster> selectAllParts();
 

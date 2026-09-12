@@ -8,6 +8,7 @@ SELECT
     processed_at,
     processed_by,
     created_at,
-    updated_at
+    updated_at,
+    organization_id
 FROM withdrawal_requests
 WHERE id = /* id */0

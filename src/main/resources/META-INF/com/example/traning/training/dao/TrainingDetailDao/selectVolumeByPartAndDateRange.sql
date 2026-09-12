@@ -6,5 +6,6 @@ WHERE t.user_id = /* userId */0
   AND t.deleted_at IS NULL
   AND td.deleted_at IS NULL
   AND td.is_completed = 1
+  AND td.set_type <> 'WARMUP'
 GROUP BY t.part_code
 ORDER BY t.part_code

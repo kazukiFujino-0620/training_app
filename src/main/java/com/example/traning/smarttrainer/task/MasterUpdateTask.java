@@ -54,7 +54,7 @@ public class MasterUpdateTask {
       } catch (Exception e) {
         logger.error("ファイルパス検証失敗: {}", e.getMessage());
         logger.error("=== マスタ更新バッチ 異常終了 ===");
-        return new MasterUpdateResult(false, 0, "ファイルパスの検証に失敗しました: " + e.getMessage());
+        return new MasterUpdateResult(false, 0, "ファイルパスの検証に失敗しました。システム管理者にお問い合わせください。");
       }
 
       logger.debug("CSVファイルパス確認: {}", file.getAbsolutePath());
@@ -81,9 +81,11 @@ public class MasterUpdateTask {
       return new MasterUpdateResult(true, processedCount, processedCount + " 件のマスタデータを取り込みました。");
 
     } catch (Exception e) {
+      // 例外の詳細（SQL・カラム名等の内部情報を含み得る）はログにのみ記録し、
+      // ユーザー向けメッセージには含めない（内部情報の画面露出を防止）。
       logger.error("バッチ処理中にエラーが発生しました", e);
       logger.error("=== マスタ更新バッチ 異常終了 ===");
-      return new MasterUpdateResult(false, 0, "処理中にエラーが発生しました: " + e.getMessage());
+      return new MasterUpdateResult(false, 0, "処理中にエラーが発生しました。システム管理者にお問い合わせください。");
     }
   }
 

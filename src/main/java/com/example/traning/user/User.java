@@ -36,7 +36,9 @@ public class User {
   @Column(name = "user_Name")
   public String userName;
 
+  /** {@link Role} の value()（例: {@code "ROLE_ADMIN"}）。 */
   public String role;
+
   public Boolean enabled;
 
   @JsonIgnore
@@ -72,4 +74,19 @@ public class User {
 
   @Column(name = "organization_id")
   public Long organizationId;
+
+  /** 通知方法: {@code "EMAIL"} / {@code "LINE"} / {@code "BOTH"}。 */
+  @Column(name = "notification_method")
+  public String notificationMethod;
+
+  @Column(name = "line_friend_added")
+  public Boolean lineFriendAdded;
+
+  /** 担当トレーナーのuserId。未割り当ての場合はnull。 */
+  @Column(name = "assigned_trainer_id")
+  public Long assignedTrainerId;
+
+  /** AI機能（トレーニング提案・疲労度分析・トレーナーアドバイス下書き）利用への同意。 */
+  @Column(name = "ai_advice_consent")
+  public Boolean aiAdviceConsent;
 }

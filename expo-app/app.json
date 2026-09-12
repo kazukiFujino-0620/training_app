@@ -1,8 +1,9 @@
 {
   "expo": {
-    "name": "トレーニングアプリ",
+    "name": "RepLog",
     "slug": "training-app-mobile",
     "version": "1.0.0",
+    "scheme": "trainingapp",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,7 +12,9 @@
       "bundleIdentifier": "jp.mydns.trainingapp",
       "entitlements": {},
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -19,8 +22,34 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-font",
-      "expo-secure-store",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./node_modules/@expo-google-fonts/oswald/700Bold/Oswald_700Bold.ttf"
+          ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#16233D",
+          "image": "./assets/icon.png",
+          "resizeMode": "contain"
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-notifications",
         {
@@ -45,6 +74,12 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d70124ac-e7e0-41c9-8e21-1da22dc93984"
+      }
+    },
+    "owner": "fighter0413"
   }
 }

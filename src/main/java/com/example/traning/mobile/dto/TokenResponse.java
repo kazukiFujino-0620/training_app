@@ -13,13 +13,18 @@ public class TokenResponse {
   private boolean mfaRequired;
   private String mfaTempToken;
 
+  /** itバグ-18: ホーム画面ヘッダーでのログインユーザー名表示に使う */
+  private String userName;
+
   /** MFAなし通常発行 */
-  public static TokenResponse full(String accessToken, String refreshToken, long expiresIn) {
+  public static TokenResponse full(
+      String accessToken, String refreshToken, long expiresIn, String userName) {
     TokenResponse r = new TokenResponse();
     r.setAccessToken(accessToken);
     r.setRefreshToken(refreshToken);
     r.setExpiresIn(expiresIn);
     r.setMfaRequired(false);
+    r.setUserName(userName);
     return r;
   }
 

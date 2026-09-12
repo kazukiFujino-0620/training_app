@@ -30,17 +30,9 @@
         <div class="content-wrapper">
             <!-- Page Header -->
             <div class="mb-6">
-                <div class="flex items-center gap-4">
-                    <a th:href="@{/admin/users}" class="btn btn-outline">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline mr-2">
-                            <polyline points="15 18 9 12 15 6"/>
-                        </svg>
-                        一覧に戻る
-                    </a>
-                    <div>
-                        <h1 class="text-3xl font-bold text-primary">ユーザー編集</h1>
-                        <p class="text-muted mt-2">ユーザー情報の権限・ステータス管理</p>
-                    </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-primary">ユーザー編集</h1>
+                    <p class="text-muted mt-2">ユーザー情報の権限・ステータス管理</p>
                 </div>
             </div>
             
@@ -51,7 +43,7 @@
                 </div>
                 <div class="card-body">
                     <!-- Flash messages -->
-                    <div th:if="${errorMessage}" class="alert alert-danger mb-4" th:text="${errorMessage}"></div>
+                    <div th:replace="~{common :: errorMessageFragment}"></div>
                     <div th:if="${successMessage}" class="alert alert-success mb-4" th:text="${successMessage}"></div>
 
                     <form th:action="@{/admin/user/update}" th:object="${user}" method="post" class="space-y-6">
@@ -80,14 +72,36 @@
                         </div>
                         
                         <!-- Role -->
-                        <div class="form-group">
+                        <div class="form-group" th:if="${canManageRole}">
                             <label for="role" class="form-label">権限</label>
-                            <select id="role" th:field="*{role}" class="form-control">
-                                <option value="USER">一般ユーザー</option>
-                                <option value="ADMIN">管理者</option>
+                            <select id="role" th:field="*{role}" class="form-control" onchange="onEditRoleChange()">
+                                <option th:each="opt : ${assignableRoles}" th:value="${opt.value()}" th:text="${opt.label()}"></option>
                             </select>
                         </div>
-                        
+                        <input type="hidden" th:if="${!canManageRole}" th:field="*{role}">
+
+                        <!-- 所属組織（ROLE_ADMIN操作時のみ変更可） -->
+                        <div class="form-group" th:if="${isAdmin}">
+                            <label for="organizationId" class="form-label">所属組織</label>
+                            <select id="organizationId" th:field="*{organizationId}" class="form-control">
+                                <option th:each="org : ${organizations}" th:value="${org.id}"
+                                        th:text="${org.name} + (${org.type == 'STORE'} ? '（店舗）' : '（組織）')"></option>
+                            </select>
+                        </div>
+
+                        <!-- 店舗兼任（対象ロールが店舗管理者の場合のみ表示） -->
+                        <div class="form-group" id="storeAssignmentsSection" th:if="${canManageRole}">
+                            <label class="form-label">店舗兼任設定</label>
+                            <div class="flex flex-col gap-2">
+                                <label th:each="store : ${assignableStores}" class="flex items-center gap-2">
+                                    <input type="checkbox" name="storeAssignments" th:value="${store.id}"
+                                           th:checked="${currentStoreAssignments.contains(store.id)}">
+                                    <span th:text="${store.name}">店舗名</span>
+                                </label>
+                            </div>
+                            <p class="text-muted text-xs mt-1">対象ユーザーの権限が「店舗管理者」の場合のみ有効になります。</p>
+                        </div>
+
                         <!-- Status -->
                         <div class="form-group">
                             <label for="enabled" class="form-label">ステータス</label>

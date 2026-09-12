@@ -2,12 +2,15 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Vibration,
   SectionList, Alert, ActivityIndicator, AppState, AppStateStatus, Platform,
+  TextInput,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, UNSTABLE_usePreventRemove } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import SetRow from '../components/SetRow';
+import CardioRow from '../components/CardioRow';
 import { trainingApi } from '../api/client';
 import { clearTokens } from '../auth/tokenStore';
 import type { Training, TrainingDetail } from '../api/types';
@@ -51,6 +54,7 @@ type TrainingSection = {
   title: string;
   partCode: string;
   data: TrainingDetail[];
+  memo: string;
   supersetGroupId: number | null;
   /** スーパーセット内での役割（登録順=trainings.id昇順で決定）。ペア無しはnull */
   supersetRole: 'A' | 'B' | null;
@@ -58,7 +62,7 @@ type TrainingSection = {
 
 const PART_LABELS: Record<string, string> = {
   CHEST: '胸', BACK: '背中', SHOULDER: '肩',
-  ARM: '腕', LEG: '脚',
+  ARM: '腕', LEG: '脚', CARDIO: 'カーディオ',
 };
 
 function fmtTime(sec: number) {
@@ -369,6 +373,19 @@ export default function TrainingStartScreen({ navigation }: Props) {
     );
   }
 
+  // ── メモ欄（ita4-4、入力中はローカルstateのみ更新し、フォーカスが外れた時点でAPI保存） ──────────
+  function handleMemoChange(trainingId: number, memo: string) {
+    setTrainings((prev) => prev.map((t) => (t.id === trainingId ? { ...t, memo } : t)));
+  }
+
+  async function handleMemoBlur(trainingId: number, memo: string) {
+    try {
+      await trainingApi.updateMemo(trainingId, memo);
+    } catch {
+      Alert.alert('エラー', 'メモの保存に失敗しました');
+    }
+  }
+
   // ── セット追加 ──────────────────────────────────────────────────────────────
   const handleAddSet = useCallback(async (trainingId: number) => {
     const training = trainings.find((t) => t.id === trainingId);
@@ -470,6 +487,7 @@ export default function TrainingStartScreen({ navigation }: Props) {
       title: t.menu,
       partCode: t.partCode,
       data: t.details,
+      memo: t.memo ?? '',
       supersetGroupId: groupId,
       supersetRole: role,
     };
@@ -482,6 +500,26 @@ export default function TrainingStartScreen({ navigation }: Props) {
         prev.map((t) => (t.supersetGroupId === supersetGroupId ? { ...t, supersetGroupId: null } : t)));
     } catch {
       Alert.alert('エラー', 'スーパーセットの解除に失敗しました');
+    }
+  }
+
+  // itバグ-10: トレーニング順の変更（上下ボタンで1つずつ移動）
+  async function handleMoveSection(trainingId: number, direction: 'up' | 'down') {
+    const idx = trainings.findIndex((t) => t.id === trainingId);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= trainings.length) return;
+
+    const reordered = [...trainings];
+    [reordered[idx], reordered[targetIdx]] = [reordered[targetIdx], reordered[idx]];
+    const previous = trainings;
+    setTrainings(reordered);
+
+    try {
+      await trainingApi.reorder(reordered.map((t) => t.id));
+    } catch {
+      setTrainings(previous);
+      Alert.alert('エラー', '並び替えの保存に失敗しました');
     }
   }
 
@@ -620,57 +658,109 @@ export default function TrainingStartScreen({ navigation }: Props) {
                 </TouchableOpacity>
               </View>
             )}
-            <Text style={styles.partBadge}>
-              {PART_LABELS[section.partCode] ?? section.partCode}
-            </Text>
-            <Text style={styles.menuName}>{section.title}</Text>
-            {/* テーブルヘッダー */}
-            <View style={styles.tableHeaderRow}>
-              <Text style={[styles.colLabel, { width: 52 }]}>セット</Text>
-              <Text style={[styles.colLabel, { flex: 1 }]}>重量</Text>
-              <Text style={[styles.colLabel, { flex: 1 }]}>回数</Text>
-              <Text style={[styles.colLabel, { width: 44 }]}>完了</Text>
-              <Text style={[styles.colLabel, { width: 28 }]}> </Text>
+            <View style={styles.menuNameRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.partBadge}>
+                  {PART_LABELS[section.partCode] ?? section.partCode}
+                </Text>
+                <Text style={styles.menuName}>{section.title}</Text>
+              </View>
+              <View style={styles.reorderBtnGroup}>
+                <TouchableOpacity
+                  style={styles.reorderBtn}
+                  disabled={sections[0]?.trainingId === section.trainingId}
+                  onPress={() => handleMoveSection(section.trainingId, 'up')}
+                >
+                  <Text
+                    style={[
+                      styles.reorderBtnText,
+                      sections[0]?.trainingId === section.trainingId && styles.reorderBtnTextDisabled,
+                    ]}
+                  >▲</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.reorderBtn}
+                  disabled={sections[sections.length - 1]?.trainingId === section.trainingId}
+                  onPress={() => handleMoveSection(section.trainingId, 'down')}
+                >
+                  <Text
+                    style={[
+                      styles.reorderBtnText,
+                      sections[sections.length - 1]?.trainingId === section.trainingId &&
+                        styles.reorderBtnTextDisabled,
+                    ]}
+                  >▼</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+            {/* テーブルヘッダー（有酸素運動はセット概念が無いため表示しない） */}
+            {section.partCode !== 'CARDIO' && (
+              <View style={styles.tableHeaderRow}>
+                <Text style={[styles.colLabel, { width: 52 }]}>セット</Text>
+                <Text style={[styles.colLabel, { flex: 1 }]}>重量</Text>
+                <Text style={[styles.colLabel, { flex: 1 }]}>回数</Text>
+                <Text style={[styles.colLabel, { width: 44 }]}>完了</Text>
+                <Text style={[styles.colLabel, { width: 28 }]}> </Text>
+              </View>
+            )}
           </View>
         )}
 
-        // ── セット行 ────────────────────────────────────────────────────────
+        // ── セット行 / 有酸素運動の記録行 ──────────────────────────────────────
         renderItem={({ item, section }) => (
           <View style={styles.setRowWrap}>
-            <SetRow
-              detail={item}
-              onUpdated={(updated) => handleDetailUpdated(section.trainingId, updated)}
-              onCompleted={(recommendedSeconds) => {
-                // F-M2: スーパーセットのA種目セット完了時はインターバルを開始せず、
-                // B種目への誘導のみ行う。B種目完了（1ラウンド完了）時に通常通り開始する。
-                if (section.supersetRole === 'A') {
-                  const partner = sections.find(
-                    (s) => s.supersetGroupId === section.supersetGroupId && s.supersetRole === 'B');
-                  Vibration.vibrate(50);
-                  if (partner) {
-                    Alert.alert('次のセットへ', `次: ${partner.title} をやりましょう（休憩なし）`);
+            {section.partCode === 'CARDIO' ? (
+              <CardioRow
+                detail={item}
+                onUpdated={(updated) => handleDetailUpdated(section.trainingId, updated)}
+              />
+            ) : (
+              <SetRow
+                detail={item}
+                onUpdated={(updated) => handleDetailUpdated(section.trainingId, updated)}
+                onCompleted={(recommendedSeconds) => {
+                  // F-M2: スーパーセットのA種目セット完了時はインターバルを開始せず、
+                  // B種目への誘導のみ行う。B種目完了（1ラウンド完了）時に通常通り開始する。
+                  if (section.supersetRole === 'A') {
+                    const partner = sections.find(
+                      (s) => s.supersetGroupId === section.supersetGroupId && s.supersetRole === 'B');
+                    Vibration.vibrate(50);
+                    if (partner) {
+                      Alert.alert('次のセットへ', `次: ${partner.title} をやりましょう（休憩なし）`);
+                    }
+                    return;
                   }
-                  return;
-                }
-                startInterval(recommendedSeconds);
-              }}
-              onDelete={() => handleDeleteSet(section.trainingId, item.id)}
-              canDelete={section.data.length > 1}
-            />
+                  startInterval(recommendedSeconds);
+                }}
+                onDelete={() => handleDeleteSet(section.trainingId, item.id)}
+                canDelete={section.data.length > 1}
+              />
+            )}
           </View>
         )}
 
         renderSectionFooter={({ section }) => (
           <View>
-            <View style={styles.addSetBtnWrap}>
-              <TouchableOpacity
-                style={styles.addSetBtn}
-                onPress={() => handleAddSet(section.trainingId)}
-              >
-                <Text style={styles.addSetBtnText}>＋ セット追加</Text>
-              </TouchableOpacity>
-            </View>
+            {/* 有酸素運動はセット概念が無いため「＋ セット追加」を表示しない */}
+            {section.partCode !== 'CARDIO' && (
+              <View style={styles.addSetBtnWrap}>
+                <TouchableOpacity
+                  style={styles.addSetBtn}
+                  onPress={() => handleAddSet(section.trainingId)}
+                >
+                  <Text style={styles.addSetBtnText}>＋ セット追加</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            <TextInput
+              style={styles.memoInput}
+              placeholder="メモ（セットの感想やフォームの注意点）"
+              placeholderTextColor="#999"
+              multiline
+              value={section.memo}
+              onChangeText={(text) => handleMemoChange(section.trainingId, text)}
+              onBlur={() => handleMemoBlur(section.trainingId, section.memo)}
+            />
             <View style={styles.sectionGap} />
           </View>
         )}
@@ -692,7 +782,8 @@ export default function TrainingStartScreen({ navigation }: Props) {
               <Text style={styles.addBtnText}>＋ 種目を追加</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.completeBtn} onPress={handleComplete}>
-              <Text style={styles.completeBtnText}>🎉 トレーニング完了！</Text>
+              <Feather name="check-circle" size={18} color="#fff" />
+              <Text style={styles.completeBtnText}>トレーニング完了！</Text>
             </TouchableOpacity>
           </View>
         }
@@ -781,6 +872,15 @@ const styles = StyleSheet.create({
     borderRadius: 8, fontWeight: '600', marginBottom: 4,
   },
   menuName: { fontSize: 18, fontWeight: '800', color: '#222', marginBottom: 10 },
+  // itバグ-10: トレーニング順の変更（上下ボタン）
+  menuNameRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  reorderBtnGroup: { flexDirection: 'column', gap: 2, marginLeft: 8 },
+  reorderBtn: {
+    width: 28, height: 22, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f5f5f5', borderRadius: 6,
+  },
+  reorderBtnText: { fontSize: 12, color: '#4CAF50', fontWeight: '700' },
+  reorderBtnTextDisabled: { color: '#ccc' },
   // F-M2: スーパーセット
   sectionHeaderSuperset: { borderColor: '#7c3aed', borderStyle: 'dashed', borderWidth: 2, borderBottomWidth: 0 },
   supersetRow: {
@@ -821,6 +921,13 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12, borderBottomRightRadius: 12,
     borderLeftWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: '#eee',
   },
+  memoInput: {
+    backgroundColor: '#fff', marginHorizontal: 16,
+    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8,
+    borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#eee',
+    minHeight: 60, textAlignVertical: 'top',
+    fontSize: 13, color: '#333',
+  },
 
   // ── 空状態 ──────────────────────────────────────────────────────────────────
   empty: { paddingVertical: 48, alignItems: 'center' },
@@ -835,6 +942,7 @@ const styles = StyleSheet.create({
   addBtnText:  { color: '#4CAF50', fontSize: 15, fontWeight: '700' },
   completeBtn: {
     backgroundColor: '#FF9800', borderRadius: 12, padding: 16, alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'center', gap: 8,
   },
   completeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('User ID not found in data attribute');
         window.userId = null;
     }
+    window.canSendAdvice = userIdElement ? userIdElement.dataset.canSendAdvice === 'true' : false;
     
     // Load chart data if available
     loadChartData();
@@ -135,9 +136,12 @@ function displayTrainingDetails(trainings, dateString) {
     const detailsContainer = document.getElementById('training-details');
     
     let html = `
-        <div class="mb-4">
-            <h3 class="text-lg font-semibold text-primary">${dateString} のトレーニング</h3>
-            <p class="text-sm text-muted">${trainings.length} 種目のトレーニング</p>
+        <div class="mb-4 flex items-center justify-between">
+            <div>
+                <h3 class="text-lg font-semibold text-primary">${dateString} のトレーニング</h3>
+                <p class="text-sm text-muted">${trainings.length} 種目のトレーニング</p>
+            </div>
+            ${window.canSendAdvice ? `<a href="/trainer/advice?targetUserId=${window.userId}&date=${dateString}" class="btn btn-outline btn-sm">アドバイスを送る</a>` : ''}
         </div>
         <div class="space-y-4">
     `;

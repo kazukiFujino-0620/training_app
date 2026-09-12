@@ -19,6 +19,9 @@ public interface WithdrawalRequestDao {
   List<WithdrawalRequest> selectAllPending();
 
   @Select
+  List<WithdrawalRequest> selectPendingByOrganizationIds(List<Long> organizationIds);
+
+  @Select
   Optional<WithdrawalRequest> selectById(Long id);
 
   @Insert

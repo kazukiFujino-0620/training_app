@@ -50,10 +50,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     if ("POST".equals(method) && "/login".equals(path)) {
       if (ipBlockService.isBlocked(ip)) {
         log.warn("Blocked IP attempted login: ip={}", maskIp(ip));
-        res.setStatus(429);
-        res.setContentType("application/json;charset=UTF-8");
-        res.getWriter()
-            .write("{\"error\":\"アクセスが一時的に" + "ブロックされています。" + "しばらくしてから再試行" + "してください。\"}");
+        redirectLoginRateLimited(res);
         return;
       }
     }
@@ -65,10 +62,33 @@ public class RateLimitFilter extends OncePerRequestFilter {
       return;
     }
 
+    boolean isLoginAttempt = "POST".equals(method) && "/login".equals(path);
+    if (isLoginAttempt) {
+      // SEC-1 再試験(11回連続302でレート制限が発動しない)の原因切り分け用診断ログ。
+      // ip・バケットの同一性(identityHashCode)・消費前の残トークン数を出す。
+      log.info(
+          "RateLimit診断[login] ip={}, bucketIdentity={}, availableTokensBefore={}",
+          ip,
+          System.identityHashCode(bucket),
+          bucket.getAvailableTokens());
+    }
+
     if (bucket.tryConsume(1)) {
+      if (isLoginAttempt) {
+        log.info(
+            "RateLimit診断[login] 消費成功 ip={}, availableTokensAfter={}",
+            ip,
+            bucket.getAvailableTokens());
+      }
       chain.doFilter(req, res);
     } else {
       log.warn("Rate limit exceeded: path={}, method={}, ip={}", path, method, ip);
+      if (isLoginAttempt) {
+        // ブラウザのログインフォームからの通常のPOSTのため、JSONではなくログイン画面へリダイレクトして
+        // 既存のエラー表示（auth/login.html の param.reason 分岐）に乗せる。
+        redirectLoginRateLimited(res);
+        return;
+      }
       res.setStatus(429);
       res.setContentType("application/json;charset=UTF-8");
       res.getWriter()
@@ -78,6 +98,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
   }
 
+  private void redirectLoginRateLimited(HttpServletResponse res) throws IOException {
+    res.sendRedirect("/login?error&reason=rate_limited");
+  }
+
   private Bucket resolveBucket(String path, String method, String ip, HttpServletRequest req) {
     if (isSkipPath(path)) return null;
 
@@ -85,7 +109,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
       return bucketManager.loginBucket(ip);
     }
 
-    if ("POST".equals(method) && "/signup".equals(path)) {
+    // ita4-3: トレーナー登録も招待コード総当たり対策として/signupと同じ制限を適用する。
+    if ("POST".equals(method) && ("/signup".equals(path) || "/signup/trainer".equals(path))) {
       return bucketManager.signupBucket(ip);
     }
 

@@ -33,4 +33,8 @@ public class TrainingItemMaster {
   /** 0=オールマイティ(全組織共通)。組織固有種目の場合はその組織（GYM単位）のid。 */
   @Column(name = "organization_id")
   private Long organizationId;
+
+  /** 消費カロリー計算用の可動域目安値(m)。ita2-2の力学的仕事量ベース計算式で使用。 */
+  @Column(name = "range_of_motion_m")
+  private java.math.BigDecimal rangeOfMotionM;
 }

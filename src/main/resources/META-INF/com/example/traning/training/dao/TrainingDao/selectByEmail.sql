@@ -13,7 +13,12 @@ SELECT
     weight_kg,
     gender,
     birth_date,
-    current_goal_mode
+    current_goal_mode,
+    organization_id,
+    notification_method,
+    line_friend_added,
+    assigned_trainer_id,
+    ai_advice_consent
 FROM
     users
 WHERE

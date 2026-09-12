@@ -34,7 +34,7 @@ public class RateLimitBucketManager {
                 .addLimit(
                     Bandwidth.builder()
                         .capacity(props.getLoginMaxPerMinute())
-                        .refillGreedy(props.getLoginMaxPerMinute(), Duration.ofMinutes(1))
+                        .refillIntervally(props.getLoginMaxPerMinute(), Duration.ofMinutes(1))
                         .build())
                 .build());
   }
@@ -47,7 +47,7 @@ public class RateLimitBucketManager {
                 .addLimit(
                     Bandwidth.builder()
                         .capacity(props.getSignupMaxPerHour())
-                        .refillGreedy(props.getSignupMaxPerHour(), Duration.ofHours(1))
+                        .refillIntervally(props.getSignupMaxPerHour(), Duration.ofHours(1))
                         .build())
                 .build());
   }
@@ -60,7 +60,7 @@ public class RateLimitBucketManager {
                 .addLimit(
                     Bandwidth.builder()
                         .capacity(props.getApiWriteMaxPerMinute())
-                        .refillGreedy(props.getApiWriteMaxPerMinute(), Duration.ofMinutes(1))
+                        .refillIntervally(props.getApiWriteMaxPerMinute(), Duration.ofMinutes(1))
                         .build())
                 .build());
   }
@@ -73,7 +73,7 @@ public class RateLimitBucketManager {
                 .addLimit(
                     Bandwidth.builder()
                         .capacity(props.getApiReadMaxPerMinute())
-                        .refillGreedy(props.getApiReadMaxPerMinute(), Duration.ofMinutes(1))
+                        .refillIntervally(props.getApiReadMaxPerMinute(), Duration.ofMinutes(1))
                         .build())
                 .build());
   }

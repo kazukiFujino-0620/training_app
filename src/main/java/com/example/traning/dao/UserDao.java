@@ -59,4 +59,22 @@ public interface UserDao {
 
   @Select
   Long selectOrganizationIdById(Long userId);
+
+  @Select
+  Optional<User> selectByLineId(String lineId);
+
+  @Update(sqlFile = true)
+  int updateLineFriendAdded(String lineId, boolean lineFriendAdded);
+
+  @Update(sqlFile = true)
+  int updateLineId(Integer userId, String lineId);
+
+  @Update(sqlFile = true)
+  int updateNotificationMethod(Integer userId, String notificationMethod);
+
+  @Update(sqlFile = true)
+  int updateAssignedTrainer(Integer userId, Long assignedTrainerId);
+
+  @Update(sqlFile = true)
+  int updateAiAdviceConsent(Integer userId, boolean aiAdviceConsent);
 }

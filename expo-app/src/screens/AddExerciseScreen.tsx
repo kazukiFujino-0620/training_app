@@ -5,13 +5,15 @@ import {
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import { masterApi, trainingApi } from '../api/client';
-import type { TrainingItemMaster, TrainingHistory } from '../api/types';
+import type { TrainingItemMaster, TrainingHistory, RecommendedItem } from '../api/types';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'AddExercise'>;
+  route: RouteProp<AppStackParamList, 'AddExercise'>;
 };
 
 const PARTS = [
@@ -21,6 +23,7 @@ const PARTS = [
   { code: 'SHOULDER', label: '肩' },
   { code: 'ARM', label: '腕' },
   { code: 'LEG', label: '脚' },
+  { code: 'CARDIO', label: 'カーディオ' },
 ];
 
 interface SetConfig {
@@ -38,11 +41,14 @@ interface TrainingBlock {
   historyDateIndex: number;
 }
 
-export default function AddExerciseScreen({ navigation }: Props) {
+export default function AddExerciseScreen({ navigation, route }: Props) {
   const [items, setItems]         = useState<TrainingItemMaster[]>([]);
   const [loading, setLoading]     = useState(true);
   const [partCode, setPartCode]   = useState('');
   const [search, setSearch]       = useState('');
+  const aiSuggestion = route.params?.aiSuggestion;
+  // ita7-1 1-1: TrainingListScreenで選択中の日付（未来日への事前登録用）。未指定時は当日registerされる
+  const targetDate = route.params?.date;
 
   // ── 複数選択状態（種目一覧でチェックされたIDの集合） ────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -66,6 +72,62 @@ export default function AddExerciseScreen({ navigation }: Props) {
       }
     })();
   }, []);
+
+  // itバグ-21対応（2026-09-11）: 「今日のおすすめメニュー」（ルールベース）から遷移した場合、
+  // 種目マスタ読み込み完了後に提案種目を一括セット入力画面へ自動反映する（1回のみ）。
+  // ita5-1の本番AI連携が稼働した際も、items配列の形状が同じためこのロジックをそのまま使い回す想定。
+  useEffect(() => {
+    if (loading || !aiSuggestion || aiSuggestion.items.length === 0) return;
+    applyAiSuggestion(aiSuggestion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  async function applyAiSuggestion(suggestion: { items: RecommendedItem[] }) {
+    const matchedBlocks: TrainingBlock[] = [];
+    const unmatchedNames: string[] = [];
+
+    suggestion.items.forEach((aiItem) => {
+      const master = items.find((it) => it.itemName === aiItem.itemName);
+      if (!master) {
+        unmatchedNames.push(aiItem.itemName);
+        return;
+      }
+      const weight = Math.round(((aiItem.weightMin + aiItem.weightMax) / 2) * 2) / 2;
+      const reps = Math.round((aiItem.repsMin + aiItem.repsMax) / 2);
+      const setsCount = Math.max(1, aiItem.sets);
+      matchedBlocks.push({
+        item: master,
+        sets: Array.from({ length: setsCount }, () => ({
+          weight: String(weight),
+          reps: String(reps),
+          setType: 'MAIN' as const,
+        })),
+        history: [],
+        historyExpanded: false,
+        historyDateIndex: 0,
+      });
+    });
+
+    if (matchedBlocks.length === 0) {
+      Alert.alert('おすすめメニュー', '提案された種目が種目マスタに見つかりませんでした');
+      return;
+    }
+    if (unmatchedNames.length > 0) {
+      Alert.alert('一部の種目が見つかりません', `${unmatchedNames.join('、')} は反映できませんでした`);
+    }
+
+    setBlocks(matchedBlocks);
+    setBlocksVisible(true);
+
+    for (let i = 0; i < matchedBlocks.length; i++) {
+      try {
+        const { data } = await trainingApi.getTrainingHistory(matchedBlocks[i].item.itemName);
+        setBlocks((prev) => prev.map((b, bi) => (bi === i ? { ...b, history: data } : b)));
+      } catch {
+        // 履歴取得失敗は無視（記録なし扱い）
+      }
+    }
+  }
 
   const filtered = items.filter((item) => {
     const matchPart = !partCode || item.partCode === partCode;
@@ -154,6 +216,17 @@ export default function AddExerciseScreen({ navigation }: Props) {
     });
   }
 
+  // itバグ-10: 登録前の並び替え（上下ボタンで1つずつ移動）。登録順＝表示順になる
+  function moveBlock(blockIndex: number, direction: 'up' | 'down') {
+    setBlocks((prev) => {
+      const targetIndex = direction === 'up' ? blockIndex - 1 : blockIndex + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const next = [...prev];
+      [next[blockIndex], next[targetIndex]] = [next[targetIndex], next[blockIndex]];
+      return next;
+    });
+  }
+
   function toggleHistoryExpanded(blockIndex: number) {
     setBlocks((prev) => prev.map((b, bi) => {
       if (bi !== blockIndex) return b;
@@ -174,7 +247,12 @@ export default function AddExerciseScreen({ navigation }: Props) {
     const targets = blocks
       .map((b) => ({
         item: b.item,
-        validSets: b.sets.filter((s) => s.weight !== '' && s.reps !== ''),
+        // 有酸素運動（ita2-1）はセット概念が無いため、重量・回数の入力欄自体を表示しない。
+        // weight=0/reps=0のダミー1セットとして登録し、実施時間・距離・平均心拍数・
+        // 消費カロリーはトレーニング開始画面（TrainingStartScreen）で記録する。
+        validSets: b.item.partCode === 'CARDIO'
+          ? [{ weight: '0', reps: '0', setType: 'MAIN' as const }]
+          : b.sets.filter((s) => s.weight !== '' && s.reps !== ''),
       }));
 
     const emptyBlock = targets.find((t) => t.validSets.length === 0);
@@ -197,6 +275,7 @@ export default function AddExerciseScreen({ navigation }: Props) {
         const { data } = await trainingApi.addTraining({
           menu: t.item.itemName,
           partCode: t.item.partCode,
+          trainingDate: targetDate,
           sets: t.validSets.map((s) => ({
             weight: parseFloat(s.weight) || 0,
             reps: parseInt(s.reps, 10) || 0,
@@ -348,6 +427,22 @@ export default function AddExerciseScreen({ navigation }: Props) {
                   <View key={block.item.id} style={styles.block}>
                     {/* ブロックヘッダー：種目名 + 前回記録ナビ + 削除 */}
                     <View style={styles.blockHeader}>
+                      <View style={styles.reorderBtnGroup}>
+                        <TouchableOpacity
+                          style={styles.reorderBtn}
+                          disabled={blockIndex === 0}
+                          onPress={() => moveBlock(blockIndex, 'up')}
+                        >
+                          <Text style={[styles.reorderBtnText, blockIndex === 0 && styles.reorderBtnTextDisabled]}>▲</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.reorderBtn}
+                          disabled={blockIndex === blocks.length - 1}
+                          onPress={() => moveBlock(blockIndex, 'down')}
+                        >
+                          <Text style={[styles.reorderBtnText, blockIndex === blocks.length - 1 && styles.reorderBtnTextDisabled]}>▼</Text>
+                        </TouchableOpacity>
+                      </View>
                       <Text style={styles.blockTitle} numberOfLines={1} ellipsizeMode="tail">
                         {block.item.itemName}
                       </Text>
@@ -399,47 +494,57 @@ export default function AddExerciseScreen({ navigation }: Props) {
                       </View>
                     )}
 
-                    {block.sets.length === 0 && (
-                      <Text style={styles.noSetText}>「セット追加」で記録を開始してください</Text>
+                    {block.item.partCode === 'CARDIO' ? (
+                      // 有酸素運動（ita2-1）: セット概念が無いため重量/回数の入力欄は表示しない。
+                      // 実施時間・距離・平均心拍数・消費カロリーはトレーニング開始画面で記録する。
+                      <Text style={styles.cardioNoticeText}>
+                        有酸素運動として登録されます。実施時間・距離・平均心拍数・消費カロリーはトレーニング開始画面で記録します。
+                      </Text>
+                    ) : (
+                      <>
+                        {block.sets.length === 0 && (
+                          <Text style={styles.noSetText}>「セット追加」で記録を開始してください</Text>
+                        )}
+
+                        {block.sets.map((s, setIndex) => (
+                          <View key={setIndex} style={styles.setRow}>
+                            <Text style={styles.setNum}>{setIndex + 1}</Text>
+                            <TouchableOpacity
+                              style={[styles.typeBtn, s.setType === 'WARMUP' && styles.typeBtnActive]}
+                              onPress={() => updateSet(
+                                blockIndex, setIndex, 'setType',
+                                s.setType === 'WARMUP' ? 'MAIN' : 'WARMUP',
+                              )}
+                            >
+                              <Text style={styles.typeBtnText}>{s.setType === 'WARMUP' ? 'W' : 'M'}</Text>
+                            </TouchableOpacity>
+                            <TextInput
+                              style={styles.setInput}
+                              placeholder="重量"
+                              value={s.weight}
+                              onChangeText={(v) => updateSet(blockIndex, setIndex, 'weight', v)}
+                              keyboardType="decimal-pad"
+                            />
+                            <Text style={styles.unit}>kg</Text>
+                            <TextInput
+                              style={styles.setInput}
+                              placeholder="回数"
+                              value={s.reps}
+                              onChangeText={(v) => updateSet(blockIndex, setIndex, 'reps', v)}
+                              keyboardType="number-pad"
+                            />
+                            <Text style={styles.unit}>回</Text>
+                            <TouchableOpacity onPress={() => removeSet(blockIndex, setIndex)}>
+                              <Text style={styles.removeText}>✕</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+
+                        <TouchableOpacity style={styles.addSetBtn} onPress={() => addSet(blockIndex)}>
+                          <Text style={styles.addSetText}>＋ セット追加</Text>
+                        </TouchableOpacity>
+                      </>
                     )}
-
-                    {block.sets.map((s, setIndex) => (
-                      <View key={setIndex} style={styles.setRow}>
-                        <Text style={styles.setNum}>{setIndex + 1}</Text>
-                        <TouchableOpacity
-                          style={[styles.typeBtn, s.setType === 'WARMUP' && styles.typeBtnActive]}
-                          onPress={() => updateSet(
-                            blockIndex, setIndex, 'setType',
-                            s.setType === 'WARMUP' ? 'MAIN' : 'WARMUP',
-                          )}
-                        >
-                          <Text style={styles.typeBtnText}>{s.setType === 'WARMUP' ? 'W' : 'M'}</Text>
-                        </TouchableOpacity>
-                        <TextInput
-                          style={styles.setInput}
-                          placeholder="重量"
-                          value={s.weight}
-                          onChangeText={(v) => updateSet(blockIndex, setIndex, 'weight', v)}
-                          keyboardType="decimal-pad"
-                        />
-                        <Text style={styles.unit}>kg</Text>
-                        <TextInput
-                          style={styles.setInput}
-                          placeholder="回数"
-                          value={s.reps}
-                          onChangeText={(v) => updateSet(blockIndex, setIndex, 'reps', v)}
-                          keyboardType="number-pad"
-                        />
-                        <Text style={styles.unit}>回</Text>
-                        <TouchableOpacity onPress={() => removeSet(blockIndex, setIndex)}>
-                          <Text style={styles.removeText}>✕</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-
-                    <TouchableOpacity style={styles.addSetBtn} onPress={() => addSet(blockIndex)}>
-                      <Text style={styles.addSetText}>＋ セット追加</Text>
-                    </TouchableOpacity>
                   </View>
                 );
               })}
@@ -534,6 +639,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   blockTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#222', paddingRight: 8 },
+  // itバグ-10: 登録前の並び替え（上下ボタン）
+  reorderBtnGroup: { flexDirection: 'column', gap: 2, marginRight: 8 },
+  reorderBtn: {
+    width: 26, height: 20, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f5f5f5', borderRadius: 5,
+  },
+  reorderBtnText: { fontSize: 11, color: '#4CAF50', fontWeight: '700' },
+  reorderBtnTextDisabled: { color: '#ccc' },
   blockRemoveText: { fontSize: 16, color: '#ccc', paddingHorizontal: 4, flexShrink: 0 },
   // 前回記録ナビ
   historyNav: {
@@ -551,6 +664,8 @@ const styles = StyleSheet.create({
   historyNoneText: { fontSize: 13, color: '#aaa', textAlign: 'center', paddingVertical: 4 },
   // セット行
   noSetText: { color: '#aaa', fontSize: 13, paddingVertical: 8 },
+  // 有酸素運動（ita2-1）
+  cardioNoticeText: { color: '#0891b2', fontSize: 13, paddingVertical: 8, lineHeight: 18 },
   setRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#fafafa', marginTop: 8,

@@ -4,6 +4,7 @@ import com.example.traning.audit.AuditLog;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
+import com.example.traning.training.SetType;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -61,12 +62,16 @@ public class TemplateController {
 
     List<TrainingMaster> parts = trainingMasterDao.selectAllParts();
     java.util.Map<String, List<TrainingItemMaster>> itemsByPart = new java.util.LinkedHashMap<>();
+    java.util.Map<String, String> partLabels = new java.util.LinkedHashMap<>();
     for (TrainingMaster part : parts) {
       itemsByPart.put(
           part.getPartCode(), trainingMasterDao.selectActiveItemsByPart(part.getPartCode()));
+      partLabels.put(part.getPartCode(), part.getPartName());
     }
     model.addAttribute("parts", parts);
     model.addAttribute("itemsByPart", itemsByPart);
+    // itバグ-13: 一覧のテンプレート部位バッジを日本語表示するためのコード→名称マップ
+    model.addAttribute("partLabels", partLabels);
 
     return "training/template";
   }
@@ -186,7 +191,7 @@ public class TemplateController {
         .forEach(
             item -> byItem.computeIfAbsent(item.getItemName(), k -> new ArrayList<>()).add(item));
 
-    // 当日の既存種目チェック（重複警告用）
+    // 当日の既存種目チェック（重複スキップ用、itバグ-14）
     List<Training> existingToday = trainingService.getFullTrainingData(userId, trainingDate);
     Set<String> existingMenus =
         existingToday.stream().map(Training::getMenu).collect(Collectors.toSet());
@@ -197,6 +202,10 @@ public class TemplateController {
 
     for (Map.Entry<String, List<TrainingTemplateItem>> entry : byItem.entrySet()) {
       String itemName = entry.getKey();
+      // itバグ-14: 当日すでに同名種目が登録済みの場合は重複登録せずスキップする
+      if (existingMenus.contains(itemName)) {
+        continue;
+      }
       List<TrainingTemplateItem> itemSets = entry.getValue();
 
       Training training = new Training();
@@ -222,7 +231,7 @@ public class TemplateController {
         TrainingTemplateItem tplItem = itemSets.get(i);
         TrainingDetail detail = new TrainingDetail();
         detail.setSetNumber(i + 1);
-        detail.setSetType(tplItem.getSetType() != null ? tplItem.getSetType() : "MAIN");
+        detail.setSetType(SetType.fromValueOrMain(tplItem.getSetType()).name());
 
         if (i < recentDetails.size()) {
           TrainingDetail prev = recentDetails.get(i);
@@ -264,11 +273,7 @@ public class TemplateController {
       item.setTemplateId(templateId);
       item.setItemName(req.getItemName().trim());
       item.setSetNumber(req.getSetNumber() != null ? req.getSetNumber() : i + 1);
-      String st = req.getSetType();
-      item.setSetType(
-          st != null && (st.equals("WARMUP") || st.equals("MAIN") || st.equals("DROP"))
-              ? st
-              : "MAIN");
+      item.setSetType(SetType.fromValueOrMain(req.getSetType()).name());
       item.setWeight(req.getWeight());
       item.setReps(req.getReps());
       item.setDisplayOrder(req.getDisplayOrder() != null ? req.getDisplayOrder() : i);

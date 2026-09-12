@@ -1,5 +1,7 @@
 package com.example.traning.user.controller;
 
+import com.example.traning.common.WebErrorCode;
+import com.example.traning.common.WebErrorSupport;
 import com.example.traning.user.service.AccountRestoreService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
@@ -41,7 +43,10 @@ public class AccountRestoreController {
       return "redirect:/login?restoreSuccess";
     } catch (Exception e) {
       log.warn("アカウント復元失敗: {}", e.getMessage());
-      model.addAttribute("errorMessage", "無効または期限切れのURLです。再度ご登録いただくか、管理者へお問い合わせください。");
+      WebErrorSupport.setError(
+          model,
+          "無効または期限切れのURLです。再度ご登録いただくか、管理者へお問い合わせください。",
+          WebErrorCode.TOKEN_INVALID_OR_EXPIRED);
       model.addAttribute("token", token);
       return "auth/account-restore";
     }
