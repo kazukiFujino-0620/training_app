@@ -4,7 +4,6 @@ import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
 import com.example.traning.smarttrainer.coaching.AiFatigueCommentService;
-import com.example.traning.smarttrainer.coaching.AiTrainingSuggestionService;
 import com.example.traning.smarttrainer.prediction.AcwrService;
 import com.example.traning.smarttrainer.prediction.ChurnDetectionService;
 import com.example.traning.smarttrainer.prediction.OneRmPredictionService;
@@ -66,7 +65,6 @@ public class MenuController {
   private final ChurnDetectionService churnDetectionService;
   private final com.example.traning.notice.NoticeService noticeService;
   private final TrainerAdviceService trainerAdviceService;
-  private final AiTrainingSuggestionService aiTrainingSuggestionService;
   private final AiFatigueCommentService aiFatigueCommentService;
   private final FatigueCalculator fatigueCalculator;
   private final TrainingStatsService trainingStatsService;
@@ -83,7 +81,6 @@ public class MenuController {
       ChurnDetectionService churnDetectionService,
       com.example.traning.notice.NoticeService noticeService,
       TrainerAdviceService trainerAdviceService,
-      AiTrainingSuggestionService aiTrainingSuggestionService,
       AiFatigueCommentService aiFatigueCommentService,
       FatigueCalculator fatigueCalculator,
       TrainingStatsService trainingStatsService) {
@@ -98,7 +95,6 @@ public class MenuController {
     this.churnDetectionService = churnDetectionService;
     this.noticeService = noticeService;
     this.trainerAdviceService = trainerAdviceService;
-    this.aiTrainingSuggestionService = aiTrainingSuggestionService;
     this.aiFatigueCommentService = aiFatigueCommentService;
     this.fatigueCalculator = fatigueCalculator;
     this.trainingStatsService = trainingStatsService;
@@ -306,15 +302,11 @@ public class MenuController {
     // ita2-5: ジム・店舗からのお知らせバナー
     model.addAttribute("activeNoticeCount", noticeService.getActiveForUser(userEntity).size());
 
-    // ita5-1 機能1: AIトレーニング提案（同意済みユーザーのみ、週頭に1回7日分をまとめて生成・キャッシュし、本日分のみ表示）
+    // itバグ-21対応（2026-09-11）: 「AIトレーニング提案」カードは「（モック）」文言のため廃止し、
+    // 既存のルールベース推奨（dailyRecommendation、上記F3 Phase1参照）に一本化した。
+    // AiTrainingSuggestionService/MockTrainingCoach自体は、ita5-1の本番AI連携が稼働した際に
+    // 同じ枠へ差し替える2段階移行の方針のため削除せず残すが、この画面からの呼び出しはやめる。
     boolean isViewingToday = selectedDate.isEqual(today);
-    model.addAttribute("isViewingToday", isViewingToday);
-    model.addAttribute("aiAdviceConsent", Boolean.TRUE.equals(userEntity.getAiAdviceConsent()));
-    if (isViewingToday) {
-      model.addAttribute(
-          "aiTrainingSuggestion",
-          aiTrainingSuggestionService.getTodayEntry(userEntity).orElse(null));
-    }
 
     // ita5-1 機能3: 筋肉疲労度マップのAI分析（種目登録のたびではなく、その日のトレーニングが
     // 完了したタイミングで1日1回だけ生成する。確定済み設計）

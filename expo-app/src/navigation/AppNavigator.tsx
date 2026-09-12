@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import LoginScreen from '../screens/LoginScreen';
 import MfaScreen from '../screens/MfaScreen';
-import type { AiTrainingSuggestion } from '../api/types';
+import type { RecommendedItem } from '../api/types';
 
 // AppStack配下の画面は、未ログイン時にも起動のたびにJS評価コストが発生していた
 // （AppNavigator.tsxの静的importにより、ログイン前後を問わずモジュール本体が評価される）。
@@ -65,7 +65,9 @@ export type AppStackParamList = {
   TrainingStart: undefined;
   /** date未指定時は当日として扱う（後方互換） */
   Exercise: { trainingId: number; menu: string; date?: string };
-  AddExercise: { aiSuggestion?: AiTrainingSuggestion; date?: string } | undefined;
+  // itバグ-21対応: 「今日のおすすめメニュー」（ルールベース）・AI提案（将来のita5-1本番連携）の
+  // どちらから遷移してもitems配列の形状は共通のため、この最小限の形で受け取る。
+  AddExercise: { aiSuggestion?: { items: RecommendedItem[] }; date?: string } | undefined;
   Goal: {
     date: string;
     totalSets?: number;

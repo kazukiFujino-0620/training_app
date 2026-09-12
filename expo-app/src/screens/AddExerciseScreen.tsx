@@ -9,7 +9,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import { masterApi, trainingApi } from '../api/client';
-import type { TrainingItemMaster, TrainingHistory, AiTrainingSuggestion } from '../api/types';
+import type { TrainingItemMaster, TrainingHistory, RecommendedItem } from '../api/types';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'AddExercise'>;
@@ -73,15 +73,16 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
     })();
   }, []);
 
-  // ita5-1 機能1（仮連携）: /menuの「AI提案」から遷移した場合、種目マスタ読み込み完了後に
-  // 提案種目を一括セット入力画面へ自動反映する（1回のみ）
+  // itバグ-21対応（2026-09-11）: 「今日のおすすめメニュー」（ルールベース）から遷移した場合、
+  // 種目マスタ読み込み完了後に提案種目を一括セット入力画面へ自動反映する（1回のみ）。
+  // ita5-1の本番AI連携が稼働した際も、items配列の形状が同じためこのロジックをそのまま使い回す想定。
   useEffect(() => {
     if (loading || !aiSuggestion || aiSuggestion.items.length === 0) return;
     applyAiSuggestion(aiSuggestion);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
-  async function applyAiSuggestion(suggestion: AiTrainingSuggestion) {
+  async function applyAiSuggestion(suggestion: { items: RecommendedItem[] }) {
     const matchedBlocks: TrainingBlock[] = [];
     const unmatchedNames: string[] = [];
 
@@ -108,7 +109,7 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
     });
 
     if (matchedBlocks.length === 0) {
-      Alert.alert('AI提案', '提案された種目が種目マスタに見つかりませんでした');
+      Alert.alert('おすすめメニュー', '提案された種目が種目マスタに見つかりませんでした');
       return;
     }
     if (unmatchedNames.length > 0) {

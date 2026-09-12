@@ -226,6 +226,9 @@ export interface Notice {
 }
 
 // ── AIトレーニング提案（ita5-1 機能1・仮連携） ────────────────────────────
+// itバグ-21対応（2026-09-11）: 「（モック）」文言のためTrainingListScreenからの
+// 呼び出しは廃止し「今日のおすすめメニュー」（下記DailyRecommendation）に差し替えた。
+// ita5-1の本番AI連携が稼働した際に同じ枠へ戻す2段階移行のため、型・APIとも削除せず残す。
 
 export interface AiSuggestedItem {
   itemName: string;
@@ -240,6 +243,26 @@ export interface AiTrainingSuggestion {
   comment: string;
   partCode: string | null;
   items: AiSuggestedItem[];
+}
+
+// ── 今日のおすすめメニュー（ルールベース推奨、F3 Phase1） ───────────────────
+// itバグ-21対応: モバイル「トレーニング」タブのAI提案（モック）カードをこちらに差し替えた。
+
+export interface RecommendedItem {
+  itemName: string;
+  weightMin: number;
+  weightMax: number;
+  repsMin: number;
+  repsMax: number;
+  sets: number;
+}
+
+export interface DailyRecommendation {
+  partCode: string | null;
+  partLabel: string | null;
+  reasonLabel: string | null;
+  items: RecommendedItem[];
+  restDayRecommended: boolean;
 }
 
 /** 退会画面の表示分岐に使う現在状態。 */

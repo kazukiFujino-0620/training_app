@@ -11,9 +11,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import TrainingCard from '../components/TrainingCard';
 import ProgressBar from '../components/ProgressBar';
-import { trainingApi, noticeApi, coachingApi, statsApi } from '../api/client';
+import { trainingApi, noticeApi, recommendationApi, statsApi } from '../api/client';
 import { clearTokens, getUserName } from '../auth/tokenStore';
-import type { Training, AiTrainingSuggestion, MobileTrainingStatsResponse } from '../api/types';
+import type { Training, DailyRecommendation, MobileTrainingStatsResponse } from '../api/types';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'TrainingList'>;
@@ -101,7 +101,9 @@ export default function TrainingListScreen({ navigation }: Props) {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [calories, setCalories] = useState<number | null>(null);
   const [noticeCount, setNoticeCount] = useState(0);
-  const [aiSuggestion, setAiSuggestion] = useState<AiTrainingSuggestion | null>(null);
+  // itバグ-21対応（2026-09-11）: 「（モック）」文言のAI提案カードを廃止し、
+  // 既存のルールベース推奨（RecommendationService）による「今日のおすすめメニュー」に差し替えた。
+  const [dailyRecommendation, setDailyRecommendation] = useState<DailyRecommendation | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   // ita7-2: カレンダータブ下の統計バー（Web版 /menu と同じ内容）
@@ -137,16 +139,16 @@ export default function TrainingListScreen({ navigation }: Props) {
         setNoticeCount(0);
       }
 
-      // ita5-1 機能1（仮連携）: 当日のAIトレーニング提案（同意していない/提案が無い場合は204）。当日以外では表示しない
+      // itバグ-21対応: 今日のおすすめメニュー（ルールベース推奨）。当日以外では表示しない
       if (isToday) {
         try {
-          const { data: suggestion } = await coachingApi.getTodayTrainingSuggestion();
-          setAiSuggestion(suggestion && suggestion.items?.length > 0 ? suggestion : null);
+          const { data: recommendation } = await recommendationApi.getToday();
+          setDailyRecommendation(recommendation ?? null);
         } catch {
-          setAiSuggestion(null);
+          setDailyRecommendation(null);
         }
       } else {
-        setAiSuggestion(null);
+        setDailyRecommendation(null);
       }
     } catch (e: any) {
       if (e.response?.status === 401) {
@@ -458,20 +460,42 @@ export default function TrainingListScreen({ navigation }: Props) {
             </TouchableOpacity>
           )}
 
-          {/* ita5-1 機能1（仮連携）: AIトレーニング提案（当日のみ） */}
-          {aiSuggestion && (
-            <View style={styles.aiSuggestionBanner}>
-              <Text style={styles.aiSuggestionText} numberOfLines={2}>
-                🤖 {aiSuggestion.comment}
+          {/* itバグ-21対応: 今日のおすすめメニュー（ルールベース推奨、当日のみ） */}
+          {dailyRecommendation && dailyRecommendation.restDayRecommended && (
+            <View style={styles.recommendationBanner}>
+              <View style={styles.recommendationHeaderRow}>
+                <Feather name="trending-up" size={14} color="#4f46e5" />
+                <Text style={styles.recommendationLabel}>今日のおすすめメニュー</Text>
+              </View>
+              <Text style={styles.recommendationText}>
+                今日は軽めの有酸素や休養日がおすすめです。全部位がまだ疲労中です。
               </Text>
-              <TouchableOpacity
-                style={styles.aiSuggestionButton}
-                onPress={() => navigation.navigate('AddExercise', { aiSuggestion, date })}
-              >
-                <Text style={styles.aiSuggestionButtonText}>この提案を反映する</Text>
-              </TouchableOpacity>
             </View>
           )}
+          {dailyRecommendation &&
+            !dailyRecommendation.restDayRecommended &&
+            dailyRecommendation.items.length > 0 && (
+              <View style={styles.recommendationBanner}>
+                <View style={styles.recommendationHeaderRow}>
+                  <Feather name="trending-up" size={14} color="#4f46e5" />
+                  <Text style={styles.recommendationLabel}>今日のおすすめメニュー</Text>
+                </View>
+                <Text style={styles.recommendationText} numberOfLines={2}>
+                  {dailyRecommendation.reasonLabel}
+                </Text>
+                <TouchableOpacity
+                  style={styles.recommendationButton}
+                  onPress={() =>
+                    navigation.navigate('AddExercise', {
+                      aiSuggestion: { items: dailyRecommendation.items },
+                      date,
+                    })
+                  }
+                >
+                  <Text style={styles.recommendationButtonText}>このメニューを反映する</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
           {/* 全体プログレス */}
           {trainings.length > 0 && (
@@ -662,17 +686,21 @@ const styles = StyleSheet.create({
   },
   noticeBannerText: { fontSize: 13, fontWeight: '700', color: '#222' },
   noticeBannerArrow: { fontSize: 12, color: '#999' },
-  aiSuggestionBanner: {
+  recommendationBanner: {
     marginHorizontal: 16, marginTop: 12, padding: 12,
     backgroundColor: '#eef2ff', borderRadius: 10,
-    borderLeftWidth: 4, borderLeftColor: '#6366f1',
+    borderLeftWidth: 4, borderLeftColor: '#4f46e5',
   },
-  aiSuggestionText: { fontSize: 13, color: '#333', marginBottom: 8 },
-  aiSuggestionButton: {
-    alignSelf: 'flex-start', backgroundColor: '#6366f1',
+  recommendationHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4,
+  },
+  recommendationLabel: { fontSize: 12, color: '#4f46e5', fontWeight: '700' },
+  recommendationText: { fontSize: 13, color: '#333', marginBottom: 8 },
+  recommendationButton: {
+    alignSelf: 'flex-start', backgroundColor: '#4f46e5',
     borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6,
   },
-  aiSuggestionButtonText: { fontSize: 12, color: '#fff', fontWeight: '700' },
+  recommendationButtonText: { fontSize: 12, color: '#fff', fontWeight: '700' },
   progressContainer: { paddingHorizontal: 16, paddingTop: 12 },
   calorieContainer: { paddingHorizontal: 16, paddingTop: 8 },
   calorieText: { fontSize: 13, color: '#666', fontWeight: '600' },

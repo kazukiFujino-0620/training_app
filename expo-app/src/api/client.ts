@@ -84,6 +84,7 @@ import type {
   TrainingCalorieResponse,
   Notice,
   AiTrainingSuggestion,
+  DailyRecommendation,
   WithdrawalStatus,
   BodyMeasurement,
   SaveBodyMeasurementRequest,
@@ -139,9 +140,18 @@ export const trainingApi = {
 };
 
 export const coachingApi = {
+  // itバグ-21対応（2026-09-11）: 「（モック）」文言のためTrainingListScreenからの呼び出しは
+  // 廃止した（recommendationApi.getToday()に差し替え済み）。ita5-1の本番AI連携が稼働した際に
+  // 同じ枠へ戻す2段階移行のため、API自体は削除せず残す。
   /** ita5-1 機能1（仮連携）: 当日のAIトレーニング提案。同意していない/提案が無い場合は204（dataはundefined）。 */
   getTodayTrainingSuggestion: () =>
     client.get<AiTrainingSuggestion>('/coaching/training-suggestion/today'),
+};
+
+/** F3 Phase1: 今日のおすすめメニュー（ルールベース推奨）。itバグ-21でモバイル「トレーニング」タブの
+ * AI提案（モック）カードをこちらに差し替えた。 */
+export const recommendationApi = {
+  getToday: () => client.get<DailyRecommendation>('/recommendations/today'),
 };
 
 export const masterApi = {
