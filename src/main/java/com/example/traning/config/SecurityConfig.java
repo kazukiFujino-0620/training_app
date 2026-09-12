@@ -111,9 +111,11 @@ public class SecurityConfig {
       MfaPendingFilter mfaPendingFilter)
       throws Exception {
 
+    // Spring Security 6.3+: 引数無しコンストラクタ + setUserDetailsService(...) は非推奨。
+    // UserDetailsService はコンストラクタ注入する（Spring Boot 3.5.16 = Spring Security 6.5.11で確認）。
     org.springframework.security.authentication.dao.DaoAuthenticationProvider provider =
-        new org.springframework.security.authentication.dao.DaoAuthenticationProvider();
-    provider.setUserDetailsService(userDetailsService);
+        new org.springframework.security.authentication.dao.DaoAuthenticationProvider(
+            userDetailsService);
     provider.setPasswordEncoder(passwordEncoder);
     // hideUserNotFoundExceptions=true（デフォルト）でユーザー列挙攻撃を防止する。
     // エラー理由の区別はセッション属性経由で行うため機能に影響しない。
