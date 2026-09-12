@@ -8,8 +8,18 @@ on:
 permissions:
   contents: read
 
+# NOTE(2026-09-12): `github/copilot-review-action` は実在しない（存在しないリポジトリ参照）。
+# GitHub Actionsのログでも
+#   ##[error]Unable to resolve action `github/copilot-review-action`, repository not found
+# と失敗しており、直近マージされた全PRでこのジョブが恒常的に失敗していた。
+# GitHub公式のCopilotコードレビューは「PRのレビュアーとしてCopilotをリクエストする」
+# ネイティブ機能（リポジトリ設定 / ルールセットの Automatically request Copilot code review）
+# として提供されており、Actionsのワークフローから呼び出す公開actionは存在しない。
+# 正しいaction名への差し替えができないため、恒久対応が決まるまでジョブ自体を無効化する。
+# 対応方針は team-lead 判断待ち（詳細はPR説明・報告を参照）。
 jobs:
   review:
+    if: false # 無効化: 存在しないaction `github/copilot-review-action` を参照していたため（上記NOTE参照）
     runs-on: ubuntu-latest
     permissions:
       contents: read
