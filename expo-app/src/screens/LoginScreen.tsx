@@ -118,7 +118,7 @@ export default function LoginScreen({ navigation }: Props) {
     >
       <View style={styles.container}>
         <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-        <Text style={styles.title}>RepLog</Text>
+        <Text style={styles.title}>Upcurv</Text>
         <Text style={styles.subtitle}>アカウントにログイン</Text>
 
         <TextInput

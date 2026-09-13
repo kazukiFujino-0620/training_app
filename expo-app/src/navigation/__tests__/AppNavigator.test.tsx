@@ -33,7 +33,7 @@ jest.mock('../../api/client', () => ({
 // テスト環境にはapp.jsonのURIスキーム解決に必要なネイティブmanifestが無いためモックする
 // （itバグ-25の遅延ロード対応とは無関係の、テスト環境固有の前提条件）
 jest.mock('expo-linking', () => ({
-  createURL: jest.fn(() => 'replog://oauth-callback'),
+  createURL: jest.fn(() => 'upcurv://oauth-callback'),
 }));
 
 jest.mock('../../auth/tokenStore', () => ({
@@ -47,7 +47,7 @@ describe('RootNavigator: itバグ-25 画面の遅延ロード', () => {
   it('未ログイン時はAuthStack（Login画面）が即座に表示される', async () => {
     await render(<RootNavigator initialRoute="Auth" />);
 
-    expect(await screen.findByText('RepLog')).toBeTruthy();
+    expect(await screen.findByText('Upcurv')).toBeTruthy();
     expect(screen.getByText('アカウントにログイン')).toBeTruthy();
   });
 
