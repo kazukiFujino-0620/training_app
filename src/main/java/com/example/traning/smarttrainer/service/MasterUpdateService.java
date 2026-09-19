@@ -241,6 +241,8 @@ public class MasterUpdateService {
       entity.setMasterFlg(masterFlg);
       // organization_id・range_of_motion_mはDB上NOT NULL。BatchUpdateは全列を明示的に列挙する
       // 自動生成SQLのため、既存値を引き継がないとNULLで上書きされてしまう。
+      // ※is_compoundはbatchUpdateMasterFlg.sql（手書きSQL）がmaster_flg列のみを更新するため対象外
+      //  （機能見直し-1-#1でis_compound追加。既存行のis_compoundは変更されず維持される）。
       entity.setOrganizationId(existing.getOrganizationId());
       entity.setRangeOfMotionM(existing.getRangeOfMotionM());
       updatedItems.add(entity);
@@ -261,6 +263,10 @@ public class MasterUpdateService {
     // range_of_motion_mはDB上NOT NULL（DEFAULT 0.40）。BatchInsertは全列を明示的に列挙する自動生成SQLのため、
     // ここで未設定のままだとNULLが明示的にバインドされDBのDEFAULT句が効かず登録に失敗する（ita2結合試験で発見）。
     entity.setRangeOfMotionM(new BigDecimal("0.40"));
+    // is_compoundもDB上NOT NULL（DEFAULT 1）だが、batchUpsert.sql（手書きSQL）はpart_code/item_name/
+    // display_order/master_flgのみを列挙するINSERT文のためis_compoundは対象外＝DBのDEFAULT 1がそのまま
+    // 適用される（機能見直し-1-#1）。CSV側に区分情報が無いため、安全側（休憩時間が長めになる方向）に倒し
+    // 複合種目扱いがデフォルトになる。必要であれば取り込み後に別途目視レビューで修正する。
 
     // --- 部位ごとの連番ロジック ---
     // その部位が初めて登場なら1、次からは+1する

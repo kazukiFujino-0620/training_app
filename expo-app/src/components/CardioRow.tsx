@@ -9,6 +9,12 @@ import { trainingApi } from '../api/client';
 interface Props {
   detail: TrainingDetail;
   onUpdated: (updated: TrainingDetail) => void;
+  /**
+   * セット完了API成功直後に呼ばれる（機能見直し-1-#1 バグ修正）。
+   * 有酸素運動のみの日にセッションタイマーが起動しない不具合の対応で、
+   * TrainingStartScreen側のensureSessionStarted()を接続するために使う。
+   */
+  onCompleted?: () => void;
 }
 
 /**
@@ -20,7 +26,7 @@ interface Props {
  * 2種目目以降の記録が「その種目単体の時間」ではなく「セッション開始からの累積時間」に
  * なってしまうため使わない（2026-08-19 ユーザー確認の上、個別タイマー方式に変更）。
  */
-export default function CardioRow({ detail, onUpdated }: Props) {
+export default function CardioRow({ detail, onUpdated, onCompleted }: Props) {
   const [distance, setDistance] = useState(detail.distanceKm != null ? String(detail.distanceKm) : '');
   const [heartRate, setHeartRate] = useState(detail.avgHeartRateBpm != null ? String(detail.avgHeartRateBpm) : '');
   const [calories, setCalories] = useState(detail.caloriesKcal != null ? String(detail.caloriesKcal) : '');
@@ -70,6 +76,7 @@ export default function CardioRow({ detail, onUpdated }: Props) {
         avgHeartRateBpm: heartRate !== '' ? parseInt(heartRate, 10) : detail.avgHeartRateBpm,
         caloriesKcal: calories !== '' ? parseFloat(calories) : detail.caloriesKcal,
       });
+      onCompleted?.();
     } catch {
       Alert.alert('エラー', '更新に失敗しました');
     } finally {

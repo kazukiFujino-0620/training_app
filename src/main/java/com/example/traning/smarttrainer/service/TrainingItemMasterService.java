@@ -50,6 +50,9 @@ public class TrainingItemMasterService {
     // range_of_motion_mはDB上NOT NULL（DEFAULT 0.40）。Domaの自動生成INSERTは全列を明示的に列挙するため、
     // ここで未設定のままだとNULLが明示的にバインドされDBのDEFAULT句が効かず登録に失敗する。
     item.setRangeOfMotionM(new BigDecimal("0.40"));
+    // is_compoundもDB上NOT NULL（DEFAULT 1）。理由は上記と同じ。個別追加種目の分類は運用側で未確認のため、
+    // 安全側（休憩時間が長めになる方向）に倒し複合種目扱いをデフォルトにする（機能見直し-1-#1）。
+    item.setIsCompound(true);
     trainingMasterDao.insertItem(item);
   }
 

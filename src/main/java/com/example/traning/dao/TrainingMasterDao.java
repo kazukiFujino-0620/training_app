@@ -3,6 +3,7 @@ package com.example.traning.dao;
 import com.example.traning.entity.TrainingItemMaster;
 import com.example.traning.entity.TrainingMaster;
 import java.util.List;
+import java.util.Optional;
 import org.seasar.doma.BatchInsert;
 import org.seasar.doma.BatchUpdate;
 import org.seasar.doma.Dao;
@@ -50,4 +51,11 @@ public interface TrainingMasterDao {
   /** master_flg=1（使用可能）の種目のみを返す（全部位）。本日以降の新規トレーニング登録の種目選択で使用する。 */
   @Select
   List<TrainingItemMaster> selectActiveItems();
+
+  /**
+   * 種目名から1件を取得する（休憩タイマー自動算出のis_compound区分参照用。機能見直し-1-#1）。
+   * 組織固有種目で同名が複数組織に存在する場合はいずれか1件を返す（呼び出し側SQLでLIMIT 1）。
+   */
+  @Select
+  Optional<TrainingItemMaster> selectByItemName(String itemName);
 }

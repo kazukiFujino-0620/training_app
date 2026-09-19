@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.dao.UserDao;
 import com.example.traning.pr.service.PersonalRecordService;
+import com.example.traning.restpreference.RestIntervalCalculationService;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.service.CalorieCalculator;
@@ -32,6 +33,7 @@ class MobileTrainingControllerReorderTest {
   @Mock private UserDao userDao;
   @Mock private TrainingMasterDao trainingMasterDao;
   @Mock private CalorieCalculator calorieCalculator;
+  @Mock private RestIntervalCalculationService restIntervalCalculationService;
 
   private MobileTrainingController controller;
 
@@ -45,7 +47,8 @@ class MobileTrainingControllerReorderTest {
             personalRecordService,
             userDao,
             trainingMasterDao,
-            calorieCalculator);
+            calorieCalculator,
+            restIntervalCalculationService);
   }
 
   @Test

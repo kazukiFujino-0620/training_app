@@ -91,6 +91,7 @@ import type {
   MobileProfile,
   UpdateProfileRequest,
   MobileTrainingStatsResponse,
+  RestPreference,
 } from './types';
 
 export const authApi = {
@@ -159,6 +160,15 @@ export const masterApi = {
     client.get<TrainingItemMaster[]>('/master/items', {
       params: partCode ? { partCode } : undefined,
     }),
+};
+
+/** 種目別レスト時間の個人上書き（PR#169実装済みAPI、機能見直し-1-#1でモバイルUIを新設） */
+export const restPreferenceApi = {
+  list: () => client.get<RestPreference[]>('/rest-preferences'),
+  upsert: (itemName: string, restSeconds: number) =>
+    client.put<RestPreference>(`/rest-preferences/${encodeURIComponent(itemName)}`, { restSeconds }),
+  delete: (itemName: string) =>
+    client.delete(`/rest-preferences/${encodeURIComponent(itemName)}`),
 };
 
 export const noticeApi = {
