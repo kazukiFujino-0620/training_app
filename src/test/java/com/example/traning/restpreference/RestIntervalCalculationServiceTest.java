@@ -1,7 +1,6 @@
 package com.example.traning.restpreference;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -42,7 +41,10 @@ class RestIntervalCalculationServiceTest {
   void setUp() {
     service =
         new RestIntervalCalculationService(
-            restPreferenceService, oneRmPredictionService, trainingMasterDao, personalRecordService);
+            restPreferenceService,
+            oneRmPredictionService,
+            trainingMasterDao,
+            personalRecordService);
     when(restPreferenceService.find(eq(USER_ID), eq(ITEM_NAME))).thenReturn(Optional.empty());
   }
 
