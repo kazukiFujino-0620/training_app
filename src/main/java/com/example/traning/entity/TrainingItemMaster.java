@@ -37,4 +37,8 @@ public class TrainingItemMaster {
   /** 消費カロリー計算用の可動域目安値(m)。ita2-2の力学的仕事量ベース計算式で使用。 */
   @Column(name = "range_of_motion_m")
   private java.math.BigDecimal rangeOfMotionM;
+
+  /** 1=複合種目(多関節), 0=単関節種目。休憩タイマー自動算出の区分（機能見直し-1-#1）。 */
+  @Column(name = "is_compound")
+  private Boolean isCompound;
 }

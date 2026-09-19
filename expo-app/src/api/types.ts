@@ -116,6 +116,13 @@ export interface SetUpdateResponse {
   recommendedIntervalSeconds?: number;
 }
 
+// ── 種目別レスト時間の個人上書き（PR#169・機能見直し-1-#1） ───────────────────
+
+export interface RestPreference {
+  itemName: string;
+  restSeconds: number;
+}
+
 // ── 種目マスタ ─────────────────────────────────────────────────────────────
 
 export interface TrainingItemMaster {

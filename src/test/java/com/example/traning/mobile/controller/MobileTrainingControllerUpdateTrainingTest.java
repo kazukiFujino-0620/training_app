@@ -10,6 +10,7 @@ import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.dao.UserDao;
 import com.example.traning.mobile.dto.UpdateTrainingRequest;
 import com.example.traning.pr.service.PersonalRecordService;
+import com.example.traning.restpreference.RestIntervalCalculationService;
 import com.example.traning.training.Training;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
@@ -35,6 +36,7 @@ class MobileTrainingControllerUpdateTrainingTest {
   @Mock private UserDao userDao;
   @Mock private TrainingMasterDao trainingMasterDao;
   @Mock private CalorieCalculator calorieCalculator;
+  @Mock private RestIntervalCalculationService restIntervalCalculationService;
 
   private MobileTrainingController controller;
 
@@ -48,7 +50,8 @@ class MobileTrainingControllerUpdateTrainingTest {
             personalRecordService,
             userDao,
             trainingMasterDao,
-            calorieCalculator);
+            calorieCalculator,
+            restIntervalCalculationService);
   }
 
   private UpdateTrainingRequest request() {

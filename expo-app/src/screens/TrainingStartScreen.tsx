@@ -11,6 +11,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import SetRow from '../components/SetRow';
 import CardioRow from '../components/CardioRow';
+import ItemSettingsModal from '../components/ItemSettingsModal';
 import { trainingApi } from '../api/client';
 import { clearTokens } from '../auth/tokenStore';
 import type { Training, TrainingDetail } from '../api/types';
@@ -76,6 +77,13 @@ function fmtTime(sec: number) {
 export default function TrainingStartScreen({ navigation }: Props) {
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading]     = useState(true);
+
+  // 機能見直し-1-#1: 種目名横「…」ボタンから開く休憩時間・スーパーセット設定モーダル
+  const [settingsTrainingId, setSettingsTrainingId] = useState<number | null>(null);
+  // セット完了時にサーバーから返る推奨インターバル秒数をtrainingId単位で記憶しておき、
+  // 設定モーダルを開いた際の「システム算出値」のフォールバック表示に使う（無ければDEFAULT_INTERVAL）
+  const [recommendedSecondsByTraining, setRecommendedSecondsByTraining] =
+    useState<Record<number, number>>({});
 
   // セッションタイマー（カウントアップ）
   // 再マウント後も同日のタイマーを復元する
@@ -296,10 +304,10 @@ export default function TrainingStartScreen({ navigation }: Props) {
   }, [intervalRunning]);
 
   // ── インターバル操作 ────────────────────────────────────────────────────────
-  // recommendedSeconds: F4 サーバー推奨値（重量/自己ベスト比率ベース）。
-  // 手動スタートボタンの onPress からは GestureResponderEvent が渡るため、number 以外は無視する。
-  async function startInterval(recommendedSeconds?: unknown) {
-    // 初セット完了時にセッションタイマーを自動開始
+  // セッションタイマーの自動開始処理（初セット完了時、または有酸素種目の完了時に呼ばれる）。
+  // 機能見直し-1-#1: 有酸素運動のみの日はstartInterval()自体が呼ばれずセッションタイマーが
+  // 起動しない不具合があったため、この部分を独立関数として切り出しCardioRowからも呼べるようにした。
+  function ensureSessionStarted() {
     if (!sessionStartedRef.current) {
       const now = Date.now();
       sessionStartRef.current = now;
@@ -308,6 +316,13 @@ export default function TrainingStartScreen({ navigation }: Props) {
       _savedSessionDate = todayDateStr();
       setSessionStarted(true);
     }
+  }
+
+  // recommendedSeconds: F4 サーバー推奨値（重量/自己ベスト比率ベース）。
+  // 手動スタートボタンの onPress からは GestureResponderEvent が渡るため、number 以外は無視する。
+  async function startInterval(recommendedSeconds?: unknown) {
+    // 初セット完了時にセッションタイマーを自動開始
+    ensureSessionStarted();
     // 無音ループ開始: バックグラウンド移行後もオーディオセッション+JSを維持する
     try {
       const prev = silenceSoundRef.current;
@@ -665,6 +680,13 @@ export default function TrainingStartScreen({ navigation }: Props) {
                 </Text>
                 <Text style={styles.menuName}>{section.title}</Text>
               </View>
+              <TouchableOpacity
+                style={styles.itemSettingsBtn}
+                onPress={() => setSettingsTrainingId(section.trainingId)}
+                accessibilityLabel={`${section.title}の設定`}
+              >
+                <Text style={styles.itemSettingsBtnText}>⋯</Text>
+              </TouchableOpacity>
               <View style={styles.reorderBtnGroup}>
                 <TouchableOpacity
                   style={styles.reorderBtn}
@@ -713,12 +735,19 @@ export default function TrainingStartScreen({ navigation }: Props) {
               <CardioRow
                 detail={item}
                 onUpdated={(updated) => handleDetailUpdated(section.trainingId, updated)}
+                onCompleted={ensureSessionStarted}
               />
             ) : (
               <SetRow
                 detail={item}
                 onUpdated={(updated) => handleDetailUpdated(section.trainingId, updated)}
                 onCompleted={(recommendedSeconds) => {
+                  // 機能見直し-1-#1: 設定モーダルの「システム算出値」フォールバック表示用に記憶しておく
+                  if (typeof recommendedSeconds === 'number') {
+                    setRecommendedSecondsByTraining((prev) => (
+                      { ...prev, [section.trainingId]: recommendedSeconds }
+                    ));
+                  }
                   // F-M2: スーパーセットのA種目セット完了時はインターバルを開始せず、
                   // B種目への誘導のみ行う。B種目完了（1ラウンド完了）時に通常通り開始する。
                   if (section.supersetRole === 'A') {
@@ -788,6 +817,30 @@ export default function TrainingStartScreen({ navigation }: Props) {
           </View>
         }
       />
+
+      {/* 機能見直し-1-#1: 種目名横「…」ボタンから開く休憩時間・スーパーセット設定モーダル */}
+      {(() => {
+        const settingsSection = sections.find((s) => s.trainingId === settingsTrainingId);
+        return (
+          <ItemSettingsModal
+            visible={settingsSection != null}
+            onClose={() => setSettingsTrainingId(null)}
+            itemName={settingsSection?.title ?? ''}
+            fallbackSeconds={
+              settingsSection ? recommendedSecondsByTraining[settingsSection.trainingId] : undefined
+            }
+            superset={
+              settingsSection?.supersetGroupId != null
+                ? {
+                    groupId: settingsSection.supersetGroupId,
+                    role: settingsSection.supersetRole,
+                    onUngroup: () => handleUngroupSuperset(settingsSection.supersetGroupId!),
+                  }
+                : null
+            }
+          />
+        );
+      })()}
     </SafeAreaView>
   );
 }
@@ -881,6 +934,12 @@ const styles = StyleSheet.create({
   },
   reorderBtnText: { fontSize: 12, color: '#4CAF50', fontWeight: '700' },
   reorderBtnTextDisabled: { color: '#ccc' },
+  // 機能見直し-1-#1: 種目名横「…」ボタン（休憩時間・スーパーセット設定）
+  itemSettingsBtn: {
+    width: 26, height: 22, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f5f5f5', borderRadius: 6, marginLeft: 8, flexShrink: 0,
+  },
+  itemSettingsBtnText: { fontSize: 14, fontWeight: '900', color: '#777' },
   // F-M2: スーパーセット
   sectionHeaderSuperset: { borderColor: '#7c3aed', borderStyle: 'dashed', borderWidth: 2, borderBottomWidth: 0 },
   supersetRow: {

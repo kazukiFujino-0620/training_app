@@ -10,6 +10,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import { masterApi, trainingApi } from '../api/client';
 import type { TrainingItemMaster, TrainingHistory, RecommendedItem } from '../api/types';
+import ItemSettingsModal from '../components/ItemSettingsModal';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'AddExercise'>;
@@ -59,6 +60,9 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
   const [saving, setSaving] = useState(false);
   // F-M2: 2種目選択時のみ「スーパーセットにする」を選択可能
   const [supersetPair, setSupersetPair] = useState(false);
+
+  // 機能見直し-1-#1: 種目名横「…」ボタンから開く休憩時間設定モーダル
+  const [settingsItemName, setSettingsItemName] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -474,6 +478,13 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
                           </TouchableOpacity>
                         </View>
                       )}
+                      <TouchableOpacity
+                        style={styles.itemSettingsBtn}
+                        onPress={() => setSettingsItemName(block.item.itemName)}
+                        accessibilityLabel={`${block.item.itemName}の設定`}
+                      >
+                        <Text style={styles.itemSettingsBtnText}>⋯</Text>
+                      </TouchableOpacity>
                       <TouchableOpacity onPress={() => removeBlock(blockIndex)}>
                         <Text style={styles.blockRemoveText}>✕</Text>
                       </TouchableOpacity>
@@ -556,6 +567,14 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
+
+      {/* 機能見直し-1-#1: 種目名横「…」ボタンから開く休憩時間設定モーダル。
+          登録前のためスーパーセット状態は未確定（既存のsupersetPairトグルで設定するため、ここでは非表示）。 */}
+      <ItemSettingsModal
+        visible={settingsItemName !== null}
+        onClose={() => setSettingsItemName(null)}
+        itemName={settingsItemName ?? ''}
+      />
     </SafeAreaView>
   );
 }
@@ -647,6 +666,12 @@ const styles = StyleSheet.create({
   },
   reorderBtnText: { fontSize: 11, color: '#4CAF50', fontWeight: '700' },
   reorderBtnTextDisabled: { color: '#ccc' },
+  // 機能見直し-1-#1: 種目名横「…」ボタン（休憩時間・スーパーセット設定）
+  itemSettingsBtn: {
+    width: 26, height: 20, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f5f5f5', borderRadius: 5, marginLeft: 6, flexShrink: 0,
+  },
+  itemSettingsBtnText: { fontSize: 14, fontWeight: '900', color: '#777' },
   blockRemoveText: { fontSize: 16, color: '#ccc', paddingHorizontal: 4, flexShrink: 0 },
   // 前回記録ナビ
   historyNav: {

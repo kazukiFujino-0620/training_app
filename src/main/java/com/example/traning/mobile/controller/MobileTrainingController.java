@@ -15,6 +15,7 @@ import com.example.traning.mobile.dto.UpdateTrainingMemoRequest;
 import com.example.traning.mobile.dto.UpdateTrainingRequest;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
+import com.example.traning.restpreference.RestIntervalCalculationService;
 import com.example.traning.training.SetType;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
@@ -56,6 +57,7 @@ public class MobileTrainingController {
   private final UserDao userDao;
   private final TrainingMasterDao trainingMasterDao;
   private final CalorieCalculator calorieCalculator;
+  private final RestIntervalCalculationService restIntervalCalculationService;
 
   public MobileTrainingController(
       TrainingService trainingService,
@@ -64,7 +66,8 @@ public class MobileTrainingController {
       PersonalRecordService personalRecordService,
       UserDao userDao,
       TrainingMasterDao trainingMasterDao,
-      CalorieCalculator calorieCalculator) {
+      CalorieCalculator calorieCalculator,
+      RestIntervalCalculationService restIntervalCalculationService) {
     this.trainingService = trainingService;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
@@ -72,6 +75,7 @@ public class MobileTrainingController {
     this.userDao = userDao;
     this.trainingMasterDao = trainingMasterDao;
     this.calorieCalculator = calorieCalculator;
+    this.restIntervalCalculationService = restIntervalCalculationService;
   }
 
   /** 当日（またはdate指定日）のトレーニング一覧を返す。 各 Training に details リスト（セット情報）が含まれる。 */
@@ -191,6 +195,12 @@ public class MobileTrainingController {
     if (training == null) return ResponseEntity.notFound().build();
     if (!userId.equals(training.getUserId())) return ResponseEntity.status(403).build();
 
+    if (training.getSupersetGroupId() != null) {
+      // 種目削除時にスーパーセットのグルーピングも解除する（機能見直し-1-#1 バグ修正）。
+      // 相方が1件のみ残る場合、その1件のsuperset_group_idもNULLになり通常の種目として扱われる
+      // （要件定義の意図と一致）。所有者チェックは直前で完了済みのため、DAOを直接呼び出す。
+      trainingDao.clearSupersetGroup(training.getSupersetGroupId(), LocalDateTime.now());
+    }
     trainingDetailDao.softDeleteByTrainingId(id);
     trainingDao.softDeleteById(id);
     return ResponseEntity.noContent().build();
@@ -292,12 +302,9 @@ public class MobileTrainingController {
         Optional<PersonalRecord> before =
             personalRecordService.getByUserIdAndItem(userId, training.getMenu());
 
-        double maxWeight =
-            before.isPresent()
-                ? Math.max(before.get().getMaxWeight(), req.getWeight())
-                : req.getWeight();
         recommendedIntervalSeconds =
-            calculateRecommendedIntervalSeconds(req.getWeight(), maxWeight);
+            restIntervalCalculationService.resolveIntervalSeconds(
+                userId, training.getMenu(), req.getWeight(), req.getReps());
 
         personalRecordService.updateIfBetter(
             userId, training.getMenu(), req.getWeight(), req.getReps(), LocalDate.now());
@@ -314,19 +321,6 @@ public class MobileTrainingController {
         req.getIsCompleted() != null ? req.getIsCompleted() : detail.getIsCompleted();
     return ResponseEntity.ok(
         new SetUpdateResponse(id, completed, isPR, prMessage, recommendedIntervalSeconds));
-  }
-
-  /**
-   * F4: インターバル推奨通知。 重量 / 自己ベスト重量の比率で負荷を3段階に分類し、休憩時間を提案する。
-   * WHOOP・Polar・Garmin等が特許を持つ生体信号ベースの回復時間推定とは異なり、 単純な重量比率のみを使う静的カテゴリ分けのため特許抵触リスクなし
-   * （feature-gap-analysis §2-2 の代案方針に準拠）。
-   */
-  private Integer calculateRecommendedIntervalSeconds(double weight, double maxWeight) {
-    if (maxWeight <= 0) return null;
-    double ratio = weight / maxWeight;
-    if (ratio >= 0.85) return 180;
-    if (ratio >= 0.6) return 90;
-    return 60;
   }
 
   /**
