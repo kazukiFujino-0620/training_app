@@ -7,6 +7,7 @@ import { Audio } from 'expo-av';
 import * as SplashScreen from 'expo-splash-screen';
 import { getTokens } from './src/auth/tokenStore';
 import RootNavigator from './src/navigation/AppNavigator';
+import { registerRestTimerNotificationCategory } from './src/notifications/restTimerCategory';
 
 // ネイティブスプラッシュスクリーンを、初期化処理が完了する（hideAsync()を呼ぶ）まで表示し続ける。
 // コンポーネント宣言より前（モジュールスコープ）で呼び出す必要がある。
@@ -48,6 +49,10 @@ export default function App() {
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
         });
+
+        // 機能見直し-1-#6: 休憩タイマー通知に「延長」「スキップ」ボタンを表示するための
+        // 通知カテゴリを登録（アプリ起動時に1回。冪等なので複数回呼んでも問題ない）
+        await registerRestTimerNotificationCategory();
       } finally {
         // 初期化処理が失敗した場合でもスプラッシュを表示し続けたままにしない
         await SplashScreen.hideAsync().catch(() => {});
