@@ -130,6 +130,27 @@ export interface TrainingItemMaster {
   partCode: string;
   itemName: string;
   displayOrder: number;
+  /** 機能見直し-1-#2: フォーム解説（画像/動画・注意事項）が登録済みの種目かどうか。 */
+  hasFormGuide?: boolean;
+}
+
+// ── 種目フォーム解説（機能見直し-1-#2） ────────────────────────────────────
+// 対象は複合種目Tier1想定8種目のみ。画像/動画の実素材が未準備の間は、対象種目でも
+// GET /api/mobile/form-guides/{itemName} が404を返すため、呼び出し側で「準備中」等の
+// フォールバック表示を行う想定。
+
+export interface FormGuideCaution {
+  title: string;
+  description: string;
+  reason: string;
+}
+
+export interface FormGuide {
+  itemName: string;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  jointAngleNote: string | null;
+  cautions: FormGuideCaution[];
 }
 
 // ── トレーニング履歴（前回記録表示用） ──────────────────────────────────────

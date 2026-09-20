@@ -1,0 +1,1 @@
+SELECT item_name FROM training_item_form_guides
