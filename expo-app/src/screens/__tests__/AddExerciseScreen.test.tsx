@@ -4,7 +4,7 @@ import path from 'path';
 import { StyleSheet } from 'react-native';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react-native';
 import AddExerciseScreen from '../AddExerciseScreen';
-import { masterApi, trainingApi } from '../../api/client';
+import { masterApi, trainingApi, formGuideApi } from '../../api/client';
 
 // BUG-4 / BUG-9 単体テスト
 // 対象: src/screens/AddExerciseScreen.tsx
@@ -16,11 +16,18 @@ jest.mock('../../api/client', () => ({
     getTrainingHistory: jest.fn(),
     addTraining: jest.fn(),
   },
+  formGuideApi: { get: jest.fn() },
 }));
 
 const mockItems = [
   { id: 1, partCode: 'CHEST', itemName: 'ベンチプレス', displayOrder: 1 },
   { id: 2, partCode: 'BACK', itemName: 'デッドリフト', displayOrder: 2 },
+];
+
+// 機能見直し-1-#2: フォーム解説対象種目（hasFormGuide: true）を含むデータセット
+const mockItemsWithFormGuide = [
+  { id: 1, partCode: 'LEG', itemName: 'バックスクワット', displayOrder: 1, hasFormGuide: true },
+  { id: 2, partCode: 'CHEST', itemName: 'ベンチプレス', displayOrder: 2, hasFormGuide: false },
 ];
 
 const navigation = { goBack: jest.fn() } as any;
@@ -206,5 +213,41 @@ describe('ita5-1 機能1（仮連携）: AIトレーニング提案の登録画�
 
     await waitFor(() => expect(masterApi.getItems).toHaveBeenCalled());
     expect(screen.queryByText('1種目を登録')).toBeNull();
+  });
+});
+
+describe('機能見直し-1-#2: 種目一覧のフォーム解説「詳細」ボタン', () => {
+  it('hasFormGuideがtrueの種目のみ詳細ボタン（アクセシビリティラベル）が表示される', async () => {
+    (masterApi.getItems as jest.Mock).mockResolvedValue({ data: mockItemsWithFormGuide });
+
+    await render(<AddExerciseScreen navigation={navigation} route={route} />);
+    await waitFor(() => expect(masterApi.getItems).toHaveBeenCalled());
+
+    expect(screen.getByLabelText('バックスクワットのフォーム解説を見る')).toBeTruthy();
+    expect(screen.queryByLabelText('ベンチプレスのフォーム解説を見る')).toBeNull();
+  });
+
+  it('詳細ボタンを押すとフォーム解説モーダルが開き、種目の選択チェックは変化しない', async () => {
+    (masterApi.getItems as jest.Mock).mockResolvedValue({ data: mockItemsWithFormGuide });
+    (formGuideApi.get as jest.Mock).mockResolvedValue({
+      data: {
+        itemName: 'バックスクワット',
+        imageUrl: null,
+        videoUrl: null,
+        jointAngleNote: null,
+        cautions: [],
+      },
+    });
+
+    await render(<AddExerciseScreen navigation={navigation} route={route} />);
+    await waitFor(() => expect(masterApi.getItems).toHaveBeenCalled());
+
+    await fireEvent.press(screen.getByLabelText('バックスクワットのフォーム解説を見る'));
+
+    await waitFor(() =>
+      expect(formGuideApi.get).toHaveBeenCalledWith('バックスクワット'),
+    );
+    // 「次へ」確定バーは種目選択時のみ表示される。詳細ボタン押下では選択トグルされないはず。
+    expect(screen.queryByText(/次へ（\d+件選択中）/)).toBeNull();
   });
 });

@@ -92,6 +92,7 @@ import type {
   UpdateProfileRequest,
   MobileTrainingStatsResponse,
   RestPreference,
+  FormGuide,
 } from './types';
 
 export const authApi = {
@@ -160,6 +161,17 @@ export const masterApi = {
     client.get<TrainingItemMaster[]>('/master/items', {
       params: partCode ? { partCode } : undefined,
     }),
+};
+
+/**
+ * 種目のフォーム解説（画像/動画・注意事項）取得（機能見直し-1-#2）。
+ * 対象は複合種目Tier1想定8種目のみ。対象外種目やデータ未投入の種目は404を返す
+ * （AddExerciseScreen側はmasterApi.getItems()のhasFormGuideで表示要否を事前判定するため、
+ * 通常は対象種目のみ呼ばれる想定。404はUI側で「準備中」表示にフォールバックする）。
+ */
+export const formGuideApi = {
+  get: (itemName: string) =>
+    client.get<FormGuide>(`/form-guides/${encodeURIComponent(itemName)}`),
 };
 
 /** 種目別レスト時間の個人上書き（PR#169実装済みAPI、機能見直し-1-#1でモバイルUIを新設） */

@@ -5,12 +5,14 @@ import {
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import { masterApi, trainingApi } from '../api/client';
 import type { TrainingItemMaster, TrainingHistory, RecommendedItem } from '../api/types';
 import ItemSettingsModal from '../components/ItemSettingsModal';
+import FormGuideModal from '../components/FormGuideModal';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'AddExercise'>;
@@ -63,6 +65,9 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
 
   // 機能見直し-1-#1: 種目名横「…」ボタンから開く休憩時間設定モーダル
   const [settingsItemName, setSettingsItemName] = useState<string | null>(null);
+
+  // 機能見直し-1-#2: 種目一覧の「詳細」アイコンから開くフォーム解説モーダル（対象8種目のみ表示）
+  const [formGuideItemName, setFormGuideItemName] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -366,6 +371,18 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
                   {checked && <Text style={styles.checkboxMark}>✓</Text>}
                 </View>
                 <Text style={styles.itemName}>{item.itemName}</Text>
+                {/* 機能見直し-1-#2: フォーム解説が登録済みの種目（対象8種目）のみ「詳細」ボタンを表示。
+                    行全体のonPress（選択トグル）とは独立させるため、ここだけ別のTouchableOpacityにする */}
+                {item.hasFormGuide && (
+                  <TouchableOpacity
+                    style={styles.formGuideBtn}
+                    onPress={() => setFormGuideItemName(item.itemName)}
+                    accessibilityLabel={`${item.itemName}のフォーム解説を見る`}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="information-circle-outline" size={22} color="#4CAF50" />
+                  </TouchableOpacity>
+                )}
               </TouchableOpacity>
             );
           }}
@@ -575,6 +592,13 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
         onClose={() => setSettingsItemName(null)}
         itemName={settingsItemName ?? ''}
       />
+
+      {/* 機能見直し-1-#2: 種目一覧の「詳細」ボタンから開くフォーム解説モーダル */}
+      <FormGuideModal
+        visible={formGuideItemName !== null}
+        onClose={() => setFormGuideItemName(null)}
+        itemName={formGuideItemName ?? ''}
+      />
     </SafeAreaView>
   );
 }
@@ -612,6 +636,7 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: '#4CAF50', borderColor: '#4CAF50' },
   checkboxMark: { color: '#fff', fontSize: 14, fontWeight: '700' },
   itemName: { fontSize: 16, color: '#222', flex: 1, flexShrink: 1 },
+  formGuideBtn: { flexShrink: 0, padding: 2 },
   emptyText: { textAlign: 'center', color: '#aaa', padding: 32 },
   // 確定ボタンバー
   confirmBar: {
