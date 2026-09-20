@@ -17,6 +17,9 @@ import { clearTokens } from '../auth/tokenStore';
 import type { Training, TrainingDetail } from '../api/types';
 import * as Notifications from 'expo-notifications';
 import { Audio } from 'expo-av';
+import {
+  REST_TIMER_CATEGORY_ID, EXTEND_ACTION_ID, SKIP_ACTION_ID, EXTEND_SECONDS,
+} from '../notifications/restTimerCategory';
 
 const DEFAULT_INTERVAL = 120;
 
@@ -267,6 +270,9 @@ export default function TrainingStartScreen({ navigation }: Props) {
               title: 'インターバル終了！',
               body: '次のセットを開始してください',
               sound: true,
+              // 機能見直し-1-#6: スマートウォッチのOS標準ミラー機能でも
+              // 「延長」「スキップ」ボタンを表示できるようにカテゴリを付与する
+              categoryIdentifier: REST_TIMER_CATEGORY_ID,
             },
             trigger: {
               type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -365,6 +371,44 @@ export default function TrainingStartScreen({ navigation }: Props) {
       setIntervalDuration((prev) => Math.max(10, prev + delta));
     }
   }, [intervalRunning]);
+
+  // 機能見直し-1-#6: 休憩タイマー通知の「延長」ボタン用。
+  // 実行中インターバルの残り秒数に+EXTEND_SECONDS秒する軽量なstate操作のみ（設計書1-2節）。
+  const extendCurrentInterval = useCallback(() => {
+    adjustInterval(EXTEND_SECONDS);
+  }, [adjustInterval]);
+
+  // 機能見直し-1-#6: 休憩タイマー通知の「スキップ」ボタン用。
+  // 実行中インターバルを即座に終了状態にする（既存のインターバル終了処理の早期実行）。
+  const skipCurrentInterval = useCallback(async () => {
+    if (!intervalRunning) return;
+    setIntervalRunning(false);
+    setIntervalRemaining(0);
+    if (notificationIdRef.current) {
+      await Notifications.cancelScheduledNotificationAsync(notificationIdRef.current).catch(() => {});
+      notificationIdRef.current = null;
+    }
+    const sil = silenceSoundRef.current;
+    silenceSoundRef.current = null;
+    if (sil) { try { await sil.stopAsync(); await sil.unloadAsync(); } catch {} }
+  }, [intervalRunning]);
+
+  // 機能見直し-1-#6: 通知アクションボタン（延長/スキップ）の操作を受け取る。
+  // opensAppToForeground: false のためアプリはフォアグラウンドに来ないが、
+  // バックグラウンドで実行中のJSがイベントを受け取る（アプリがkillされている場合は
+  // 発火しないOS制約あり。実機検証項目に含める＝設計書3章）。
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (response.notification.request.content.categoryIdentifier !== REST_TIMER_CATEGORY_ID) return;
+      const action = response.actionIdentifier;
+      if (action === EXTEND_ACTION_ID) {
+        extendCurrentInterval();
+      } else if (action === SKIP_ACTION_ID) {
+        skipCurrentInterval();
+      }
+    });
+    return () => sub.remove();
+  }, [extendCurrentInterval, skipCurrentInterval]);
 
   // セッションタイマー調整（秒単位）
   const adjustSession = useCallback((deltaSeconds: number) => {
