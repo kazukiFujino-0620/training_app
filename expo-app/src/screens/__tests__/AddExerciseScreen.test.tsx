@@ -251,3 +251,25 @@ describe('機能見直し-1-#2: 種目一覧のフォーム解説「詳細」ボ
     expect(screen.queryByText(/次へ（\d+件選択中）/)).toBeNull();
   });
 });
+
+describe('機能見直し-1-#1 バグ修正: 「…」設定モーダルがpageSheet Modal内にネストされている', () => {
+  it('ItemSettingsModalはblocksVisible Modalの内側（同じ<Modal>タグの中）に配置されている', () => {
+    // iOSではpageSheet提示中のUIViewControllerに対してさらに別のモーダルをpresentしようとすると
+    // UIKitに拒否され（"Attempt to present ... which is already presenting ..."）、
+    // ItemSettingsModalが実機/シミュレータで一切表示されない不具合が発生した
+    // （実機/シミュレータで再現確認済み）。ItemSettingsModalをblocksVisible Modalの外側の
+    // 兄弟要素として配置していたことが原因だったため、内側に戻す回帰を防ぐ。
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '../AddExerciseScreen.tsx'),
+      'utf8',
+    );
+    const modalOpen = source.indexOf('<Modal visible={blocksVisible}');
+    const modalClose = source.indexOf('</Modal>', modalOpen);
+    const itemSettingsModalIndex = source.indexOf('<ItemSettingsModal');
+
+    expect(modalOpen).toBeGreaterThan(-1);
+    expect(modalClose).toBeGreaterThan(modalOpen);
+    expect(itemSettingsModalIndex).toBeGreaterThan(modalOpen);
+    expect(itemSettingsModalIndex).toBeLessThan(modalClose);
+  });
+});
