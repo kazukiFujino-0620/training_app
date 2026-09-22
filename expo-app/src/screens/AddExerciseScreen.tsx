@@ -582,18 +582,23 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
               )}
             </ScrollView>
           </KeyboardAvoidingView>
+
+          {/* 機能見直し-1-#1バグ修正: ItemSettingsModalはこのpageSheet Modal（blocksVisible）の
+              JSXツリー内にネストして配置する必要がある。iOSではpageSheet提示中のUIViewControllerに
+              対してさらに別のモーダルをpresentしようとするとUIKitに拒否され
+              （"Attempt to present ... which is already presenting ..."）、何も起こらなくなる。
+              兄弟要素としてルート直下に置いていたのが原因だった（実機/シミュレータで再現確認済み）。 */}
+          <ItemSettingsModal
+            visible={settingsItemName !== null}
+            onClose={() => setSettingsItemName(null)}
+            itemName={settingsItemName ?? ''}
+          />
         </SafeAreaView>
       </Modal>
 
-      {/* 機能見直し-1-#1: 種目名横「…」ボタンから開く休憩時間設定モーダル。
-          登録前のためスーパーセット状態は未確定（既存のsupersetPairトグルで設定するため、ここでは非表示）。 */}
-      <ItemSettingsModal
-        visible={settingsItemName !== null}
-        onClose={() => setSettingsItemName(null)}
-        itemName={settingsItemName ?? ''}
-      />
-
-      {/* 機能見直し-1-#2: 種目一覧の「詳細」ボタンから開くフォーム解説モーダル */}
+      {/* 機能見直し-1-#2: 種目一覧の「詳細」ボタンから開くフォーム解説モーダル。
+          この「詳細」ボタンは種目選択リスト（blocksVisible pageSheetの外側）にあるため、
+          ItemSettingsModalと違いここではpageSheetとの競合は発生しない。ルート直下のままでよい。 */}
       <FormGuideModal
         visible={formGuideItemName !== null}
         onClose={() => setFormGuideItemName(null)}
