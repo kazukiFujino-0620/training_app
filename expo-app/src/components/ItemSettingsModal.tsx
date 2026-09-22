@@ -17,6 +17,28 @@ interface SupersetInfo {
   onUngroup: () => void;
 }
 
+interface SupersetPickerCandidate {
+  /** ペア相手候補の識別子（AddExerciseScreenではitem.idを渡す） */
+  key: number;
+  name: string;
+}
+
+/**
+ * 登録前（AddExerciseScreen）用のスーパーセット新規ペア作成UI。
+ * 記録済みトレーニングの`superset`（グループ表示＋解除のみ）とは異なり、
+ * まだ登録していない種目同士でも自由にペアを組める。
+ */
+interface SupersetPicker {
+  /** 自分以外に現在選択されている種目一覧（ペア候補） */
+  candidates: SupersetPickerCandidate[];
+  /** 現在のペア相手のkey（未ペアならnull） */
+  pairedKey: number | null;
+  /** 候補を選んでペアを組む（別の相手を選ぶと組み替え） */
+  onSelect: (key: number) => void;
+  /** ペアを解除する */
+  onUnpair: () => void;
+}
+
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -35,6 +57,11 @@ interface Props {
    * （登録前の一括セット入力画面では未確定のため非表示、記録済みトレーニングでは表示）。
    */
   superset?: SupersetInfo | null;
+  /**
+   * 登録前の新規ペア作成UI。指定した場合のみ「スーパーセット」セクションを表示する
+   * （AddExerciseScreen用。`superset`と同時に指定されることは無い想定）。
+   */
+  supersetPicker?: SupersetPicker;
 }
 
 /**
@@ -45,7 +72,7 @@ interface Props {
  * 「システム算出値を初期表示→任意で上書き編集」という形式にする（PR#169のAPIをそのまま流用）。
  */
 export default function ItemSettingsModal({
-  visible, onClose, itemName, fallbackSeconds, onSaved, onReset, superset,
+  visible, onClose, itemName, fallbackSeconds, onSaved, onReset, superset, supersetPicker,
 }: Props) {
   const [loading, setLoading] = useState(true);
   const [seconds, setSeconds] = useState(DEFAULT_REST_SECONDS);
@@ -185,6 +212,63 @@ export default function ItemSettingsModal({
                 </View>
               )}
 
+              {supersetPicker && (
+                <View>
+                  <Text style={styles.fieldLabel}>スーパーセット</Text>
+                  {supersetPicker.candidates.length === 0 ? (
+                    <Text style={styles.pickerEmptyText}>
+                      他の種目を追加するとペアを組めます
+                    </Text>
+                  ) : (
+                    <>
+                      {supersetPicker.pairedKey != null && (
+                        <View style={styles.pickerCurrentBox}>
+                          <View style={styles.pickerCurrentInfo}>
+                            <Text style={styles.pickerCurrentBadge}>SUPER</Text>
+                            <Text style={styles.pickerCurrentName} numberOfLines={1}>
+                              {
+                                supersetPicker.candidates.find(
+                                  (c) => c.key === supersetPicker.pairedKey,
+                                )?.name
+                              }
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={supersetPicker.onUnpair}
+                            accessibilityLabel="スーパーセットのペアを解除"
+                          >
+                            <Text style={styles.pickerUnpairText}>解除する</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      <Text style={styles.hintText}>
+                        {supersetPicker.pairedKey != null
+                          ? '休憩なしで交互に実施する組み合わせです。別の種目を選ぶとペアが組み替わります。'
+                          : 'ペアにする種目を選んでください（休憩なしで交互に実施します）。'}
+                      </Text>
+                      <View style={styles.candidateList}>
+                        {supersetPicker.candidates.map((c) => {
+                          const selected = supersetPicker.pairedKey === c.key;
+                          return (
+                            <TouchableOpacity
+                              key={c.key}
+                              style={[styles.candidateRow, selected && styles.candidateRowSelected]}
+                              onPress={() => supersetPicker.onSelect(c.key)}
+                              accessibilityLabel={`${c.name}とペアを組む`}
+                            >
+                              <Text style={styles.candidateName} numberOfLines={1}>{c.name}</Text>
+                              <View style={[styles.radio, selected && styles.radioSelected]}>
+                                {selected && <View style={styles.radioDot} />}
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
+
               <View style={styles.actions}>
                 <TouchableOpacity
                   style={styles.resetBtn}
@@ -261,6 +345,34 @@ const styles = StyleSheet.create({
   supersetBadge: { fontSize: 11, fontWeight: '800', color: '#7c3aed' },
   ungroupRow: { marginTop: 8 },
   ungroupText: { fontSize: 12, color: '#7c3aed', fontWeight: '700' },
+  // 機能見直し-1-#1: 登録前の新規ペア作成UI（AddExerciseScreen用）
+  pickerEmptyText: { fontSize: 12, color: '#aaa', textAlign: 'center', paddingVertical: 10 },
+  pickerCurrentBox: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 12, borderRadius: 12, backgroundColor: '#F5F0FE',
+    borderWidth: 1, borderColor: '#c9aefc', marginBottom: 8,
+  },
+  pickerCurrentInfo: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  pickerCurrentBadge: {
+    fontSize: 10, fontWeight: '800', color: '#fff', backgroundColor: '#7c3aed',
+    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5, flexShrink: 0,
+  },
+  pickerCurrentName: { fontSize: 13, fontWeight: '700', color: '#222', flexShrink: 1 },
+  pickerUnpairText: { fontSize: 12, fontWeight: '700', color: '#c0392b', flexShrink: 0 },
+  candidateList: { gap: 8, marginTop: 10 },
+  candidateRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 12, paddingVertical: 11, borderRadius: 11,
+    borderWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#fafafa',
+  },
+  candidateRowSelected: { borderColor: '#7c3aed', backgroundColor: '#F5F0FE' },
+  candidateName: { fontSize: 13, fontWeight: '600', color: '#222', flex: 1, paddingRight: 8 },
+  radio: {
+    width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#ccc',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  radioSelected: { borderColor: '#7c3aed' },
+  radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#7c3aed' },
   actions: { flexDirection: 'row', gap: 10 },
   resetBtn: {
     flexShrink: 0, paddingVertical: 12, paddingHorizontal: 10,
