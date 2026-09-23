@@ -9,26 +9,27 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 停滞検知（ディロード週の任意提案）。機能見直し-1-#3 詳細設計書3-3節、QA Q3-4（2026-09-19確定、2026-09-24比較基準確定）。
+ * 停滞検知（ディロード週の任意提案）。機能見直し-1-#3 詳細設計書3-3節、QA Q3-4（2026-09-19確定、2026-09-24比較方法の訂正）。
+ *
+ * <p>USER承認を得て、training-coordinatorの訂正（会議録#3の2026-09-24追記）に基づく方針で作成した。
  *
  * <ul>
- *   <li>比較基準は「判定窓（直近3回）の直前のセッション」。窓内のどのセッションも基準の値を上回っていなければ停滞。
- *       指標A（主軸、合計ボリューム）・指標B（補助、最大重量）とも同じ組み立て。
- *   <li>判定には最低4回分（基準1回＋窓3回）の記録が必要。足りなければ判定不可（INSUFFICIENT、提案しない）。
- *   <li>期分けプログラムのディロード週のセッションは判定窓・基準の両方から除外する。 計画強度(%1RM)が基準セッションより低い週のセッションも除外し、さらに過去へさかのぼって集める。
- *       期分けプログラム外のセッションは通常どおり対象。
- *   <li>Aのみ停滞=MILD、AとBの両方が停滞=STRONG。いずれも提案のみで強制はしない。
+ *   <li>直近3回（ディロード週のセッションを除く）を判定窓とする。強度を理由に判定窓から除外しない。
+ *   <li>判定窓の各セッションの比較相手は、それより古いセッションのうち計画強度(%1RM)が同じもので最も新しい1件。
+ *       期分けプログラム外のセッション（計画強度なし）は、判定窓の直前にある計画外のセッションを比較相手にする。
+ *   <li>判定窓の3件とも比較相手を上回っていなければ、その指標は停滞。A（合計ボリューム、主軸）・B（最大重量、補助）とも同じ比べ方。
+ *       Aのみ停滞=MILD、A・B両方=STRONG。いずれも提案のみで強制はしない。
+ *   <li>さかのぼっても比較相手が見つからないセッションが判定窓に1件でもあれば判定不可（最初の1サイクルは判定不可になるが許容）。
  *   <li>判定は記録保存時に行って結果を保持する（{@link #evaluateAndStore}）。表示側は保持した結果を読む。
  * </ul>
  *
- * <p>上記は確立した標準ではなく、現有データで実装しやすい合理的な近似（会議録#3の2026-09-23追記）。誤検知が多ければ見直す。
+ * <p>確立した標準ではなく、現有データで実装しやすい合理的な近似。誤検知が多ければ見直す。
  */
 @Slf4j
 @Service
@@ -42,17 +43,17 @@ public class StagnationDetectionService {
   /** QA Q3-4確定: 判定窓は直近3回のセッション。 */
   static final int WINDOW_SIZE = 3;
 
-  /** 判定に必要な最低回数（基準1回＋窓3回）。 */
-  static final int REQUIRED_SESSIONS = WINDOW_SIZE + 1;
-
-  /** 除外対象（ディロード週・低強度週）を飛ばして過去へさかのぼるときに読み込む最大セッション数。 判定ロジック上の閾値ではなく、1回の判定で読むデータ量の上限（性能上の上限）。 */
+  /** 比較相手を探してさかのぼる最大セッション数（QA Q3-4 2026-09-24訂正: 30件で見つからなければ判定不可）。 */
   static final int MAX_LOOKBACK_SESSIONS = 30;
+
+  /** 計画強度が「同じ」とみなす許容幅（%1RMのポイント）。確定方針は完全一致（0）。 将来±2.5ポイント程度の許容幅を入れられるよう定数化している。 */
+  static final BigDecimal INTENSITY_MATCH_TOLERANCE_PCT = BigDecimal.ZERO;
 
   public enum StagnationLevel {
     NONE,
     MILD,
     STRONG,
-    /** 記録が最低回数に満たず判定できない（提案を出さない）。 */
+    /** 記録不足、または判定窓に比較相手の見つからないセッションがあり判定できない（提案を出さない）。 */
     INSUFFICIENT
   }
 
@@ -97,7 +98,7 @@ public class StagnationDetectionService {
     List<SessionAggregate> recentFirst =
         trainingDetailDao.selectRecentSessionAggregatesByItem(
             userId, itemName, MAX_LOOKBACK_SESSIONS);
-    if (recentFirst.size() < REQUIRED_SESSIONS) return StagnationLevel.INSUFFICIENT;
+    if (recentFirst.size() <= WINDOW_SIZE) return StagnationLevel.INSUFFICIENT;
 
     LocalDate newest = recentFirst.get(0).trainingDate;
     LocalDate oldest = recentFirst.get(recentFirst.size() - 1).trainingDate;
@@ -120,49 +121,51 @@ public class StagnationDetectionService {
   /**
    * 新しい順に並んだセッションから停滞レベルを判定する（単体テスト用に分離）。
    *
-   * <p>手順: (1) ディロード週のセッションを除外する。(2) 先頭3件を判定窓、4件目を基準とする。 (3)
-   * 判定窓のうち計画強度が基準より低いセッションを除外し、足りない分は過去から補って(2)に戻る。 (4) 窓内のどのセッションも基準の値を上回っていなければ、その指標は停滞。
+   * <p>手順: (1) ディロード週のセッションを除く。(2) 先頭3件を判定窓とする（強度では除外しない）。 (3) 判定窓の各セッションについて比較相手を探す。
+   * 計画強度がある回は、それより古い回のうち計画強度が同じで最も新しい回。計画強度が無い回（期分けプログラム外）は、判定窓より古い計画外の回のうち最も新しい回。 (4)
+   * 1件でも比較相手が無ければ判定不可。(5) 3件とも比較相手を上回っていなければ、その指標は停滞。
    */
   static StagnationLevel evaluateSessions(List<Session> recentFirst) {
     if (recentFirst == null) return StagnationLevel.INSUFFICIENT;
-    List<Session> candidates = new ArrayList<>();
+    List<Session> sessions = new ArrayList<>();
     for (Session s : recentFirst) {
-      if (!s.deload()) candidates.add(s);
+      if (!s.deload()) sessions.add(s);
     }
-    while (true) {
-      if (candidates.size() < REQUIRED_SESSIONS) return StagnationLevel.INSUFFICIENT;
-      Session reference = candidates.get(WINDOW_SIZE);
-      List<Session> lowerIntensity = new ArrayList<>();
-      for (int i = 0; i < WINDOW_SIZE; i++) {
-        Session s = candidates.get(i);
-        if (isLowerIntensity(s, reference)) lowerIntensity.add(s);
-      }
-      if (lowerIntensity.isEmpty()) {
-        List<Session> window = candidates.subList(0, WINDOW_SIZE);
-        boolean volumeStagnant = noneExceeds(window, reference, Session::totalVolume);
-        boolean maxWeightStagnant = noneExceeds(window, reference, Session::maxWeight);
-        if (volumeStagnant && maxWeightStagnant) return StagnationLevel.STRONG;
-        if (volumeStagnant) return StagnationLevel.MILD;
-        return StagnationLevel.NONE;
-      }
-      candidates.removeAll(lowerIntensity);
+    if (sessions.size() <= WINDOW_SIZE) return StagnationLevel.INSUFFICIENT;
+
+    boolean volumeStagnant = true;
+    boolean maxWeightStagnant = true;
+    for (int i = 0; i < WINDOW_SIZE; i++) {
+      Session target = sessions.get(i);
+      Session comparison = findComparison(sessions, i);
+      if (comparison == null) return StagnationLevel.INSUFFICIENT;
+      if (target.totalVolume() > comparison.totalVolume()) volumeStagnant = false;
+      if (target.maxWeight() > comparison.maxWeight()) maxWeightStagnant = false;
     }
+    if (volumeStagnant && maxWeightStagnant) return StagnationLevel.STRONG;
+    if (volumeStagnant) return StagnationLevel.MILD;
+    return StagnationLevel.NONE;
   }
 
-  /** 両方とも期分けプログラム内で、判定窓側の計画強度が基準より低い場合のみ比較不成立とする。 */
-  private static boolean isLowerIntensity(Session s, Session reference) {
-    return s.plannedIntensityPct() != null
-        && reference.plannedIntensityPct() != null
-        && s.plannedIntensityPct().compareTo(reference.plannedIntensityPct()) < 0;
+  /** 判定窓のindex番目のセッションの比較相手。見つからなければnull。 */
+  private static Session findComparison(List<Session> sessions, int index) {
+    Session target = sessions.get(index);
+    if (target.plannedIntensityPct() == null) {
+      // 期分けプログラム外: 判定窓の直前にある計画外のセッション
+      for (int j = WINDOW_SIZE; j < sessions.size(); j++) {
+        if (sessions.get(j).plannedIntensityPct() == null) return sessions.get(j);
+      }
+      return null;
+    }
+    for (int j = index + 1; j < sessions.size(); j++) {
+      BigDecimal pct = sessions.get(j).plannedIntensityPct();
+      if (pct != null && sameIntensity(target.plannedIntensityPct(), pct)) return sessions.get(j);
+    }
+    return null;
   }
 
-  private static boolean noneExceeds(
-      List<Session> window, Session reference, Function<Session, Double> metric) {
-    double base = metric.apply(reference);
-    for (Session s : window) {
-      if (metric.apply(s) > base) return false;
-    }
-    return true;
+  static boolean sameIntensity(BigDecimal a, BigDecimal b) {
+    return a.subtract(b).abs().compareTo(INTENSITY_MATCH_TOLERANCE_PCT) <= 0;
   }
 
   private static double value(Double d) {
