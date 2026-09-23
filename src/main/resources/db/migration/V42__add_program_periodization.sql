@@ -128,3 +128,23 @@ CREATE TABLE item_stagnation_evaluations (
   evaluated_at DATETIME NOT NULL,
   UNIQUE KEY uq_ise_user_item (user_id, item_name)
 );
+
+-- トレーナーからの期分けプログラムの「案」（2026-09-23 USER確定）。
+-- トレーナーは実施中プログラムを直接作成・編集できず、案として送る。トレーニー本人が
+-- 「今すぐ切り替える」「今のプログラムが終わったら開始（予約）」「断る」を選ぶ。
+CREATE TABLE program_cycle_proposals (
+  id                BIGINT AUTO_INCREMENT PRIMARY KEY,
+  trainee_user_id   BIGINT NOT NULL,
+  trainer_user_id   BIGINT NOT NULL,
+  preset_program_id BIGINT NOT NULL COMMENT '案の内容（プリセット）。開始時にプリセットからサイクルを作る',
+  status            VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+                    COMMENT 'PENDING(承認待ち)/SCHEDULED(予約)/STARTED(開始済み)/DECLINED(却下)',
+  responded_at      DATETIME NULL COMMENT 'トレーニーが選択した日時',
+  started_cycle_id  BIGINT NULL COMMENT '開始したサイクルのID（STARTEDのとき）',
+  started_at        DATETIME NULL COMMENT 'サイクルを開始した日時（即時・予約の自動開始とも）',
+  created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_pcp_trainee_status (trainee_user_id, status),
+  INDEX idx_pcp_trainer (trainer_user_id, created_at),
+  CONSTRAINT fk_pcp_preset FOREIGN KEY (preset_program_id) REFERENCES preset_programs(id)
+);

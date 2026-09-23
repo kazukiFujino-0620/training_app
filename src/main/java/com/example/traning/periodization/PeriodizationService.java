@@ -335,7 +335,7 @@ public class PeriodizationService {
     };
   }
 
-  // ===================== 内部処理（TrainerPeriodizationServiceからも利用） =====================
+  // ===================== 内部処理（ProgramCycleProposalServiceからも利用） =====================
 
   /** プリセットの週・曜日・種目構成をコピーして新しいACTIVEサイクルを作る。既存ACTIVEサイクルはARCHIVEDにする。 */
   @Transactional
