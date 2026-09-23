@@ -1,6 +1,7 @@
 package com.example.traning.training.service;
 
 import com.example.traning.dao.TrainingMasterDao;
+import com.example.traning.periodization.PlannedWeightService;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
 import com.example.traning.training.SetType;
@@ -36,18 +37,21 @@ public class TrainingService {
   private final TrainingDetailDao trainingDetailDao;
   private final TrainingMasterDao trainingMasterDao;
   private final PersonalRecordService personalRecordService;
+  private final PlannedWeightService plannedWeightService;
 
   public TrainingService(
       TrainingServiceTransaction transaction,
       TrainingDao trainingDao,
       TrainingDetailDao trainingDetailDao,
       TrainingMasterDao trainingMasterDao,
-      PersonalRecordService personalRecordService) {
+      PersonalRecordService personalRecordService,
+      PlannedWeightService plannedWeightService) {
     this.transaction = transaction;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
     this.personalRecordService = personalRecordService;
+    this.plannedWeightService = plannedWeightService;
   }
 
   public void save(Training training, Principal principal) {
@@ -389,16 +393,27 @@ public class TrainingService {
     List<Double> maxWeights = new ArrayList<>();
     List<Double> totalVols = new ArrayList<>();
 
+    List<LocalDate> labelDates = new ArrayList<>();
+
     for (TrainingDetailDao.GrowthResult r : results) {
       labels.add(r.weekLabel);
       maxWeights.add(r.maxWeight);
       totalVols.add(r.totalVolume);
+      // week_labelは週内最初のトレーニング日（yyyy-MM-dd）。計画値算出の代表日として使う
+      labelDates.add(LocalDate.parse(r.weekLabel));
     }
 
+    // 機能見直し-1-#3（QA Q3-8）: 期分けプログラムの計画値。期分け未利用なら全件null
+    List<Double> plannedWeights =
+        plannedWeightService.calculatePlannedWeights(
+            userId, itemName, startDate, endDate, labelDates);
+
+    // Map.ofはnull要素を含むリストも値として保持できる（null禁止はキー・値そのものに対してのみ）
     return Map.of(
         "labels", labels,
         "maxWeight", maxWeights,
-        "totalVolume", totalVols);
+        "totalVolume", totalVols,
+        "plannedWeight", plannedWeights);
   }
 
   public PreviousTrainingResponse getPreviousTraining(Long userId, String itemName) {
