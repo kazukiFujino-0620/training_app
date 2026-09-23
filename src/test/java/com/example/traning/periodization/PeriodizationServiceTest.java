@@ -352,21 +352,105 @@ class PeriodizationServiceTest {
     verify(programCycleDao, never()).markRenewDecidedById(anyLong(), any());
   }
 
-  @Test
-  void renewCycle_REPEAT_SAMEは直近と同じプリセットとtierで新サイクルを作る() {
-    when(programCycleDao.selectActiveByUserId(USER)).thenReturn(Optional.empty());
+  private ProgramCycle completedCustomCycle() {
     ProgramCycle done = activeCycle(USER, "INTERMEDIATE_CUSTOM");
     done.setStatus("COMPLETED");
-    done.setSourcePresetId(7L);
-    when(programCycleDao.selectRecentByUserId(USER, 1)).thenReturn(List.of(done));
-    when(presetProgramDao.selectById(7L)).thenReturn(Optional.of(preset(0L)));
-    stubPresetContents();
+    done.setName("自作3週");
+    done.setTotalWeeks(3);
+    ProgramCycleWeek w = new ProgramCycleWeek();
+    w.setWeekNumber(3);
+    w.setTargetIntensityPct(new BigDecimal("55.0"));
+    w.setDeload(true);
+    when(programCycleDao.selectWeeksByCycleId(10L)).thenReturn(List.of(w));
+    ProgramCycleDayTemplate d = new ProgramCycleDayTemplate();
+    d.setId(300L);
+    d.setWeekNumber(1);
+    d.setDayOfWeek("TUE");
+    d.setPartCode("LEG");
+    when(programCycleDao.selectDayTemplatesByCycleId(10L)).thenReturn(List.of(d));
+    ProgramCycleDayTemplateItem edited = new ProgramCycleDayTemplateItem();
+    edited.setDayTemplateId(300L);
+    edited.setItemName("スクワット");
+    edited.setDisplayOrder(1);
+    edited.setTargetSets(5);
+    when(programCycleDao.selectItemsByCycleId(10L)).thenReturn(List.of(edited));
+    return done;
+  }
 
-    assertThat(service.renewCycle(USER, RenewChoice.REPEAT_SAME, null)).isPresent();
-    verify(programCycleDao).markRenewDecidedById(eq(10L), any());
+  @Test
+  void renewCycle_REPEAT_SAMEは直前のサイクルの内容とtierをコピーする() {
+    when(programCycleDao.selectActiveByUserId(USER)).thenReturn(Optional.empty());
+    ProgramCycle done = completedCustomCycle();
+    when(programCycleDao.selectRecentByUserId(USER, 1)).thenReturn(List.of(done));
+    doAnswer(
+            inv -> {
+              ((ProgramCycle) inv.getArgument(0)).setId(77L);
+              return 1;
+            })
+        .when(programCycleDao)
+        .insert(any(ProgramCycle.class));
+    doAnswer(
+            inv -> {
+              ((ProgramCycleDayTemplate) inv.getArgument(0)).setId(700L);
+              return 1;
+            })
+        .when(programCycleDao)
+        .insertDayTemplate(any(ProgramCycleDayTemplate.class));
+    PersonalRecord pr = new PersonalRecord();
+    pr.setMaxWeight(120.0);
+    pr.setMaxReps(1);
+    when(personalRecordService.getByUserIdAndItem(USER, "スクワット")).thenReturn(Optional.of(pr));
+
+    assertThat(service.renewCycle(USER, RenewChoice.REPEAT_SAME, null)).contains(77L);
+
     ArgumentCaptor<ProgramCycle> cycle = ArgumentCaptor.forClass(ProgramCycle.class);
     verify(programCycleDao).insert(cycle.capture());
     assertThat(cycle.getValue().getTier()).isEqualTo("INTERMEDIATE_CUSTOM");
+    assertThat(cycle.getValue().getName()).isEqualTo("自作3週");
+    assertThat(cycle.getValue().getTotalWeeks()).isEqualTo(3);
+    assertThat(cycle.getValue().getStatus()).isEqualTo("ACTIVE");
+    ArgumentCaptor<ProgramCycleWeek> week = ArgumentCaptor.forClass(ProgramCycleWeek.class);
+    verify(programCycleDao).insertWeek(week.capture());
+    assertThat(week.getValue().getCycleId()).isEqualTo(77L);
+    assertThat(week.getValue().getDeload()).isTrue();
+    ArgumentCaptor<ProgramCycleDayTemplateItem> item =
+        ArgumentCaptor.forClass(ProgramCycleDayTemplateItem.class);
+    verify(programCycleDao).insertDayTemplateItem(item.capture());
+    assertThat(item.getValue().getDayTemplateId()).isEqualTo(700L);
+    assertThat(item.getValue().getItemName()).isEqualTo("スクワット");
+    assertThat(item.getValue().getTargetSets()).isEqualTo(5); // 編集結果を引き継ぐ
+    // 基準1RMは新サイクル開始時点のPRで取り直す
+    ArgumentCaptor<ProgramCycleItemBaseline> baseline =
+        ArgumentCaptor.forClass(ProgramCycleItemBaseline.class);
+    verify(programCycleDao).insertItemBaseline(baseline.capture());
+    assertThat(baseline.getValue().getCycleId()).isEqualTo(77L);
+    assertThat(baseline.getValue().getBaselineOneRm()).isEqualByComparingTo("120.0");
+    verify(programCycleDao).markRenewDecidedById(eq(10L), any());
+    verify(presetProgramDao, never()).selectById(anyLong());
+  }
+
+  @Test
+  void renewCycle_REPEAT_SAMEはトレーナー作成サイクルのtierと作成者も引き継ぐ() {
+    when(programCycleDao.selectActiveByUserId(USER)).thenReturn(Optional.empty());
+    ProgramCycle done = completedCustomCycle();
+    done.setTier("TRAINER_MANAGED");
+    done.setCreatedByTrainerId(42L);
+    done.setSourcePresetId(7L);
+    when(programCycleDao.selectRecentByUserId(USER, 1)).thenReturn(List.of(done));
+    doAnswer(
+            inv -> {
+              ((ProgramCycle) inv.getArgument(0)).setId(78L);
+              return 1;
+            })
+        .when(programCycleDao)
+        .insert(any(ProgramCycle.class));
+
+    assertThat(service.renewCycle(USER, RenewChoice.REPEAT_SAME, null)).contains(78L);
+
+    ArgumentCaptor<ProgramCycle> cycle = ArgumentCaptor.forClass(ProgramCycle.class);
+    verify(programCycleDao).insert(cycle.capture());
+    assertThat(cycle.getValue().getTier()).isEqualTo("TRAINER_MANAGED");
+    assertThat(cycle.getValue().getCreatedByTrainerId()).isEqualTo(42L);
     assertThat(cycle.getValue().getSourcePresetId()).isEqualTo(7L);
   }
 

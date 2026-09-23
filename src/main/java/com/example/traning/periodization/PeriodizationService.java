@@ -319,20 +319,7 @@ public class PeriodizationService {
     programCycleDao.markRenewDecidedById(last.getId(), java.time.LocalDateTime.now());
     LocalDate today = LocalDate.now();
     return switch (choice) {
-      case REPEAT_SAME -> {
-        if (last.getSourcePresetId() == null) {
-          throw new ResponseStatusException(HttpStatus.CONFLICT, "継続元のプログラムが見つかりません");
-        }
-        // 参照範囲外（所属店舗の変更等）になったプリセットは継続できない（findVisiblePresetで404）
-        PresetProgram preset = findVisiblePreset(userId, last.getSourcePresetId());
-        yield Optional.of(
-            createCycleFromPreset(
-                userId,
-                preset,
-                CycleTier.valueOf(last.getTier()),
-                last.getCreatedByTrainerId(),
-                today));
-      }
+      case REPEAT_SAME -> Optional.of(copyCycle(userId, last, today));
       case CHOOSE_NEW_PRESET -> {
         if (newPresetProgramId == null) {
           throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "プログラムを選択してください");
@@ -397,6 +384,56 @@ public class PeriodizationService {
         item.setTargetSets(pi.getTargetSets());
         programCycleDao.insertDayTemplateItem(item);
         itemNames.add(pi.getItemName());
+      }
+    }
+    snapshotBaselines(cycleId, userId, itemNames);
+    return cycleId;
+  }
+
+  /**
+   * 直前のサイクルの内容（週構成・週ごとの強度・ディロード週・曜日ごとの部位と種目。ユーザーの編集結果を含む）を そのままコピーして新しいACTIVEサイクルを作る（REPEAT_SAME、QA
+   * 2026-09-23 USER確定A）。tier・採用元プリセット・ 作成トレーナーは引き継ぐ。成長グラフの計画値の基準1RMは、設計書3-1節の「採用/作成時点のスナップショット」に従い
+   * 新サイクル開始時点のPRで取り直す。
+   */
+  private Long copyCycle(Long userId, ProgramCycle source, LocalDate startDate) {
+    ProgramCycle cycle = new ProgramCycle();
+    cycle.setUserId(userId);
+    cycle.setName(source.getName());
+    cycle.setTotalWeeks(source.getTotalWeeks());
+    cycle.setStartDate(startDate);
+    cycle.setTier(source.getTier());
+    cycle.setSourcePresetId(source.getSourcePresetId());
+    cycle.setCreatedByTrainerId(source.getCreatedByTrainerId());
+    cycle.setStatus(CycleStatus.ACTIVE.name());
+    programCycleDao.insert(cycle);
+    Long cycleId = cycle.getId();
+
+    for (ProgramCycleWeek sw : programCycleDao.selectWeeksByCycleId(source.getId())) {
+      ProgramCycleWeek w = new ProgramCycleWeek();
+      w.setCycleId(cycleId);
+      w.setWeekNumber(sw.getWeekNumber());
+      w.setTargetIntensityPct(sw.getTargetIntensityPct());
+      w.setDeload(Boolean.TRUE.equals(sw.getDeload()));
+      programCycleDao.insertWeek(w);
+    }
+    Map<Long, List<ProgramCycleDayTemplateItem>> sourceItems =
+        groupItems(programCycleDao.selectItemsByCycleId(source.getId()));
+    Set<String> itemNames = new LinkedHashSet<>();
+    for (ProgramCycleDayTemplate sd : programCycleDao.selectDayTemplatesByCycleId(source.getId())) {
+      ProgramCycleDayTemplate d = new ProgramCycleDayTemplate();
+      d.setCycleId(cycleId);
+      d.setWeekNumber(sd.getWeekNumber());
+      d.setDayOfWeek(sd.getDayOfWeek());
+      d.setPartCode(sd.getPartCode());
+      programCycleDao.insertDayTemplate(d);
+      for (ProgramCycleDayTemplateItem si : sourceItems.getOrDefault(sd.getId(), List.of())) {
+        ProgramCycleDayTemplateItem item = new ProgramCycleDayTemplateItem();
+        item.setDayTemplateId(d.getId());
+        item.setItemName(si.getItemName());
+        item.setDisplayOrder(si.getDisplayOrder());
+        item.setTargetSets(si.getTargetSets());
+        programCycleDao.insertDayTemplateItem(item);
+        itemNames.add(si.getItemName());
       }
     }
     snapshotBaselines(cycleId, userId, itemNames);
