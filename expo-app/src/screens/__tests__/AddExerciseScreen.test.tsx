@@ -4,7 +4,7 @@ import path from 'path';
 import { StyleSheet } from 'react-native';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react-native';
 import AddExerciseScreen from '../AddExerciseScreen';
-import { masterApi, trainingApi, formGuideApi } from '../../api/client';
+import { masterApi, trainingApi, formGuideApi, restPreferenceApi } from '../../api/client';
 
 // BUG-4 / BUG-9 単体テスト
 // 対象: src/screens/AddExerciseScreen.tsx
@@ -15,8 +15,14 @@ jest.mock('../../api/client', () => ({
   trainingApi: {
     getTrainingHistory: jest.fn(),
     addTraining: jest.fn(),
+    groupSuperset: jest.fn(),
   },
   formGuideApi: { get: jest.fn() },
+  restPreferenceApi: {
+    list: jest.fn(),
+    upsert: jest.fn(),
+    delete: jest.fn(),
+  },
 }));
 
 const mockItems = [
@@ -37,6 +43,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   (masterApi.getItems as jest.Mock).mockResolvedValue({ data: mockItems });
   (trainingApi.getTrainingHistory as jest.Mock).mockResolvedValue({ data: [] });
+  (restPreferenceApi.list as jest.Mock).mockResolvedValue({ data: [] });
 });
 
 describe('BUG-4: AddExerciseScreen 部位フィルターの文字化け', () => {
@@ -271,5 +278,98 @@ describe('機能見直し-1-#1 バグ修正: 「…」設定モーダルがpageS
     expect(modalClose).toBeGreaterThan(modalOpen);
     expect(itemSettingsModalIndex).toBeGreaterThan(modalOpen);
     expect(itemSettingsModalIndex).toBeLessThan(modalClose);
+  });
+});
+
+describe('機能見直し-1-#1: 「…」モーダルからのスーパーセット新規ペア作成', () => {
+  async function openBlocksWithTwoItems() {
+    const result = await render(<AddExerciseScreen navigation={navigation} route={route} />);
+    await waitFor(() => expect(screen.getByText('ベンチプレス')).toBeTruthy());
+    await fireEvent.press(screen.getByText('ベンチプレス'));
+    await fireEvent.press(screen.getByText('デッドリフト'));
+    await fireEvent.press(screen.getByText(/次へ/));
+    await waitFor(() => expect(screen.getByText('2種目を登録')).toBeTruthy());
+    return result;
+  }
+
+  it('自分以外に選択中の種目が無い場合は「他の種目を追加するとペアを組めます」と表示される', async () => {
+    await render(<AddExerciseScreen navigation={navigation} route={route} />);
+    await waitFor(() => expect(screen.getByText('ベンチプレス')).toBeTruthy());
+    await fireEvent.press(screen.getByText('ベンチプレス'));
+    await fireEvent.press(screen.getByText(/次へ/));
+    await waitFor(() => expect(screen.getByText('1種目を登録')).toBeTruthy());
+
+    await fireEvent.press(screen.getByLabelText('ベンチプレスの設定'));
+    await waitFor(() =>
+      expect(screen.getByText('他の種目を追加するとペアを組めます')).toBeTruthy(),
+    );
+  });
+
+  it('候補から種目を選ぶとペアが組まれ、種目一覧の両方にSUPERバッジが表示される', async () => {
+    await openBlocksWithTwoItems();
+    expect(screen.queryByText('SUPER')).toBeNull();
+
+    await fireEvent.press(screen.getByLabelText('ベンチプレスの設定'));
+    await waitFor(() => expect(screen.getByLabelText('デッドリフトとペアを組む')).toBeTruthy());
+    await fireEvent.press(screen.getByLabelText('デッドリフトとペアを組む'));
+
+    await fireEvent.press(screen.getByLabelText('閉じる'));
+    await waitFor(() => expect(screen.getAllByText('SUPER')).toHaveLength(2));
+  });
+
+  it('ペアを解除するとSUPERバッジが消える', async () => {
+    await openBlocksWithTwoItems();
+
+    await fireEvent.press(screen.getByLabelText('ベンチプレスの設定'));
+    await fireEvent.press(screen.getByLabelText('デッドリフトとペアを組む'));
+    await fireEvent.press(screen.getByLabelText('閉じる'));
+    await waitFor(() => expect(screen.getAllByText('SUPER')).toHaveLength(2));
+
+    await fireEvent.press(screen.getByLabelText('ベンチプレスの設定'));
+    await waitFor(() => expect(screen.getByLabelText('スーパーセットのペアを解除')).toBeTruthy());
+    await fireEvent.press(screen.getByLabelText('スーパーセットのペアを解除'));
+    await fireEvent.press(screen.getByLabelText('閉じる'));
+
+    expect(screen.queryByText('SUPER')).toBeNull();
+  });
+
+  it('種目ブロックを削除すると、その種目とのペアも自動的に解除される', async () => {
+    await openBlocksWithTwoItems();
+
+    await fireEvent.press(screen.getByLabelText('ベンチプレスの設定'));
+    await fireEvent.press(screen.getByLabelText('デッドリフトとペアを組む'));
+    await fireEvent.press(screen.getByLabelText('閉じる'));
+    await waitFor(() => expect(screen.getAllByText('SUPER')).toHaveLength(2));
+
+    // ベンチプレスのブロックを削除（✕ボタン。行内で複数の✕があるため先頭のブロック削除✕を取得）
+    await fireEvent.press(screen.getAllByText('✕')[0]);
+
+    expect(screen.queryByText('SUPER')).toBeNull();
+  });
+
+  it('ペアを組んだ2種目とも登録成功した場合、trainingApi.groupSupersetが両方のtrainingIdで呼ばれる', async () => {
+    (trainingApi.addTraining as jest.Mock)
+      .mockResolvedValueOnce({ data: 101 })
+      .mockResolvedValueOnce({ data: 102 });
+    (trainingApi.groupSuperset as jest.Mock).mockResolvedValue({ data: { supersetGroupId: 1 } });
+
+    await openBlocksWithTwoItems();
+    await fireEvent.press(screen.getByLabelText('ベンチプレスの設定'));
+    await fireEvent.press(screen.getByLabelText('デッドリフトとペアを組む'));
+    await fireEvent.press(screen.getByLabelText('閉じる'));
+
+    // 重量・回数を入力
+    await fireEvent.press(screen.getAllByText('＋ セット追加')[0]);
+    await fireEvent.press(screen.getAllByText('＋ セット追加')[1]);
+    const weightInputs = screen.getAllByPlaceholderText('重量');
+    const repsInputs = screen.getAllByPlaceholderText('回数');
+    await fireEvent.changeText(weightInputs[0], '60');
+    await fireEvent.changeText(repsInputs[0], '10');
+    await fireEvent.changeText(weightInputs[1], '50');
+    await fireEvent.changeText(repsInputs[1], '10');
+
+    await fireEvent.press(screen.getByText('登録'));
+
+    await waitFor(() => expect(trainingApi.groupSuperset).toHaveBeenCalledWith([101, 102]));
   });
 });

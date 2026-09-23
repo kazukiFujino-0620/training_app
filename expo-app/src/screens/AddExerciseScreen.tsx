@@ -60,8 +60,9 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
   const [blocksVisible, setBlocksVisible] = useState(false);
   const [blocks, setBlocks] = useState<TrainingBlock[]>([]);
   const [saving, setSaving] = useState(false);
-  // F-M2: 2種目選択時のみ「スーパーセットにする」を選択可能
-  const [supersetPair, setSupersetPair] = useState(false);
+  // 機能見直し-1-#1: 登録前のスーパーセットのペア設定（item.id -> ペア相手のitem.id、双方向に保持）。
+  // 「…」設定モーダルから任意の2種目を選んでペアを組める（F-M2の「2種目選択時のみ上部チェックボックス」を廃止し統合）。
+  const [supersetPairs, setSupersetPairs] = useState<Record<number, number>>({});
 
   // 機能見直し-1-#1: 種目名横「…」ボタンから開く休憩時間設定モーダル
   const [settingsItemName, setSettingsItemName] = useState<string | null>(null);
@@ -185,7 +186,7 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
   function closeBlocks() {
     setBlocksVisible(false);
     setBlocks([]);
-    setSupersetPair(false);
+    setSupersetPairs({});
   }
 
   function updateSet(blockIndex: number, setIndex: number, field: keyof SetConfig, value: string) {
@@ -219,8 +220,36 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
 
   function removeBlock(blockIndex: number) {
     setBlocks((prev) => {
-      const next = prev.filter((_, bi) => bi !== blockIndex);
-      if (next.length !== 2) setSupersetPair(false);
+      const removedId = prev[blockIndex]?.item.id;
+      if (removedId != null) unpairItem(removedId);
+      return prev.filter((_, bi) => bi !== blockIndex);
+    });
+  }
+
+  /** 機能見直し-1-#1: 指定した種目のスーパーセットペアを解除する（双方向のエントリを削除）。 */
+  function unpairItem(itemId: number) {
+    setSupersetPairs((prev) => {
+      const partnerId = prev[itemId];
+      if (partnerId == null) return prev;
+      const next = { ...prev };
+      delete next[itemId];
+      delete next[partnerId];
+      return next;
+    });
+  }
+
+  /** 機能見直し-1-#1: itemIdの種目をpartnerIdとペアにする（双方の既存ペアは自動的に解除してから組み替える）。 */
+  function pairItems(itemId: number, partnerId: number) {
+    setSupersetPairs((prev) => {
+      const next = { ...prev };
+      const prevPartnerOfItem = next[itemId];
+      const prevPartnerOfPartner = next[partnerId];
+      if (prevPartnerOfItem != null) delete next[prevPartnerOfItem];
+      if (prevPartnerOfPartner != null) delete next[prevPartnerOfPartner];
+      delete next[itemId];
+      delete next[partnerId];
+      next[itemId] = partnerId;
+      next[partnerId] = itemId;
       return next;
     });
   }
@@ -255,6 +284,7 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
   async function handleRegisterAll() {
     const targets = blocks
       .map((b) => ({
+        itemId: b.item.id,
         item: b.item,
         // 有酸素運動（ita2-1）はセット概念が無いため、重量・回数の入力欄自体を表示しない。
         // weight=0/reps=0のダミー1セットとして登録し、実施時間・距離・平均心拍数・
@@ -277,7 +307,9 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
     let successCount = 0;
     let failCount = 0;
     const failedNames: string[] = [];
-    const newTrainingIds: number[] = [];
+    // 機能見直し-1-#1: ペアリングはitem.id単位で管理しているため、登録成功後の実際のtrainingIdを
+    // item.idからも引けるようにしておく（グループ化APIはtrainingId同士のペアを要求するため）。
+    const trainingIdByItemId: Record<number, number> = {};
 
     for (const t of targets) {
       try {
@@ -291,7 +323,7 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
             setType: s.setType,
           })),
         });
-        newTrainingIds.push(data);
+        trainingIdByItemId[t.itemId] = data;
         successCount += 1;
       } catch {
         failCount += 1;
@@ -299,12 +331,22 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
       }
     }
 
-    // F-M2: 2種目とも登録成功し、スーパーセット指定がある場合はグループ化する
-    if (supersetPair && newTrainingIds.length === 2) {
-      try {
-        await trainingApi.groupSuperset(newTrainingIds);
-      } catch {
-        // グループ化失敗は登録自体の成否に影響させない（個別種目としては登録済みのため）
+    // 機能見直し-1-#1: 「…」モーダルで組んだペアのうち、両種目とも登録成功したものだけグループ化する。
+    // supersetPairsは双方向（a->b, b->a）に保持しているため、同じペアを2回処理しないようprocessedで防ぐ。
+    const processed = new Set<number>();
+    for (const [itemIdStr, partnerId] of Object.entries(supersetPairs)) {
+      const itemId = Number(itemIdStr);
+      if (processed.has(itemId) || processed.has(partnerId)) continue;
+      processed.add(itemId);
+      processed.add(partnerId);
+      const idA = trainingIdByItemId[itemId];
+      const idB = trainingIdByItemId[partnerId];
+      if (idA != null && idB != null) {
+        try {
+          await trainingApi.groupSuperset([idA, idB]);
+        } catch {
+          // グループ化失敗は登録自体の成否に影響させない（個別種目としては登録済みのため）
+        }
       }
     }
 
@@ -420,22 +462,6 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* F-M2: 2種目選択時のみ、スーパーセット（休憩なし連続実施）としてペアリングする選択肢を表示 */}
-          {blocks.length === 2 && (
-            <TouchableOpacity
-              style={[styles.supersetToggle, supersetPair && styles.supersetToggleActive]}
-              onPress={() => setSupersetPair((v) => !v)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.supersetCheckbox, supersetPair && styles.supersetCheckboxActive]}>
-                {supersetPair && <Text style={styles.supersetCheckMark}>✓</Text>}
-              </View>
-              <Text style={styles.supersetToggleText}>
-                この2種目をスーパーセットにする（休憩なしで交互に実施）
-              </Text>
-            </TouchableOpacity>
-          )}
-
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -445,7 +471,10 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
                 const currentHistory = block.history[block.historyDateIndex];
                 const hasHistory = block.history.length > 0;
                 return (
-                  <View key={block.item.id} style={styles.block}>
+                  <View
+                    key={block.item.id}
+                    style={[styles.block, supersetPairs[block.item.id] != null && styles.blockPaired]}
+                  >
                     {/* ブロックヘッダー：種目名 + 前回記録ナビ + 削除 */}
                     <View style={styles.blockHeader}>
                       <View style={styles.reorderBtnGroup}>
@@ -464,6 +493,10 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
                           <Text style={[styles.reorderBtnText, blockIndex === blocks.length - 1 && styles.reorderBtnTextDisabled]}>▼</Text>
                         </TouchableOpacity>
                       </View>
+                      {/* 機能見直し-1-#1: 「…」モーダルでペアを組んだ種目に付けるバッジ */}
+                      {supersetPairs[block.item.id] != null && (
+                        <Text style={styles.superBadge}>SUPER</Text>
+                      )}
                       <Text style={styles.blockTitle} numberOfLines={1} ellipsizeMode="tail">
                         {block.item.itemName}
                       </Text>
@@ -588,11 +621,30 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
               対してさらに別のモーダルをpresentしようとするとUIKitに拒否され
               （"Attempt to present ... which is already presenting ..."）、何も起こらなくなる。
               兄弟要素としてルート直下に置いていたのが原因だった（実機/シミュレータで再現確認済み）。 */}
-          <ItemSettingsModal
-            visible={settingsItemName !== null}
-            onClose={() => setSettingsItemName(null)}
-            itemName={settingsItemName ?? ''}
-          />
+          {(() => {
+            const settingsBlock = blocks.find((b) => b.item.itemName === settingsItemName);
+            const settingsItemId = settingsBlock?.item.id ?? null;
+            const pairedId = settingsItemId != null ? supersetPairs[settingsItemId] : undefined;
+            return (
+              <ItemSettingsModal
+                visible={settingsItemName !== null}
+                onClose={() => setSettingsItemName(null)}
+                itemName={settingsItemName ?? ''}
+                supersetPicker={
+                  settingsItemId != null
+                    ? {
+                        candidates: blocks
+                          .filter((b) => b.item.id !== settingsItemId)
+                          .map((b) => ({ key: b.item.id, name: b.item.itemName })),
+                        pairedKey: pairedId ?? null,
+                        onSelect: (partnerId) => pairItems(settingsItemId, Number(partnerId)),
+                        onUnpair: () => unpairItem(settingsItemId),
+                      }
+                    : undefined
+                }
+              />
+            );
+          })()}
         </SafeAreaView>
       </Modal>
 
@@ -665,29 +717,23 @@ const styles = StyleSheet.create({
   modalTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#222', paddingHorizontal: 8, textAlign: 'center' },
   saveText: { color: '#4CAF50', fontSize: 15, fontWeight: '700' },
   blocksScroll: { paddingBottom: 32 },
-  // F-M2: スーパーセットペアリングトグル
-  supersetToggle: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    marginHorizontal: 16, marginTop: 12, padding: 12,
-    borderRadius: 10, borderWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#fff',
-  },
-  supersetToggleActive: { borderColor: '#7c3aed', backgroundColor: '#F5F0FE' },
-  supersetCheckbox: {
-    width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: '#ccc',
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  supersetCheckboxActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
-  supersetCheckMark: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  supersetToggleText: { flex: 1, fontSize: 13, color: '#333', fontWeight: '600' },
   block: {
     backgroundColor: '#fff', marginHorizontal: 16, marginTop: 12,
     borderRadius: 12, borderWidth: 1, borderColor: '#eee', padding: 12,
   },
+  // 機能見直し-1-#1: スーパーセットのペアが組まれている種目ブロックを枠線で強調
+  blockPaired: { borderColor: '#7c3aed' },
   blockHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 8,
   },
   blockTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#222', paddingRight: 8 },
+  // 機能見直し-1-#1: 「…」モーダルでペアを組んだ種目に付けるバッジ
+  superBadge: {
+    fontSize: 9, fontWeight: '800', color: '#fff', backgroundColor: '#7c3aed',
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, marginRight: 6, flexShrink: 0,
+    overflow: 'hidden',
+  },
   // itバグ-10: 登録前の並び替え（上下ボタン）
   reorderBtnGroup: { flexDirection: 'column', gap: 2, marginRight: 8 },
   reorderBtn: {

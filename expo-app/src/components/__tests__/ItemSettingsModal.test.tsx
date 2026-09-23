@@ -159,4 +159,94 @@ describe('ItemSettingsModal', () => {
 
     expect(screen.queryByText('スーパーセット')).toBeNull();
   });
+
+  describe('supersetPicker（機能見直し-1-#1: 登録前の新規ペア作成UI）', () => {
+    it('candidatesが空の場合は「他の種目を追加するとペアを組めます」と表示する', async () => {
+      (restPreferenceApi.list as jest.Mock).mockResolvedValue({ data: [] });
+
+      await render(
+        <ItemSettingsModal
+          visible
+          itemName="ベンチプレス"
+          onClose={jest.fn()}
+          supersetPicker={{ candidates: [], pairedKey: null, onSelect: jest.fn(), onUnpair: jest.fn() }}
+        />,
+      );
+
+      await waitFor(() =>
+        expect(screen.getByText('他の種目を追加するとペアを組めます')).toBeTruthy(),
+      );
+    });
+
+    it('未ペア時は候補一覧を表示し、候補をタップするとonSelectが呼ばれる', async () => {
+      (restPreferenceApi.list as jest.Mock).mockResolvedValue({ data: [] });
+      const onSelect = jest.fn();
+
+      await render(
+        <ItemSettingsModal
+          visible
+          itemName="ベンチプレス"
+          onClose={jest.fn()}
+          supersetPicker={{
+            candidates: [{ key: 2, name: 'デッドリフト' }, { key: 3, name: 'スクワット' }],
+            pairedKey: null,
+            onSelect,
+            onUnpair: jest.fn(),
+          }}
+        />,
+      );
+
+      await waitFor(() => expect(screen.getByText('デッドリフト')).toBeTruthy());
+      expect(screen.getByText('スクワット')).toBeTruthy();
+      expect(screen.getByText('ペアにする種目を選んでください（休憩なしで交互に実施します）。')).toBeTruthy();
+
+      await fireEvent.press(screen.getByLabelText('デッドリフトとペアを組む'));
+
+      expect(onSelect).toHaveBeenCalledWith(2);
+    });
+
+    it('ペア済みの場合は現在のペアを表示し、「解除する」でonUnpairが呼ばれる', async () => {
+      (restPreferenceApi.list as jest.Mock).mockResolvedValue({ data: [] });
+      const onUnpair = jest.fn();
+
+      await render(
+        <ItemSettingsModal
+          visible
+          itemName="ベンチプレス"
+          onClose={jest.fn()}
+          supersetPicker={{
+            candidates: [{ key: 2, name: 'デッドリフト' }],
+            pairedKey: 2,
+            onSelect: jest.fn(),
+            onUnpair,
+          }}
+        />,
+      );
+
+      await waitFor(() => expect(screen.getByText('SUPER')).toBeTruthy());
+      expect(screen.getAllByText('デッドリフト').length).toBeGreaterThan(0);
+
+      await fireEvent.press(screen.getByLabelText('スーパーセットのペアを解除'));
+
+      expect(onUnpair).toHaveBeenCalled();
+    });
+
+    it('superset（記録済みグループ表示）と同時に指定しない場合、supersetPickerのみ表示される', async () => {
+      (restPreferenceApi.list as jest.Mock).mockResolvedValue({ data: [] });
+
+      await render(
+        <ItemSettingsModal
+          visible
+          itemName="ベンチプレス"
+          onClose={jest.fn()}
+          supersetPicker={{ candidates: [], pairedKey: null, onSelect: jest.fn(), onUnpair: jest.fn() }}
+        />,
+      );
+
+      await waitFor(() =>
+        expect(screen.getByText('他の種目を追加するとペアを組めます')).toBeTruthy(),
+      );
+      expect(screen.queryByText('グループを解除する')).toBeNull();
+    });
+  });
 });
