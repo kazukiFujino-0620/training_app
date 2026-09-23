@@ -13,6 +13,7 @@ import com.example.traning.mobile.dto.TrainingHistoryResponse;
 import com.example.traning.mobile.dto.UpdateSetRequest;
 import com.example.traning.mobile.dto.UpdateTrainingMemoRequest;
 import com.example.traning.mobile.dto.UpdateTrainingRequest;
+import com.example.traning.periodization.StagnationDetectionService;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
 import com.example.traning.restpreference.RestIntervalCalculationService;
@@ -58,6 +59,7 @@ public class MobileTrainingController {
   private final TrainingMasterDao trainingMasterDao;
   private final CalorieCalculator calorieCalculator;
   private final RestIntervalCalculationService restIntervalCalculationService;
+  private final StagnationDetectionService stagnationDetectionService;
 
   public MobileTrainingController(
       TrainingService trainingService,
@@ -67,7 +69,8 @@ public class MobileTrainingController {
       UserDao userDao,
       TrainingMasterDao trainingMasterDao,
       CalorieCalculator calorieCalculator,
-      RestIntervalCalculationService restIntervalCalculationService) {
+      RestIntervalCalculationService restIntervalCalculationService,
+      StagnationDetectionService stagnationDetectionService) {
     this.trainingService = trainingService;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
@@ -76,6 +79,7 @@ public class MobileTrainingController {
     this.trainingMasterDao = trainingMasterDao;
     this.calorieCalculator = calorieCalculator;
     this.restIntervalCalculationService = restIntervalCalculationService;
+    this.stagnationDetectionService = stagnationDetectionService;
   }
 
   /** 当日（またはdate指定日）のトレーニング一覧を返す。 各 Training に details リスト（セット情報）が含まれる。 */
@@ -308,6 +312,8 @@ public class MobileTrainingController {
 
         personalRecordService.updateIfBetter(
             userId, training.getMenu(), req.getWeight(), req.getReps(), LocalDate.now());
+        // 停滞判定（機能見直し-1-#3 QA Q3-4 2026-09-24確定: 記録保存時に判定して結果を保持）
+        stagnationDetectionService.evaluateAndStore(userId, training.getMenu());
         if (before.isEmpty() || req.getWeight() > before.get().getMaxWeight()) {
           isPR = true;
           prMessage = training.getMenu() + " 新記録！ " + req.getWeight() + "kg × " + req.getReps();

@@ -2,6 +2,7 @@ package com.example.traning.training.service;
 
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.periodization.PlannedWeightService;
+import com.example.traning.periodization.StagnationDetectionService;
 import com.example.traning.pr.PersonalRecord;
 import com.example.traning.pr.service.PersonalRecordService;
 import com.example.traning.training.SetType;
@@ -38,6 +39,7 @@ public class TrainingService {
   private final TrainingMasterDao trainingMasterDao;
   private final PersonalRecordService personalRecordService;
   private final PlannedWeightService plannedWeightService;
+  private final StagnationDetectionService stagnationDetectionService;
 
   public TrainingService(
       TrainingServiceTransaction transaction,
@@ -45,13 +47,15 @@ public class TrainingService {
       TrainingDetailDao trainingDetailDao,
       TrainingMasterDao trainingMasterDao,
       PersonalRecordService personalRecordService,
-      PlannedWeightService plannedWeightService) {
+      PlannedWeightService plannedWeightService,
+      StagnationDetectionService stagnationDetectionService) {
     this.transaction = transaction;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
     this.personalRecordService = personalRecordService;
     this.plannedWeightService = plannedWeightService;
+    this.stagnationDetectionService = stagnationDetectionService;
   }
 
   public void save(Training training, Principal principal) {
@@ -84,6 +88,11 @@ public class TrainingService {
               detail.getReps(),
               training.getTrainingDate());
         }
+      }
+
+      // 停滞判定（機能見直し-1-#3 QA Q3-4 2026-09-24確定: 記録保存時に判定して結果を保持）。失敗しても保存は成功扱い
+      if (!"CARDIO".equals(training.getPartCode())) {
+        stagnationDetectionService.evaluateAndStore(training.getUserId(), training.getMenu());
       }
     } catch (Exception e) {
       logger.error("トレーニングデータ保存中にエラー発生", e);
@@ -207,6 +216,12 @@ public class TrainingService {
                     ? currentDbData.getTrainingDate()
                     : LocalDate.now());
           }
+        }
+
+        // 停滞判定（記録保存時に判定して結果を保持。QA Q3-4 2026-09-24確定）
+        if (currentDbData != null && !"CARDIO".equals(currentDbData.getPartCode())) {
+          stagnationDetectionService.evaluateAndStore(
+              currentDbData.getUserId(), currentDbData.getMenu());
         }
       }
 

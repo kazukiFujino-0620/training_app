@@ -290,7 +290,8 @@ class PeriodizationServiceTest {
     pr.setMaxWeight(100.0);
     pr.setMaxReps(1);
     when(personalRecordService.getByUserIdAndItem(USER, "ベンチプレス")).thenReturn(Optional.of(pr));
-    when(stagnationDetectionService.evaluate(USER, "ベンチプレス")).thenReturn(StagnationLevel.MILD);
+    when(stagnationDetectionService.getStoredLevels(USER, List.of("ベンチプレス")))
+        .thenReturn(java.util.Map.of("ベンチプレス", StagnationLevel.STRONG));
 
     TodayAssignment t = service.getTodayAssignment(USER, START.plusDays(7)); // 2週目の月曜
 
@@ -298,8 +299,72 @@ class PeriodizationServiceTest {
     assertThat(t.weekNumber()).isEqualTo(2);
     assertThat(t.dayTemplate().partCode()).isEqualTo("CHEST");
     assertThat(t.dayTemplate().items().get(0).targetWeightKg()).isEqualTo(75.0);
+    // 保持結果はSTRONGだが、1種目だけの停滞なので全体はMILDまで（QA Q3-4 2026-09-24確定）
     assertThat(t.stagnationWarning()).isEqualTo("MILD");
-    assertThat(t.stagnantItems()).containsExactly("ベンチプレス");
+    assertThat(t.stagnantItems())
+        .containsExactly(new PeriodizationViews.ItemStagnation("ベンチプレス", "STRONG"));
+  }
+
+  @Test
+  void summarizeStagnation_複数種目が停滞しSTRONGを含めば全体STRONG() {
+    var summary =
+        PeriodizationService.summarizeStagnation(
+            java.util.Map.of(
+                "ベンチプレス", StagnationLevel.STRONG,
+                "スクワット", StagnationLevel.MILD,
+                "デッドリフト", StagnationLevel.NONE),
+            List.of("ベンチプレス", "スクワット", "デッドリフト", "ディップス"),
+            false);
+    assertThat(summary.overall()).isEqualTo(StagnationLevel.STRONG);
+    assertThat(summary.items())
+        .extracting(PeriodizationViews.ItemStagnation::itemName)
+        .containsExactly("ベンチプレス", "スクワット");
+  }
+
+  @Test
+  void summarizeStagnation_判定不可や未判定の種目は停滞として扱わない() {
+    var summary =
+        PeriodizationService.summarizeStagnation(
+            java.util.Map.of("ベンチプレス", StagnationLevel.INSUFFICIENT),
+            List.of("ベンチプレス", "スクワット"),
+            false);
+    assertThat(summary.overall()).isEqualTo(StagnationLevel.NONE);
+    assertThat(summary.items()).isEmpty();
+  }
+
+  @Test
+  void summarizeStagnation_今週か翌週がディロード週なら提案を出さない() {
+    var summary =
+        PeriodizationService.summarizeStagnation(
+            java.util.Map.of("ベンチプレス", StagnationLevel.STRONG, "スクワット", StagnationLevel.STRONG),
+            List.of("ベンチプレス", "スクワット"),
+            true);
+    assertThat(summary.overall()).isEqualTo(StagnationLevel.NONE);
+    assertThat(summary.items()).isEmpty();
+  }
+
+  @Test
+  void getTodayAssignment_翌週がディロード週なら停滞提案を出さない() {
+    ProgramCycle c = activeCycle(USER, "BEGINNER_PRESET");
+    when(programCycleDao.selectActiveByUserId(USER)).thenReturn(Optional.of(c));
+    ProgramCycleWeek w3 = new ProgramCycleWeek();
+    w3.setWeekNumber(3);
+    w3.setTargetIntensityPct(new BigDecimal("80.0"));
+    w3.setDeload(false);
+    ProgramCycleWeek w4 = new ProgramCycleWeek();
+    w4.setWeekNumber(4);
+    w4.setTargetIntensityPct(new BigDecimal("60.0"));
+    w4.setDeload(true);
+    when(programCycleDao.selectWeeksByCycleId(10L)).thenReturn(List.of(w3, w4));
+    lenient()
+        .when(stagnationDetectionService.getStoredLevels(any(), any()))
+        .thenReturn(java.util.Map.of("ベンチプレス", StagnationLevel.STRONG));
+
+    TodayAssignment t = service.getTodayAssignment(USER, START.plusDays(14)); // 3週目
+
+    assertThat(t.weekNumber()).isEqualTo(3);
+    assertThat(t.stagnationWarning()).isEqualTo("NONE");
+    assertThat(t.stagnantItems()).isEmpty();
   }
 
   @Test

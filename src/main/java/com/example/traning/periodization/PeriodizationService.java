@@ -10,6 +10,7 @@ import com.example.traning.periodization.PeriodizationViews.CycleDetail;
 import com.example.traning.periodization.PeriodizationViews.DayInput;
 import com.example.traning.periodization.PeriodizationViews.DayView;
 import com.example.traning.periodization.PeriodizationViews.ItemInput;
+import com.example.traning.periodization.PeriodizationViews.ItemStagnation;
 import com.example.traning.periodization.PeriodizationViews.ItemView;
 import com.example.traning.periodization.PeriodizationViews.PresetSummary;
 import com.example.traning.periodization.PeriodizationViews.TodayAssignment;
@@ -125,7 +126,8 @@ public class PeriodizationService {
             .map(d -> toDayView(d, itemsByDay, intensity, userId, oneRmCache))
             .orElse(null);
 
-    // 停滞判定の対象: 当日の種目。休養日（当日割当なし）の場合は当該週に予定されている全種目
+    // 停滞判定（QA Q3-4 2026-09-24確定）: 判定は記録保存時に済ませて保持しているため、ここでは再判定せず保持結果を表示する。
+    // 対象は当日の種目。休養日（当日割当なし）は今週予定の全種目。
     Set<String> targetItems = new LinkedHashSet<>();
     if (todayView != null) {
       todayView.items().forEach(i -> targetItems.add(i.itemName()));
@@ -138,15 +140,18 @@ public class PeriodizationService {
                       .getOrDefault(d.getId(), List.of())
                       .forEach(i -> targetItems.add(i.getItemName())));
     }
-    StagnationLevel overall = StagnationLevel.NONE;
-    List<String> stagnantItems = new ArrayList<>();
-    for (String itemName : targetItems) {
-      StagnationLevel level = stagnationDetectionService.evaluate(userId, itemName);
-      if (level != StagnationLevel.NONE) {
-        stagnantItems.add(itemName);
-        if (level.ordinal() > overall.ordinal()) overall = level;
-      }
-    }
+    boolean deloadThisWeek = week != null && Boolean.TRUE.equals(week.getDeload());
+    boolean deloadNextWeek =
+        programCycleDao.selectWeeksByCycleId(cycle.getId()).stream()
+            .anyMatch(
+                w -> w.getWeekNumber() == weekNumber + 1 && Boolean.TRUE.equals(w.getDeload()));
+    StagnationSummary stagnation =
+        summarizeStagnation(
+            stagnationDetectionService.getStoredLevels(userId, new ArrayList<>(targetItems)),
+            new ArrayList<>(targetItems),
+            deloadThisWeek || deloadNextWeek);
+    StagnationLevel overall = stagnation.overall();
+    List<ItemStagnation> stagnantItems = stagnation.items();
 
     return new TodayAssignment(
         true,
@@ -703,6 +708,35 @@ public class PeriodizationService {
       List<ProgramCycleDayTemplateItem> items) {
     return items.stream()
         .collect(Collectors.groupingBy(ProgramCycleDayTemplateItem::getDayTemplateId));
+  }
+
+  record StagnationSummary(StagnationLevel overall, List<ItemStagnation> items) {}
+
+  /**
+   * 種目別の保持結果から表示用の要約を作る（QA Q3-4 2026-09-24確定）。
+   *
+   * <ul>
+   *   <li>停滞（MILD/STRONG）の種目を明示する。
+   *   <li>1種目だけの停滞では全体のディロードを強く勧めない（全体の表示はMILDまで）。
+   *   <li>今週がディロード週、または翌週にディロード週が計画済みなら提案を出さない。
+   * </ul>
+   */
+  static StagnationSummary summarizeStagnation(
+      Map<String, StagnationLevel> stored, List<String> targetItems, boolean deloadSoon) {
+    if (deloadSoon) return new StagnationSummary(StagnationLevel.NONE, List.of());
+    List<ItemStagnation> items = new ArrayList<>();
+    StagnationLevel overall = StagnationLevel.NONE;
+    for (String itemName : targetItems) {
+      StagnationLevel level = stored.get(itemName);
+      if (level == StagnationLevel.MILD || level == StagnationLevel.STRONG) {
+        items.add(new ItemStagnation(itemName, level.name()));
+        if (level.ordinal() > overall.ordinal()) overall = level;
+      }
+    }
+    if (items.size() == 1 && overall == StagnationLevel.STRONG) {
+      overall = StagnationLevel.MILD;
+    }
+    return new StagnationSummary(overall, items);
   }
 
   private static TodayAssignment emptyAssignment(boolean cycleCompleted) {

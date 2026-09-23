@@ -116,3 +116,15 @@ CREATE TABLE program_cycle_item_baselines (
   UNIQUE KEY uq_pcib_cycle_item (cycle_id, item_name),
   CONSTRAINT fk_pcib_cycle FOREIGN KEY (cycle_id) REFERENCES program_cycles(id)
 );
+
+-- 停滞判定（ディロード提案）の結果（QA Q3-4 2026-09-24追記: 判定は記録保存時に行い結果を保持する）。
+-- 1ユーザー×1種目につき直近の判定結果のみを持つ。休養日等は再判定せずこの結果を表示する。
+CREATE TABLE item_stagnation_evaluations (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id      BIGINT NOT NULL,
+  item_name    VARCHAR(100) NOT NULL COLLATE utf8mb4_0900_as_cs
+               COMMENT '種目名。training_item_master.item_nameと同一表記で紐付け',
+  level        VARCHAR(20) NOT NULL COMMENT 'NONE/MILD/STRONG/INSUFFICIENT(記録不足で判定不可)',
+  evaluated_at DATETIME NOT NULL,
+  UNIQUE KEY uq_ise_user_item (user_id, item_name)
+);

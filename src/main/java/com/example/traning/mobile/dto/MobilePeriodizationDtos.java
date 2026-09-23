@@ -79,7 +79,7 @@ public final class MobilePeriodizationDtos {
       Boolean deload,
       DayResponse day,
       String stagnationWarning,
-      List<String> stagnantItems) {
+      List<StagnantItemResponse> stagnantItems) {
     public static TodayResponse from(PeriodizationViews.TodayAssignment t) {
       return new TodayResponse(
           t.hasActiveCycle(),
@@ -92,9 +92,13 @@ public final class MobilePeriodizationDtos {
           t.deload(),
           DayResponse.from(t.dayTemplate()),
           t.stagnationWarning(),
-          t.stagnantItems());
+          t.stagnantItems().stream()
+              .map(i -> new StagnantItemResponse(i.itemName(), i.level()))
+              .toList());
     }
   }
+
+  public record StagnantItemResponse(String itemName, String level) {}
 
   public record AdoptRequest(@NotNull Long presetProgramId) {}
 

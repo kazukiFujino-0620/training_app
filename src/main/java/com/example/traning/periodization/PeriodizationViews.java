@@ -42,7 +42,7 @@ public final class PeriodizationViews {
    * @param cycleCompleted サイクル終了後で、次の選択（renewCycle）を促す状態か（Q3-7）
    * @param dayTemplate 当日の曜日割当。休養日・サイクル無し・終了時はnull
    * @param stagnationWarning NONE/MILD/STRONG（Q3-4）
-   * @param stagnantItems 停滞と判定された種目名（stagnationWarningの根拠）
+   * @param stagnantItems 停滞と判定された種目と種目ごとの判定（stagnationWarningの根拠。1種目のみの場合、全体はMILDまで）
    */
   public record TodayAssignment(
       boolean hasActiveCycle,
@@ -55,7 +55,10 @@ public final class PeriodizationViews {
       Boolean deload,
       DayView dayTemplate,
       String stagnationWarning,
-      List<String> stagnantItems) {}
+      List<ItemStagnation> stagnantItems) {}
+
+  /** 種目ごとの停滞判定（MILD/STRONG）。 */
+  public record ItemStagnation(String itemName, String level) {}
 
   /** 白紙作成の週別入力（createCustomCycle）。 */
   public record WeekInput(Integer weekNumber, BigDecimal targetIntensityPct, Boolean deload) {}
