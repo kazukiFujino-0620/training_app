@@ -35,6 +35,10 @@ public interface ProgramCycleProposalDao {
   @Update(sqlFile = true)
   int markResponded(Long id, String status, LocalDateTime respondedAt);
 
+  /** トレーニー宛ての返事待ち（PENDING）の案をすべて「新しい案に置き換え」（SUPERSEDED）にする。 */
+  @Update(sqlFile = true)
+  int supersedePendingByTrainee(Long traineeUserId);
+
   @Update(sqlFile = true)
   int markStarted(Long id, Long startedCycleId, LocalDateTime startedAt);
 }

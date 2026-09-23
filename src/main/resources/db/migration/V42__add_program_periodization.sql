@@ -138,7 +138,7 @@ CREATE TABLE program_cycle_proposals (
   trainer_user_id   BIGINT NOT NULL,
   preset_program_id BIGINT NOT NULL COMMENT '案の内容（プリセット）。開始時にプリセットからサイクルを作る',
   status            VARCHAR(20) NOT NULL DEFAULT 'PENDING'
-                    COMMENT 'PENDING(承認待ち)/SCHEDULED(予約)/STARTED(開始済み)/DECLINED(却下)',
+                    COMMENT 'PENDING(承認待ち)/SCHEDULED(予約)/STARTED(開始済み)/DECLINED(却下)/SUPERSEDED(新しい案に置き換え)',
   responded_at      DATETIME NULL COMMENT 'トレーニーが選択した日時',
   started_cycle_id  BIGINT NULL COMMENT '開始したサイクルのID（STARTEDのとき）',
   started_at        DATETIME NULL COMMENT 'サイクルを開始した日時（即時・予約の自動開始とも）',

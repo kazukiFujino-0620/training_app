@@ -9,5 +9,7 @@ public enum ProposalStatus {
   /** サイクルとして開始済み（即時・予約の自動開始とも）。 */
   STARTED,
   /** トレーニーが断った。 */
-  DECLINED
+  DECLINED,
+  /** 返事待ちのうちに同じトレーニーへ新しい案が送られ、置き換えられた（2026-09-24 USER確定）。 */
+  SUPERSEDED
 }

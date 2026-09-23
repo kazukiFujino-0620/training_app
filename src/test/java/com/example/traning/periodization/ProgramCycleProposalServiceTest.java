@@ -70,6 +70,23 @@ class ProgramCycleProposalServiceTest {
     assertThat(saved.getValue().getStatus()).isEqualTo("PENDING");
     assertThat(saved.getValue().getTraineeUserId()).isEqualTo(5L);
     verify(periodizationService, never()).createCycleFromPreset(any(), any(), any(), any(), any());
+    // 返事待ちの前の案は新しい案に置き換える（予約中は対象外のSQL）
+    verify(proposalDao).supersedePendingByTrainee(5L);
+  }
+
+  @Test
+  void getOutstanding_返事待ちと予約中の案を返す() {
+    when(trainerAdviceService.listTrainees(trainer))
+        .thenReturn(List.of(User.builder().userId(5).assignedTrainerId(42L).build()));
+    ProgramCycleProposal scheduled = pending(5L);
+    scheduled.setStatus("SCHEDULED");
+    when(proposalDao.selectPendingByTrainee(5L)).thenReturn(List.of(pending(5L)));
+    when(proposalDao.selectScheduledByTrainee(5L)).thenReturn(List.of(scheduled));
+
+    var outstanding = service.getOutstanding(trainer, 5L);
+
+    assertThat(outstanding.pending()).hasSize(1);
+    assertThat(outstanding.scheduled()).hasSize(1);
   }
 
   @Test
@@ -103,6 +120,29 @@ class ProgramCycleProposalServiceTest {
 
     verify(proposalDao).markResponded(eq(300L), eq("SCHEDULED"), any());
     verify(periodizationService, never()).createCycleFromPreset(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void respond_すでに予約中の案があれば新しい案は予約できず409() {
+    when(proposalDao.selectById(300L)).thenReturn(Optional.of(pending(5L)));
+    ProgramCycleProposal scheduled = pending(5L);
+    scheduled.setStatus("SCHEDULED");
+    when(proposalDao.selectScheduledByTrainee(5L)).thenReturn(List.of(scheduled));
+
+    assertThatThrownBy(() -> service.respond(5L, 300L, ProposalResponse.SCHEDULE))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("409");
+    verify(proposalDao, never()).markResponded(anyLong(), any(), any());
+  }
+
+  @Test
+  void respond_置き換えられた案には選択できず409() {
+    ProgramCycleProposal superseded = pending(5L);
+    superseded.setStatus("SUPERSEDED");
+    when(proposalDao.selectById(300L)).thenReturn(Optional.of(superseded));
+    assertThatThrownBy(() -> service.respond(5L, 300L, ProposalResponse.START_NOW))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("409");
   }
 
   @Test

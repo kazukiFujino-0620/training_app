@@ -25,9 +25,20 @@ public class ProgramCycleProposalService {
   private final PeriodizationService periodizationService;
   private final TrainerAdviceService trainerAdviceService;
 
-  /** 案を送る。担当関係とプリセットの参照範囲（宛先トレーニーの店舗と全組織共通）を検証し、PENDINGで保存する。 */
-  @Transactional
-  public Long sendProposal(User trainer, Long traineeUserId, Long presetProgramId) {
+  /** 送信前の確認表示用に、宛先トレーニーの返事待ちの案（新しい案で置き換わる）と予約中の案（そのまま残る）を返す。 担当関係の検証はsendProposalと同じ。 */
+  @Transactional(readOnly = true)
+  public OutstandingProposals getOutstanding(User trainer, Long traineeUserId) {
+    requireAssigned(trainer, traineeUserId);
+    return new OutstandingProposals(
+        proposalDao.selectPendingByTrainee(traineeUserId),
+        proposalDao.selectScheduledByTrainee(traineeUserId));
+  }
+
+  /** 宛先トレーニーの未完了の案。pendingは新しい案を送ると置き換わり、scheduledはそのまま残る。 */
+  public record OutstandingProposals(
+      List<ProgramCycleProposal> pending, List<ProgramCycleProposal> scheduled) {}
+
+  private void requireAssigned(User trainer, Long traineeUserId) {
     if (traineeUserId == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "宛先を選択してください");
     }
@@ -42,7 +53,18 @@ public class ProgramCycleProposalService {
     if (!assigned) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "担当トレーニー以外には案を送れません");
     }
+  }
+
+  /** 案を送る。担当関係とプリセットの参照範囲（宛先トレーニーの店舗と全組織共通）を検証し、PENDINGで保存する。 */
+  @Transactional
+  public Long sendProposal(User trainer, Long traineeUserId, Long presetProgramId) {
+    requireAssigned(trainer, traineeUserId);
+    long trainerId = trainer.getUserId().longValue();
     PresetProgram preset = periodizationService.findVisiblePreset(traineeUserId, presetProgramId);
+
+    // 2026-09-24 USER確定B: 返事待ちの前の案は新しい案に置き換える（トレーニーには常に最新の1件だけが届く）。
+    // 予約中（SCHEDULED）の案はそのまま残す。
+    proposalDao.supersedePendingByTrainee(traineeUserId);
 
     ProgramCycleProposal p = new ProgramCycleProposal();
     p.setTraineeUserId(traineeUserId);
@@ -93,6 +115,11 @@ public class ProgramCycleProposalService {
         yield null;
       }
       case SCHEDULE -> {
+        // 2026-09-24 USER確定B: 新しい案を予約できるのは、今の予約が始まった後
+        if (!proposalDao.selectScheduledByTrainee(traineeUserId).isEmpty()) {
+          throw new ResponseStatusException(
+              HttpStatus.CONFLICT, "すでに予約中の案があります。今すぐ切り替えるか断るを選んでください");
+        }
         if (programCycleDao.selectActiveByUserId(traineeUserId).isEmpty()) {
           throw new ResponseStatusException(
               HttpStatus.CONFLICT, "実施中のプログラムが無いため予約できません。今すぐ始めるか断るを選んでください");
