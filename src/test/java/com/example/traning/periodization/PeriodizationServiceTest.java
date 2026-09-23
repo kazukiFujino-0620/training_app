@@ -40,6 +40,7 @@ import org.springframework.web.server.ResponseStatusException;
 class PeriodizationServiceTest {
 
   @Mock private ProgramCycleDao programCycleDao;
+  @Mock private ProgramCycleProposalDao programCycleProposalDao;
   @Mock private PresetProgramDao presetProgramDao;
   @Mock private StagnationDetectionService stagnationDetectionService;
   @Mock private PersonalRecordService personalRecordService;
@@ -57,6 +58,7 @@ class PeriodizationServiceTest {
     service =
         new PeriodizationService(
             programCycleDao,
+            programCycleProposalDao,
             presetProgramDao,
             stagnationDetectionService,
             personalRecordService,
@@ -365,6 +367,50 @@ class PeriodizationServiceTest {
     assertThat(t.weekNumber()).isEqualTo(3);
     assertThat(t.stagnationWarning()).isEqualTo("NONE");
     assertThat(t.stagnantItems()).isEmpty();
+  }
+
+  @Test
+  void getTodayAssignment_予約した案は旧サイクル終了日の翌日から自動で開始する() {
+    ProgramCycle c = activeCycle(USER, "BEGINNER_PRESET"); // START(9/7)開始・4週 → 終了日の翌日は10/5
+    ProgramCycle started = activeCycle(USER, "TRAINER_MANAGED");
+    started.setId(1001L);
+    started.setStartDate(START.plusWeeks(4));
+    when(programCycleDao.selectActiveByUserId(USER))
+        .thenReturn(Optional.of(c))
+        .thenReturn(Optional.empty()) // createCycleFromPreset内の退避確認
+        .thenReturn(Optional.of(started)); // 再取得
+    ProgramCycleProposal proposal = new ProgramCycleProposal();
+    proposal.setId(300L);
+    proposal.setTrainerUserId(42L);
+    proposal.setPresetProgramId(7L);
+    when(programCycleProposalDao.selectScheduledByTrainee(USER)).thenReturn(List.of(proposal));
+    when(presetProgramDao.selectById(7L)).thenReturn(Optional.of(preset(0L)));
+    stubPresetContents();
+
+    // 旧サイクル終了の9日後（10/14）に初めて開いた
+    TodayAssignment t = service.getTodayAssignment(USER, START.plusWeeks(4).plusDays(9));
+
+    verify(programCycleDao).completeById(10L);
+    ArgumentCaptor<ProgramCycle> cycle = ArgumentCaptor.forClass(ProgramCycle.class);
+    verify(programCycleDao).insert(cycle.capture());
+    assertThat(cycle.getValue().getStartDate()).isEqualTo(START.plusWeeks(4));
+    assertThat(cycle.getValue().getTier()).isEqualTo("TRAINER_MANAGED");
+    assertThat(cycle.getValue().getCreatedByTrainerId()).isEqualTo(42L);
+    verify(programCycleProposalDao).markStarted(eq(300L), any(), any());
+    verify(programCycleDao).markRenewDecidedById(eq(10L), any());
+    // 開いた時点で途中の週（2週目）から始まり、3択は出ない
+    assertThat(t.cycleCompleted()).isFalse();
+    assertThat(t.weekNumber()).isEqualTo(2);
+  }
+
+  @Test
+  void getTodayAssignment_予約が無ければ従来どおり3択を出す() {
+    ProgramCycle c = activeCycle(USER, "BEGINNER_PRESET");
+    when(programCycleDao.selectActiveByUserId(USER)).thenReturn(Optional.of(c));
+    when(programCycleProposalDao.selectScheduledByTrainee(USER)).thenReturn(List.of());
+
+    assertThat(service.getTodayAssignment(USER, START.plusWeeks(4)).cycleCompleted()).isTrue();
+    verify(programCycleDao, never()).insert(any());
   }
 
   @Test

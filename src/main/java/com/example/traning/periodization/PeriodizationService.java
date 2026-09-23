@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,6 +57,7 @@ public class PeriodizationService {
       List.of("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN");
 
   private final ProgramCycleDao programCycleDao;
+  private final ProgramCycleProposalDao programCycleProposalDao;
   private final PresetProgramDao presetProgramDao;
   private final StagnationDetectionService stagnationDetectionService;
   private final PersonalRecordService personalRecordService;
@@ -103,6 +105,11 @@ public class PeriodizationService {
     int weekNumber = weekNumberOf(cycle, today);
     if (weekNumber > cycle.getTotalWeeks()) {
       programCycleDao.completeById(cycle.getId());
+      // 予約した案があれば、旧サイクル終了日の翌日を開始日として自動で開始する（詳細設計書3-5節、2026-09-24 USER確定B）。
+      // 定期ジョブは作らず、この画面・APIを開いた時点で処理する（しばらく開かなかった場合は途中の週から始まる）。
+      if (startScheduledProposal(userId, cycle)) {
+        return getTodayAssignment(userId, today);
+      }
       return emptyAssignment(true);
     }
 
@@ -165,6 +172,36 @@ public class PeriodizationService {
         todayView,
         overall.name(),
         stagnantItems);
+  }
+
+  /**
+   * 予約（SCHEDULED）の案のうち最も古いものから、旧サイクル終了日の翌日を開始日としてサイクルを開始する。
+   * 旧サイクルには次の行き先が決まったことを記録し、サイクル終了時の3択は出さない。
+   *
+   * @return 開始した場合true。予約が無い、またはプリセットが参照範囲外になっていた場合false（3択を表示）
+   */
+  private boolean startScheduledProposal(Long userId, ProgramCycle finished) {
+    List<ProgramCycleProposal> scheduled = programCycleProposalDao.selectScheduledByTrainee(userId);
+    if (scheduled.isEmpty()) return false;
+    ProgramCycleProposal proposal = scheduled.get(0);
+    List<Long> visible = visibleOrganizationIds(userId);
+    Optional<PresetProgram> preset =
+        presetProgramDao
+            .selectById(proposal.getPresetProgramId())
+            .filter(p -> visible.contains(p.getOrganizationId()));
+    if (preset.isEmpty()) return false;
+    LocalDate startDate = finished.getStartDate().plusDays(7L * finished.getTotalWeeks());
+    Long cycleId =
+        createCycleFromPreset(
+            userId,
+            preset.get(),
+            CycleTier.TRAINER_MANAGED,
+            proposal.getTrainerUserId(),
+            startDate);
+    LocalDateTime now = LocalDateTime.now();
+    programCycleProposalDao.markStarted(proposal.getId(), cycleId, now);
+    programCycleDao.markRenewDecidedById(finished.getId(), now);
+    return true;
   }
 
   // ===================== 更新系 =====================
