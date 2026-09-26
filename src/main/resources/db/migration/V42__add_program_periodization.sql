@@ -132,19 +132,55 @@ CREATE TABLE item_stagnation_evaluations (
 -- トレーナーからの期分けプログラムの「案」（2026-09-23 USER確定）。
 -- トレーナーは実施中プログラムを直接作成・編集できず、案として送る。トレーニー本人が
 -- 「今すぐ切り替える」「今のプログラムが終わったら開始（予約）」「断る」を選ぶ。
+-- 案の中身（週構成・強度・ディロード週・曜日ごとの部位と種目）は案ごとに持つ（送信時にプリセットからコピー）。
+-- 開始前（返事待ち・予約中）はトレーナーが中身を編集でき、開始時はその時点の中身でサイクルを作る（2026-09-26 USER確定）。
 CREATE TABLE program_cycle_proposals (
-  id                BIGINT AUTO_INCREMENT PRIMARY KEY,
-  trainee_user_id   BIGINT NOT NULL,
-  trainer_user_id   BIGINT NOT NULL,
-  preset_program_id BIGINT NOT NULL COMMENT '案の内容（プリセット）。開始時にプリセットからサイクルを作る',
-  status            VARCHAR(20) NOT NULL DEFAULT 'PENDING'
-                    COMMENT 'PENDING(承認待ち)/SCHEDULED(予約)/STARTED(開始済み)/DECLINED(却下)/SUPERSEDED(新しい案に置き換え)',
-  responded_at      DATETIME NULL COMMENT 'トレーニーが選択した日時',
-  started_cycle_id  BIGINT NULL COMMENT '開始したサイクルのID（STARTEDのとき）',
-  started_at        DATETIME NULL COMMENT 'サイクルを開始した日時（即時・予約の自動開始とも）',
-  created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id                       BIGINT AUTO_INCREMENT PRIMARY KEY,
+  trainee_user_id          BIGINT NOT NULL,
+  trainer_user_id          BIGINT NOT NULL,
+  source_preset_program_id BIGINT NOT NULL COMMENT '案の元にしたプリセット（中身は下の子テーブルにコピーして持つ）',
+  name                     VARCHAR(100) NOT NULL,
+  total_weeks              INT NOT NULL,
+  status                   VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+                           COMMENT 'PENDING(承認待ち)/SCHEDULED(予約)/STARTED(開始済み)/DECLINED(却下)/SUPERSEDED(新しい案に置き換え)/WITHDRAWN(取り下げ)',
+  responded_at             DATETIME NULL COMMENT 'トレーニーが選択した日時',
+  content_updated_at       DATETIME NULL COMMENT 'トレーナーが送信後に中身を編集した日時（予約中の表示に使う）',
+  started_cycle_id         BIGINT NULL COMMENT '開始したサイクルのID（STARTEDのとき）',
+  started_at               DATETIME NULL COMMENT 'サイクルを開始した日時（即時・予約の自動開始とも）',
+  created_at               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_pcp_trainee_status (trainee_user_id, status),
   INDEX idx_pcp_trainer (trainer_user_id, created_at),
-  CONSTRAINT fk_pcp_preset FOREIGN KEY (preset_program_id) REFERENCES preset_programs(id)
+  CONSTRAINT fk_pcp_preset FOREIGN KEY (source_preset_program_id) REFERENCES preset_programs(id)
+);
+
+CREATE TABLE program_cycle_proposal_weeks (
+  id                   BIGINT AUTO_INCREMENT PRIMARY KEY,
+  proposal_id          BIGINT NOT NULL,
+  week_number          INT NOT NULL,
+  target_intensity_pct DECIMAL(4,1) NOT NULL,
+  is_deload            TINYINT(1) NOT NULL DEFAULT 0,
+  UNIQUE KEY uq_pcpw_proposal_week (proposal_id, week_number),
+  CONSTRAINT fk_pcpw_proposal FOREIGN KEY (proposal_id) REFERENCES program_cycle_proposals(id)
+);
+
+CREATE TABLE program_cycle_proposal_day_templates (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  proposal_id  BIGINT NOT NULL,
+  week_number  INT NOT NULL,
+  day_of_week  ENUM('MON','TUE','WED','THU','FRI','SAT','SUN') NOT NULL,
+  part_code    VARCHAR(20) NULL,
+  UNIQUE KEY uq_pcpdt_proposal_week_day (proposal_id, week_number, day_of_week),
+  CONSTRAINT fk_pcpdt_proposal FOREIGN KEY (proposal_id) REFERENCES program_cycle_proposals(id)
+);
+
+CREATE TABLE program_cycle_proposal_day_template_items (
+  id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+  day_template_id  BIGINT NOT NULL,
+  item_name        VARCHAR(100) NOT NULL COLLATE utf8mb4_0900_as_cs
+                   COMMENT '種目名。training_item_master.item_nameと同一表記で紐付け',
+  display_order    INT NOT NULL DEFAULT 1,
+  target_sets      INT NOT NULL DEFAULT 3,
+  INDEX idx_pcpdti_day_template (day_template_id, display_order),
+  CONSTRAINT fk_pcpdti_day_template FOREIGN KEY (day_template_id) REFERENCES program_cycle_proposal_day_templates(id)
 );

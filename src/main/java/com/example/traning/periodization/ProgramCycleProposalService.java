@@ -66,13 +66,101 @@ public class ProgramCycleProposalService {
     // 予約中（SCHEDULED）の案はそのまま残す。
     proposalDao.supersedePendingByTrainee(traineeUserId);
 
+    // 案の中身はプリセットからコピーして案ごとに持つ（開始前にトレーナーが編集できるようにするため）
+    PeriodizationViews.CustomCycleInput content = periodizationService.presetContent(preset);
     ProgramCycleProposal p = new ProgramCycleProposal();
     p.setTraineeUserId(traineeUserId);
     p.setTrainerUserId(trainerId);
-    p.setPresetProgramId(preset.getId());
+    p.setSourcePresetProgramId(preset.getId());
+    p.setName(content.name());
+    p.setTotalWeeks(content.totalWeeks());
     p.setStatus(ProposalStatus.PENDING.name());
     proposalDao.insert(p);
+    saveContent(p.getId(), content);
     return p.getId();
+  }
+
+  /**
+   * 開始前（返事待ち・予約中）の案の中身をトレーナーが編集する（2026-09-26 USER確定）。トレーニーの承認は不要。
+   * 送ったトレーナー本人で、かつ現在も担当であることが必要。入力チェックは白紙作成と同じ。
+   */
+  @Transactional
+  public void updateContent(
+      User trainer, Long proposalId, PeriodizationViews.CustomCycleInput input) {
+    ProgramCycleProposal p = requireOwnProposal(trainer, proposalId);
+    if (!ProposalStatus.PENDING.name().equals(p.getStatus())
+        && !ProposalStatus.SCHEDULED.name().equals(p.getStatus())) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "開始前の案だけ編集できます");
+    }
+    PeriodizationViews.CustomCycleInput valid = periodizationService.validateCustomCycle(input);
+    proposalDao.deleteItemsByProposalId(p.getId());
+    proposalDao.deleteDayTemplatesByProposalId(p.getId());
+    proposalDao.deleteWeeksByProposalId(p.getId());
+    saveContent(p.getId(), valid);
+    proposalDao.updateContentMeta(p.getId(), valid.name(), valid.totalWeeks(), LocalDateTime.now());
+  }
+
+  /** 返事待ちの案を取り下げる（2026-09-26 USER確定B）。予約中・開始後は取り下げ不可。 */
+  @Transactional
+  public void withdraw(User trainer, Long proposalId) {
+    ProgramCycleProposal p = requireOwnProposal(trainer, proposalId);
+    if (!ProposalStatus.PENDING.name().equals(p.getStatus())) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "返事待ちの案だけ取り下げられます");
+    }
+    proposalDao.updateStatus(p.getId(), ProposalStatus.WITHDRAWN.name());
+  }
+
+  /** 案の中身（トレーニーの案カード・トレーナーの編集画面の表示用）。宛先トレーニーまたは送ったトレーナーのみ。 */
+  @Transactional(readOnly = true)
+  public PeriodizationViews.CustomCycleInput getContent(Long viewerUserId, Long proposalId) {
+    ProgramCycleProposal p =
+        proposalDao
+            .selectById(proposalId)
+            .filter(
+                x ->
+                    x.getTraineeUserId().equals(viewerUserId)
+                        || x.getTrainerUserId().equals(viewerUserId))
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "案が見つかりません"));
+    return periodizationService.proposalContent(p);
+  }
+
+  private ProgramCycleProposal requireOwnProposal(User trainer, Long proposalId) {
+    long trainerId = trainer.getUserId().longValue();
+    ProgramCycleProposal p =
+        proposalDao
+            .selectById(proposalId)
+            .filter(x -> x.getTrainerUserId() == trainerId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "案が見つかりません"));
+    requireAssigned(trainer, p.getTraineeUserId());
+    return p;
+  }
+
+  private void saveContent(Long proposalId, PeriodizationViews.CustomCycleInput content) {
+    for (PeriodizationViews.WeekInput wi : content.weeks()) {
+      ProgramCycleProposalWeek w = new ProgramCycleProposalWeek();
+      w.setProposalId(proposalId);
+      w.setWeekNumber(wi.weekNumber());
+      w.setTargetIntensityPct(wi.targetIntensityPct());
+      w.setDeload(Boolean.TRUE.equals(wi.deload()));
+      proposalDao.insertWeek(w);
+    }
+    for (PeriodizationViews.DayInput di : content.days()) {
+      ProgramCycleProposalDayTemplate d = new ProgramCycleProposalDayTemplate();
+      d.setProposalId(proposalId);
+      d.setWeekNumber(di.weekNumber());
+      d.setDayOfWeek(di.dayOfWeek());
+      d.setPartCode(di.partCode());
+      proposalDao.insertDayTemplate(d);
+      int order = 1;
+      for (PeriodizationViews.ItemInput ii : di.items()) {
+        ProgramCycleProposalDayTemplateItem item = new ProgramCycleProposalDayTemplateItem();
+        item.setDayTemplateId(d.getId());
+        item.setItemName(ii.itemName());
+        item.setDisplayOrder(order++);
+        item.setTargetSets(ii.targetSets());
+        proposalDao.insertDayTemplateItem(item);
+      }
+    }
   }
 
   @Transactional(readOnly = true)
@@ -136,11 +224,14 @@ public class ProgramCycleProposalService {
     };
   }
 
-  /** 案のプリセットから TRAINER_MANAGED のサイクルを開始する（実施中のサイクルは退避される）。 */
+  /** 案ごとに持つ中身（編集後の内容）から TRAINER_MANAGED のサイクルを開始する（実施中のサイクルは退避される）。 */
   private Long startFromProposal(ProgramCycleProposal p, LocalDate startDate) {
-    PresetProgram preset =
-        periodizationService.findVisiblePreset(p.getTraineeUserId(), p.getPresetProgramId());
-    return periodizationService.createCycleFromPreset(
-        p.getTraineeUserId(), preset, CycleTier.TRAINER_MANAGED, p.getTrainerUserId(), startDate);
+    return periodizationService.createCycleFromContent(
+        p.getTraineeUserId(),
+        periodizationService.proposalContent(p),
+        CycleTier.TRAINER_MANAGED,
+        p.getSourcePresetProgramId(),
+        p.getTrainerUserId(),
+        startDate);
   }
 }

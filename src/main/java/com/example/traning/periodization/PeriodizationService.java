@@ -178,24 +178,20 @@ public class PeriodizationService {
    * 予約（SCHEDULED）の案のうち最も古いものから、旧サイクル終了日の翌日を開始日としてサイクルを開始する。
    * 旧サイクルには次の行き先が決まったことを記録し、サイクル終了時の3択は出さない。
    *
-   * @return 開始した場合true。予約が無い、またはプリセットが参照範囲外になっていた場合false（3択を表示）
+   * @return 開始した場合true。予約が無い場合false（3択を表示）
    */
   private boolean startScheduledProposal(Long userId, ProgramCycle finished) {
     List<ProgramCycleProposal> scheduled = programCycleProposalDao.selectScheduledByTrainee(userId);
     if (scheduled.isEmpty()) return false;
     ProgramCycleProposal proposal = scheduled.get(0);
-    List<Long> visible = visibleOrganizationIds(userId);
-    Optional<PresetProgram> preset =
-        presetProgramDao
-            .selectById(proposal.getPresetProgramId())
-            .filter(p -> visible.contains(p.getOrganizationId()));
-    if (preset.isEmpty()) return false;
+    // 案ごとに持つ中身（トレーナーが開始前に編集していればその内容）で開始する（2026-09-26 USER確定）
     LocalDate startDate = finished.getStartDate().plusDays(7L * finished.getTotalWeeks());
     Long cycleId =
-        createCycleFromPreset(
+        createCycleFromContent(
             userId,
-            preset.get(),
+            proposalContent(proposal),
             CycleTier.TRAINER_MANAGED,
+            proposal.getSourcePresetProgramId(),
             proposal.getTrainerUserId(),
             startDate);
     LocalDateTime now = LocalDateTime.now();
@@ -288,21 +284,44 @@ public class PeriodizationService {
     if (startDate == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "開始日を指定してください");
     }
+    Long cycleId =
+        createCycleFromContent(userId, valid, CycleTier.INTERMEDIATE_CUSTOM, null, null, startDate);
+    List<Boolean> deloadByWeek =
+        valid.weeks().stream()
+            .sorted(java.util.Comparator.comparing(WeekInput::weekNumber))
+            .map(WeekInput::deload)
+            .toList();
+    return new CustomCycleResult(cycleId, CustomCycleRules.evaluate(deloadByWeek));
+  }
+
+  /**
+   * 検証済みの中身（週・強度・ディロード週・曜日ごとの部位と種目）から新しいACTIVEサイクルを作る。既存ACTIVEサイクルはARCHIVEDにする。
+   * 白紙作成（createCustomCycle）と、トレーナーの案からの開始（案ごとに持つ中身をそのまま使う）で共用する。
+   */
+  Long createCycleFromContent(
+      Long userId,
+      CustomCycleInput content,
+      CycleTier tier,
+      Long sourcePresetId,
+      Long trainerId,
+      LocalDate startDate) {
     programCycleDao
         .selectActiveByUserId(userId)
         .ifPresent(c -> programCycleDao.archiveById(c.getId()));
 
     ProgramCycle cycle = new ProgramCycle();
     cycle.setUserId(userId);
-    cycle.setName(valid.name());
-    cycle.setTotalWeeks(valid.totalWeeks());
+    cycle.setName(content.name());
+    cycle.setTotalWeeks(content.totalWeeks());
     cycle.setStartDate(startDate);
-    cycle.setTier(CycleTier.INTERMEDIATE_CUSTOM.name());
+    cycle.setTier(tier.name());
+    cycle.setSourcePresetId(sourcePresetId);
+    cycle.setCreatedByTrainerId(trainerId);
     cycle.setStatus(CycleStatus.ACTIVE.name());
     programCycleDao.insert(cycle);
     Long cycleId = cycle.getId();
 
-    for (WeekInput wi : valid.weeks()) {
+    for (WeekInput wi : content.weeks()) {
       ProgramCycleWeek w = new ProgramCycleWeek();
       w.setCycleId(cycleId);
       w.setWeekNumber(wi.weekNumber());
@@ -311,7 +330,7 @@ public class PeriodizationService {
       programCycleDao.insertWeek(w);
     }
     Set<String> itemNames = new LinkedHashSet<>();
-    for (DayInput di : valid.days()) {
+    for (DayInput di : content.days()) {
       ProgramCycleDayTemplate d = new ProgramCycleDayTemplate();
       d.setCycleId(cycleId);
       d.setWeekNumber(di.weekNumber());
@@ -330,12 +349,65 @@ public class PeriodizationService {
       }
     }
     snapshotBaselines(cycleId, userId, itemNames);
-    List<Boolean> deloadByWeek =
-        valid.weeks().stream()
-            .sorted(java.util.Comparator.comparing(WeekInput::weekNumber))
-            .map(WeekInput::deload)
+    return cycleId;
+  }
+
+  /** プリセットの中身をCustomCycleInputの形で取り出す（案の送信時に、案ごとの中身としてコピーするため）。 */
+  CustomCycleInput presetContent(PresetProgram preset) {
+    List<WeekInput> weeks =
+        presetProgramDao.selectWeeksByPresetId(preset.getId()).stream()
+            .map(
+                w ->
+                    new WeekInput(
+                        w.getWeekNumber(),
+                        w.getTargetIntensityPct(),
+                        Boolean.TRUE.equals(w.getDeload())))
             .toList();
-    return new CustomCycleResult(cycleId, CustomCycleRules.evaluate(deloadByWeek));
+    Map<Long, List<PresetProgramDayTemplateItem>> items =
+        presetProgramDao.selectItemsByPresetId(preset.getId()).stream()
+            .collect(Collectors.groupingBy(PresetProgramDayTemplateItem::getDayTemplateId));
+    List<DayInput> days =
+        presetProgramDao.selectDayTemplatesByPresetId(preset.getId()).stream()
+            .map(
+                d ->
+                    new DayInput(
+                        d.getWeekNumber(),
+                        d.getDayOfWeek(),
+                        d.getPartCode(),
+                        items.getOrDefault(d.getId(), List.of()).stream()
+                            .map(i -> new ItemInput(i.getItemName(), i.getTargetSets()))
+                            .toList()))
+            .toList();
+    return new CustomCycleInput(preset.getName(), preset.getTotalWeeks(), weeks, days);
+  }
+
+  /** 案ごとに持つ中身をCustomCycleInputの形で取り出す。 */
+  CustomCycleInput proposalContent(ProgramCycleProposal proposal) {
+    List<WeekInput> weeks =
+        programCycleProposalDao.selectWeeksByProposalId(proposal.getId()).stream()
+            .map(
+                w ->
+                    new WeekInput(
+                        w.getWeekNumber(),
+                        w.getTargetIntensityPct(),
+                        Boolean.TRUE.equals(w.getDeload())))
+            .toList();
+    Map<Long, List<ProgramCycleProposalDayTemplateItem>> items =
+        programCycleProposalDao.selectItemsByProposalId(proposal.getId()).stream()
+            .collect(Collectors.groupingBy(ProgramCycleProposalDayTemplateItem::getDayTemplateId));
+    List<DayInput> days =
+        programCycleProposalDao.selectDayTemplatesByProposalId(proposal.getId()).stream()
+            .map(
+                d ->
+                    new DayInput(
+                        d.getWeekNumber(),
+                        d.getDayOfWeek(),
+                        d.getPartCode(),
+                        items.getOrDefault(d.getId(), List.of()).stream()
+                            .map(i -> new ItemInput(i.getItemName(), i.getTargetSets()))
+                            .toList()))
+            .toList();
+    return new CustomCycleInput(proposal.getName(), proposal.getTotalWeeks(), weeks, days);
   }
 
   /**
@@ -549,7 +621,7 @@ public class PeriodizationService {
     return cycle;
   }
 
-  private CustomCycleInput validateCustomCycle(CustomCycleInput in) {
+  CustomCycleInput validateCustomCycle(CustomCycleInput in) {
     if (in == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "プログラム内容を指定してください");
     }

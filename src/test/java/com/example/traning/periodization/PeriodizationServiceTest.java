@@ -370,7 +370,7 @@ class PeriodizationServiceTest {
   }
 
   @Test
-  void getTodayAssignment_予約した案は旧サイクル終了日の翌日から自動で開始する() {
+  void getTodayAssignment_予約した案は旧サイクル終了日の翌日から編集後の内容で自動で開始する() {
     ProgramCycle c = activeCycle(USER, "BEGINNER_PRESET"); // START(9/7)開始・4週 → 終了日の翌日は10/5
     ProgramCycle started = activeCycle(USER, "TRAINER_MANAGED");
     started.setId(1001L);
@@ -382,10 +382,23 @@ class PeriodizationServiceTest {
     ProgramCycleProposal proposal = new ProgramCycleProposal();
     proposal.setId(300L);
     proposal.setTrainerUserId(42L);
-    proposal.setPresetProgramId(7L);
+    proposal.setSourcePresetProgramId(7L);
+    proposal.setName("王道4週（佐藤編集）");
+    proposal.setTotalWeeks(4);
     when(programCycleProposalDao.selectScheduledByTrainee(USER)).thenReturn(List.of(proposal));
-    when(presetProgramDao.selectById(7L)).thenReturn(Optional.of(preset(0L)));
-    stubPresetContents();
+    // 案ごとに持つ中身（トレーナーが開始前に編集した内容）
+    ProgramCycleProposalWeek pw = new ProgramCycleProposalWeek();
+    pw.setWeekNumber(2);
+    pw.setTargetIntensityPct(new BigDecimal("77.5"));
+    pw.setDeload(false);
+    when(programCycleProposalDao.selectWeeksByProposalId(300L)).thenReturn(List.of(pw));
+    doAnswer(
+            inv -> {
+              ((ProgramCycle) inv.getArgument(0)).setId(1001L);
+              return 1;
+            })
+        .when(programCycleDao)
+        .insert(any(ProgramCycle.class));
 
     // 旧サイクル終了の9日後（10/14）に初めて開いた
     TodayAssignment t = service.getTodayAssignment(USER, START.plusWeeks(4).plusDays(9));
@@ -396,6 +409,11 @@ class PeriodizationServiceTest {
     assertThat(cycle.getValue().getStartDate()).isEqualTo(START.plusWeeks(4));
     assertThat(cycle.getValue().getTier()).isEqualTo("TRAINER_MANAGED");
     assertThat(cycle.getValue().getCreatedByTrainerId()).isEqualTo(42L);
+    assertThat(cycle.getValue().getName()).isEqualTo("王道4週（佐藤編集）");
+    ArgumentCaptor<ProgramCycleWeek> week = ArgumentCaptor.forClass(ProgramCycleWeek.class);
+    verify(programCycleDao).insertWeek(week.capture());
+    assertThat(week.getValue().getTargetIntensityPct()).isEqualByComparingTo("77.5");
+    verify(presetProgramDao, never()).selectWeeksByPresetId(anyLong());
     verify(programCycleProposalDao).markStarted(eq(300L), any(), any());
     verify(programCycleDao).markRenewDecidedById(eq(10L), any());
     // 開いた時点で途中の週（2週目）から始まり、3択は出ない

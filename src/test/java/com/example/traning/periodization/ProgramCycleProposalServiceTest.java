@@ -46,12 +46,99 @@ class ProgramCycleProposalServiceTest {
     return p;
   }
 
+  private static PeriodizationViews.CustomCycleInput content(String name, int weeks) {
+    List<PeriodizationViews.WeekInput> w = new java.util.ArrayList<>();
+    for (int i = 1; i <= weeks; i++) {
+      w.add(new PeriodizationViews.WeekInput(i, new java.math.BigDecimal("70.0"), i == weeks));
+    }
+    return new PeriodizationViews.CustomCycleInput(
+        name,
+        weeks,
+        w,
+        List.of(
+            new PeriodizationViews.DayInput(
+                1, "MON", "CHEST", List.of(new PeriodizationViews.ItemInput("ベンチプレス", 3)))));
+  }
+
+  private void assigned() {
+    when(trainerAdviceService.listTrainees(trainer))
+        .thenReturn(List.of(User.builder().userId(5).assignedTrainerId(42L).build()));
+  }
+
+  @Test
+  void updateContent_返事待ちと予約中の案は中身を置き換え編集日時を記録する() {
+    assigned();
+    ProgramCycleProposal scheduled = pending(5L);
+    scheduled.setStatus("SCHEDULED");
+    when(proposalDao.selectById(300L)).thenReturn(Optional.of(scheduled));
+    PeriodizationViews.CustomCycleInput edited = content("王道4週（佐藤編集）", 3);
+    when(periodizationService.validateCustomCycle(edited)).thenReturn(edited);
+
+    service.updateContent(trainer, 300L, edited);
+
+    verify(proposalDao).deleteItemsByProposalId(300L);
+    verify(proposalDao).deleteDayTemplatesByProposalId(300L);
+    verify(proposalDao).deleteWeeksByProposalId(300L);
+    verify(proposalDao, org.mockito.Mockito.times(3)).insertWeek(any());
+    verify(proposalDao).updateContentMeta(eq(300L), eq("王道4週（佐藤編集）"), eq(3), any());
+  }
+
+  @Test
+  void updateContent_開始後の案は編集できず409() {
+    assigned();
+    ProgramCycleProposal started = pending(5L);
+    started.setStatus("STARTED");
+    when(proposalDao.selectById(300L)).thenReturn(Optional.of(started));
+    assertThatThrownBy(() -> service.updateContent(trainer, 300L, content("x", 3)))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("409");
+    verify(proposalDao, never()).deleteWeeksByProposalId(anyLong());
+  }
+
+  @Test
+  void updateContent_他のトレーナーが送った案は404() {
+    ProgramCycleProposal other = pending(5L);
+    other.setTrainerUserId(99L);
+    when(proposalDao.selectById(300L)).thenReturn(Optional.of(other));
+    assertThatThrownBy(() -> service.updateContent(trainer, 300L, content("x", 3)))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("404");
+  }
+
+  @Test
+  void withdraw_返事待ちの案だけ取り下げられる() {
+    assigned();
+    when(proposalDao.selectById(300L)).thenReturn(Optional.of(pending(5L)));
+    service.withdraw(trainer, 300L);
+    verify(proposalDao).updateStatus(300L, "WITHDRAWN");
+
+    ProgramCycleProposal scheduled = pending(5L);
+    scheduled.setId(301L);
+    scheduled.setStatus("SCHEDULED");
+    when(proposalDao.selectById(301L)).thenReturn(Optional.of(scheduled));
+    assertThatThrownBy(() -> service.withdraw(trainer, 301L))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("409");
+  }
+
+  @Test
+  void respond_取り下げられた案には選択できず409() {
+    ProgramCycleProposal withdrawn = pending(5L);
+    withdrawn.setStatus("WITHDRAWN");
+    when(proposalDao.selectById(300L)).thenReturn(Optional.of(withdrawn));
+    assertThatThrownBy(() -> service.respond(5L, 300L, ProposalResponse.START_NOW))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("409");
+  }
+
   private ProgramCycleProposal pending(Long traineeId) {
     ProgramCycleProposal p = new ProgramCycleProposal();
     p.setId(300L);
     p.setTraineeUserId(traineeId);
     p.setTrainerUserId(42L);
-    p.setPresetProgramId(7L);
+    p.setSourcePresetProgramId(7L);
+    p.setName("王道4週");
+    p.setTotalWeeks(4);
     p.setStatus("PENDING");
     return p;
   }
@@ -61,6 +148,7 @@ class ProgramCycleProposalServiceTest {
     when(trainerAdviceService.listTrainees(trainer))
         .thenReturn(List.of(User.builder().userId(5).assignedTrainerId(42L).build()));
     when(periodizationService.findVisiblePreset(5L, 7L)).thenReturn(preset());
+    when(periodizationService.presetContent(any())).thenReturn(content("王道4週", 4));
 
     service.sendProposal(trainer, 5L, 7L);
 
@@ -69,7 +157,12 @@ class ProgramCycleProposalServiceTest {
     verify(proposalDao).insert(saved.capture());
     assertThat(saved.getValue().getStatus()).isEqualTo("PENDING");
     assertThat(saved.getValue().getTraineeUserId()).isEqualTo(5L);
-    verify(periodizationService, never()).createCycleFromPreset(any(), any(), any(), any(), any());
+    assertThat(saved.getValue().getSourcePresetProgramId()).isEqualTo(7L);
+    // 案の中身はプリセットからコピーして案ごとに持つ
+    verify(proposalDao, org.mockito.Mockito.times(4)).insertWeek(any());
+    verify(proposalDao).insertDayTemplateItem(any());
+    verify(periodizationService, never())
+        .createCycleFromContent(any(), any(), any(), any(), any(), any());
     // 返事待ちの前の案は新しい案に置き換える（予約中は対象外のSQL）
     verify(proposalDao).supersedePendingByTrainee(5L);
   }
@@ -102,9 +195,10 @@ class ProgramCycleProposalServiceTest {
   @Test
   void respond_今すぐ切り替えるとTRAINER_MANAGEDで開始し案をSTARTEDにする() {
     when(proposalDao.selectById(300L)).thenReturn(Optional.of(pending(5L)));
-    when(periodizationService.findVisiblePreset(5L, 7L)).thenReturn(preset());
-    when(periodizationService.createCycleFromPreset(
-            eq(5L), any(), eq(CycleTier.TRAINER_MANAGED), eq(42L), any()))
+    PeriodizationViews.CustomCycleInput edited = content("王道4週（佐藤編集）", 4);
+    when(periodizationService.proposalContent(any())).thenReturn(edited);
+    when(periodizationService.createCycleFromContent(
+            eq(5L), eq(edited), eq(CycleTier.TRAINER_MANAGED), eq(7L), eq(42L), any()))
         .thenReturn(88L);
 
     assertThat(service.respond(5L, 300L, ProposalResponse.START_NOW)).isEqualTo(88L);
@@ -119,7 +213,8 @@ class ProgramCycleProposalServiceTest {
     service.respond(5L, 300L, ProposalResponse.SCHEDULE);
 
     verify(proposalDao).markResponded(eq(300L), eq("SCHEDULED"), any());
-    verify(periodizationService, never()).createCycleFromPreset(any(), any(), any(), any(), any());
+    verify(periodizationService, never())
+        .createCycleFromContent(any(), any(), any(), any(), any(), any());
   }
 
   @Test

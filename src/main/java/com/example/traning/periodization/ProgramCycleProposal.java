@@ -25,14 +25,25 @@ public class ProgramCycleProposal {
   @Column(name = "trainer_user_id")
   private Long trainerUserId;
 
-  @Column(name = "preset_program_id")
-  private Long presetProgramId;
+  /** 案の元にしたプリセット。中身は案ごとの子テーブルに持つ。 */
+  @Column(name = "source_preset_program_id")
+  private Long sourcePresetProgramId;
+
+  @Column(name = "name")
+  private String name;
+
+  @Column(name = "total_weeks")
+  private Integer totalWeeks;
 
   @Column(name = "status")
   private String status;
 
   @Column(name = "responded_at")
   private LocalDateTime respondedAt;
+
+  /** トレーナーが送信後に中身を編集した日時。 */
+  @Column(name = "content_updated_at")
+  private LocalDateTime contentUpdatedAt;
 
   @Column(name = "started_cycle_id")
   private Long startedCycleId;
