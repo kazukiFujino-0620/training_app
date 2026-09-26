@@ -216,6 +216,8 @@ public class ProgramCycleProposalService {
         yield null;
       }
       case START_NOW -> {
+        // 予約中の別の案があれば、本人が別のプログラムに切り替えたものとして取り消す（2026-09-26 USER確定B）
+        periodizationService.cancelScheduledProposalsBySwitch(traineeUserId);
         Long cycleId = startFromProposal(p, LocalDate.now());
         proposalDao.markResponded(p.getId(), ProposalStatus.STARTED.name(), now);
         proposalDao.markStarted(p.getId(), cycleId, now);

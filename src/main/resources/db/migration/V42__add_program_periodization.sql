@@ -142,7 +142,7 @@ CREATE TABLE program_cycle_proposals (
   name                     VARCHAR(100) NOT NULL,
   total_weeks              INT NOT NULL,
   status                   VARCHAR(20) NOT NULL DEFAULT 'PENDING'
-                           COMMENT 'PENDING(承認待ち)/SCHEDULED(予約)/STARTED(開始済み)/DECLINED(却下)/SUPERSEDED(新しい案に置き換え)/WITHDRAWN(取り下げ)',
+                           COMMENT 'PENDING(承認待ち)/SCHEDULED(予約)/STARTED(開始済み)/DECLINED(却下)/SUPERSEDED(新しい案に置き換え)/WITHDRAWN(取り下げ)/CANCELLED_BY_SWITCH(本人が別のプログラムに切り替えたため取り消し)',
   responded_at             DATETIME NULL COMMENT 'トレーニーが選択した日時',
   content_updated_at       DATETIME NULL COMMENT 'トレーナーが送信後に中身を編集した日時（予約中の表示に使う）',
   started_cycle_id         BIGINT NULL COMMENT '開始したサイクルのID（STARTEDのとき）',

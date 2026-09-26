@@ -202,6 +202,8 @@ class ProgramCycleProposalServiceTest {
         .thenReturn(88L);
 
     assertThat(service.respond(5L, 300L, ProposalResponse.START_NOW)).isEqualTo(88L);
+    // 予約中の別の案があれば、本人が別のプログラムに切り替えたものとして取り消す
+    verify(periodizationService).cancelScheduledProposalsBySwitch(5L);
     verify(proposalDao).markStarted(eq(300L), eq(88L), any());
   }
 
@@ -213,6 +215,7 @@ class ProgramCycleProposalServiceTest {
     service.respond(5L, 300L, ProposalResponse.SCHEDULE);
 
     verify(proposalDao).markResponded(eq(300L), eq("SCHEDULED"), any());
+    verify(periodizationService, never()).cancelScheduledProposalsBySwitch(anyLong());
     verify(periodizationService, never())
         .createCycleFromContent(any(), any(), any(), any(), any(), any());
   }

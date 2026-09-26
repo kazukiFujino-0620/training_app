@@ -13,5 +13,7 @@ public enum ProposalStatus {
   /** 返事待ちのうちに同じトレーニーへ新しい案が送られ、置き換えられた（2026-09-24 USER確定）。 */
   SUPERSEDED,
   /** 返事待ちのうちにトレーナーが取り下げた（2026-09-26 USER確定。予約中は取り下げ不可）。 */
-  WITHDRAWN
+  WITHDRAWN,
+  /** 予約中にトレーニーが自分で別のプログラムに切り替えたため取り消し（2026-09-26 USER確定B）。 */
+  CANCELLED_BY_SWITCH
 }

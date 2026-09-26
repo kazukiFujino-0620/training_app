@@ -210,6 +210,7 @@ public class PeriodizationService {
   @Transactional
   public Long adoptPreset(Long userId, Long presetProgramId, LocalDate startDate) {
     PresetProgram preset = findVisiblePreset(userId, presetProgramId);
+    cancelScheduledProposalsBySwitch(userId);
     return createCycleFromPreset(userId, preset, CycleTier.BEGINNER_PRESET, null, startDate);
   }
 
@@ -284,6 +285,7 @@ public class PeriodizationService {
     if (startDate == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "開始日を指定してください");
     }
+    cancelScheduledProposalsBySwitch(userId);
     Long cycleId =
         createCycleFromContent(userId, valid, CycleTier.INTERMEDIATE_CUSTOM, null, null, startDate);
     List<Boolean> deloadByWeek =
@@ -433,7 +435,10 @@ public class PeriodizationService {
     programCycleDao.markRenewDecidedById(last.getId(), java.time.LocalDateTime.now());
     LocalDate today = LocalDate.now();
     return switch (choice) {
-      case REPEAT_SAME -> Optional.of(copyCycle(userId, last, today));
+      case REPEAT_SAME -> {
+        cancelScheduledProposalsBySwitch(userId);
+        yield Optional.of(copyCycle(userId, last, today));
+      }
       case CHOOSE_NEW_PRESET -> {
         if (newPresetProgramId == null) {
           throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "プログラムを選択してください");
@@ -552,6 +557,15 @@ public class PeriodizationService {
     }
     snapshotBaselines(cycleId, userId, itemNames);
     return cycleId;
+  }
+
+  /**
+   * トレーニーが自分で別のプログラムに切り替えるとき、予約中のトレーナーの案を取り消す（2026-09-26 USER確定B）。 対象:
+   * 別のプリセット採用、白紙から組んで開始、サイクル終了時の「同じ内容で継続」「別のプリセット」、
+   * 予約中に届いた別の案の「今すぐ切り替える」。画面側は切り替え前に「予約中の〇〇は取り消されます」と確認を表示する。
+   */
+  void cancelScheduledProposalsBySwitch(Long userId) {
+    programCycleProposalDao.cancelScheduledBySwitch(userId);
   }
 
   /** ユーザーに表示してよいプリセットを取得する。範囲外・存在しない場合は404。 */

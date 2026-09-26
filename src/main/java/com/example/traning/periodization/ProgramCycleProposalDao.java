@@ -40,6 +40,10 @@ public interface ProgramCycleProposalDao {
   @Update(sqlFile = true)
   int supersedePendingByTrainee(Long traineeUserId);
 
+  /** トレーニーの予約中（SCHEDULED）の案をすべて「本人が別のプログラムに切り替えたため取り消し」にする。 */
+  @Update(sqlFile = true)
+  int cancelScheduledBySwitch(Long traineeUserId);
+
   /** 状態のみを変更する（取り下げ等）。 */
   @Update(sqlFile = true)
   int updateStatus(Long id, String status);

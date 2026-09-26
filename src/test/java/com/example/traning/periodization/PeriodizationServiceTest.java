@@ -134,6 +134,8 @@ class PeriodizationServiceTest {
     Long cycleId = service.adoptPreset(USER, 7L, START);
 
     verify(programCycleDao).archiveById(99L);
+    // 自分で別のプログラムに切り替えたので、予約中のトレーナーの案は取り消す（2026-09-26 USER確定B）
+    verify(programCycleProposalDao).cancelScheduledBySwitch(USER);
     ArgumentCaptor<ProgramCycle> cycle = ArgumentCaptor.forClass(ProgramCycle.class);
     verify(programCycleDao).insert(cycle.capture());
     assertThat(cycle.getValue().getTier()).isEqualTo("BEGINNER_PRESET");
@@ -416,6 +418,8 @@ class PeriodizationServiceTest {
     verify(presetProgramDao, never()).selectWeeksByPresetId(anyLong());
     verify(programCycleProposalDao).markStarted(eq(300L), any(), any());
     verify(programCycleDao).markRenewDecidedById(eq(10L), any());
+    // 予約した案そのものの自動開始は「本人の切り替え」ではないので取り消し処理は走らない
+    verify(programCycleProposalDao, never()).cancelScheduledBySwitch(anyLong());
     // 開いた時点で途中の週（2週目）から始まり、3択は出ない
     assertThat(t.cycleCompleted()).isFalse();
     assertThat(t.weekNumber()).isEqualTo(2);
@@ -440,6 +444,7 @@ class PeriodizationServiceTest {
 
     assertThat(service.renewCycle(USER, RenewChoice.GO_FREEFORM, null)).isEmpty();
     verify(programCycleDao, never()).insert(any());
+    verify(programCycleProposalDao, never()).cancelScheduledBySwitch(anyLong());
     verify(programCycleDao).markRenewDecidedById(eq(10L), any());
   }
 
@@ -556,6 +561,7 @@ class PeriodizationServiceTest {
     assertThat(baseline.getValue().getBaselineOneRm()).isEqualByComparingTo("120.0");
     verify(programCycleDao).markRenewDecidedById(eq(10L), any());
     verify(presetProgramDao, never()).selectById(anyLong());
+    verify(programCycleProposalDao).cancelScheduledBySwitch(USER);
   }
 
   @Test
@@ -622,6 +628,7 @@ class PeriodizationServiceTest {
         service.createCustomCycle(USER, customInput(3, "72.5"), START);
 
     assertThat(result.cycleId()).isEqualTo(55L);
+    verify(programCycleProposalDao).cancelScheduledBySwitch(USER);
     assertThat(result.warnings()).isEmpty();
     ArgumentCaptor<ProgramCycle> cycle = ArgumentCaptor.forClass(ProgramCycle.class);
     verify(programCycleDao).insert(cycle.capture());
