@@ -12,10 +12,20 @@ public final class MobilePeriodizationDtos {
   private MobilePeriodizationDtos() {}
 
   public record PresetResponse(
-      Long id, String name, String purposeCategory, int totalWeeks, String description) {
+      Long id,
+      String name,
+      String purposeCategory,
+      String purposeLabel,
+      int totalWeeks,
+      String description) {
     public static PresetResponse from(PeriodizationViews.PresetSummary p) {
       return new PresetResponse(
-          p.id(), p.name(), p.purposeCategory(), p.totalWeeks(), p.description());
+          p.id(),
+          p.name(),
+          p.purposeCategory(),
+          PeriodizationViews.categoryLabel(p.purposeCategory()),
+          p.totalWeeks(),
+          p.description());
     }
   }
 

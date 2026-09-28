@@ -13,8 +13,26 @@ public final class PeriodizationViews {
 
   private PeriodizationViews() {}
 
+  /** organizationIdが0なら全組織共通、それ以外はユーザーの店舗のプリセット。 */
   public record PresetSummary(
-      Long id, String name, String purposeCategory, int totalWeeks, String description) {}
+      Long id,
+      String name,
+      String purposeCategory,
+      int totalWeeks,
+      String description,
+      Long organizationId) {}
+
+  /** 目的カテゴリの表示名（Web・モバイル共通）。 */
+  public static String categoryLabel(String purposeCategory) {
+    if (purposeCategory == null) return "";
+    return switch (purposeCategory) {
+      case "BULK" -> "増量 (BULK)";
+      case "CUT" -> "減量 (CUT)";
+      case "MAINTENANCE" -> "維持 (MAINTENANCE)";
+      case "STRENGTH" -> "筋力 (STRENGTH)";
+      default -> purposeCategory;
+    };
+  }
 
   public record ItemView(
       String itemName, int displayOrder, int targetSets, Double targetWeightKg) {}
@@ -113,6 +131,7 @@ public final class PeriodizationViews {
       String status,
       String statusLabel,
       LocalDateTime sentAt,
+      LocalDateTime respondedAt,
       LocalDateTime contentUpdatedAt,
       LocalDateTime startedAt,
       LocalDate scheduledStartDate,

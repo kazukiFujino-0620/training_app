@@ -72,7 +72,7 @@
     let html = '';
     if (s) {
       html += '<div class="pz-proposal" data-testid="scheduled-card"><span class="pz-st scheduled">予約中</span>' +
-        (s.contentUpdatedAt ? ' <span class="pz-meta" style="display:inline;">トレーナーが内容を更新しました（' + fmtDate(s.contentUpdatedAt) + '）</span>' : '') +
+        (s.contentUpdatedAt && (!s.respondedAt || s.contentUpdatedAt > s.respondedAt) ? ' <span class="pz-meta" style="display:inline;">トレーナーが内容を更新しました（' + fmtDate(s.contentUpdatedAt) + '）</span>' : '') +
         '<div style="margin-top:6px;font-size:0.88rem;color:var(--text-primary);">「' + esc(s.name) + '」は、今のプログラム' +
         (s.scheduledStartDate ? '（' + dayBefore(s.scheduledStartDate) + 'まで）が終わった翌日の<b>' + fmtDate(s.scheduledStartDate) + 'から</b>' : 'が終わった翌日から') +
         '始まります。</div><div class="pz-meta">しばらくアプリを開かなかった場合も' + (s.scheduledStartDate ? fmtDate(s.scheduledStartDate) : '終了日の翌日') +
@@ -100,7 +100,13 @@
         } else {
           const start = state.cycle ? new Date(String(state.cycle.startDate) + 'T00:00:00') : null;
           let startText = '';
-          if (start) { start.setDate(start.getDate() + 7 * state.cycle.totalWeeks); startText = '終了日（' + dayBefore(start.toISOString().slice(0, 10)) + '）の翌日、<b>' + (start.getMonth() + 1) + '/' + start.getDate() + 'から</b>'; }
+          if (start) {
+            // toISOString()はUTC基準で日付がずれるため、ローカル日付で組み立てる
+            start.setDate(start.getDate() + 7 * state.cycle.totalWeeks);
+            const last = new Date(start.getTime());
+            last.setDate(last.getDate() - 1);
+            startText = '終了日（' + (last.getMonth() + 1) + '/' + last.getDate() + '）の翌日、<b>' + (start.getMonth() + 1) + '/' + start.getDate() + 'から</b>';
+          }
           html += '<button type="button" class="pz-choice" data-respond="SCHEDULE"><div class="ttl">今のプログラムが終わったら開始</div><div class="desc">「' + esc(activeName || '') + '」の' + startText + '自動で始まります（予約）</div></button>';
         }
       } else {

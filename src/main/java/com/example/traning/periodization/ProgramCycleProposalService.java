@@ -235,6 +235,7 @@ public class ProgramCycleProposalService {
         st.name(),
         st.label(),
         p.getCreatedAt(),
+        p.getRespondedAt(),
         p.getContentUpdatedAt(),
         p.getStartedAt(),
         scheduledStartDate,

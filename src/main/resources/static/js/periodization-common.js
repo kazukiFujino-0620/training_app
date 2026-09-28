@@ -57,7 +57,8 @@
   /** 種目マスタ（本日以降に使用可能なもの）。[{itemName, partCode}] */
   async function loadItems() {
     if (!itemsCache) {
-      const today = new Date().toISOString().slice(0, 10);
+      const d = new Date();
+      const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
       const grouped = await api('GET', '/api/training-items-grouped?date=' + today);
       itemsCache = [];
       Object.keys(grouped || {}).forEach(function (part) {

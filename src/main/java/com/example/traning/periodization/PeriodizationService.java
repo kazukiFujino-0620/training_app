@@ -78,7 +78,8 @@ public class PeriodizationService {
                     p.getName(),
                     p.getPurposeCategory(),
                     p.getTotalWeeks(),
-                    p.getDescription()))
+                    p.getDescription(),
+                    p.getOrganizationId()))
         .toList();
   }
 

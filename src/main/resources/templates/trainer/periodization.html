@@ -34,10 +34,11 @@
 
                 <div th:if="${#lists.isEmpty(presets)}" class="pz-empty">選べるプリセットがまだありません。</div>
                 <th:block th:each="p, st : ${presets}">
-                    <div class="pz-cat" th:if="${st.first or presets[st.index - 1].purposeCategory() != p.purposeCategory()}" th:text="${p.purposeCategory()}">BULK</div>
+                    <div class="pz-cat" th:if="${st.first or presets[st.index - 1].purposeCategory() != p.purposeCategory()}" th:text="${T(com.example.traning.periodization.PeriodizationViews).categoryLabel(p.purposeCategory())}">増量 (BULK)</div>
                     <button type="button" class="pz-preset" th:attr="data-preset=${p.id()},data-name=${p.name()}">
                         <div><div class="name" th:text="${p.name()}">王道4週バルクアップ</div>
                             <div class="meta" th:text="${p.totalWeeks() + '週構成' + (p.description() != null ? '・' + p.description() : '')}"></div></div>
+                        <span class="pz-tag" th:text="${p.organizationId() == 0 ? '全組織共通' : 'この店舗'}">全組織共通</span>
                     </button>
                 </th:block>
                 <button type="button" class="btn btn-primary w-full" id="pz-send" disabled style="margin-top:8px;">プログラムを選んでください</button>
@@ -74,7 +75,7 @@
     </main>
 
     <script th:inline="javascript">
-        const PZ_OUTSTANDING = {
+        window.PZ_OUTSTANDING = {
             pending: /*[[${pending}]]*/ [],
             scheduled: /*[[${scheduled}]]*/ [],
             scheduledStartDate: /*[[${scheduledStartDate}]]*/ null
