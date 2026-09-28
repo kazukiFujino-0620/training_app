@@ -120,7 +120,8 @@ export default function CustomCycleBuilderScreen({ navigation }: Props) {
         <Text style={styles.headerTitle}>自分で組む</Text>
         <View style={{ width: 50 }} />
       </View>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      {/* 数値キーボードには閉じるボタンが無いため、スクロール操作でキーボードを閉じられるようにする */}
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         {error && <Text style={styles.error}>{error}</Text>}
         <View style={styles.card}>
           <Text style={styles.label}>名前</Text>

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator,
 } from 'react-native';
@@ -37,6 +37,12 @@ export default function ProgramCycleScreen({ navigation }: Props) {
   const [editingDay, setEditingDay] = useState<PeriodizationDay | null>(null);
   const [confirm, setConfirm] = useState<null | { kind: 'decline' | 'switch'; onYes: () => void }>(null);
   const [content, setContent] = useState<Record<number, PeriodizationContent | undefined>>({});
+  const scrollRef = useRef<ScrollView>(null);
+  /** 確認は画面最上部に出すため、表示時に先頭までスクロールして見落としを防ぐ */
+  const openConfirm = (c: { kind: 'decline' | 'switch'; onYes: () => void }) => {
+    setConfirm(c);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
 
   const load = useCallback(async () => {
     setError(null);
@@ -71,7 +77,7 @@ export default function ProgramCycleScreen({ navigation }: Props) {
   /** 予約中の案があるときは、本人による切り替えの前に確認を出す（2026-09-26 USER確定） */
   const withSwitchConfirm = (proceed: () => void) => {
     if (!scheduled) { proceed(); return; }
-    setConfirm({ kind: 'switch', onYes: () => { setConfirm(null); proceed(); } });
+    openConfirm({ kind: 'switch', onYes: () => { setConfirm(null); proceed(); } });
   };
 
   const respond = async (choice: ProposalResponseChoice) => {
@@ -195,7 +201,7 @@ export default function ProgramCycleScreen({ navigation }: Props) {
           )}
           <TouchableOpacity
             style={styles.choice}
-            onPress={() => setConfirm({ kind: 'decline', onYes: () => respond('DECLINE') })}
+            onPress={() => openConfirm({ kind: 'decline', onYes: () => respond('DECLINE') })}
           >
             <Text style={styles.choiceTitle}>断る</Text>
           </TouchableOpacity>
@@ -315,7 +321,7 @@ export default function ProgramCycleScreen({ navigation }: Props) {
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color="#4CAF50" /></View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
           {error && <Text style={styles.error}>{error}</Text>}
           {confirm && confirmBox()}
           {renderProposals()}

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, Pressable, StyleSheet, TextInput, ScrollView, ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { masterApi } from '../api/client';
 import type { PeriodizationItemInput, TrainingItemMaster } from '../api/types';
@@ -172,6 +173,8 @@ export default function DayItemsSheet({
                     onPress={() => {
                       setList((prev) => [...prev, { itemName: s.itemName, targetSets: 3 }]);
                       setQuery('');
+                      // 追加したらキーボードを閉じてシートを元の高さに戻し、保存ボタンを見えるようにする
+                      Keyboard.dismiss();
                     }}
                   >
                     <Text style={styles.suggestionText}>{s.itemName}</Text>

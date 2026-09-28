@@ -484,9 +484,12 @@ export default function TrainingListScreen({ navigation }: Props) {
               onPress={() => navigation.navigate('ProgramCycle')}
               testID="proposal-banner"
             >
-              <Text style={styles.noticeBannerText} numberOfLines={2}>
-                プログラムの案が届いています（{pendingProposal.trainerName ? `${pendingProposal.trainerName}トレーナー・` : ''}{pendingProposal.name}）
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.noticeBannerText}>プログラムの案が届いています</Text>
+                <Text style={styles.proposalBannerSub} numberOfLines={1}>
+                  {pendingProposal.trainerName ? `${pendingProposal.trainerName}トレーナー・` : ''}{pendingProposal.name}
+                </Text>
+              </View>
               <Text style={styles.noticeBannerArrow}>確認する →</Text>
             </TouchableOpacity>
           )}
@@ -633,6 +636,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
+  proposalBannerSub: { fontSize: 12, color: '#777', marginTop: 2 },
   menuItem: {
     paddingHorizontal: 16, paddingVertical: 13,
     borderBottomWidth: 1, borderBottomColor: '#f2f2f2',
