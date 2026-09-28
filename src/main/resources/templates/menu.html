@@ -153,6 +153,22 @@
           <span style="margin-left:auto;color:var(--text-muted);font-size:0.82rem;">確認する →</span>
         </a>
 
+        <!-- 期分けプログラムの案（機能見直し-1-#3、返事待ちの案があるときだけ表示） -->
+        <a th:if="${pendingProposal != null}"
+           th:href="@{/user/program-cycle}"
+           class="mb-6"
+           data-testid="proposal-banner"
+           style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg-card);
+                  border:1px solid var(--border-color);border-left:4px solid var(--primary,#2563eb);
+                  border-radius:10px;padding:12px 16px;text-decoration:none;">
+          <span style="font-weight:600;color:var(--text-primary);font-size:0.9rem;"
+                th:text="${(pendingProposal.trainerName() != null ? pendingProposal.trainerName() + 'トレーナー' : 'トレーナー') + 'からプログラムの案が届いています'}">
+            トレーナーからプログラムの案が届いています
+          </span>
+          <span style="color:var(--text-muted);font-size:0.82rem;" th:text="${pendingProposal.name()}"></span>
+          <span style="margin-left:auto;color:var(--text-muted);font-size:0.82rem;">確認する →</span>
+        </a>
+
         <!-- Page Header -->
         <div class="mb-6">
           <div class="flex items-center justify-between">
@@ -1104,6 +1120,18 @@
                 backgroundColor: 'rgba(255, 99, 132, 0.1)',
                 tension: 0.3,
                 yAxisID: 'y1',
+              },
+              {
+                // 機能見直し-1-#3（モックアップ05）: 期分けプログラムの計画値。実測と区別するため破線。
+                // 期分け未利用・計画の無い週はnullで線が途切れる（spanGapsは既定のfalse）
+                label: '計画値 (kg)',
+                data: [],
+                borderColor: 'rgb(255, 159, 64)',
+                backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                borderDash: [6, 4],
+                pointRadius: 0,
+                tension: 0.1,
+                yAxisID: 'y',
               }
             ]
           },
@@ -1111,7 +1139,16 @@
             responsive: true,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-              legend: { labels: { color: tc.legendColor } }
+              legend: {
+                labels: {
+                  color: tc.legendColor,
+                  // 計画値（期分けプログラム）が1件も無い場合は凡例に出さない（既存ユーザーの見た目を変えない）
+                  filter: function (item, chartData) {
+                    if (item.datasetIndex !== 2) return true;
+                    return (chartData.datasets[2].data || []).some(function (v) { return v != null; });
+                  }
+                }
+              }
             },
             scales: {
               x: {
@@ -1154,6 +1191,7 @@
             growthChart.data.labels           = data.labels;
             growthChart.data.datasets[0].data = data.maxWeight;
             growthChart.data.datasets[1].data = data.totalVolume;
+            growthChart.data.datasets[2].data = data.plannedWeight || [];
             growthChart.update();
           }
         } catch (e) {

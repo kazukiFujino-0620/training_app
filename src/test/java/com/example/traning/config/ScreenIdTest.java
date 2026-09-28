@@ -14,7 +14,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * ita2-4（ヘッダー戻る/閉じる対応）: {@link ScreenId#fromPath}が全画面を正しく解決できるかの検証。
  *
  * <p>ita7-1でWebから廃止された{@code TRAINING_DETAIL}・{@code TRAINING_REGISTER}・{@code
- * START_TRAINING}の3画面分のenumエントリは削除済みのため、現在の対象は23画面。
+ * START_TRAINING}の3画面分のenumエントリは削除済み。機能見直し-1-#3で期分けプログラムの3画面を追加し、現在の対象は26画面。
  */
 class ScreenIdTest {
 
@@ -28,6 +28,12 @@ class ScreenIdTest {
         arguments("/user/export", ScreenId.USER_EXPORT, "/menu", "メニューに戻る"),
         arguments("/user/email", ScreenId.USER_EMAIL, "/menu", "メニューに戻る"),
         arguments("/user/weekly-program", ScreenId.USER_WEEKLY_PROGRAM, "/menu", "メニューに戻る"),
+        arguments("/user/program-cycle", ScreenId.USER_PROGRAM_CYCLE, "/menu", "メニューに戻る"),
+        arguments(
+            "/trainer/periodization",
+            ScreenId.TRAINER_PERIODIZATION,
+            "/trainer/advice",
+            "トレーナーアドバイスに戻る"),
         arguments("/user/withdrawal", ScreenId.USER_WITHDRAWAL, "/menu", "メニューに戻る"),
         arguments("/user/mfa", ScreenId.USER_MFA, "/menu", "メニューに戻る"),
         arguments("/user/mfa/setup", ScreenId.USER_MFA_SETUP, "/user/mfa", "2段階認証に戻る"),
@@ -76,6 +82,14 @@ class ScreenIdTest {
     assertThat(resolved).contains(ScreenId.ADMIN_USER_TRAINING_DETAIL);
     assertThat(resolved.get().backUrl()).isEqualTo("/admin/all-users-training");
     assertThat(resolved.get().backLabel()).isEqualTo("一覧に戻る");
+  }
+
+  @Test
+  void 期分けプログラムの案の編集画面が前方一致で解決される() {
+    Optional<ScreenId> resolved = ScreenId.fromPath("/trainer/periodization/proposals/12/edit");
+
+    assertThat(resolved).contains(ScreenId.TRAINER_PERIODIZATION_EDIT);
+    assertThat(resolved.get().backUrl()).isEqualTo("/trainer/advice");
   }
 
   @Test

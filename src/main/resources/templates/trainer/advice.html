@@ -118,6 +118,19 @@
             <span th:unless="${trainee.assignedTrainerId == null}"
                   th:text="${'現在の担当: ' + (trainerNames[trainee.assignedTrainerId] ?: ('ID:' + trainee.assignedTrainerId))}"></span>
           </div>
+          <!-- 機能見直し-1-#3: 期分けの状況と直近に送った案の状態（自分が担当のトレーニーのみ） -->
+          <th:block th:with="mine=${trainee.assignedTrainerId != null and loginUser != null and trainee.assignedTrainerId == loginUser.userId()}">
+            <div th:if="${mine}" class="assignment-current">
+              <span th:text="${'期分け: ' + (activeCycleNames[trainee.userId.longValue()] != null ? activeCycleNames[trainee.userId.longValue()] + ' 実施中' : '未設定')}"></span>
+              <span th:with="lp=${latestProposals[trainee.userId.longValue()]}"
+                    th:if="${lp != null}"
+                    th:text="${'・送った案: ' + lp.statusLabel()}"></span>
+            </div>
+            <a th:if="${mine}"
+               th:href="@{/trainer/periodization(targetUserId=${trainee.userId})}"
+               class="btn btn-primary btn-sm"
+               style="margin-top:6px;display:inline-block;">期分けプログラムの案を送る</a>
+          </th:block>
         </div>
         <form th:action="@{/trainer/advice/assignments/{id}(id=${trainee.userId})}" method="post">
           <select name="newTrainerId" class="form-control">

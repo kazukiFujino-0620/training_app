@@ -2,6 +2,7 @@ package com.example.traning.periodization;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -94,6 +95,31 @@ public final class PeriodizationViews {
           CustomCycleRules.NO_DELOAD_WARNING);
     }
   }
+
+  /**
+   * トレーナーからの案（トレーニー側の案カード・トレーナー側の送信済み一覧の表示用）。
+   *
+   * @param scheduledStartDate 予約中の案が始まる日（今のサイクルの終了日の翌日）。予約中以外はnull
+   * @param scheduledAfterCycleName 予約中の案の前に実施している今のサイクル名。予約中以外はnull
+   */
+  public record ProposalView(
+      Long id,
+      String name,
+      int totalWeeks,
+      Long traineeUserId,
+      String traineeName,
+      Long trainerUserId,
+      String trainerName,
+      String status,
+      String statusLabel,
+      LocalDateTime sentAt,
+      LocalDateTime contentUpdatedAt,
+      LocalDateTime startedAt,
+      LocalDate scheduledStartDate,
+      String scheduledAfterCycleName) {}
+
+  /** トレーニー宛ての返事待ち（最新1件のはず）と予約中の案。 */
+  public record TraineeProposals(List<ProposalView> pending, List<ProposalView> scheduled) {}
 
   /** 曜日別種目編集の入力1行（customizeDayTemplateItems）。 */
   public record ItemInput(String itemName, Integer targetSets) {}

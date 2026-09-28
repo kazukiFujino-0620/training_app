@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>期分けプログラムの案を送る - トレーニング管理システム</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="stylesheet" th:href="@{/css/periodization.css}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-secondary">
+    <header th:replace="~{common :: headerFragment}"></header>
+
+    <!-- 機能見直し-1-#3（モックアップ版11の07）: トレーナーが担当トレーニーに期分けプログラムの案を送る -->
+    <main class="main-content">
+        <div class="pz-page" id="pz-trainer" th:attr="data-trainee-id=${trainee.userId},data-trainee-name=${trainee.userName}">
+            <h1 class="pz-title">期分けプログラムの案を送る</h1>
+            <p class="pz-sub" th:text="${'宛先: ' + trainee.userName + 'さん'}">宛先: 山田 太郎さん</p>
+
+            <div class="pz-card">
+                <div class="pz-current">
+                    <b>現在の期分けプログラム:</b>
+                    <span th:if="${activeCycle != null}" th:text="${activeCycle.name() + '（第' + activeCycle.currentWeekNumber() + '週・' + activeCycle.startDate() + '開始）'}"></span>
+                    <span th:if="${activeCycle == null}">なし</span><br>
+                    <span style="color:var(--text-muted);" th:text="${'案を送っても、' + trainee.userName + 'さんが選ぶまで実施中のプログラムは変わりません。' + trainee.userName + 'さんは「今すぐ切り替える」「今のプログラムが終わったら開始」「断る」から選びます。'}"></span>
+                </div>
+
+                <div th:if="${#lists.isEmpty(presets)}" class="pz-empty">選べるプリセットがまだありません。</div>
+                <th:block th:each="p, st : ${presets}">
+                    <div class="pz-cat" th:if="${st.first or presets[st.index - 1].purposeCategory() != p.purposeCategory()}" th:text="${p.purposeCategory()}">BULK</div>
+                    <button type="button" class="pz-preset" th:attr="data-preset=${p.id()},data-name=${p.name()}">
+                        <div><div class="name" th:text="${p.name()}">王道4週バルクアップ</div>
+                            <div class="meta" th:text="${p.totalWeeks() + '週構成' + (p.description() != null ? '・' + p.description() : '')}"></div></div>
+                    </button>
+                </th:block>
+                <button type="button" class="btn btn-primary w-full" id="pz-send" disabled style="margin-top:8px;">プログラムを選んでください</button>
+                <div id="pz-send-confirm"></div>
+            </div>
+
+            <div class="pz-card">
+                <div class="pz-sub-h" style="margin-top:0;">これまでに送った案</div>
+                <div th:if="${#lists.isEmpty(sent)}" class="pz-empty">まだ案を送っていません。</div>
+                <div class="pz-table-wrap" th:unless="${#lists.isEmpty(sent)}">
+                    <table class="pz-table">
+                        <thead><tr><th>送った日</th><th>プログラム</th><th>状態</th><th>操作</th></tr></thead>
+                        <tbody>
+                        <tr th:each="s : ${sent}" th:attr="data-row=${s.id()}">
+                            <td th:text="${#temporals.format(s.sentAt(), 'yyyy-MM-dd')}">2026-09-20</td>
+                            <td><span th:text="${s.name()}">王道4週</span>
+                                <div class="pz-meta" th:if="${s.contentUpdatedAt() != null}" th:text="${#temporals.format(s.contentUpdatedAt(), 'M/d') + 'に内容を更新'}"></div></td>
+                            <td>
+                                <span th:class="${'pz-st ' + (s.status() == 'PENDING' ? 'pending' : (s.status() == 'SCHEDULED' ? 'scheduled' : (s.status() == 'STARTED' ? 'started' : 'closed')))}"
+                                      th:text="${s.statusLabel() + (s.status() == 'SCHEDULED' and s.scheduledStartDate() != null ? '（' + #temporals.format(s.scheduledStartDate(), 'M/d') + 'から開始）' : '') + (s.status() == 'STARTED' and s.startedAt() != null ? '（' + #temporals.format(s.startedAt(), 'yyyy-MM-dd') + '）' : '')}">返事待ち</span>
+                            </td>
+                            <td>
+                                <a th:if="${s.status() == 'PENDING' or s.status() == 'SCHEDULED'}" class="pz-link" th:href="@{/trainer/periodization/proposals/{id}/edit(id=${s.id()})}">編集</a>
+                                <button th:if="${s.status() == 'PENDING'}" type="button" class="pz-link danger" th:attr="data-withdraw=${s.id()},data-name=${s.name()}">取り下げ</button>
+                                <span th:if="${s.status() == 'STARTED'}" class="pz-meta">編集不可</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="pz-withdraw-confirm"></div>
+            </div>
+        </div>
+    </main>
+
+    <script th:inline="javascript">
+        const PZ_OUTSTANDING = {
+            pending: /*[[${pending}]]*/ [],
+            scheduled: /*[[${scheduled}]]*/ [],
+            scheduledStartDate: /*[[${scheduledStartDate}]]*/ null
+        };
+    </script>
+    <footer th:replace="~{common :: footerFragment}"></footer>
+    <script th:src="@{/js/theme.js}"></script>
+    <script th:src="@{/js/periodization-common.js}"></script>
+    <script th:src="@{/js/periodization-trainer.js}"></script>
+</body>
+</html>

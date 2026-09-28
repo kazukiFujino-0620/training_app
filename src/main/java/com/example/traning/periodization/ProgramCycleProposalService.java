@@ -1,5 +1,8 @@
 package com.example.traning.periodization;
 
+import com.example.traning.dao.UserDao;
+import com.example.traning.periodization.PeriodizationViews.ProposalView;
+import com.example.traning.periodization.PeriodizationViews.TraineeProposals;
 import com.example.traning.trainer.TrainerAdviceService;
 import com.example.traning.user.User;
 import java.time.LocalDate;
@@ -24,6 +27,7 @@ public class ProgramCycleProposalService {
   private final ProgramCycleDao programCycleDao;
   private final PeriodizationService periodizationService;
   private final TrainerAdviceService trainerAdviceService;
+  private final UserDao userDao;
 
   /** 送信前の確認表示用に、宛先トレーニーの返事待ちの案（新しい案で置き換わる）と予約中の案（そのまま残る）を返す。 担当関係の検証はsendProposalと同じ。 */
   @Transactional(readOnly = true)
@@ -161,6 +165,85 @@ public class ProgramCycleProposalService {
         proposalDao.insertDayTemplateItem(item);
       }
     }
+  }
+
+  /** トレーニー側の案カード・通知バナー用。返事待ちと予約中の案を、送ったトレーナー名・予約の開始日付きで返す。 */
+  @Transactional(readOnly = true)
+  public TraineeProposals getTraineeProposals(Long traineeUserId) {
+    java.util.Optional<ProgramCycle> active = programCycleDao.selectActiveByUserId(traineeUserId);
+    LocalDate scheduledStart =
+        active.map(c -> c.getStartDate().plusDays(7L * c.getTotalWeeks())).orElse(null);
+    String activeName = active.map(ProgramCycle::getName).orElse(null);
+    List<ProposalView> pending =
+        proposalDao.selectPendingByTrainee(traineeUserId).stream()
+            .map(p -> toView(p, null, null))
+            .toList();
+    List<ProposalView> scheduled =
+        proposalDao.selectScheduledByTrainee(traineeUserId).stream()
+            .map(p -> toView(p, scheduledStart, activeName))
+            .toList();
+    return new TraineeProposals(pending, scheduled);
+  }
+
+  /** トレーナー側の「これまでに送った案」（宛先で絞り込み。nullなら全件、新しい順）。 */
+  @Transactional(readOnly = true)
+  public List<ProposalView> getSentByTrainer(User trainer, Long traineeUserId) {
+    return proposalDao.selectByTrainer(trainer.getUserId().longValue()).stream()
+        .filter(p -> traineeUserId == null || p.getTraineeUserId().equals(traineeUserId))
+        .map(
+            p -> {
+              if (ProposalStatus.SCHEDULED.name().equals(p.getStatus())) {
+                java.util.Optional<ProgramCycle> active =
+                    programCycleDao.selectActiveByUserId(p.getTraineeUserId());
+                return toView(
+                    p,
+                    active.map(c -> c.getStartDate().plusDays(7L * c.getTotalWeeks())).orElse(null),
+                    active.map(ProgramCycle::getName).orElse(null));
+              }
+              return toView(p, null, null);
+            })
+        .toList();
+  }
+
+  /** トレーナー側の宛先一覧で表示する、宛先ごとの直近に送った案（トレーニーID→案）。 */
+  @Transactional(readOnly = true)
+  public java.util.Map<Long, ProposalView> getLatestSentByTrainee(User trainer) {
+    java.util.Map<Long, ProposalView> latest = new java.util.HashMap<>();
+    for (ProposalView v : getSentByTrainer(trainer, null)) {
+      latest.putIfAbsent(v.traineeUserId(), v); // selectByTrainerは新しい順
+    }
+    return latest;
+  }
+
+  @Transactional(readOnly = true)
+  public ProposalView getViewForTrainer(User trainer, Long proposalId) {
+    ProgramCycleProposal p = requireOwnProposal(trainer, proposalId);
+    return toView(p, null, null);
+  }
+
+  private ProposalView toView(
+      ProgramCycleProposal p, LocalDate scheduledStartDate, String scheduledAfterCycleName) {
+    ProposalStatus st = ProposalStatus.valueOf(p.getStatus());
+    return new ProposalView(
+        p.getId(),
+        p.getName(),
+        p.getTotalWeeks(),
+        p.getTraineeUserId(),
+        userName(p.getTraineeUserId()),
+        p.getTrainerUserId(),
+        userName(p.getTrainerUserId()),
+        st.name(),
+        st.label(),
+        p.getCreatedAt(),
+        p.getContentUpdatedAt(),
+        p.getStartedAt(),
+        scheduledStartDate,
+        scheduledAfterCycleName);
+  }
+
+  private String userName(Long userId) {
+    User u = userDao.selectById(userId.intValue());
+    return u != null ? u.getUserName() : null;
   }
 
   @Transactional(readOnly = true)

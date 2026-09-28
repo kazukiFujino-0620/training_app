@@ -33,14 +33,20 @@ public class TrainerAdviceController {
   private final TrainerAdviceService trainerAdviceService;
   private final TrainerAdviceDraftService trainerAdviceDraftService;
   private final UserService userService;
+  private final com.example.traning.periodization.ProgramCycleProposalService proposalService;
+  private final com.example.traning.periodization.PeriodizationService periodizationService;
 
   public TrainerAdviceController(
       TrainerAdviceService trainerAdviceService,
       TrainerAdviceDraftService trainerAdviceDraftService,
-      UserService userService) {
+      UserService userService,
+      com.example.traning.periodization.ProgramCycleProposalService proposalService,
+      com.example.traning.periodization.PeriodizationService periodizationService) {
     this.trainerAdviceService = trainerAdviceService;
     this.trainerAdviceDraftService = trainerAdviceDraftService;
     this.userService = userService;
+    this.proposalService = proposalService;
+    this.periodizationService = periodizationService;
   }
 
   private User currentUser(Principal principal) {
@@ -66,6 +72,16 @@ public class TrainerAdviceController {
         "assignmentTrainees", trainerAdviceService.listTraineesForAssignmentManagement(trainer));
     model.addAttribute("eligibleTrainers", trainerAdviceService.listEligibleTrainers(trainer));
     model.addAttribute("trainerNames", allTrainerNamesById());
+    // 機能見直し-1-#3（モックアップ版11の07）: 期分けの状況と、直近に送った案の状態
+    model.addAttribute("latestProposals", proposalService.getLatestSentByTrainee(trainer));
+    Map<Long, String> activeCycleNames = new java.util.HashMap<>();
+    for (User trainee : trainerAdviceService.listTraineesForAssignmentManagement(trainer)) {
+      long traineeId = trainee.getUserId().longValue();
+      periodizationService
+          .getActiveCycleDetail(traineeId, LocalDate.now())
+          .ifPresent(c -> activeCycleNames.put(traineeId, c.name()));
+    }
+    model.addAttribute("activeCycleNames", activeCycleNames);
     return "trainer/advice";
   }
 

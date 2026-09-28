@@ -29,6 +29,7 @@ class ProgramCycleProposalServiceTest {
   @Mock private ProgramCycleDao programCycleDao;
   @Mock private PeriodizationService periodizationService;
   @Mock private TrainerAdviceService trainerAdviceService;
+  @Mock private com.example.traning.dao.UserDao userDao;
 
   private ProgramCycleProposalService service;
   private final User trainer = User.builder().userId(42).role("ROLE_STORE_ADMIN").build();
@@ -37,7 +38,7 @@ class ProgramCycleProposalServiceTest {
   void setUp() {
     service =
         new ProgramCycleProposalService(
-            proposalDao, programCycleDao, periodizationService, trainerAdviceService);
+            proposalDao, programCycleDao, periodizationService, trainerAdviceService, userDao);
   }
 
   private PresetProgram preset() {

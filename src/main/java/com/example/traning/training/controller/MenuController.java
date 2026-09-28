@@ -68,6 +68,7 @@ public class MenuController {
   private final AiFatigueCommentService aiFatigueCommentService;
   private final FatigueCalculator fatigueCalculator;
   private final TrainingStatsService trainingStatsService;
+  private final com.example.traning.periodization.ProgramCycleProposalService proposalService;
 
   public MenuController(
       TrainingDao trainingDao,
@@ -83,7 +84,8 @@ public class MenuController {
       TrainerAdviceService trainerAdviceService,
       AiFatigueCommentService aiFatigueCommentService,
       FatigueCalculator fatigueCalculator,
-      TrainingStatsService trainingStatsService) {
+      TrainingStatsService trainingStatsService,
+      com.example.traning.periodization.ProgramCycleProposalService proposalService) {
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
@@ -98,6 +100,7 @@ public class MenuController {
     this.aiFatigueCommentService = aiFatigueCommentService;
     this.fatigueCalculator = fatigueCalculator;
     this.trainingStatsService = trainingStatsService;
+    this.proposalService = proposalService;
   }
 
   @GetMapping("/menu")
@@ -301,6 +304,11 @@ public class MenuController {
 
     // ita2-5: ジム・店舗からのお知らせバナー
     model.addAttribute("activeNoticeCount", noticeService.getActiveForUser(userEntity).size());
+
+    // 機能見直し-1-#3（モックアップ版11の08）: トレーナーからの期分けプログラムの案（返事待ち）のバナー
+    model.addAttribute(
+        "pendingProposal",
+        proposalService.getTraineeProposals(userId).pending().stream().findFirst().orElse(null));
 
     // itバグ-21対応（2026-09-11）: 「AIトレーニング提案」カードは「（モック）」文言のため廃止し、
     // 既存のルールベース推奨（dailyRecommendation、上記F3 Phase1参照）に一本化した。

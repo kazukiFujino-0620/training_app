@@ -40,6 +40,7 @@ public class PeriodizationApiController {
 
   private final PeriodizationService periodizationService;
   private final TrainingService trainingService;
+  private final ProgramCycleProposalService proposalService;
 
   private Long userId(Principal principal) {
     return trainingService.getUserIdByEmail(principal.getName());
@@ -147,6 +148,33 @@ public class PeriodizationApiController {
         periodizationService.renewCycle(userId(principal), req.choice(), req.presetProgramId());
     Map<String, Object> body = new HashMap<>();
     body.put("cycleId", cycleId.orElse(null));
+    return body;
+  }
+
+  /** トレーナーからの案（返事待ち・予約中）。/menuのバナーとprogram_cycle.htmlの案カードで使う。 */
+  @GetMapping("/proposals")
+  public ResponseEntity<PeriodizationViews.TraineeProposals> proposals(Principal principal) {
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.noStore())
+        .body(proposalService.getTraineeProposals(userId(principal)));
+  }
+
+  /** 案の中身（週ごとの強度・曜日ごとの部位と種目）。 */
+  @GetMapping("/proposals/{proposalId}/content")
+  public PeriodizationViews.CustomCycleInput proposalContent(
+      @PathVariable Long proposalId, Principal principal) {
+    return proposalService.getContent(userId(principal), proposalId);
+  }
+
+  /** 案に対する選択（START_NOW / SCHEDULE / DECLINE）。 */
+  @PostMapping("/proposals/{proposalId}/respond")
+  public Map<String, Object> respond(
+      @PathVariable Long proposalId,
+      @Valid @RequestBody com.example.traning.periodization.dto.RespondProposalRequest req,
+      Principal principal) {
+    Long cycleId = proposalService.respond(userId(principal), proposalId, req.response());
+    Map<String, Object> body = new HashMap<>();
+    body.put("cycleId", cycleId);
     return body;
   }
 }
