@@ -197,6 +197,83 @@ public final class MobilePeriodizationDtos {
     }
   }
 
+  /** トレーナーからの案（案のカード・予約表示・バナー用）。日付は yyyy-MM-dd。 */
+  public record ProposalResponse(
+      Long id,
+      String name,
+      int totalWeeks,
+      String trainerName,
+      String sentDate,
+      String contentUpdatedDate,
+      boolean contentUpdatedAfterResponse,
+      String scheduledStartDate,
+      String scheduledAfterCycleName) {
+    static ProposalResponse from(PeriodizationViews.ProposalView v) {
+      boolean updatedAfter =
+          v.contentUpdatedAt() != null
+              && (v.respondedAt() == null || v.contentUpdatedAt().isAfter(v.respondedAt()));
+      return new ProposalResponse(
+          v.id(),
+          v.name(),
+          v.totalWeeks(),
+          v.trainerName(),
+          v.sentAt() != null ? v.sentAt().toLocalDate().toString() : null,
+          v.contentUpdatedAt() != null ? v.contentUpdatedAt().toLocalDate().toString() : null,
+          updatedAfter,
+          v.scheduledStartDate() != null ? v.scheduledStartDate().toString() : null,
+          v.scheduledAfterCycleName());
+    }
+  }
+
+  /** 返事待ち（通常は最新1件）と予約中の案。 */
+  public record ProposalsResponse(
+      List<ProposalResponse> pending, List<ProposalResponse> scheduled) {
+    public static ProposalsResponse from(PeriodizationViews.TraineeProposals p) {
+      return new ProposalsResponse(
+          p.pending().stream().map(ProposalResponse::from).toList(),
+          p.scheduled().stream().map(ProposalResponse::from).toList());
+    }
+  }
+
+  /** 案の中身（週ごとの強度・曜日ごとの部位と種目）。 */
+  public record ProposalContentResponse(
+      String name, int totalWeeks, List<ContentWeek> weeks, List<ContentDay> days) {
+    public record ContentWeek(int weekNumber, Double targetIntensityPct, boolean deload) {}
+
+    public record ContentDay(
+        int weekNumber, String dayOfWeek, String partCode, List<ItemResponse> items) {}
+
+    public static ProposalContentResponse from(PeriodizationViews.CustomCycleInput c) {
+      return new ProposalContentResponse(
+          c.name(),
+          c.totalWeeks(),
+          c.weeks().stream()
+              .map(
+                  w ->
+                      new ContentWeek(
+                          w.weekNumber(),
+                          w.targetIntensityPct() != null
+                              ? w.targetIntensityPct().doubleValue()
+                              : null,
+                          Boolean.TRUE.equals(w.deload())))
+              .toList(),
+          c.days().stream()
+              .map(
+                  d ->
+                      new ContentDay(
+                          d.weekNumber(),
+                          d.dayOfWeek(),
+                          d.partCode(),
+                          d.items().stream()
+                              .map(i -> new ItemResponse(i.itemName(), i.targetSets(), null))
+                              .toList()))
+              .toList());
+    }
+  }
+
+  public record RespondRequest(
+      @NotNull com.example.traning.periodization.ProposalResponse response) {}
+
   /** 作成・継続したサイクルのID。GO_FREEFORMの場合はnull。 */
   public record CycleIdResponse(Long cycleId) {}
 }

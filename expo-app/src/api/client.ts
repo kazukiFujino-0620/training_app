@@ -93,6 +93,16 @@ import type {
   MobileTrainingStatsResponse,
   RestPreference,
   FormGuide,
+  PeriodizationPreset,
+  PeriodizationCycle,
+  PeriodizationToday,
+  PeriodizationProposals,
+  PeriodizationContent,
+  CustomCycleRules,
+  CustomCycleRequest,
+  PeriodizationItemInput,
+  RenewChoice,
+  ProposalResponseChoice,
 } from './types';
 
 export const authApi = {
@@ -232,4 +242,28 @@ export const withdrawalApi = {
   cancel: () => client.post('/withdrawal/cancel'),
   /** 一般ユーザー向け：申請を挟まず即座にアカウント・データを削除する。 */
   deleteImmediately: () => client.post('/withdrawal/delete-immediately'),
+};
+
+/**
+ * 期分けプログラム（機能見直し-1-#3）。/cycle は採用中サイクルが無ければ204（data は空）。
+ * /today を呼ぶとサーバー側でサイクル終了の判定と、予約した案の自動開始が行われるため、画面表示時は最初に呼ぶ。
+ */
+export const periodizationApi = {
+  presets: () => client.get<PeriodizationPreset[]>('/periodization/presets'),
+  cycle: () => client.get<PeriodizationCycle | ''>('/periodization/cycle'),
+  today: () => client.get<PeriodizationToday>('/periodization/today'),
+  adopt: (presetProgramId: number) =>
+    client.post<{ cycleId: number }>('/periodization/adopt', { presetProgramId }),
+  customRules: () => client.get<CustomCycleRules>('/periodization/custom/rules'),
+  createCustom: (req: CustomCycleRequest) =>
+    client.post<{ cycleId: number; warnings: string[] }>('/periodization/custom', req),
+  saveDayItems: (dayTemplateId: number, items: PeriodizationItemInput[]) =>
+    client.post(`/periodization/day-templates/${dayTemplateId}/items`, { items }),
+  renew: (choice: RenewChoice, presetProgramId?: number) =>
+    client.post<{ cycleId: number | null }>('/periodization/renew', { choice, presetProgramId }),
+  proposals: () => client.get<PeriodizationProposals>('/periodization/proposals'),
+  proposalContent: (id: number) =>
+    client.get<PeriodizationContent>(`/periodization/proposals/${id}/content`),
+  respond: (id: number, response: ProposalResponseChoice) =>
+    client.post<{ cycleId: number | null }>(`/periodization/proposals/${id}/respond`, { response }),
 };

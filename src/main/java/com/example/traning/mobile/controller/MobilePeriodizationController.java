@@ -9,10 +9,14 @@ import com.example.traning.mobile.dto.MobilePeriodizationDtos.CustomizeItemsRequ
 import com.example.traning.mobile.dto.MobilePeriodizationDtos.CycleIdResponse;
 import com.example.traning.mobile.dto.MobilePeriodizationDtos.CycleResponse;
 import com.example.traning.mobile.dto.MobilePeriodizationDtos.PresetResponse;
+import com.example.traning.mobile.dto.MobilePeriodizationDtos.ProposalContentResponse;
+import com.example.traning.mobile.dto.MobilePeriodizationDtos.ProposalsResponse;
 import com.example.traning.mobile.dto.MobilePeriodizationDtos.RenewRequest;
+import com.example.traning.mobile.dto.MobilePeriodizationDtos.RespondRequest;
 import com.example.traning.mobile.dto.MobilePeriodizationDtos.TodayResponse;
 import com.example.traning.periodization.PeriodizationService;
 import com.example.traning.periodization.PeriodizationViews.ItemInput;
+import com.example.traning.periodization.ProgramCycleProposalService;
 import com.example.traning.periodization.RenewChoice;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -36,9 +40,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class MobilePeriodizationController {
 
   private final PeriodizationService periodizationService;
+  private final ProgramCycleProposalService proposalService;
 
-  public MobilePeriodizationController(PeriodizationService periodizationService) {
+  public MobilePeriodizationController(
+      PeriodizationService periodizationService, ProgramCycleProposalService proposalService) {
     this.periodizationService = periodizationService;
+    this.proposalService = proposalService;
   }
 
   /**
@@ -122,5 +129,29 @@ public class MobilePeriodizationController {
     Long cycleId =
         periodizationService.renewCycle(userId, req.choice(), req.presetProgramId()).orElse(null);
     return ResponseEntity.ok(new CycleIdResponse(cycleId));
+  }
+
+  /** トレーナーからの案（返事待ち・予約中）。TrainingListScreenのバナー・メニュー件数とProgramCycleScreenの案カードで使う。 */
+  @GetMapping("/proposals")
+  public ResponseEntity<ProposalsResponse> proposals(@AuthenticationPrincipal Long userId) {
+    return ResponseEntity.ok(ProposalsResponse.from(proposalService.getTraineeProposals(userId)));
+  }
+
+  @GetMapping("/proposals/{id}/content")
+  public ResponseEntity<ProposalContentResponse> proposalContent(
+      @AuthenticationPrincipal Long userId, @PathVariable Long id) {
+    return ResponseEntity.ok(ProposalContentResponse.from(proposalService.getContent(userId, id)));
+  }
+
+  @AuditLog(
+      action = "MOBILE_PERIODIZATION_RESPOND_PROPOSAL",
+      targetTable = "program_cycle_proposals")
+  @PostMapping("/proposals/{id}/respond")
+  public ResponseEntity<CycleIdResponse> respond(
+      @AuthenticationPrincipal Long userId,
+      @PathVariable Long id,
+      @Valid @RequestBody RespondRequest req) {
+    return ResponseEntity.ok(
+        new CycleIdResponse(proposalService.respond(userId, id, req.response())));
   }
 }
