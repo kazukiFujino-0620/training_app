@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.dao.UserDao;
 import com.example.traning.mobile.dto.UpdateTrainingRequest;
+import com.example.traning.periodization.StagnationDetectionService;
 import com.example.traning.pr.service.PersonalRecordService;
 import com.example.traning.restpreference.RestIntervalCalculationService;
 import com.example.traning.training.Training;
@@ -37,6 +38,7 @@ class MobileTrainingControllerUpdateTrainingTest {
   @Mock private TrainingMasterDao trainingMasterDao;
   @Mock private CalorieCalculator calorieCalculator;
   @Mock private RestIntervalCalculationService restIntervalCalculationService;
+  @Mock private StagnationDetectionService stagnationDetectionService;
 
   private MobileTrainingController controller;
 
@@ -51,7 +53,8 @@ class MobileTrainingControllerUpdateTrainingTest {
             userDao,
             trainingMasterDao,
             calorieCalculator,
-            restIntervalCalculationService);
+            restIntervalCalculationService,
+            stagnationDetectionService);
   }
 
   private UpdateTrainingRequest request() {

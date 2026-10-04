@@ -11,7 +11,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import TrainingCard from '../components/TrainingCard';
 import ProgressBar from '../components/ProgressBar';
-import { trainingApi, noticeApi, recommendationApi, statsApi } from '../api/client';
+import { trainingApi, noticeApi, recommendationApi, statsApi, periodizationApi } from '../api/client';
 import { clearTokens, getUserName } from '../auth/tokenStore';
 import type { Training, DailyRecommendation, MobileTrainingStatsResponse } from '../api/types';
 
@@ -101,6 +101,8 @@ export default function TrainingListScreen({ navigation }: Props) {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [calories, setCalories] = useState<number | null>(null);
   const [noticeCount, setNoticeCount] = useState(0);
+  // 機能見直し-1-#3: トレーナーからの期分けプログラムの案（返事待ち）
+  const [pendingProposal, setPendingProposal] = useState<{ name: string; trainerName: string | null } | null>(null);
   // itバグ-21対応（2026-09-11）: 「（モック）」文言のAI提案カードを廃止し、
   // 既存のルールベース推奨（RecommendationService）による「今日のおすすめメニュー」に差し替えた。
   const [dailyRecommendation, setDailyRecommendation] = useState<DailyRecommendation | null>(null);
@@ -137,6 +139,13 @@ export default function TrainingListScreen({ navigation }: Props) {
         setNoticeCount(notices.length);
       } catch {
         setNoticeCount(0);
+      }
+
+      try {
+        const { data: proposals } = await periodizationApi.proposals();
+        setPendingProposal(proposals.pending[0] ?? null);
+      } catch {
+        setPendingProposal(null);
       }
 
       // itバグ-21対応: 今日のおすすめメニュー（ルールベース推奨）。当日以外では表示しない
@@ -322,6 +331,14 @@ export default function TrainingListScreen({ navigation }: Props) {
               <Text style={styles.menuItemText}>ヘルスケア</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setMenuOpen(false); navigation.navigate('ProgramCycle'); }}
+            >
+              <Text style={styles.menuItemText}>
+                プログラム{pendingProposal ? '（1）' : ''}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.menuItem, styles.menuItemLast]}
               onPress={() => { setMenuOpen(false); navigation.navigate('Withdrawal'); }}
             >
@@ -456,6 +473,23 @@ export default function TrainingListScreen({ navigation }: Props) {
               <Text style={styles.noticeBannerText}>
                 お知らせがあります（{noticeCount}件）
               </Text>
+              <Text style={styles.noticeBannerArrow}>確認する →</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* 機能見直し-1-#3: 期分けプログラムの案（お知らせバナーと同じ位置・同じ形） */}
+          {pendingProposal && (
+            <TouchableOpacity
+              style={styles.noticeBanner}
+              onPress={() => navigation.navigate('ProgramCycle')}
+              testID="proposal-banner"
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.noticeBannerText}>プログラムの案が届いています</Text>
+                <Text style={styles.proposalBannerSub} numberOfLines={1}>
+                  {pendingProposal.trainerName ? `${pendingProposal.trainerName}トレーナー・` : ''}{pendingProposal.name}
+                </Text>
+              </View>
               <Text style={styles.noticeBannerArrow}>確認する →</Text>
             </TouchableOpacity>
           )}
@@ -602,6 +636,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
+  proposalBannerSub: { fontSize: 12, color: '#777', marginTop: 2 },
   menuItem: {
     paddingHorizontal: 16, paddingVertical: 13,
     borderBottomWidth: 1, borderBottomColor: '#f2f2f2',

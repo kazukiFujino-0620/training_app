@@ -21,6 +21,7 @@ public enum ScreenId {
   USER_EXPORT("/user/export", "データエクスポート", "/menu", "メニューに戻る"),
   USER_EMAIL("/user/email", "メールアドレス変更", "/menu", "メニューに戻る"),
   USER_WEEKLY_PROGRAM("/user/weekly-program", "週間プログラム", "/menu", "メニューに戻る"),
+  USER_PROGRAM_CYCLE("/user/program-cycle", "期分けプログラム", "/menu", "メニューに戻る"),
   USER_WITHDRAWAL("/user/withdrawal", "退会申請", "/menu", "メニューに戻る"),
   USER_MFA("/user/mfa", "2段階認証", "/menu", "メニューに戻る"),
   USER_MFA_SETUP("/user/mfa/setup", "2段階認証設定", "/user/mfa", "2段階認証に戻る"),
@@ -41,6 +42,10 @@ public enum ScreenId {
   ADMIN_USER_TRAINING_DETAIL(
       "/admin/user/training-detail/", "トレーニング詳細", "/admin/all-users-training", "一覧に戻る"),
   TRAINER_ADVICE("/trainer/advice", "トレーナーアドバイス", "/menu", "メニューに戻る"),
+  TRAINER_PERIODIZATION(
+      "/trainer/periodization", "期分けプログラムの案を送る", "/trainer/advice", "トレーナーアドバイスに戻る"),
+  TRAINER_PERIODIZATION_EDIT(
+      "/trainer/periodization/proposals/", "案を編集", "/trainer/advice", "トレーナーアドバイスに戻る"),
   ;
 
   private final String path;

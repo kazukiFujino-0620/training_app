@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>案を編集 - トレーニング管理システム</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="stylesheet" th:href="@{/css/periodization.css}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-secondary">
+    <header th:replace="~{common :: headerFragment}"></header>
+
+    <!-- 機能見直し-1-#3（モックアップ版11の07）: 開始前（返事待ち・予約中）の案の編集。06・03の編集UIを流用 -->
+    <main class="main-content">
+        <div class="pz-page" id="pz-edit"
+             th:attr="data-proposal-id=${proposal.id()},data-trainee-id=${proposal.traineeUserId()},data-status=${proposal.status()}">
+            <h1 class="pz-title" th:text="${'案を編集: ' + proposal.name()}">案を編集</h1>
+            <p class="pz-sub" th:text="${'宛先: ' + proposal.traineeName() + 'さん・' + proposal.statusLabel()}">宛先</p>
+            <div class="pz-card">
+                <div class="pz-current" th:if="${proposal.status() == 'SCHEDULED'}"
+                     th:text="${'予約中の案です。保存すると' + proposal.traineeName() + 'さんの予約の表示に「トレーナーが内容を更新しました（更新日）」と出ます。承認は不要です。'}"></div>
+                <div class="pz-current" th:if="${proposal.status() == 'PENDING'}"
+                     th:text="${'返事待ちの案です。保存すると' + proposal.traineeName() + 'さんの案のカードが最新の内容に変わります。承認は不要です。'}"></div>
+                <div class="pz-current" th:unless="${proposal.status() == 'PENDING' or proposal.status() == 'SCHEDULED'}">この案は開始済み・終了済みのため編集できません。</div>
+                <div class="pz-builder"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="~{common :: footerFragment}"></footer>
+    <script th:src="@{/js/theme.js}"></script>
+    <script th:src="@{/js/periodization-common.js}"></script>
+    <script th:src="@{/js/periodization-trainer.js}"></script>
+</body>
+</html>

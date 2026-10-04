@@ -73,6 +73,14 @@ public interface TrainingDetailDao {
   List<GrowthResult> selectGrowthByItemAndPeriod(
       Long userId, String itemName, String startDate, String endDate);
 
+  /**
+   * 種目別・セッション（トレーニング日）単位の最大重量・合計ボリュームを新しい順に最大limit件取得する。
+   * 機能見直し-1-#3の停滞検知（StagnationDetectionService）用。集計条件は{@link #selectGrowthByItemAndPeriod}と同じ。
+   */
+  @Select
+  List<SessionAggregate> selectRecentSessionAggregatesByItem(
+      Long userId, String itemName, int limit);
+
   /** 部位別の総ボリューム（重量×回数の合計）を集計する（ita4-1 週次・月次サマリー通知用）。 */
   @Select
   List<PartVolume> selectVolumeByPartAndDateRange(
@@ -82,6 +90,18 @@ public interface TrainingDetailDao {
   public static class GrowthResult {
     @Column(name = "week_label")
     public String weekLabel;
+
+    @Column(name = "max_weight")
+    public Double maxWeight;
+
+    @Column(name = "total_volume")
+    public Double totalVolume;
+  }
+
+  @org.seasar.doma.Entity
+  public static class SessionAggregate {
+    @Column(name = "training_date")
+    public LocalDate trainingDate;
 
     @Column(name = "max_weight")
     public Double maxWeight;

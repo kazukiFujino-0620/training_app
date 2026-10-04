@@ -358,3 +358,123 @@ export interface MobileTrainingStatsResponse {
   /** 当月のトレーニング実施日一覧（"yyyy-MM-dd"形式）。カレンダーの実施日ドット表示用（ita7-3） */
   trainingDates: string[];
 }
+
+// ── 期分けプログラム（機能見直し-1-#3） ──────────────────────────────────────
+
+export interface PeriodizationPreset {
+  id: number;
+  name: string;
+  purposeCategory: string;
+  /** 例: "増量 (BULK)" */
+  purposeLabel: string;
+  totalWeeks: number;
+  description: string | null;
+}
+
+export interface PeriodizationItem {
+  itemName: string;
+  targetSets: number;
+  /** 目標重量（推定1RM×目標強度）。PR未登録ならnull */
+  targetWeightKg: number | null;
+}
+
+export interface PeriodizationDay {
+  dayTemplateId: number;
+  /** MON〜SUN */
+  dayOfWeek: string;
+  partCode: string | null;
+  items: PeriodizationItem[];
+}
+
+export interface PeriodizationWeek {
+  weekNumber: number;
+  targetIntensityPct: number | null;
+  deload: boolean;
+  days: PeriodizationDay[];
+}
+
+export interface PeriodizationCycle {
+  cycleId: number;
+  name: string;
+  /** BEGINNER_PRESET / INTERMEDIATE_CUSTOM / TRAINER_MANAGED */
+  tier: string;
+  startDate: string;
+  totalWeeks: number;
+  currentWeekNumber: number;
+  weeks: PeriodizationWeek[];
+}
+
+export interface StagnantItem {
+  itemName: string;
+  /** MILD / STRONG */
+  level: string;
+}
+
+export interface PeriodizationToday {
+  hasActiveCycle: boolean;
+  /** サイクル終了後で、次の行き先の選択待ち */
+  cycleCompleted: boolean;
+  cycleId: number | null;
+  cycleName: string | null;
+  weekNumber: number | null;
+  totalWeeks: number | null;
+  targetIntensityPct: number | null;
+  deload: boolean | null;
+  day: PeriodizationDay | null;
+  /** NONE / MILD / STRONG */
+  stagnationWarning: string;
+  stagnantItems: StagnantItem[];
+}
+
+export interface PeriodizationProposal {
+  id: number;
+  name: string;
+  totalWeeks: number;
+  trainerName: string | null;
+  sentDate: string | null;
+  contentUpdatedDate: string | null;
+  /** 予約（または選択）後にトレーナーが内容を更新した場合true */
+  contentUpdatedAfterResponse: boolean;
+  /** 予約中の案が始まる日（今のサイクルの終了日の翌日） */
+  scheduledStartDate: string | null;
+  scheduledAfterCycleName: string | null;
+}
+
+export interface PeriodizationProposals {
+  pending: PeriodizationProposal[];
+  scheduled: PeriodizationProposal[];
+}
+
+export interface PeriodizationContent {
+  name: string;
+  totalWeeks: number;
+  weeks: { weekNumber: number; targetIntensityPct: number | null; deload: boolean }[];
+  days: { weekNumber: number; dayOfWeek: string; partCode: string | null; items: PeriodizationItem[] }[];
+}
+
+export interface CustomCycleRules {
+  minTotalWeeks: number;
+  maxTotalWeeks: number;
+  longLoadStreakWarnWeeks: number;
+  noDeloadWarnMinWeeks: number;
+  shortCycleNote: string;
+  longLoadStreakWarning: string;
+  noDeloadWarning: string;
+}
+
+export interface PeriodizationItemInput {
+  itemName: string;
+  targetSets: number;
+}
+
+export interface CustomCycleRequest {
+  name: string;
+  totalWeeks: number;
+  weeks: { weekNumber: number; targetIntensityPct: number | null; deload: boolean }[];
+  days: { weekNumber: number; dayOfWeek: string; partCode: string; items: PeriodizationItemInput[] }[];
+}
+
+/** REPEAT_SAME / CHOOSE_NEW_PRESET（モバイルはGO_FREEFORM不可） */
+export type RenewChoice = 'REPEAT_SAME' | 'CHOOSE_NEW_PRESET';
+/** START_NOW / SCHEDULE / DECLINE */
+export type ProposalResponseChoice = 'START_NOW' | 'SCHEDULE' | 'DECLINE';

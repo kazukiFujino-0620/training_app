@@ -21,6 +21,10 @@ const NoticeListScreen = React.lazy(() => import('../screens/NoticeListScreen'))
 const WithdrawalScreen = React.lazy(() => import('../screens/WithdrawalScreen'));
 const BodyMeasurementScreen = React.lazy(() => import('../screens/BodyMeasurementScreen'));
 const ProfileScreen = React.lazy(() => import('../screens/ProfileScreen'));
+// 機能見直し-1-#3: 期分けプログラム
+const ProgramCycleScreen = React.lazy(() => import('../screens/ProgramCycleScreen'));
+const PresetSelectionScreen = React.lazy(() => import('../screens/PresetSelectionScreen'));
+const CustomCycleBuilderScreen = React.lazy(() => import('../screens/CustomCycleBuilderScreen'));
 
 // 画面モジュールの読み込み中に表示するフォールバック。
 // App.tsx起動時スプラッシュの配色（白背景 + 緑のActivityIndicator）に合わせている。
@@ -54,6 +58,9 @@ const NoticeListScreenLazy = withSuspense(NoticeListScreen);
 const WithdrawalScreenLazy = withSuspense(WithdrawalScreen);
 const BodyMeasurementScreenLazy = withSuspense(BodyMeasurementScreen);
 const ProfileScreenLazy = withSuspense(ProfileScreen);
+const ProgramCycleScreenLazy = withSuspense(ProgramCycleScreen);
+const PresetSelectionScreenLazy = withSuspense(PresetSelectionScreen);
+const CustomCycleBuilderScreenLazy = withSuspense(CustomCycleBuilderScreen);
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -80,6 +87,11 @@ export type AppStackParamList = {
   Withdrawal: undefined;
   BodyMeasurement: undefined;
   Profile: undefined;
+  /** 機能見直し-1-#3: 期分けプログラム */
+  ProgramCycle: undefined;
+  /** renew=true はサイクル終了後の「別のプリセットを選ぶ」 */
+  PresetSelection: { renew?: boolean } | undefined;
+  CustomCycleBuilder: Record<string, never> | undefined;
 };
 
 type RootStackParamList = {
@@ -155,6 +167,21 @@ function AppNavigator() {
       <AppStack.Screen
         name="Profile"
         component={ProfileScreenLazy}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="ProgramCycle"
+        component={ProgramCycleScreenLazy}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="PresetSelection"
+        component={PresetSelectionScreenLazy}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="CustomCycleBuilder"
+        component={CustomCycleBuilderScreenLazy}
         options={{ headerShown: false }}
       />
     </AppStack.Navigator>
