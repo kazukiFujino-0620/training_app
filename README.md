@@ -116,6 +116,7 @@ echo ${APP_JWT_SECRET:+set}   # "set" と表示されれば設定済み（値そ
 - 鍵を作り直すと、ローカルで発行済みのモバイル用トークンは無効になる（モバイルアプリで再ログインすれば良い）
 - 本番（GCP）の `APP_JWT_SECRET` とは必ず別の値にする。本番の値をローカルに持ち込まない
 - `./mvnw test` は Spring コンテキストを起動しないため、この環境変数は不要
+- このほか `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `LINE_CLIENT_ID` / `LINE_CLIENT_SECRET` も未設定だと起動失敗する（以前からの仕様）。Google/LINE ログインを試さないときは任意の文字列（例: `dummy`）で起動できる
 
 ---
 
