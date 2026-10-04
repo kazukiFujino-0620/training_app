@@ -1,0 +1,23 @@
+# Gitleaks 既知検出の除外リスト（itバグ-30, 2026-10-04）
+#
+# 過去のコミットに残っている「開発用の値」の検出だけを、コミットID・ファイル・ルール・行番号の
+# 組（フィンガープリント）で個別に除外する。履歴の書き換え（force-push）は行わない方針のため。
+# いずれも現在のファイルからは値を削除済み（JWT鍵は環境変数 APP_JWT_SECRET で渡す）。
+# 本番の鍵は application-gcp.properties で既定値なしの ${APP_JWT_SECRET} として扱っており、ここには含まれない。
+#
+# ファイル単位・ルール単位の除外はしない（今後の新しい漏えいは検出させるため）。
+# 新しい検出をここに追加する前に、まず値をファイルから外し、本物の鍵なら失効・再発行すること。
+
+# 開発用JWT鍵（application.properties の ${APP_JWT_SECRET:...} の既定値。後に既定値なしへ変更済み）
+32e56e918d31a90a35b09ea26aaf5b91f8cdb6b0:src/main/resources/application.properties:generic-api-key:37
+cb9995afec7744a35a04e45a1a183cc58af8e0e1:src/main/resources/application.properties:generic-api-key:37
+a1d381f63737f4f3c326ab33524b6851e92b2833:src/main/resources/application.properties:generic-api-key:37
+0a5eee3c5a3460361e7248f10fe5ca7db3257817:src/main/resources/application.properties:generic-api-key:37
+
+# 開発用JWT鍵（application-local.properties への直書き。環境変数へ移行済み）
+503b4c74e3a3743588866793da05a710ef737183:src/main/resources/application-local.properties:generic-api-key:17
+f9aa156ca6e57b2e6af6fac1c4ddd011487babbc:src/main/resources/application-local.properties:generic-api-key:17
+
+# .claude/settings.local.json の Notion API 呼び出し許可ルール内の Authorization ヘッダー
+# （本物の Notion 鍵の形式ではないダミーと判断。ファイルは Git 管理対象から除外済み）
+f52930fd2db4c4cfe7c3a8d04c70cf6e95a54d5a:.claude/settings.local.json:curl-auth-header:110

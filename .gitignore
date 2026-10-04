@@ -67,3 +67,7 @@ src/main/resources/application-secret.properties
 *.pem
 *.key
 *.pfx
+
+### Claude Code ###
+# 個人ごとの権限設定（コマンド履歴に認証ヘッダー等が残ることがあるため管理対象外）
+.claude/settings.local.json
