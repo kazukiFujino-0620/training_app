@@ -33,7 +33,7 @@ jobs:
 
       # 4. JARファイルをサーバーに転送 (SCP)
       - name: Copy JAR to GCP VM
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_SSH_USER }}
@@ -45,7 +45,7 @@ jobs:
       # 4b. マイグレーション用systemdユニットファイルを転送 (SCP)
       # リポジトリ側で内容が変わった場合も、次回デプロイで自動的にVM側へ反映される。
       - name: Copy migrate systemd unit to GCP VM
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_SSH_USER }}
