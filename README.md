@@ -75,14 +75,48 @@ java -jar target/TraningApp-*.jar --migrate-only=true
 
 ### ローカル開発に必要な環境変数
 
-`application-local.properties` に以下が定義済みのため、通常はそのまま起動できる。
+公開リポジトリのため、鍵の値はリポジトリ内のファイルに書かない（Gitleaks の CI で検出され失敗する）。
 
-| 変数                         | ローカルデフォルト           |
-| ---------------------------- | ---------------------------- |
-| `SPRING_DATASOURCE_USERNAME` | `root`                       |
-| `SPRING_DATASOURCE_PASSWORD` | （空）                       |
-| `jasypt.encryptor.password`  | `local-dev-key`              |
-| `app.jwt.secret`             | `bG9jYWw...`（開発用固定値） |
+#### 1. 設定ファイルに定義済みのもの（追加作業なし）
+
+`application-local.properties` に開発用の値が定義済み。
+
+| 変数                         | ローカルデフォルト |
+| ---------------------------- | ------------------ |
+| `SPRING_DATASOURCE_USERNAME` | `root`             |
+| `SPRING_DATASOURCE_PASSWORD` | （空）             |
+| `jasypt.encryptor.password`  | 開発用の固定値     |
+
+#### 2. 自分で環境変数を設定するもの
+
+| 環境変数         | 用途                                   | 未設定時 |
+| ---------------- | -------------------------------------- | -------- |
+| `APP_JWT_SECRET` | モバイル API の JWT 署名鍵（Base64）   | 起動失敗 |
+
+ローカル用の値は各自でランダムに作る（256bit 以上が必要。下記は 512bit）。
+
+```bash
+openssl rand -base64 64 | tr -d '\n'
+```
+
+出力された値をシェルの設定ファイル（`~/.zshrc` など。リポジトリの外）に追記し、新しいターミナルで起動する。
+
+```bash
+# ~/.zshrc に追記（<生成した値> を置き換える）
+export APP_JWT_SECRET='<生成した値>'
+```
+
+```bash
+source ~/.zshrc
+echo ${APP_JWT_SECRET:+set}   # "set" と表示されれば設定済み（値そのものは表示しない）
+./mvnw spring-boot:run
+```
+
+- IntelliJ / VS Code から起動する場合は、実行構成の環境変数にも `APP_JWT_SECRET` を設定する
+- 鍵を作り直すと、ローカルで発行済みのモバイル用トークンは無効になる（モバイルアプリで再ログインすれば良い）
+- 本番（GCP）の `APP_JWT_SECRET` とは必ず別の値にする。本番の値をローカルに持ち込まない
+- `./mvnw test` は Spring コンテキストを起動しないため、この環境変数は不要
+- このほか `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `LINE_CLIENT_ID` / `LINE_CLIENT_SECRET` も未設定だと起動失敗する（以前からの仕様）。Google/LINE ログインを試さないときは任意の文字列（例: `dummy`）で起動できる
 
 ---
 
