@@ -85,38 +85,40 @@ java -jar target/TraningApp-*.jar --migrate-only=true
 | ---------------------------- | ------------------ |
 | `SPRING_DATASOURCE_USERNAME` | `root`             |
 | `SPRING_DATASOURCE_PASSWORD` | （空）             |
-| `jasypt.encryptor.password`  | 開発用の固定値     |
 
 #### 2. 自分で環境変数を設定するもの
 
-| 環境変数         | 用途                                   | 未設定時 |
-| ---------------- | -------------------------------------- | -------- |
-| `APP_JWT_SECRET` | モバイル API の JWT 署名鍵（Base64）   | 起動失敗 |
+いずれも既定値なし。未設定のまま `./mvnw spring-boot:run` すると、`Could not resolve placeholder '<変数名>'` で起動に失敗する。
 
-ローカル用の値は各自でランダムに作る（256bit 以上が必要。下記は 512bit）。
+| 環境変数                       | 用途                                          | ローカル用の値の作り方               | 未設定時 |
+| ------------------------------ | --------------------------------------------- | ------------------------------------ | -------- |
+| `APP_JWT_SECRET`               | モバイル API の JWT 署名鍵（Base64、256bit 以上） | `openssl rand -base64 64 \| tr -d '\n'` | 起動失敗 |
+| `APP_SECURITY_REMEMBER_ME_KEY` | Web のログイン状態保持（Remember-me）の署名鍵 | `openssl rand -base64 32 \| tr -d '\n'` | 起動失敗 |
+| `JASYPT_ENCRYPTOR_PASSWORD`    | Jasypt（設定値の暗号化）のパスワード          | `openssl rand -base64 32 \| tr -d '\n'` | 起動失敗 |
+
+- Jasypt について: 現在、設定ファイルで暗号化した値（`ENC(...)`）は使っていないため、ローカルでは任意のランダム値で良い。今後ローカル用の設定に `ENC(...)` を入れる場合は、暗号化に使ったパスワードと同じ値を設定しないと復号できない
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `LINE_CLIENT_ID` / `LINE_CLIENT_SECRET` も未設定だと起動失敗する（以前からの仕様）。Google/LINE ログインを試さないときは任意の文字列（例: `dummy`）で起動できる
+
+生成した値をシェルの設定ファイル（`~/.zshrc` など。リポジトリの外）に追記し、新しいターミナルで起動する。
 
 ```bash
-openssl rand -base64 64 | tr -d '\n'
-```
-
-出力された値をシェルの設定ファイル（`~/.zshrc` など。リポジトリの外）に追記し、新しいターミナルで起動する。
-
-```bash
-# ~/.zshrc に追記（<生成した値> を置き換える）
+# ~/.zshrc に追記（<生成した値> をそれぞれ置き換える）
 export APP_JWT_SECRET='<生成した値>'
+export APP_SECURITY_REMEMBER_ME_KEY='<生成した値>'
+export JASYPT_ENCRYPTOR_PASSWORD='<生成した値>'
 ```
 
 ```bash
 source ~/.zshrc
-echo ${APP_JWT_SECRET:+set}   # "set" と表示されれば設定済み（値そのものは表示しない）
+# "set" と表示されれば設定済み（値そのものは表示しない）
+echo JWT=${APP_JWT_SECRET:+set} REMEMBER_ME=${APP_SECURITY_REMEMBER_ME_KEY:+set} JASYPT=${JASYPT_ENCRYPTOR_PASSWORD:+set}
 ./mvnw spring-boot:run
 ```
 
-- IntelliJ / VS Code から起動する場合は、実行構成の環境変数にも `APP_JWT_SECRET` を設定する
-- 鍵を作り直すと、ローカルで発行済みのモバイル用トークンは無効になる（モバイルアプリで再ログインすれば良い）
-- 本番（GCP）の `APP_JWT_SECRET` とは必ず別の値にする。本番の値をローカルに持ち込まない
-- `./mvnw test` は Spring コンテキストを起動しないため、この環境変数は不要
-- このほか `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `LINE_CLIENT_ID` / `LINE_CLIENT_SECRET` も未設定だと起動失敗する（以前からの仕様）。Google/LINE ログインを試さないときは任意の文字列（例: `dummy`）で起動できる
+- IntelliJ / VS Code から起動する場合は、実行構成の環境変数にも同じ3つを設定する
+- `APP_JWT_SECRET` を作り直すと、ローカルで発行済みのモバイル用トークンは無効になる（モバイルアプリで再ログインすれば良い）。`APP_SECURITY_REMEMBER_ME_KEY` を作り直すと、ブラウザの「ログイン状態を保持」が解除される（再ログインすれば良い）
+- 本番（GCP）の値とは必ず別の値にする。本番の値をローカルに持ち込まない
+- `./mvnw test` は Spring コンテキストを起動しないため、これらの環境変数は不要
 
 ---
 

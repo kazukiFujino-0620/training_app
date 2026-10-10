@@ -55,7 +55,7 @@ public class SecurityConfig {
   // セッションが使えるこちら側のチェーンに置く（MobileOAuthLoginController参照）。
   private static final String MOBILE_OAUTH_PATH = "/mobile-oauth/**";
 
-  /** 環境変数 APP_REMEMBER_ME_KEY から注入。未設定時は起動失敗させる。 */
+  /** 環境変数 APP_SECURITY_REMEMBER_ME_KEY から注入。未設定時は起動失敗させる。 */
   @Value("${app.security.remember-me-key}")
   private String rememberMeKey;
 
@@ -290,7 +290,7 @@ public class SecurityConfig {
                     .permitAll())
 
         // ── Remember-me ─────────────────────────────────────────────────
-        // キーは環境変数 APP_REMEMBER_ME_KEY から注入（ハードコード禁止）
+        // キーは環境変数 APP_SECURITY_REMEMBER_ME_KEY から注入（ハードコード禁止）
         .rememberMe(
             remember ->
                 remember
