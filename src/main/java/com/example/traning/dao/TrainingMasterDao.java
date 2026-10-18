@@ -30,11 +30,17 @@ public interface TrainingMasterDao {
   @Select
   String selectNameByCode(String partCode);
 
-  /** 新規種目のみを対象とする（既存行がある場合、ユニーク制約違反になるため呼び出し側で新規分のみに絞ること）。 */
+  /**
+   * 新規種目のみを対象とする（既存行がある場合、ユニーク制約違反になるため呼び出し側で新規分のみに絞ること）。 Doma自動生成のINSERT（全列を列挙）のため、NOT
+   * NULL列は呼び出し側で値を設定すること（DBのDEFAULTは効かない）。
+   */
   @BatchInsert
   int[] batchUpsert(List<TrainingItemMaster> entities);
 
-  /** 既存種目のmaster_flgのみを更新する（idで対象を特定）。CSV取り込みでフラグに変更があった既存種目に使用する。 */
+  /**
+   * CSV取り込みでmaster_flgに変更があった既存種目を更新する（idで対象を特定）。
+   * Doma自動生成のUPDATE（全列を更新）のため、master_flg以外の列は呼び出し側で既存値を引き継ぐこと。
+   */
   @BatchUpdate
   int[] batchUpdateMasterFlg(List<TrainingItemMaster> entities);
 

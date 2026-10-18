@@ -239,12 +239,12 @@ public class MasterUpdateService {
       entity.setItemName(itemName);
       entity.setDisplayOrder(existing.getDisplayOrder());
       entity.setMasterFlg(masterFlg);
-      // organization_id・range_of_motion_mはDB上NOT NULL。BatchUpdateは全列を明示的に列挙する
-      // 自動生成SQLのため、既存値を引き継がないとNULLで上書きされてしまう。
-      // ※is_compoundはbatchUpdateMasterFlg.sql（手書きSQL）がmaster_flg列のみを更新するため対象外
-      //  （機能見直し-1-#1でis_compound追加。既存行のis_compoundは変更されず維持される）。
+      // organization_id・range_of_motion_m・is_compoundはDB上NOT NULL。batchUpdateMasterFlgは
+      // @BatchUpdate（Doma自動生成SQL）で全列を明示的に列挙してUPDATEするため、既存値を引き継がないと
+      // NULLで上書きしようとして失敗する（is_compoundは機能見直し-1-#1で追加。itバグ-32で引き継ぎ漏れを修正）。
       entity.setOrganizationId(existing.getOrganizationId());
       entity.setRangeOfMotionM(existing.getRangeOfMotionM());
+      entity.setIsCompound(existing.getIsCompound());
       updatedItems.add(entity);
       return;
     }
@@ -263,10 +263,11 @@ public class MasterUpdateService {
     // range_of_motion_mはDB上NOT NULL（DEFAULT 0.40）。BatchInsertは全列を明示的に列挙する自動生成SQLのため、
     // ここで未設定のままだとNULLが明示的にバインドされDBのDEFAULT句が効かず登録に失敗する（ita2結合試験で発見）。
     entity.setRangeOfMotionM(new BigDecimal("0.40"));
-    // is_compoundもDB上NOT NULL（DEFAULT 1）だが、batchUpsert.sql（手書きSQL）はpart_code/item_name/
-    // display_order/master_flgのみを列挙するINSERT文のためis_compoundは対象外＝DBのDEFAULT 1がそのまま
-    // 適用される（機能見直し-1-#1）。CSV側に区分情報が無いため、安全側（休憩時間が長めになる方向）に倒し
-    // 複合種目扱いがデフォルトになる。必要であれば取り込み後に別途目視レビューで修正する。
+    // is_compoundもDB上NOT NULL（DEFAULT 1）。range_of_motion_mと同じく、batchUpsertは@BatchInsert
+    // （Doma自動生成SQL）で全列を列挙するため、未設定だとNULLが明示的にバインドされDBのDEFAULT句は効かない
+    // （itバグ-32）。CSV側に区分情報が無いため、管理画面の個別追加（TrainingItemMasterService）と同じく
+    // 安全側（休憩時間が長めになる方向）に倒して複合種目扱いとする。必要であれば取り込み後に個別に修正する。
+    entity.setIsCompound(true);
 
     // --- 部位ごとの連番ロジック ---
     // その部位が初めて登場なら1、次からは+1する
