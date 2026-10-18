@@ -34,6 +34,9 @@ public record FrequencyGoalSummary(
   /** 達成率（%）を出し始める終わった週の数（QA Q7-8。training-coordinatorの暫定値で、運用で見直し可）。 */
   public static final int PERCENT_MIN_WEEKS = 4;
 
+  /** プログラムを始めた週の設定シートの説明文（2026-10-18 USER承認。翌週以降は仮画面Gの文言）。 */
+  public static final String PROGRAM_STARTS_NEXT_WEEK_TEXT = "来週から、その週の予定日数を目標にします。";
+
   /** 達成率（%）。終わった週がPERCENT_MIN_WEEKS未満ならnull（分数だけ出す）。 */
   public Integer achievementPct() {
     if (!goalSet || evaluatedWeeks < PERCENT_MIN_WEEKS) return null;
@@ -88,7 +91,8 @@ public record FrequencyGoalSummary(
     if (thisWeekFromProgram && thisWeekTarget != null && thisWeekTarget > 0) {
       return "プログラムの実施中は、その週の予定日数（今週は" + thisWeekTarget + "回）を目標にしています。";
     }
-    // 週の途中でプログラムを始めた週は、今週の目標は始める前のまま（週の開始時点で確定。QA Q7-7）
-    return "プログラムの実施中は、その週の予定日数を目標にします（来週から）。";
+    // 週の途中でプログラムを始めた週は、今週の目標は始める前のまま（週の開始時点で確定。QA Q7-7）。
+    // この週だけ文言を差し替える（2026-10-18 USER承認）
+    return PROGRAM_STARTS_NEXT_WEEK_TEXT;
   }
 }

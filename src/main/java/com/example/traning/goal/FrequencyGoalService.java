@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.seasar.doma.jdbc.UniqueConstraintException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -155,7 +156,12 @@ public class FrequencyGoalService {
       row.setSource(t.source().name());
       row.setProgramCycleId(t.programCycleId());
       row.setEvaluated(!(firstIsStart && w.equals(firstWeek)));
-      frequencyGoalDao.insertWeekTarget(row);
+      try {
+        frequencyGoalDao.insertWeekTarget(row);
+      } catch (UniqueConstraintException e) {
+        // 同じユーザーの別リクエスト（Webとモバイルの同時表示など）が先に同じ週を確定した。
+        // 先に確定した行を正とし、書き換えない（MySQLでは失敗した文だけが取り消され、トランザクションは続行できる）
+      }
     }
   }
 

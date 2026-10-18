@@ -219,6 +219,17 @@ class FrequencyGoalServiceTest {
     assertThat(s.achievedWeeks()).isEqualTo(2);
   }
 
+  @Test
+  void 別リクエストが先に同じ週を確定していても先の行を正として処理を続ける() {
+    service.updateGoal(USER, 3, W1);
+    dao.failNextInsertAsDuplicate = true;
+
+    FrequencyGoalSummary s = service.getSummary(USER, W1.plusWeeks(2));
+
+    assertThat(s.goalSet()).isTrue();
+    assertThat(s.thisWeekTarget()).isEqualTo(3);
+  }
+
   // ===================== 期分けプログラムの週 =====================
 
   @Test
@@ -300,7 +311,7 @@ class FrequencyGoalServiceTest {
     assertThat(thisWeek.thisWeekTarget()).isEqualTo(2);
     assertThat(thisWeek.thisWeekFromProgram()).isFalse();
     assertThat(thisWeek.programActive()).isTrue();
-    assertThat(thisWeek.programSheetLabel()).isEqualTo("プログラムの実施中は、その週の予定日数を目標にします（来週から）。");
+    assertThat(thisWeek.programSheetLabel()).isEqualTo("来週から、その週の予定日数を目標にします。");
 
     FrequencyGoalSummary nextWeek = service.getSummary(USER, W1.plusWeeks(2));
     assertThat(nextWeek.thisWeekTarget()).isEqualTo(4);
@@ -388,6 +399,10 @@ class FrequencyGoalServiceTest {
   static class InMemoryFrequencyGoalDao implements FrequencyGoalDao {
     UserFrequencyGoal goal;
     final List<UserFrequencyWeekTarget> weeks = new ArrayList<>();
+
+    /** 次のinsertWeekTargetを、別リクエストが同じ週を先に確定した状況として扱う（行は入れて一意制約違反を投げる）。 */
+    boolean failNextInsertAsDuplicate;
+
     private final AtomicLong ids = new AtomicLong(1);
 
     UserFrequencyWeekTarget week(LocalDate monday) {
@@ -438,6 +453,10 @@ class FrequencyGoalServiceTest {
       }
       entity.setId(ids.getAndIncrement());
       weeks.add(entity);
+      if (failNextInsertAsDuplicate) {
+        failNextInsertAsDuplicate = false;
+        throw org.mockito.Mockito.mock(org.seasar.doma.jdbc.UniqueConstraintException.class);
+      }
       return 1;
     }
 
