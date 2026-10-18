@@ -34,6 +34,7 @@ class HealthSyncServiceTest {
   @Mock private HealthHeartRateDao healthHeartRateDao;
   @Mock private HealthCaloriesDao healthCaloriesDao;
   @Mock private HealthSleepDao healthSleepDao;
+  @Mock private HealthRestingHeartRateDao healthRestingHeartRateDao;
 
   private HealthSyncService service;
 
@@ -48,7 +49,8 @@ class HealthSyncServiceTest {
             healthStepsDao,
             healthHeartRateDao,
             healthCaloriesDao,
-            healthSleepDao);
+            new HealthSleepService(healthSleepDao),
+            new HealthRestingHeartRateService(healthRestingHeartRateDao));
   }
 
   private HealthSyncRequest emptyRequest() {
@@ -169,8 +171,7 @@ class HealthSyncServiceTest {
 
   @Test
   void 睡眠の新規レコードはinsertされる() {
-    when(healthSleepDao.selectByUserIdAndDateAndSource(USER_ID, DATE, "HEALTHKIT"))
-        .thenReturn(Optional.empty());
+    when(healthSleepDao.selectByUserIdAndDate(USER_ID, DATE)).thenReturn(Optional.empty());
 
     LocalDateTime start = LocalDateTime.of(2026, 8, 18, 23, 30);
     LocalDateTime end = LocalDateTime.of(2026, 8, 19, 6, 45);
@@ -192,6 +193,57 @@ class HealthSyncServiceTest {
     assertThat(inserted.startTime).isEqualTo(start);
     assertThat(inserted.endTime).isEqualTo(end);
     assertThat(inserted.durationMinutes).isEqualTo(435);
+    assertThat(inserted.source).isEqualTo("HEALTHKIT");
+  }
+
+  @Test
+  void 睡眠は同日の手動入力データがあれば同期元を問わず上書きされる() {
+    HealthSleep existing = new HealthSleep();
+    existing.id = 10L;
+    existing.userId = USER_ID;
+    existing.sleepDate = DATE;
+    existing.durationMinutes = 360;
+    existing.source = "MANUAL";
+    when(healthSleepDao.selectByUserIdAndDate(USER_ID, DATE)).thenReturn(Optional.of(existing));
+
+    HealthSyncRequest req = emptyRequest();
+    HealthSyncRequest.SleepRecord sl = new HealthSyncRequest.SleepRecord();
+    sl.setDate(DATE);
+    sl.setStartTime(LocalDateTime.of(2026, 8, 18, 23, 0));
+    sl.setEndTime(LocalDateTime.of(2026, 8, 19, 6, 0));
+    sl.setDurationMinutes(420);
+    req.setSleep(List.of(sl));
+
+    service.sync(USER_ID, req);
+
+    ArgumentCaptor<HealthSleep> captor = ArgumentCaptor.forClass(HealthSleep.class);
+    verify(healthSleepDao).update(captor.capture());
+    assertThat(captor.getValue().id).isEqualTo(10L);
+    assertThat(captor.getValue().durationMinutes).isEqualTo(420);
+    assertThat(captor.getValue().source).isEqualTo("HEALTHKIT");
+    verify(healthSleepDao, never()).insert(any());
+  }
+
+  @Test
+  void 安静時心拍の新規レコードはinsertされる() {
+    when(healthRestingHeartRateDao.selectByUserIdAndDate(USER_ID, DATE))
+        .thenReturn(Optional.empty());
+
+    HealthSyncRequest req = emptyRequest();
+    HealthSyncRequest.RestingHeartRateRecord r = new HealthSyncRequest.RestingHeartRateRecord();
+    r.setDate(DATE);
+    r.setRestingBpm(56);
+    req.setRestingHeartRate(List.of(r));
+
+    int count = service.sync(USER_ID, req);
+
+    assertThat(count).isEqualTo(1);
+    ArgumentCaptor<HealthRestingHeartRate> captor =
+        ArgumentCaptor.forClass(HealthRestingHeartRate.class);
+    verify(healthRestingHeartRateDao).insert(captor.capture());
+    assertThat(captor.getValue().restingBpm).isEqualTo(56);
+    assertThat(captor.getValue().recordDate).isEqualTo(DATE);
+    assertThat(captor.getValue().source).isEqualTo("HEALTHKIT");
   }
 
   @Test
@@ -202,8 +254,7 @@ class HealthSyncServiceTest {
         .thenReturn(Optional.empty());
     when(healthCaloriesDao.selectByUserIdAndDateAndSource(eq(USER_ID), any(), eq("HEALTHKIT")))
         .thenReturn(Optional.empty());
-    when(healthSleepDao.selectByUserIdAndDateAndSource(eq(USER_ID), any(), eq("HEALTHKIT")))
-        .thenReturn(Optional.empty());
+    when(healthSleepDao.selectByUserIdAndDate(eq(USER_ID), any())).thenReturn(Optional.empty());
 
     HealthSyncRequest req = emptyRequest();
     HealthSyncRequest.WeightRecord w = new HealthSyncRequest.WeightRecord();
@@ -301,6 +352,51 @@ class HealthSyncServiceTest {
     assertThat(response.getCalories().getActiveCalories()).isEqualTo(300.0);
     assertThat(response.getCalories().getTotalCalories()).isEqualTo(2200.0);
     assertThat(response.getSleep().getDurationMinutes()).isEqualTo(480);
+    // 過去4週間の記録が無い場合、平均はnull・日数は0
+    assertThat(response.getSleep().getAverageMinutesPast4Weeks()).isNull();
+    assertThat(response.getSleep().getAverageDaysPast4Weeks()).isZero();
+  }
+
+  @Test
+  void getSummaryは睡眠と安静時心拍に直近4週間の平均を添える() {
+    LocalDate today = LocalDate.now();
+    HealthSleep latest = new HealthSleep();
+    latest.sleepDate = today;
+    latest.durationMinutes = 390;
+    latest.source = "MANUAL";
+    when(healthSleepDao.selectLatestByUserId(USER_ID)).thenReturn(Optional.of(latest));
+    HealthSleep a = new HealthSleep();
+    a.durationMinutes = 420;
+    HealthSleep b = new HealthSleep();
+    b.durationMinutes = 445;
+    when(healthSleepDao.selectByUserIdAndDateRange(
+            USER_ID, today.minusWeeks(4), today.minusDays(1)))
+        .thenReturn(List.of(a, b));
+
+    HealthRestingHeartRate rhr = new HealthRestingHeartRate();
+    rhr.recordDate = today;
+    rhr.restingBpm = 58;
+    rhr.source = "HEALTHKIT";
+    when(healthRestingHeartRateDao.selectLatestByUserId(USER_ID)).thenReturn(Optional.of(rhr));
+    HealthRestingHeartRate r1 = new HealthRestingHeartRate();
+    r1.restingBpm = 54;
+    HealthRestingHeartRate r2 = new HealthRestingHeartRate();
+    r2.restingBpm = 55;
+    HealthRestingHeartRate r3 = new HealthRestingHeartRate();
+    r3.restingBpm = 57;
+    when(healthRestingHeartRateDao.selectByUserIdAndDateRange(
+            USER_ID, today.minusWeeks(4), today.minusDays(1)))
+        .thenReturn(List.of(r1, r2, r3));
+
+    HealthSummaryResponse response = service.getSummary(USER_ID);
+
+    assertThat(response.getSleep().getDurationMinutes()).isEqualTo(390);
+    assertThat(response.getSleep().getSource()).isEqualTo("MANUAL");
+    assertThat(response.getSleep().getAverageMinutesPast4Weeks()).isEqualTo(433); // 432.5を四捨五入
+    assertThat(response.getSleep().getAverageDaysPast4Weeks()).isEqualTo(2);
+    assertThat(response.getRestingHeartRate().getRestingBpm()).isEqualTo(58);
+    assertThat(response.getRestingHeartRate().getAverageBpmPast4Weeks()).isEqualTo(55); // 55.33
+    assertThat(response.getRestingHeartRate().getAverageDaysPast4Weeks()).isEqualTo(3);
   }
 
   @Test
@@ -318,5 +414,6 @@ class HealthSyncServiceTest {
     assertThat(response.getHeartRate()).isNull();
     assertThat(response.getCalories()).isNull();
     assertThat(response.getSleep()).isNull();
+    assertThat(response.getRestingHeartRate()).isNull();
   }
 }

@@ -17,6 +17,7 @@ public class HealthSummaryResponse {
   private HeartRateSummary heartRate;
   private CaloriesSummary calories;
   private SleepSummary sleep;
+  private RestingHeartRateSummary restingHeartRate;
 
   @Data
   @NoArgsConstructor
@@ -63,9 +64,36 @@ public class HealthSummaryResponse {
   @AllArgsConstructor
   public static class SleepSummary {
     private LocalDate date;
+
+    /** 手動入力の記録ではnull（機能見直し-1-#5）。 */
     private LocalDateTime startTime;
+
+    /** 手動入力の記録ではnull（機能見直し-1-#5）。 */
     private LocalDateTime endTime;
+
     private Integer durationMinutes;
     private String source;
+
+    /** 直近4週間（前日まで）の平均睡眠時間（分）。記録が無ければnull（機能見直し-1-#5）。 */
+    private Integer averageMinutesPast4Weeks;
+
+    /** 上記平均の元になった記録日数。 */
+    private int averageDaysPast4Weeks;
+  }
+
+  /** 安静時心拍（機能見直し-1-#5）。絶対値での良し悪し判定はせず、個人の過去平均との比較のみに使う。 */
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class RestingHeartRateSummary {
+    private LocalDate date;
+    private Integer restingBpm;
+    private String source;
+
+    /** 直近4週間（前日まで）の平均安静時心拍（bpm）。記録が無ければnull。 */
+    private Integer averageBpmPast4Weeks;
+
+    /** 上記平均の元になった記録日数。 */
+    private int averageDaysPast4Weeks;
   }
 }

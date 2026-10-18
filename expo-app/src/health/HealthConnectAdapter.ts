@@ -8,6 +8,7 @@ import {
 import {
   HealthCaloriesRecord,
   HealthHeartRateRecord,
+  HealthRestingHeartRateRecord,
   HealthSleepRecord,
   HealthStepsRecord,
   HealthWeightRecord,
@@ -21,6 +22,7 @@ const REQUIRED_PERMISSIONS: { accessType: 'read'; recordType: string }[] = [
   { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
   { accessType: 'read', recordType: 'TotalCaloriesBurned' },
   { accessType: 'read', recordType: 'SleepSession' },
+  { accessType: 'read', recordType: 'RestingHeartRate' },
 ];
 
 function toDateOnly(iso: string): string {
@@ -160,6 +162,29 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
       durationMinutes: Math.round(
         (new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 60000,
       ),
+    }));
+  }
+
+  async fetchRestingHeartRate(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<HealthRestingHeartRateRecord[]> {
+    const { records } = await readRecords('RestingHeartRate', {
+      timeRangeFilter: {
+        operator: 'between',
+        startTime: startDate.toISOString(),
+        endTime: endDate.toISOString(),
+      },
+    });
+    // 同日に複数ある場合は最後（時刻が最も遅い）レコードを採用する
+    const sorted = [...records].sort((a, b) => a.time.localeCompare(b.time));
+    const byDate = new Map<string, number>();
+    for (const r of sorted) {
+      byDate.set(toDateOnly(r.time), r.beatsPerMinute);
+    }
+    return Array.from(byDate.entries()).map(([date, bpm]) => ({
+      date,
+      restingBpm: Math.round(bpm),
     }));
   }
 }

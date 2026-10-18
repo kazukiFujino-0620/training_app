@@ -79,6 +79,8 @@ import type {
   TrainingHistory,
   PushRegisterRequest,
   HealthSyncRequest,
+  ManualSleepRequest,
+  ManualRestingHeartRateRequest,
   HealthSyncResponse,
   HealthSummaryResponse,
   TrainingCalorieResponse,
@@ -209,6 +211,10 @@ export const healthApi = {
   sync: (req: HealthSyncRequest) =>
     client.post<HealthSyncResponse>('/health/sync', req),
   getSummary: () => client.get<HealthSummaryResponse>('/health/summary'),
+  /** 機能見直し-1-#5: 手動入力（同日の記録は同期元を問わず上書き） */
+  saveSleep: (req: ManualSleepRequest) => client.put('/health/sleep', req),
+  saveRestingHeartRate: (req: ManualRestingHeartRateRequest) =>
+    client.put('/health/resting-heart-rate', req),
 };
 
 /** ita7-1 1-2: 体重・体脂肪率の手動記録 */

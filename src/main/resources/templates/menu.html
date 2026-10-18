@@ -678,6 +678,88 @@
             </div>
 
           </div>
+
+          <!-- 機能見直し-1-#5: 体調の参考情報（睡眠時間・安静時心拍。値の良し悪しは判定せず、本人の直近4週間平均と並べるだけ） -->
+          <div id="health-reference-card" class="mt-4"
+               style="background:var(--bg-card);border-radius:16px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,0.2);margin-top:16px;">
+            <div style="padding:16px 20px 14px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;">
+              <span style="color:var(--text-primary);font-size:1.05rem;font-weight:700;">体調の参考情報</span>
+              <span style="font-size:0.7rem;color:var(--text-muted);background:var(--bg-tertiary);padding:3px 10px;border-radius:20px;">直近4週間平均と比較</span>
+            </div>
+
+            <div style="padding:16px 20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+              <div style="display:flex;flex-direction:column;gap:3px;">
+                <th:block th:if="${healthReference.sleep() != null}">
+                  <div style="font-size:0.75rem;color:var(--text-secondary);" th:text="'睡眠（' + ${healthReference.sleep().dateLabel()} + '）'">睡眠</div>
+                  <div style="font-size:1.35rem;font-weight:800;color:var(--text-primary);" th:text="${healthReference.sleep().durationLabel()}">-</div>
+                  <div style="font-size:0.75rem;color:var(--text-secondary);" th:text="${healthReference.sleep().averageLabel()}"></div>
+                  <div style="font-size:0.75rem;color:var(--text-secondary);" th:if="${healthReference.sleep().diffLabel() != null}" th:text="${healthReference.sleep().diffLabel()}"></div>
+                </th:block>
+                <th:block th:if="${healthReference.sleep() == null}">
+                  <div style="font-size:0.75rem;color:var(--text-secondary);">睡眠</div>
+                  <div style="font-size:0.85rem;color:var(--text-secondary);">まだ記録がありません</div>
+                </th:block>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px;">
+                <th:block th:if="${healthReference.restingHeartRate() != null}">
+                  <div style="font-size:0.75rem;color:var(--text-secondary);" th:text="'安静時心拍（' + ${healthReference.restingHeartRate().dateLabel()} + '）'">安静時心拍</div>
+                  <div style="font-size:1.35rem;font-weight:800;color:var(--text-primary);" th:text="${healthReference.restingHeartRate().restingBpm()} + ' bpm'">-</div>
+                  <div style="font-size:0.75rem;color:var(--text-secondary);" th:text="${healthReference.restingHeartRate().averageLabel()}"></div>
+                  <div style="font-size:0.75rem;color:var(--text-secondary);" th:if="${healthReference.restingHeartRate().diffLabel() != null}" th:text="${healthReference.restingHeartRate().diffLabel()}"></div>
+                </th:block>
+                <th:block th:if="${healthReference.restingHeartRate() == null}">
+                  <div style="font-size:0.75rem;color:var(--text-secondary);">安静時心拍</div>
+                  <div style="font-size:0.85rem;color:var(--text-secondary);">まだ記録がありません</div>
+                </th:block>
+              </div>
+            </div>
+            <div style="padding:0 20px 12px;font-size:0.7rem;color:var(--text-secondary);">あなた自身の過去4週間との比較です。良し悪しの判定はしていません。</div>
+
+            <form id="health-manual-form" novalidate
+                  style="padding:14px 20px 18px;border-top:1px solid var(--border-color);display:flex;flex-direction:column;gap:10px;">
+              <div style="font-size:0.82rem;font-weight:700;color:var(--text-primary);">手動で記録する</div>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  <label for="hm-date" style="font-size:0.75rem;color:var(--text-secondary);">日付（起きた日）</label>
+                  <input id="hm-date" type="date" class="form-control" th:value="${healthReferenceToday}" th:max="${healthReferenceToday}"
+                         style="height:36px;width:150px;box-sizing:border-box;">
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  <span style="font-size:0.75rem;color:var(--text-secondary);">睡眠時間（前夜の主な睡眠・昼寝は含めない）</span>
+                  <div style="display:flex;align-items:center;gap:4px;font-size:0.82rem;color:var(--text-primary);">
+                    <input id="hm-sleep-hours" type="number" min="0" max="24" step="1" inputmode="numeric" aria-label="睡眠時間（時間）" class="form-control"
+                           style="height:36px;width:64px;box-sizing:border-box;text-align:right;">時間
+                    <select id="hm-sleep-minutes" aria-label="睡眠時間（分）" class="form-control" style="height:36px;box-sizing:border-box;width:auto;">
+                      <option value="0" selected>0</option>
+                      <option value="15">15</option>
+                      <option value="30">30</option>
+                      <option value="45">45</option>
+                    </select>分
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  <label for="hm-resting-bpm" style="font-size:0.75rem;color:var(--text-secondary);">安静時心拍</label>
+                  <div style="display:flex;align-items:center;gap:4px;font-size:0.82rem;color:var(--text-primary);">
+                    <input id="hm-resting-bpm" type="number" min="0" max="999" step="1" inputmode="numeric" class="form-control"
+                           style="height:36px;width:76px;box-sizing:border-box;text-align:right;">bpm
+                  </div>
+                </div>
+                <button type="submit" id="hm-save" class="btn btn-primary" style="height:36px;padding:0 18px;">保存</button>
+              </div>
+              <div style="font-size:0.75rem;color:var(--text-secondary);">片方だけの入力でも保存できます。同じ日の記録は上書きされます。眠れなかった日は「0時間0分」で記録できます。スマホのヘルスケア連携で取り込んだ記録もここに表示されます。</div>
+
+              <!-- よく入力される範囲から外れたときだけ出る確認（ブラウザのダイアログは使わず、カード内に表示） -->
+              <div id="hm-confirm" hidden
+                   style="background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:10px;padding:12px 14px;flex-direction:column;gap:10px;">
+                <div id="hm-confirm-text" style="font-size:0.82rem;line-height:1.6;color:var(--text-primary);white-space:pre-line;"></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button type="button" id="hm-confirm-save" class="btn btn-primary" style="height:36px;padding:0 16px;">このまま保存</button>
+                  <button type="button" id="hm-confirm-cancel" class="btn btn-secondary" style="height:36px;padding:0 16px;">修正する</button>
+                </div>
+              </div>
+              <div id="hm-message" role="status" aria-live="polite" style="font-size:0.8rem;white-space:pre-line;"></div>
+            </form>
+          </div><!-- /体調の参考情報 -->
           </div><!-- /筋肉疲労マップ wrapper -->
 
           <!-- 成長グラフ (62%) -->
@@ -1041,6 +1123,8 @@
     <script th:src="@{/js/theme.js}"></script>
     <script th:src="@{/js/training-modal.js}"></script>
     <script th:src="@{/js/menu.js}"></script>
+    <!-- 機能見直し-1-#5: 体調の参考情報カードの手動入力 -->
+    <script th:src="@{/js/health-reference.js}"></script>
 
     <!-- 筋肉疲労マップ カラーリング -->
     <script th:inline="javascript">

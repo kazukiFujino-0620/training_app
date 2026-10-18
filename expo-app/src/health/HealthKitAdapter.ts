@@ -8,6 +8,7 @@ import {
 import {
   HealthCaloriesRecord,
   HealthHeartRateRecord,
+  HealthRestingHeartRateRecord,
   HealthSleepRecord,
   HealthStepsRecord,
   HealthWeightRecord,
@@ -20,6 +21,7 @@ const READ_IDENTIFIERS = [
   'HKQuantityTypeIdentifierHeartRate',
   'HKQuantityTypeIdentifierActiveEnergyBurned',
   'HKCategoryTypeIdentifierSleepAnalysis',
+  'HKQuantityTypeIdentifierRestingHeartRate',
 ] as const;
 
 function toDateOnly(d: Date): string {
@@ -141,6 +143,27 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
       startTime: start.toISOString(),
       endTime: end.toISOString(),
       durationMinutes: Math.round(durationMs / 60000),
+    }));
+  }
+
+  async fetchRestingHeartRate(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<HealthRestingHeartRateRecord[]> {
+    // HealthKitの安静時心拍は通常1日1サンプル。複数ある場合は日付ごとに最後（最新）のサンプルを採用する
+    const samples = await queryQuantitySamples('HKQuantityTypeIdentifierRestingHeartRate', {
+      filter: { date: { startDate, endDate } },
+      unit: 'count/min',
+      limit: 0,
+      ascending: true,
+    });
+    const byDate = new Map<string, number>();
+    for (const s of samples) {
+      byDate.set(toDateOnly(s.startDate), s.quantity);
+    }
+    return Array.from(byDate.entries()).map(([date, bpm]) => ({
+      date,
+      restingBpm: Math.round(bpm),
     }));
   }
 }

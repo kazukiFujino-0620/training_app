@@ -209,6 +209,28 @@ export interface HealthSleepRecord {
   durationMinutes: number;
 }
 
+/** 機能見直し-1-#5: 睡眠時間の手動入力（時間のみ。画面の時間・分は合計分に換算して送る） */
+export interface ManualSleepRequest {
+  date: string;
+  /** 0（徹夜）も可 */
+  durationMinutes: number;
+  /** 確認範囲の値を、確認表示のうえで保存する場合にtrue（サーバーが409 CONFIRMATION_REQUIREDを返したとき） */
+  confirmed?: boolean;
+}
+
+/** 機能見直し-1-#5: 安静時心拍の手動入力 */
+export interface ManualRestingHeartRateRequest {
+  date: string;
+  restingBpm: number;
+  confirmed?: boolean;
+}
+
+/** 機能見直し-1-#5: 安静時心拍（日別1値） */
+export interface HealthRestingHeartRateRecord {
+  date: string;
+  restingBpm: number;
+}
+
 export interface HealthSyncRequest {
   source: HealthSyncSource;
   weight?: HealthWeightRecord[];
@@ -216,6 +238,7 @@ export interface HealthSyncRequest {
   heartRate?: HealthHeartRateRecord[];
   calories?: HealthCaloriesRecord[];
   sleep?: HealthSleepRecord[];
+  restingHeartRate?: HealthRestingHeartRateRecord[];
 }
 
 export interface HealthSyncResponse {
@@ -234,10 +257,24 @@ export interface HealthSummaryResponse {
   sleep:
     | {
         date: string;
-        startTime: string;
-        endTime: string;
+        /** 手動入力の記録ではnull（機能見直し-1-#5） */
+        startTime: string | null;
+        endTime: string | null;
         durationMinutes: number;
         source: string;
+        /** 機能見直し-1-#5: 直近4週間（前日まで）の平均睡眠時間（分）。記録が無ければnull */
+        averageMinutesPast4Weeks: number | null;
+        averageDaysPast4Weeks: number;
+      }
+    | null;
+  /** 機能見直し-1-#5: 安静時心拍（未記録ならnull） */
+  restingHeartRate:
+    | {
+        date: string;
+        restingBpm: number;
+        source: string;
+        averageBpmPast4Weeks: number | null;
+        averageDaysPast4Weeks: number;
       }
     | null;
 }
