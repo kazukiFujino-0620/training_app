@@ -47,7 +47,8 @@ class HealthReferenceViewTest {
         .isEqualTo("平均より3 bpm低い");
     assertThat(new HealthReferenceView.RestingHeartRate(DATE, 55, "HEALTHKIT", 55, 20).diffLabel())
         .isEqualTo("平均と同じ");
-    assertThat(new HealthReferenceView.RestingHeartRate(DATE, 55, "HEALTHKIT", 55, 20).averageLabel())
+    assertThat(
+            new HealthReferenceView.RestingHeartRate(DATE, 55, "HEALTHKIT", 55, 20).averageLabel())
         .isEqualTo("4週間平均 55 bpm");
   }
 }

@@ -64,6 +64,7 @@ public class HealthSummaryResponse {
   @AllArgsConstructor
   public static class SleepSummary {
     private LocalDate date;
+
     /** 手動入力の記録ではnull（機能見直し-1-#5）。 */
     private LocalDateTime startTime;
 

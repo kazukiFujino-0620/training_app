@@ -10,7 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 安静時心拍の手動入力・自動同期（機能見直し-1-#5）。
  *
- * <p>体重記録（BodyMeasurementService）と同じく1日1行の上書き方式。手動入力・同期のどちらから書き込んでも、 同日の既存データがあれば同期元を問わず上書きし、source列には最後に書き込んだ経路を残す。
+ * <p>体重記録（BodyMeasurementService）と同じく1日1行の上書き方式。手動入力・同期のどちらから書き込んでも、
+ * 同日の既存データがあれば同期元を問わず上書きし、source列には最後に書き込んだ経路を残す。
  */
 @Service
 @RequiredArgsConstructor
@@ -71,8 +72,8 @@ public class HealthRestingHeartRateService {
   /**
    * 過去N週間（today-N週 〜 today-1日）の記録の平均（bpm、四捨五入）と記録日数。記録が無ければempty。
    *
-   * <p>QA Q5-5で過去4週間に確定。呼び出し側は{@link HealthSleepService#AVERAGE_WEEKS}を渡す。
-   * 自動同期で入った入力エラー範囲（{@link HealthInputLimits#isRestingBpmUsableForAverage}）の値は計算から除外する。
+   * <p>QA Q5-5で過去4週間に確定。呼び出し側は{@link HealthSleepService#AVERAGE_WEEKS}を渡す。 自動同期で入った入力エラー範囲（{@link
+   * HealthInputLimits#isRestingBpmUsableForAverage}）の値は計算から除外する。
    */
   @Transactional(readOnly = true)
   public Optional<HealthAverage> getAverage(Long userId, int weeks, LocalDate today) {

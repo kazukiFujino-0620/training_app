@@ -14,11 +14,7 @@ public record HealthReferenceView(Sleep sleep, RestingHeartRate restingHeartRate
   public static final String NO_AVERAGE_TEXT = "直近4週間の記録がまだないため、平均は表示できません";
 
   public record Sleep(
-      LocalDate date,
-      int durationMinutes,
-      String source,
-      Integer averageMinutes,
-      int averageDays) {
+      LocalDate date, int durationMinutes, String source, Integer averageMinutes, int averageDays) {
 
     public String dateLabel() {
       return shortDate(date);
@@ -29,7 +25,9 @@ public record HealthReferenceView(Sleep sleep, RestingHeartRate restingHeartRate
     }
 
     public String averageLabel() {
-      return averageMinutes == null ? NO_AVERAGE_TEXT : "4週間平均 " + formatSleepMinutes(averageMinutes);
+      return averageMinutes == null
+          ? NO_AVERAGE_TEXT
+          : "4週間平均 " + formatSleepMinutes(averageMinutes);
     }
 
     /** 平均が無いときはnull（差の行は出さない）。 */

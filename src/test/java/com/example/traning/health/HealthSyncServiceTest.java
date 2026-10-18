@@ -171,8 +171,7 @@ class HealthSyncServiceTest {
 
   @Test
   void 睡眠の新規レコードはinsertされる() {
-    when(healthSleepDao.selectByUserIdAndDate(USER_ID, DATE))
-        .thenReturn(Optional.empty());
+    when(healthSleepDao.selectByUserIdAndDate(USER_ID, DATE)).thenReturn(Optional.empty());
 
     LocalDateTime start = LocalDateTime.of(2026, 8, 18, 23, 30);
     LocalDateTime end = LocalDateTime.of(2026, 8, 19, 6, 45);
@@ -255,8 +254,7 @@ class HealthSyncServiceTest {
         .thenReturn(Optional.empty());
     when(healthCaloriesDao.selectByUserIdAndDateAndSource(eq(USER_ID), any(), eq("HEALTHKIT")))
         .thenReturn(Optional.empty());
-    when(healthSleepDao.selectByUserIdAndDate(eq(USER_ID), any()))
-        .thenReturn(Optional.empty());
+    when(healthSleepDao.selectByUserIdAndDate(eq(USER_ID), any())).thenReturn(Optional.empty());
 
     HealthSyncRequest req = emptyRequest();
     HealthSyncRequest.WeightRecord w = new HealthSyncRequest.WeightRecord();

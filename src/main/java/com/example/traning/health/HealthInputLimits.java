@@ -3,8 +3,8 @@ package com.example.traning.health;
 /**
  * 睡眠・安静時心拍の手動入力の受付範囲（機能見直し-1-#5）。Web・モバイルの両方で共有する。
  *
- * <p>値はtraining-coordinatorの専門的判断による運用上の目安であり、公的な基準値ではない（根拠: 会議録
- * 機能見直し-1_会議録 #5 の2026-10-10追記、USER承認: 機能見直し-1_QA 2026-10-11追記）。入力ミスを防ぐためのもので、値の良し悪しを
+ * <p>値はtraining-coordinatorの専門的判断による運用上の目安であり、公的な基準値ではない（根拠: 会議録 機能見直し-1_会議録 #5
+ * の2026-10-10追記、USER承認: 機能見直し-1_QA 2026-10-11追記）。入力ミスを防ぐためのもので、値の良し悪しを
  * 判定するものではない。運用後に調整できるよう、境界値はすべてこのクラスの定数にまとめている。
  *
  * <ul>
@@ -50,8 +50,7 @@ public final class HealthInputLimits {
   public static final String SLEEP_ERROR_MESSAGE = "睡眠時間は0〜24時間の範囲で入力してください";
 
   /** 確認範囲の値に出す確認文。値の評価（異常・受診等）はしない。 */
-  public static final String CONFIRM_MESSAGE =
-      "入力された値は、よく入力される範囲から外れています。入力内容に間違いがなければ、このまま保存できます";
+  public static final String CONFIRM_MESSAGE = "入力された値は、よく入力される範囲から外れています。入力内容に間違いがなければ、このまま保存できます";
 
   /** 入力の判定結果。 */
   public enum Check {

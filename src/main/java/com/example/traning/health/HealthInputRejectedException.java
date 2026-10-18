@@ -31,7 +31,8 @@ public class HealthInputRejectedException extends RuntimeException {
   }
 
   /** 判定結果に応じて例外を投げる。OKなら何もしない。 */
-  static void throwIfRejected(HealthInputLimits.Check check, boolean confirmed, String errorMessage) {
+  static void throwIfRejected(
+      HealthInputLimits.Check check, boolean confirmed, String errorMessage) {
     switch (check) {
       case ERROR -> throw error(errorMessage);
       case NEEDS_CONFIRMATION -> {
