@@ -36,12 +36,13 @@ export async function syncHealthData(): Promise<SyncResult> {
   const startDate = new Date(endDate);
   startDate.setDate(startDate.getDate() - SYNC_DAYS);
 
-  const [weight, steps, heartRate, calories, sleep] = await Promise.all([
+  const [weight, steps, heartRate, calories, sleep, restingHeartRate] = await Promise.all([
     adapter.fetchWeight(startDate, endDate),
     adapter.fetchSteps(startDate, endDate),
     adapter.fetchHeartRate(startDate, endDate),
     adapter.fetchCalories(startDate, endDate),
     adapter.fetchSleep(startDate, endDate),
+    adapter.fetchRestingHeartRate(startDate, endDate),
   ]);
 
   const source: HealthSyncSource = Platform.OS === 'ios' ? 'HEALTHKIT' : 'HEALTH_CONNECT';
@@ -53,6 +54,7 @@ export async function syncHealthData(): Promise<SyncResult> {
     heartRate,
     calories,
     sleep,
+    restingHeartRate,
   });
 
   return { ok: true, syncedCount: response.data.syncedCount };

@@ -29,6 +29,9 @@ public class HealthSyncRequest {
 
   @Valid private List<SleepRecord> sleep;
 
+  /** 機能見直し-1-#5: 安静時心拍（HealthKit restingHeartRate / Health Connect RestingHeartRate）。 */
+  @Valid private List<RestingHeartRateRecord> restingHeartRate;
+
   @Data
   public static class WeightRecord {
     @NotNull(message = "dateは必須です")
@@ -81,5 +84,14 @@ public class HealthSyncRequest {
 
     @NotNull(message = "durationMinutesは必須です")
     private Integer durationMinutes;
+  }
+
+  @Data
+  public static class RestingHeartRateRecord {
+    @NotNull(message = "dateは必須です")
+    private LocalDate date;
+
+    @NotNull(message = "restingBpmは必須です")
+    private Integer restingBpm;
   }
 }

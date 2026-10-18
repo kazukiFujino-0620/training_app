@@ -69,6 +69,7 @@ public class MenuController {
   private final FatigueCalculator fatigueCalculator;
   private final TrainingStatsService trainingStatsService;
   private final com.example.traning.periodization.ProgramCycleProposalService proposalService;
+  private final com.example.traning.health.HealthReferenceService healthReferenceService;
 
   public MenuController(
       TrainingDao trainingDao,
@@ -85,7 +86,8 @@ public class MenuController {
       AiFatigueCommentService aiFatigueCommentService,
       FatigueCalculator fatigueCalculator,
       TrainingStatsService trainingStatsService,
-      com.example.traning.periodization.ProgramCycleProposalService proposalService) {
+      com.example.traning.periodization.ProgramCycleProposalService proposalService,
+      com.example.traning.health.HealthReferenceService healthReferenceService) {
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
@@ -101,6 +103,7 @@ public class MenuController {
     this.fatigueCalculator = fatigueCalculator;
     this.trainingStatsService = trainingStatsService;
     this.proposalService = proposalService;
+    this.healthReferenceService = healthReferenceService;
   }
 
   @GetMapping("/menu")
@@ -309,6 +312,10 @@ public class MenuController {
     model.addAttribute(
         "pendingProposal",
         proposalService.getTraineeProposals(userId).pending().stream().findFirst().orElse(null));
+
+    // 機能見直し-1-#5: 筋肉疲労マップの下の「体調の参考情報」カード（睡眠・安静時心拍の最新値と直近4週間平均）
+    model.addAttribute("healthReference", healthReferenceService.getReference(userId, today));
+    model.addAttribute("healthReferenceToday", today);
 
     // itバグ-21対応（2026-09-11）: 「AIトレーニング提案」カードは「（モック）」文言のため廃止し、
     // 既存のルールベース推奨（dailyRecommendation、上記F3 Phase1参照）に一本化した。

@@ -11,9 +11,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import TrainingCard from '../components/TrainingCard';
 import ProgressBar from '../components/ProgressBar';
-import { trainingApi, noticeApi, recommendationApi, statsApi, periodizationApi } from '../api/client';
+import { trainingApi, noticeApi, recommendationApi, statsApi, periodizationApi, healthApi } from '../api/client';
 import { clearTokens, getUserName } from '../auth/tokenStore';
-import type { Training, DailyRecommendation, MobileTrainingStatsResponse } from '../api/types';
+import type { Training, DailyRecommendation, MobileTrainingStatsResponse, HealthSummaryResponse } from '../api/types';
+import HealthReferenceCard from '../components/HealthReferenceCard';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'TrainingList'>;
@@ -110,6 +111,8 @@ export default function TrainingListScreen({ navigation }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   // ita7-2: カレンダータブ下の統計バー（Web版 /menu と同じ内容）
   const [stats, setStats] = useState<MobileTrainingStatsResponse | null>(null);
+  // 機能見直し-1-#5: 睡眠時間・安静時心拍の簡易カード（詳細と入力はヘルスケア画面）
+  const [healthSummary, setHealthSummary] = useState<HealthSummaryResponse | null>(null);
 
   // itバグ-18: ログインユーザー名をヘッダーに表示する
   useEffect(() => {
@@ -158,6 +161,19 @@ export default function TrainingListScreen({ navigation }: Props) {
         }
       } else {
         setDailyRecommendation(null);
+      }
+
+      // 機能見直し-1-#5: 睡眠・安静時心拍の簡易カード。カードは「最新の記録」を出すため、
+      // 他の日付の値と誤解されないよう当日を見ているときだけ表示する
+      if (isToday) {
+        try {
+          const { data: health } = await healthApi.getSummary();
+          setHealthSummary(health);
+        } catch {
+          setHealthSummary(null);
+        }
+      } else {
+        setHealthSummary(null);
       }
     } catch (e: any) {
       if (e.response?.status === 401) {
@@ -530,6 +546,15 @@ export default function TrainingListScreen({ navigation }: Props) {
                 </TouchableOpacity>
               </View>
             )}
+
+          {/* 機能見直し-1-#5: 睡眠時間・安静時心拍の簡易カード（当日のみ。タップでヘルスケア画面へ） */}
+          {isToday && (
+            <HealthReferenceCard
+              summary={healthSummary}
+              today={today}
+              onPress={() => navigation.navigate('Health')}
+            />
+          )}
 
           {/* 全体プログレス */}
           {trainings.length > 0 && (

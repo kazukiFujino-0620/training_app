@@ -13,9 +13,9 @@ import org.seasar.doma.boot.ConfigAutowireable;
 @ConfigAutowireable
 public interface HealthSleepDao {
 
+  /** 機能見直し-1-#5でUNIQUE制約を(user_id, sleep_date)に変更したため、1日1行として取得する。 */
   @Select
-  Optional<HealthSleep> selectByUserIdAndDateAndSource(
-      Long userId, LocalDate sleepDate, String source);
+  Optional<HealthSleep> selectByUserIdAndDate(Long userId, LocalDate sleepDate);
 
   @Select
   List<HealthSleep> selectByUserIdAndDateRange(Long userId, LocalDate from, LocalDate to);

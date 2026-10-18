@@ -1,6 +1,7 @@
 import {
   HealthCaloriesRecord,
   HealthHeartRateRecord,
+  HealthRestingHeartRateRecord,
   HealthSleepRecord,
   HealthStepsRecord,
   HealthWeightRecord,
@@ -34,4 +35,7 @@ export interface HealthPlatformAdapter {
 
   /** 指定期間の睡眠記録を取得する。 */
   fetchSleep(startDate: Date, endDate: Date): Promise<HealthSleepRecord[]>;
+
+  /** 指定期間の安静時心拍（日別1値）を取得する（機能見直し-1-#5）。 */
+  fetchRestingHeartRate(startDate: Date, endDate: Date): Promise<HealthRestingHeartRateRecord[]>;
 }

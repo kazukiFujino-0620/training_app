@@ -4,6 +4,7 @@ import com.example.traning.body.BodyMeasurement;
 import com.example.traning.body.BodyMeasurementService;
 import com.example.traning.mobile.dto.HealthSummaryResponse;
 import com.example.traning.mobile.dto.HealthSyncRequest;
+import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,8 @@ public class HealthSyncService {
   private final HealthStepsDao healthStepsDao;
   private final HealthHeartRateDao healthHeartRateDao;
   private final HealthCaloriesDao healthCaloriesDao;
-  private final HealthSleepDao healthSleepDao;
+  private final HealthSleepService healthSleepService;
+  private final HealthRestingHeartRateService healthRestingHeartRateService;
 
   @Transactional
   public int sync(Long userId, HealthSyncRequest req) {
@@ -56,7 +58,17 @@ public class HealthSyncService {
 
     if (req.getSleep() != null) {
       for (HealthSyncRequest.SleepRecord r : req.getSleep()) {
-        syncSleep(userId, r, source);
+        healthSleepService.syncFromHealthPlatform(
+            userId, r.getDate(), r.getStartTime(), r.getEndTime(), r.getDurationMinutes(), source);
+        count++;
+      }
+    }
+
+    // 機能見直し-1-#5: 安静時心拍（health_heart_rateとは別テーブル、1日1行の上書き）
+    if (req.getRestingHeartRate() != null) {
+      for (HealthSyncRequest.RestingHeartRateRecord r : req.getRestingHeartRate()) {
+        healthRestingHeartRateService.syncFromHealthPlatform(
+            userId, r.getDate(), r.getRestingBpm(), source);
         count++;
       }
     }
@@ -121,27 +133,6 @@ public class HealthSyncService {
     }
   }
 
-  private void syncSleep(Long userId, HealthSyncRequest.SleepRecord r, String source) {
-    Optional<HealthSleep> existing =
-        healthSleepDao.selectByUserIdAndDateAndSource(userId, r.getDate(), source);
-    if (existing.isPresent()) {
-      HealthSleep e = existing.get();
-      e.startTime = r.getStartTime();
-      e.endTime = r.getEndTime();
-      e.durationMinutes = r.getDurationMinutes();
-      healthSleepDao.update(e);
-    } else {
-      HealthSleep e = new HealthSleep();
-      e.userId = userId;
-      e.sleepDate = r.getDate();
-      e.startTime = r.getStartTime();
-      e.endTime = r.getEndTime();
-      e.durationMinutes = r.getDurationMinutes();
-      e.source = source;
-      healthSleepDao.insert(e);
-    }
-  }
-
   /** 各指標の最新値をまとめて返す（表示画面用）。データが無い項目はnullのまま返す。 */
   @Transactional(readOnly = true)
   public HealthSummaryResponse getSummary(Long userId) {
@@ -178,13 +169,41 @@ public class HealthSyncService {
                     new HealthSummaryResponse.CaloriesSummary(
                         c.recordDate, c.activeCalories, c.totalCalories, c.source)));
 
-    healthSleepDao
-        .selectLatestByUserId(userId)
+    // 機能見直し-1-#5: 睡眠・安静時心拍は直近4週間平均（QA Q5-5）を添えて返す
+    LocalDate today = LocalDate.now();
+    healthSleepService
+        .getLatest(userId)
         .ifPresent(
-            s ->
-                response.setSleep(
-                    new HealthSummaryResponse.SleepSummary(
-                        s.sleepDate, s.startTime, s.endTime, s.durationMinutes, s.source)));
+            s -> {
+              Optional<HealthAverage> avg =
+                  healthSleepService.getAverageDurationMinutes(
+                      userId, HealthSleepService.AVERAGE_WEEKS, today);
+              response.setSleep(
+                  new HealthSummaryResponse.SleepSummary(
+                      s.sleepDate,
+                      s.startTime,
+                      s.endTime,
+                      s.durationMinutes,
+                      s.source,
+                      avg.map(HealthAverage::average).orElse(null),
+                      avg.map(HealthAverage::days).orElse(0)));
+            });
+
+    healthRestingHeartRateService
+        .getLatest(userId)
+        .ifPresent(
+            r -> {
+              Optional<HealthAverage> avg =
+                  healthRestingHeartRateService.getAverage(
+                      userId, HealthSleepService.AVERAGE_WEEKS, today);
+              response.setRestingHeartRate(
+                  new HealthSummaryResponse.RestingHeartRateSummary(
+                      r.recordDate,
+                      r.restingBpm,
+                      r.source,
+                      avg.map(HealthAverage::average).orElse(null),
+                      avg.map(HealthAverage::days).orElse(0)));
+            });
 
     return response;
   }
