@@ -222,12 +222,37 @@ class FrequencyGoalServiceTest {
   @Test
   void 別リクエストが先に同じ週を確定していても先の行を正として処理を続ける() {
     service.updateGoal(USER, 3, W1);
-    dao.failNextInsertAsDuplicate = true;
+    // Spring管理のDAOはDomaの一意制約違反をDuplicateKeyExceptionに変換して投げる
+    dao.nextInsertFailure =
+        new org.springframework.dao.DuplicateKeyException("uq_user_frequency_week");
 
     FrequencyGoalSummary s = service.getSummary(USER, W1.plusWeeks(2));
 
     assertThat(s.goalSet()).isTrue();
     assertThat(s.thisWeekTarget()).isEqualTo(3);
+  }
+
+  @Test
+  void Springの変換を通らないDomaの一意制約違反でも処理を続ける() {
+    service.updateGoal(USER, 3, W1);
+    dao.nextInsertFailure =
+        org.mockito.Mockito.mock(org.seasar.doma.jdbc.UniqueConstraintException.class);
+
+    assertThat(service.getSummary(USER, W1.plusWeeks(2)).thisWeekTarget()).isEqualTo(3);
+  }
+
+  @Test
+  void 週の確定を伴う処理は最初にユーザー単位のロックを取る() {
+    service.getSummary(USER, W1);
+    assertThat(dao.calls.get(0)).isEqualTo("lock");
+
+    dao.calls.clear();
+    service.updateGoal(USER, 3, W1);
+    assertThat(dao.calls.get(0)).isEqualTo("lock");
+
+    dao.calls.clear();
+    service.freezeWeekTargets(USER, W1);
+    assertThat(dao.calls.get(0)).isEqualTo("lock");
   }
 
   // ===================== 期分けプログラムの週 =====================
@@ -400,8 +425,8 @@ class FrequencyGoalServiceTest {
     UserFrequencyGoal goal;
     final List<UserFrequencyWeekTarget> weeks = new ArrayList<>();
 
-    /** 次のinsertWeekTargetを、別リクエストが同じ週を先に確定した状況として扱う（行は入れて一意制約違反を投げる）。 */
-    boolean failNextInsertAsDuplicate;
+    /** 次のinsertWeekTargetを、別リクエストが同じ週を先に確定した状況として扱う（行は入れてこの例外を投げる）。 */
+    RuntimeException nextInsertFailure;
 
     private final AtomicLong ids = new AtomicLong(1);
 
@@ -412,8 +437,18 @@ class FrequencyGoalServiceTest {
           .orElseThrow();
     }
 
+    /** DAO呼び出しの順序（ロックが最初であることの確認用）。 */
+    final List<String> calls = new ArrayList<>();
+
+    @Override
+    public Optional<Long> lockUserForWeekTargets(Long userId) {
+      calls.add("lock");
+      return Optional.of(userId);
+    }
+
     @Override
     public Optional<UserFrequencyGoal> selectGoalByUserId(Long userId) {
+      calls.add("selectGoal");
       return Optional.ofNullable(goal);
     }
 
@@ -442,6 +477,7 @@ class FrequencyGoalServiceTest {
 
     @Override
     public Optional<UserFrequencyWeekTarget> selectLatestWeekTarget(Long userId) {
+      calls.add("selectLatest");
       return weeks.stream().max(Comparator.comparing(UserFrequencyWeekTarget::getWeekStartDate));
     }
 
@@ -453,9 +489,10 @@ class FrequencyGoalServiceTest {
       }
       entity.setId(ids.getAndIncrement());
       weeks.add(entity);
-      if (failNextInsertAsDuplicate) {
-        failNextInsertAsDuplicate = false;
-        throw org.mockito.Mockito.mock(org.seasar.doma.jdbc.UniqueConstraintException.class);
+      if (nextInsertFailure != null) {
+        RuntimeException e = nextInsertFailure;
+        nextInsertFailure = null;
+        throw e;
       }
       return 1;
     }

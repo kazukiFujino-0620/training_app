@@ -14,6 +14,13 @@ import org.seasar.doma.boot.ConfigAutowireable;
 @ConfigAutowireable
 public interface FrequencyGoalDao {
 
+  /**
+   * 週ごとの確定目標の書き込みをユーザー単位で直列化するため、usersの該当行をロックする（トランザクション終了まで保持）。 同じユーザーの週を複数のリクエストが同時に
+   * INSERTすると、InnoDBでは一意制約違反ではなくデッドロック（トランザクション全体のロールバック）になるため。
+   */
+  @Select
+  Optional<Long> lockUserForWeekTargets(Long userId);
+
   @Select
   Optional<UserFrequencyGoal> selectGoalByUserId(Long userId);
 

@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.seasar.doma.jdbc.UniqueConstraintException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +44,7 @@ public class FrequencyGoalService {
   /** カード・設定シートの表示データ。未確定の週があればここで確定させるため読み取り専用にしない。 */
   @Transactional
   public FrequencyGoalSummary getSummary(Long userId, LocalDate today) {
+    frequencyGoalDao.lockUserForWeekTargets(userId);
     Optional<UserFrequencyGoal> goal = frequencyGoalDao.selectGoalByUserId(userId);
     ensureWeekTargets(userId, today, goal);
 
@@ -101,6 +103,7 @@ public class FrequencyGoalService {
       throw new IllegalArgumentException(
           "週の回数目標は" + MIN_TARGET + "〜" + MAX_TARGET + "回の範囲で指定してください");
     }
+    frequencyGoalDao.lockUserForWeekTargets(userId);
     Optional<UserFrequencyGoal> existing = frequencyGoalDao.selectGoalByUserId(userId);
     // 変更前の目標で今週分までを確定させてから書き換える
     ensureWeekTargets(userId, today, existing);
@@ -121,6 +124,7 @@ public class FrequencyGoalService {
   /** 期分けプログラムの開始・切替の直前に呼ぶ（PeriodizationService）。今週分までを現在の状態で確定させる。 */
   @Transactional
   public void freezeWeekTargets(Long userId, LocalDate today) {
+    frequencyGoalDao.lockUserForWeekTargets(userId);
     ensureWeekTargets(userId, today, frequencyGoalDao.selectGoalByUserId(userId));
   }
 
@@ -158,9 +162,10 @@ public class FrequencyGoalService {
       row.setEvaluated(!(firstIsStart && w.equals(firstWeek)));
       try {
         frequencyGoalDao.insertWeekTarget(row);
-      } catch (UniqueConstraintException e) {
-        // 同じユーザーの別リクエスト（Webとモバイルの同時表示など）が先に同じ週を確定した。
-        // 先に確定した行を正とし、書き換えない（MySQLでは失敗した文だけが取り消され、トランザクションは続行できる）
+      } catch (DuplicateKeyException | UniqueConstraintException e) {
+        // 同じユーザーの別リクエスト（Webとモバイルの同時表示など）が先に同じ週を確定した。先に確定した行を正とし、書き換えない。
+        // Spring管理のDAOはDomaの一意制約違反をDuplicateKeyExceptionに変換して投げる（DomaPersistenceExceptionTranslator）。
+        // DAOは@Transactionalを持たないためrollback-onlyにはならず、MySQLでも失敗した文だけが取り消されてトランザクションは続行できる
       }
     }
   }
