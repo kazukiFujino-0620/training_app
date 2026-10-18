@@ -11,10 +11,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import TrainingCard from '../components/TrainingCard';
 import ProgressBar from '../components/ProgressBar';
-import { trainingApi, noticeApi, recommendationApi, statsApi, periodizationApi, healthApi } from '../api/client';
+import { trainingApi, noticeApi, recommendationApi, statsApi, periodizationApi, healthApi, frequencyGoalApi } from '../api/client';
 import { clearTokens, getUserName } from '../auth/tokenStore';
-import type { Training, DailyRecommendation, MobileTrainingStatsResponse, HealthSummaryResponse } from '../api/types';
+import type {
+  Training, DailyRecommendation, MobileTrainingStatsResponse, HealthSummaryResponse, MobileFrequencyGoalResponse,
+} from '../api/types';
 import HealthReferenceCard from '../components/HealthReferenceCard';
+import FrequencyGoalCard from '../components/FrequencyGoalCard';
+import FrequencyGoalSheet from '../components/FrequencyGoalSheet';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'TrainingList'>;
@@ -113,6 +117,9 @@ export default function TrainingListScreen({ navigation }: Props) {
   const [stats, setStats] = useState<MobileTrainingStatsResponse | null>(null);
   // 機能見直し-1-#5: 睡眠時間・安静時心拍の簡易カード（詳細と入力はヘルスケア画面）
   const [healthSummary, setHealthSummary] = useState<HealthSummaryResponse | null>(null);
+  // 機能見直し-1-#7: 統計欄の「週の目標」カードと設定シート
+  const [frequencyGoal, setFrequencyGoal] = useState<MobileFrequencyGoalResponse | null>(null);
+  const [frequencySheetOpen, setFrequencySheetOpen] = useState(false);
 
   // itバグ-18: ログインユーザー名をヘッダーに表示する
   useEffect(() => {
@@ -201,8 +208,24 @@ export default function TrainingListScreen({ navigation }: Props) {
     } catch {
       setStats(null);
     }
+    try {
+      const { data } = await frequencyGoalApi.get();
+      setFrequencyGoal(data);
+    } catch {
+      setFrequencyGoal(null);
+    }
   }, []);
   useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
+
+  const saveFrequencyGoal = useCallback(async (weeklyTargetCount: number) => {
+    try {
+      const { data } = await frequencyGoalApi.update(weeklyTargetCount);
+      setFrequencyGoal(data);
+      setFrequencySheetOpen(false);
+    } catch (e: any) {
+      throw new Error(e?.response?.data?.error ?? '保存できませんでした');
+    }
+  }, []);
 
   // バックグラウンド→フォアグラウンド復帰時に再取得
   useEffect(() => {
@@ -477,6 +500,16 @@ export default function TrainingListScreen({ navigation }: Props) {
               </View>
             </View>
           )}
+          {/* 機能見直し-1-#7: 週の目標（今週の部位の下。タップで設定シート） */}
+          {frequencyGoal && (
+            <FrequencyGoalCard goal={frequencyGoal} onPress={() => setFrequencySheetOpen(true)} />
+          )}
+          <FrequencyGoalSheet
+            visible={frequencySheetOpen}
+            goal={frequencyGoal}
+            onClose={() => setFrequencySheetOpen(false)}
+            onSave={saveFrequencyGoal}
+          />
         </ScrollView>
       ) : (
         <>

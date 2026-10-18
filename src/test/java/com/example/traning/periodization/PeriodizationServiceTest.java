@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.dao.UserDao;
 import com.example.traning.entity.TrainingItemMaster;
+import com.example.traning.goal.FrequencyGoalService;
 import com.example.traning.periodization.PeriodizationViews.ItemInput;
 import com.example.traning.periodization.PeriodizationViews.TodayAssignment;
 import com.example.traning.periodization.StagnationDetectionService.StagnationLevel;
@@ -46,6 +47,7 @@ class PeriodizationServiceTest {
   @Mock private PersonalRecordService personalRecordService;
   @Mock private TrainingMasterDao trainingMasterDao;
   @Mock private UserDao userDao;
+  @Mock private FrequencyGoalService frequencyGoalService;
 
   private PeriodizationService service;
   private final AtomicLong ids = new AtomicLong(1000);
@@ -64,7 +66,8 @@ class PeriodizationServiceTest {
             personalRecordService,
             new OneRmPredictionService(),
             trainingMasterDao,
-            userDao);
+            userDao,
+            frequencyGoalService);
     // ユーザーの所属店舗は2（親組織1のプリセットは参照範囲外＝USER確定の案B）
     lenient().when(userDao.selectOrganizationIdById(USER)).thenReturn(2L);
   }
@@ -133,6 +136,10 @@ class PeriodizationServiceTest {
 
     Long cycleId = service.adoptPreset(USER, 7L, START);
 
+    // 機能見直し-1-#7: 週の回数目標はプログラムを始める前の状態で今週分までを確定させてから切り替える
+    org.mockito.InOrder order = org.mockito.Mockito.inOrder(frequencyGoalService, programCycleDao);
+    order.verify(frequencyGoalService).freezeWeekTargets(eq(USER), any(LocalDate.class));
+    order.verify(programCycleDao).archiveById(99L);
     verify(programCycleDao).archiveById(99L);
     // 自分で別のプログラムに切り替えたので、予約中のトレーナーの案は取り消す（2026-09-26 USER確定B）
     verify(programCycleProposalDao).cancelScheduledBySwitch(USER);
@@ -536,6 +543,7 @@ class PeriodizationServiceTest {
     when(personalRecordService.getByUserIdAndItem(USER, "スクワット")).thenReturn(Optional.of(pr));
 
     assertThat(service.renewCycle(USER, RenewChoice.REPEAT_SAME, null)).contains(77L);
+    verify(frequencyGoalService).freezeWeekTargets(eq(USER), any(LocalDate.class));
 
     ArgumentCaptor<ProgramCycle> cycle = ArgumentCaptor.forClass(ProgramCycle.class);
     verify(programCycleDao).insert(cycle.capture());

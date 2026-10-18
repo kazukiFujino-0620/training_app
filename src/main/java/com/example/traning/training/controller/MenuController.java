@@ -70,6 +70,7 @@ public class MenuController {
   private final TrainingStatsService trainingStatsService;
   private final com.example.traning.periodization.ProgramCycleProposalService proposalService;
   private final com.example.traning.health.HealthReferenceService healthReferenceService;
+  private final com.example.traning.goal.FrequencyGoalService frequencyGoalService;
 
   public MenuController(
       TrainingDao trainingDao,
@@ -87,7 +88,8 @@ public class MenuController {
       FatigueCalculator fatigueCalculator,
       TrainingStatsService trainingStatsService,
       com.example.traning.periodization.ProgramCycleProposalService proposalService,
-      com.example.traning.health.HealthReferenceService healthReferenceService) {
+      com.example.traning.health.HealthReferenceService healthReferenceService,
+      com.example.traning.goal.FrequencyGoalService frequencyGoalService) {
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
@@ -104,6 +106,7 @@ public class MenuController {
     this.trainingStatsService = trainingStatsService;
     this.proposalService = proposalService;
     this.healthReferenceService = healthReferenceService;
+    this.frequencyGoalService = frequencyGoalService;
   }
 
   @GetMapping("/menu")
@@ -316,6 +319,9 @@ public class MenuController {
     // 機能見直し-1-#5: 筋肉疲労マップの下の「体調の参考情報」カード（睡眠・安静時心拍の最新値と直近4週間平均）
     model.addAttribute("healthReference", healthReferenceService.getReference(userId, today));
     model.addAttribute("healthReferenceToday", today);
+
+    // 機能見直し-1-#7: 統計バー右端の「週の目標」カード（達成率は終わった週のみ。今週は進捗だけ）
+    model.addAttribute("frequencyGoal", frequencyGoalService.getSummary(userId, today));
 
     // itバグ-21対応（2026-09-11）: 「AIトレーニング提案」カードは「（モック）」文言のため廃止し、
     // 既存のルールベース推奨（dailyRecommendation、上記F3 Phase1参照）に一本化した。
