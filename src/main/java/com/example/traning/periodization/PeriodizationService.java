@@ -3,6 +3,7 @@ package com.example.traning.periodization;
 import com.example.traning.dao.TrainingMasterDao;
 import com.example.traning.dao.UserDao;
 import com.example.traning.entity.TrainingMaster;
+import com.example.traning.goal.FrequencyGoalService;
 import com.example.traning.organization.Organization;
 import com.example.traning.periodization.PeriodizationViews.CustomCycleInput;
 import com.example.traning.periodization.PeriodizationViews.CustomCycleResult;
@@ -64,6 +65,7 @@ public class PeriodizationService {
   private final OneRmPredictionService oneRmPredictionService;
   private final TrainingMasterDao trainingMasterDao;
   private final UserDao userDao;
+  private final FrequencyGoalService frequencyGoalService;
 
   // ===================== 参照系 =====================
 
@@ -308,6 +310,8 @@ public class PeriodizationService {
       Long sourcePresetId,
       Long trainerId,
       LocalDate startDate) {
+    // 機能見直し-1-#7: 週の回数目標は「その週の開始時点」で確定する。プログラムを始める前の状態で今週分までを確定させる
+    frequencyGoalService.freezeWeekTargets(userId, LocalDate.now());
     programCycleDao
         .selectActiveByUserId(userId)
         .ifPresent(c -> programCycleDao.archiveById(c.getId()));
@@ -459,6 +463,8 @@ public class PeriodizationService {
     if (startDate == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "開始日を指定してください");
     }
+    // 機能見直し-1-#7: 週の回数目標は「その週の開始時点」で確定する。プログラムを始める前の状態で今週分までを確定させる
+    frequencyGoalService.freezeWeekTargets(userId, LocalDate.now());
     programCycleDao
         .selectActiveByUserId(userId)
         .ifPresent(c -> programCycleDao.archiveById(c.getId()));
@@ -516,6 +522,8 @@ public class PeriodizationService {
    * 新サイクル開始時点のPRで取り直す。
    */
   private Long copyCycle(Long userId, ProgramCycle source, LocalDate startDate) {
+    // 機能見直し-1-#7: 週の回数目標は「その週の開始時点」で確定する。プログラムを始める前の状態で今週分までを確定させる
+    frequencyGoalService.freezeWeekTargets(userId, LocalDate.now());
     ProgramCycle cycle = new ProgramCycle();
     cycle.setUserId(userId);
     cycle.setName(source.getName());
@@ -869,13 +877,13 @@ public class PeriodizationService {
   }
 
   /** start_dateからの経過日数で週番号（1始まり）を求める。開始日前は1週目扱い。 */
-  static int weekNumberOf(ProgramCycle cycle, LocalDate date) {
+  public static int weekNumberOf(ProgramCycle cycle, LocalDate date) {
     long days = ChronoUnit.DAYS.between(cycle.getStartDate(), date);
     if (days < 0) return 1;
     return (int) (days / 7) + 1;
   }
 
-  static String toDayCode(DayOfWeek dow) {
+  public static String toDayCode(DayOfWeek dow) {
     return dow.name().substring(0, 3);
   }
 

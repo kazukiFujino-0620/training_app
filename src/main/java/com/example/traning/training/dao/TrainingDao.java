@@ -85,6 +85,11 @@ public interface TrainingDao {
   @Select
   List<LocalDate> selectDistinctTrainingDatesByUserIdAndMonth(Long userId, int year, int month);
 
+  /** 週の回数目標の判定用（機能見直し-1-#7）。期間内の実施日一覧（同じ日の複数種目は1日、重複無し）を返す。 */
+  @Select
+  List<LocalDate> selectDistinctTrainingDatesByUserIdAndDateRange(
+      Long userId, LocalDate startDate, LocalDate endDate);
+
   @Select
   List<String> selectDistinctPartsByUserIdAndDateRange(
       Long userId, LocalDate startDate, LocalDate endDate);

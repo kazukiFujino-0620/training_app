@@ -93,6 +93,7 @@ import type {
   MobileProfile,
   UpdateProfileRequest,
   MobileTrainingStatsResponse,
+  MobileFrequencyGoalResponse,
   RestPreference,
   FormGuide,
   PeriodizationPreset,
@@ -236,6 +237,14 @@ export const profileApi = {
 /** ita7-2: カレンダータブ下の統計バー（今月・先週比・今週の部位・今日の予定） */
 export const statsApi = {
   getTraining: () => client.get<MobileTrainingStatsResponse>('/stats/training'),
+};
+
+/** 機能見直し-1-#7: 週の回数目標と達成率（カレンダータブの「週の目標」カード） */
+export const frequencyGoalApi = {
+  get: () => client.get<MobileFrequencyGoalResponse>('/frequency-goal'),
+  /** 1〜7回。来週の評価から反映され、保存後の表示データが返る */
+  update: (weeklyTargetCount: number) =>
+    client.put<MobileFrequencyGoalResponse>('/frequency-goal', { weeklyTargetCount }),
 };
 
 export const withdrawalApi = {

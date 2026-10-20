@@ -396,6 +396,36 @@ export interface MobileTrainingStatsResponse {
   trainingDates: string[];
 }
 
+// ── 週の回数目標（機能見直し-1-#7） ──────────────────────────────────────
+/** GET/PUT /api/mobile/frequency-goal。表示文言はWeb版と揃えるためサーバーで組み立てて返す */
+export interface MobileFrequencyGoalResponse {
+  /** 今週の目標があるか。falseなら未設定の案内を出す */
+  goalSet: boolean;
+  /** 例: "週3回"（今週の目標が0日のときnull） */
+  goalLabel: string | null;
+  /** 例: "今週 1/3回" */
+  thisWeekLabel: string | null;
+  /** 例: "直近4週間 3/4週達成" / "直近2週 1/2週達成" / "来週から達成率を表示します" */
+  resultLabel: string | null;
+  /** 例: "（75%）"。終わった週が4週未満ならnull */
+  percentLabel: string | null;
+  /** 結果の下の補足（0〜2行） */
+  notes: string[];
+  /** 今週の目標が期分けプログラムの予定日数か */
+  fromProgram: boolean;
+  thisWeekTarget: number | null;
+  thisWeekDoneDays: number;
+  evaluatedWeeks: number;
+  achievedWeeks: number;
+  achievementPct: number | null;
+  /** 手入力の目標（未設定ならnull）。設定シートの初期値 */
+  manualTarget: number | null;
+  /** 期分けプログラムの実施中か（設定シートは表示のみ） */
+  programActive: boolean;
+  /** 実施中の設定シートの説明文 */
+  programSheetLabel: string | null;
+}
+
 // ── 期分けプログラム（機能見直し-1-#3） ──────────────────────────────────────
 
 export interface PeriodizationPreset {

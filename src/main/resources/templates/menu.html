@@ -222,6 +222,27 @@
                class="btn btn-sm btn-outline"
                style="margin-top:0.25rem; font-size:0.75rem; padding:0.2rem 0.6rem;">適用</a>
           </div>
+          <!-- 機能見直し-1-#7: 週の目標（達成率は終わった週のみで計算。今週は進捗だけを中立に表示し、急がせる文言は出さない） -->
+          <div id="frequency-goal-card" class="stat-card stat-card-wide" th:with="fg=${frequencyGoal}">
+            <th:block th:if="${fg.goalSet()}">
+              <div class="stat-label">週の目標<span th:if="${fg.thisWeekFromProgram()}" class="fg-program-badge">プログラム</span></div>
+              <div class="stat-value">
+                <span th:if="${fg.goalLabel() != null}" th:text="${fg.goalLabel()}">週3回</span>
+                <span class="fg-week" th:text="${fg.thisWeekLabel()}">今週 1/3回</span>
+              </div>
+              <div class="fg-result">
+                <span th:text="${fg.resultLabel()}">直近4週間 3/4週達成</span><span th:if="${fg.percentLabel() != null}" class="fg-pct" th:text="${fg.percentLabel()}">（75%）</span>
+              </div>
+              <div th:each="note : ${fg.notes()}" class="fg-sub" th:text="${note}">4週たつと達成率（%）も表示します</div>
+              <button type="button" class="fg-link" id="fg-open">目標を変更</button>
+            </th:block>
+            <th:block th:unless="${fg.goalSet()}">
+              <button type="button" class="fg-setup" id="fg-open">
+                <span>週の回数目標を決める</span><span class="fg-setup-arrow">設定する →</span>
+              </button>
+              <div class="fg-sub">例：週3回。予定どおり続けられたかを表示します</div>
+            </th:block>
+          </div>
         </div>
 
         <!-- Calendar and Summary -->
@@ -1120,11 +1141,50 @@
     </div>
 
     <!-- JavaScript -->
+    <!-- 機能見直し-1-#7: 週の回数目標の設定ダイアログ（モバイルの設定シートと同じ内容。プログラム実施中は表示のみ） -->
+    <div id="frequencyGoalModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="fg-title"
+         th:with="fg=${frequencyGoal}"
+         th:attr="data-initial=${fg.manualTarget() != null ? fg.manualTarget() : 3},data-program=${fg.programActive()}">
+      <div class="modal-content fg-modal">
+        <h3 id="fg-title">週の回数目標</h3>
+        <th:block th:unless="${fg.programActive()}">
+          <p class="fg-modal-text">1週間（月〜日）に何日トレーニングするかを決めます。休養日も計画のうちです。</p>
+          <div class="fg-stepper">
+            <button type="button" id="fg-minus" aria-label="1回減らす">−</button>
+            <div class="fg-stepper-val"><span id="fg-value">3</span><small>回</small></div>
+            <button type="button" id="fg-plus" aria-label="1回増やす">＋</button>
+          </div>
+          <p class="fg-modal-text">変更は来週の評価から反映されます。<br>これまでの週の結果は変わりません。</p>
+          <div id="fg-message" role="status" aria-live="polite" class="fg-message"></div>
+          <div class="fg-modal-buttons">
+            <button type="button" class="btn btn-secondary" data-fg-close>キャンセル</button>
+            <button type="button" class="btn btn-primary" id="fg-save">保存する</button>
+          </div>
+        </th:block>
+        <th:block th:if="${fg.programActive()}">
+          <p class="fg-modal-text" th:text="${fg.programSheetLabel()}">プログラムの実施中は、その週の予定日数（今週は4回）を目標にしています。</p>
+          <div class="fg-stepper fg-stepper-disabled">
+            <button type="button" disabled aria-label="1回減らす">−</button>
+            <div class="fg-stepper-val">
+              <th:block th:if="${fg.manualTarget() != null}"><span th:text="${fg.manualTarget()}">3</span><small>回</small></th:block>
+              <span th:if="${fg.manualTarget() == null}" class="fg-unset">未設定</span>
+            </div>
+            <button type="button" disabled aria-label="1回増やす">＋</button>
+          </div>
+          <p class="fg-modal-text">ここで決めた回数は、プログラムが終わった後の週から使われます。</p>
+          <div class="fg-modal-buttons">
+            <button type="button" class="btn btn-secondary" data-fg-close>閉じる</button>
+          </div>
+        </th:block>
+      </div>
+    </div>
+
     <script th:src="@{/js/theme.js}"></script>
     <script th:src="@{/js/training-modal.js}"></script>
     <script th:src="@{/js/menu.js}"></script>
     <!-- 機能見直し-1-#5: 体調の参考情報カードの手動入力 -->
     <script th:src="@{/js/health-reference.js}"></script>
+    <script th:src="@{/js/frequency-goal.js}"></script>
 
     <!-- 筋肉疲労マップ カラーリング -->
     <script th:inline="javascript">

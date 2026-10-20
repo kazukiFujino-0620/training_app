@@ -1832,3 +1832,39 @@ tr.set-row[data-set-type="WARMUP"] {
   .stats-bar { flex-direction: column; }
   .stat-card, .stat-card-wide { min-width: unset; flex: unset; }
 }
+
+/* 機能見直し-1-#7: 統計バーの「週の目標」カードと設定ダイアログ */
+.fg-program-badge {
+  font-size: 0.65rem; font-weight: 700; color: #4f46e5; background: #eef2ff;
+  border-radius: 4px; padding: 1px 6px; margin-left: 4px; text-transform: none; letter-spacing: 0;
+}
+.fg-week { font-size: 0.82rem; color: var(--text-secondary); font-weight: 600; margin-left: 0.25rem; white-space: nowrap; }
+.fg-result { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); margin-top: 0.35rem; }
+.fg-pct { color: #16a34a; }
+.fg-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem; }
+.fg-link {
+  background: none; border: none; padding: 0; margin-top: 0.3rem; cursor: pointer;
+  font-size: 0.75rem; color: #2563eb;
+}
+.fg-link:hover { text-decoration: underline; }
+.fg-setup {
+  display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; width: 100%;
+  background: none; border: none; padding: 0; cursor: pointer; text-align: left;
+  font-size: 0.85rem; font-weight: 700; color: var(--text-primary);
+}
+.fg-setup-arrow { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+.fg-modal { max-width: 420px; display: flex; flex-direction: column; gap: 0.9rem; }
+.fg-modal h3 { margin: 0; }
+.fg-modal-text { margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
+.fg-stepper { display: flex; align-items: center; justify-content: center; gap: 1.25rem; }
+.fg-stepper button {
+  width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid #10b981; background: transparent;
+  color: #10b981; font-size: 1.3rem; font-weight: 700; line-height: 1; cursor: pointer;
+}
+.fg-stepper button:disabled { border-color: var(--border-color); color: var(--text-muted); cursor: default; }
+.fg-stepper-val { font-size: 1.8rem; font-weight: 800; min-width: 96px; text-align: center; color: var(--text-primary); }
+.fg-stepper-val small { font-size: 0.9rem; font-weight: 700; margin-left: 2px; }
+.fg-stepper-disabled .fg-stepper-val { color: var(--text-muted); }
+.fg-unset { font-size: 1rem; font-weight: 700; }
+.fg-message { font-size: 0.8rem; color: var(--danger-color); min-height: 0; }
+.fg-modal-buttons { display: flex; gap: 0.5rem; justify-content: flex-end; }
