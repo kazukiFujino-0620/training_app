@@ -60,8 +60,14 @@ public final class AutogenRules {
   /** これを超えると高疲労（筋肉疲労マップで一番濃い色の帯）。 */
   public static final int HIGH_FATIGUE_THRESHOLD_PCT = 65;
 
+  /** 前日〜当日にその部位の本番セットがあれば高疲労とみなす（何日前までを見るか）。 */
+  public static final int RECENT_MAIN_SET_DAYS = 1;
+
   /** おまかせで全部位が高疲労のとき、各種目から減らすセット数。 */
   public static final int ALL_FATIGUED_SET_REDUCTION = 1;
+
+  /** プログラムの休養日に部位指定なしで組むとき、各種目から減らすセット数（全部位高疲労時と同じ軽めの構成）。 */
+  public static final int REST_DAY_SET_REDUCTION = 1;
 
   // ── 強度と回数（Q4-8） ──
   public record IntensityReps(double intensity, int reps) {}

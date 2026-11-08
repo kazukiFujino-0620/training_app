@@ -90,6 +90,7 @@ public final class WorkoutGenerationViews {
    * @param status OK / NO_CANDIDATES（条件に合う種目が無い）/ TOO_SHORT（最低構成が時間に入らない）
    * @param intensityPct 重量の計算に使った強度(%)
    * @param itemsNeedingReconfirmation 再確認の期限が来た除外種目（画面で結果の前に確認する）
+   * @param notice 結果の上に出す注意（プログラムの休養日など）。無ければnull
    */
   public record GenerationResult(
       String status,
@@ -99,5 +100,6 @@ public final class WorkoutGenerationViews {
       int availableMinutes,
       int estimatedMinutes,
       List<GeneratedItem> items,
-      List<ExclusionView> itemsNeedingReconfirmation) {}
+      List<ExclusionView> itemsNeedingReconfirmation,
+      String notice) {}
 }

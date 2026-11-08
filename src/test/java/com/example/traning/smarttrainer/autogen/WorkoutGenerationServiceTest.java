@@ -265,16 +265,34 @@ class WorkoutGenerationServiceTest {
     }
 
     @Test
-    void プログラムの休養日で部位指定が無ければおまかせで強度パーセントのみプログラム() {
+    void プログラムの休養日で部位指定が無ければ注意を出し_目的別の強度で各種目1セット減らした軽めの構成にする() {
       when(periodizationService.getTodayAssignment(eq(USER_ID), any()))
-          .thenReturn(program(null, "70", List.of()));
+          .thenReturn(program(null, "80", List.of()));
       pr("LEG_C1", 100.0, 1);
 
-      GenerationResult r = generate(60, null);
+      GenerationResult r = generate(90, null);
 
       assertThat(r.mode()).isEqualTo(Mode.ADHOC);
       assertThat(r.program().partCode()).isNull();
-      assertThat(r.items().get(0).reason()).isEqualTo("疲労の少ない部位から選び、強度はプログラムの 70%で計算しています");
+      assertThat(r.notice()).isEqualTo(WorkoutGenerationService.REST_DAY_NOTICE);
+      // 強度はプログラムの80%ではなく増量の70%×10回
+      assertThat(r.intensityPct()).isEqualTo(70.0);
+      assertThat(r.items()).allMatch(i -> i.reps() == 10 && i.sets() == 3);
+      assertThat(r.items().get(0).weightKg()).isEqualTo(70.0);
+      assertThat(r.items().get(0).reason()).isEqualTo("プログラムの休養日のため、セット数を1つ減らした軽めの構成にしています");
+    }
+
+    @Test
+    void プログラムの休養日でも部位を指定すれば通常どおり強度パーセントのみプログラム() {
+      when(periodizationService.getTodayAssignment(eq(USER_ID), any()))
+          .thenReturn(program(null, "80", List.of()));
+
+      GenerationResult r = generate(60, List.of("CHEST"));
+
+      assertThat(r.mode()).isEqualTo(Mode.USER_OVERRIDE);
+      assertThat(r.notice()).isNull();
+      assertThat(r.intensityPct()).isEqualTo(80.0);
+      assertThat(r.items()).allMatch(i -> i.sets() == 4);
     }
 
     @Test
@@ -339,6 +357,34 @@ class WorkoutGenerationServiceTest {
 
       assertThat(partsOf(r)).doesNotContain("CHEST").contains("BACK");
       assertThat(r.items()).allMatch(i -> i.warning() == null);
+    }
+
+    @Test
+    void 前日か当日に本番セットがある部位は疲労度が低くても高疲労として外す() {
+      fatigue.put("LEG", 10);
+      when(autogenHistoryDao.selectPartsWithMainSets(eq(USER_ID), any(), any()))
+          .thenReturn(List.of("LEG"));
+
+      GenerationResult r = generate(90, null);
+
+      assertThat(partsOf(r)).doesNotContain("LEG").contains("BACK");
+      ArgumentCaptor<LocalDate> from = ArgumentCaptor.forClass(LocalDate.class);
+      ArgumentCaptor<LocalDate> to = ArgumentCaptor.forClass(LocalDate.class);
+      verify(autogenHistoryDao).selectPartsWithMainSets(eq(USER_ID), from.capture(), to.capture());
+      assertThat(from.getValue()).isEqualTo(LocalDate.now().minusDays(1));
+      assertThat(to.getValue()).isEqualTo(LocalDate.now());
+    }
+
+    @Test
+    void 指定した部位は前日に本番セットがあっても外さず注意文のみ() {
+      when(autogenHistoryDao.selectPartsWithMainSets(eq(USER_ID), any(), any()))
+          .thenReturn(List.of("CHEST"));
+
+      GenerationResult r = generate(60, List.of("CHEST"));
+
+      assertThat(partsOf(r)).containsExactly("CHEST");
+      assertThat(r.items())
+          .allMatch(i -> WorkoutGenerationService.FATIGUE_WARNING.equals(i.warning()));
     }
 
     @Test

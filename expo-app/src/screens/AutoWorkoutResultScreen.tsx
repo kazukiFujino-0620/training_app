@@ -151,6 +151,11 @@ export default function AutoWorkoutResultScreen({ navigation, route }: Props) {
           <Text style={styles.tot}>
             目安 約{result.estimatedMinutes}分（使える時間 {result.availableMinutes}分）
           </Text>
+          {result.notice ? (
+            <View style={styles.notice} testID="autogen-notice">
+              <Text style={styles.noticeText}>{result.notice}</Text>
+            </View>
+          ) : null}
           <View style={styles.warm}>
             <Text style={styles.warmText}>{WARMUP_NOTE}</Text>
           </View>
@@ -278,6 +283,8 @@ const styles = StyleSheet.create({
   modePg: { backgroundColor: '#eef2ff', color: '#4f46e5' },
   tot: { fontSize: 13, color: '#666', textAlign: 'right' },
   warm: { backgroundColor: '#fff8e1', borderRadius: 10, padding: 10 },
+  notice: { backgroundColor: '#eef2ff', borderRadius: 10, padding: 10 },
+  noticeText: { fontSize: 13, color: '#3730a3' },
   warmText: { fontSize: 13, color: '#6b5200' },
   it: { backgroundColor: '#fff', borderRadius: 12, padding: 12, gap: 7 },
   itH: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },

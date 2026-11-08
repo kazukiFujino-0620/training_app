@@ -83,7 +83,8 @@ class MobileWorkoutGenerationControllerTest {
             List.of(
                 new GeneratedAlternative(
                     "ディップス", "CHEST", true, false, 10, null, 120, "記録が無いため…")));
-    return new GenerationResult("OK", Mode.ADHOC, null, 70.0, 60, 53, List.of(item), List.of());
+    return new GenerationResult(
+        "OK", Mode.ADHOC, null, 70.0, 60, 53, List.of(item), List.of(), null);
   }
 
   @Test

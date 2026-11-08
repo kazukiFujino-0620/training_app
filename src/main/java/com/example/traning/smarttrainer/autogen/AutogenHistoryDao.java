@@ -14,4 +14,8 @@ public interface AutogenHistoryDao {
   /** 種目ごとに、date以前で直近の日の完了済み本番セットのうち最も重い重量。 */
   @Select
   List<LastMainSetWeight> selectLastMainSetWeights(Long userId, LocalDate date);
+
+  /** 期間内に完了済みの本番セットがある部位（高疲労の判定に使う）。 */
+  @Select
+  List<String> selectPartsWithMainSets(Long userId, LocalDate from, LocalDate to);
 }

@@ -70,6 +70,8 @@ public class WorkoutGenerationService {
 
   static final String NO_RECORD_REASON = "記録が無いため重量は空欄です。目標回数をあと3〜4回はできる余裕を残して終えられる重量で始めてください";
   static final String FATIGUE_WARNING = "この部位は疲労が残っています。重量・セット数を調整してください";
+  static final String REST_DAY_NOTICE = "今日はプログラム上の休養日です。回復を優先する場合は休むことをおすすめします";
+  static final String REST_DAY_NOTICE_OTHER_DAY = "この日はプログラム上の休養日です。回復を優先する場合は休むことをおすすめします";
 
   private final PeriodizationService periodizationService;
   private final FatigueCalculator fatigueCalculator;
@@ -157,7 +159,10 @@ public class WorkoutGenerationService {
     int baseSets = strategies.get(goal).getSets();
 
     Optional<ProgramDay> program = resolveProgramDay(userId, date);
-    BigDecimal programPct = program.map(ProgramDay::intensityPct).orElse(null);
+    // プログラムの休養日に部位指定なし: 強度は目的別の生成値のまま、各種目−1セットの軽めの構成にする
+    boolean restDay =
+        desiredParts.isEmpty() && program.isPresent() && program.get().partCode() == null;
+    BigDecimal programPct = restDay ? null : program.map(ProgramDay::intensityPct).orElse(null);
     double intensity = programPct != null ? programPct.doubleValue() / 100.0 : goalIr.intensity();
     int reps =
         programPct != null
@@ -167,6 +172,10 @@ public class WorkoutGenerationService {
 
     // モード判定と対象部位
     Map<String, Integer> fatigue = fatigueCalculator.calculate(userId, date).fatiguePct();
+    Set<String> recentParts =
+        new HashSet<>(
+            autogenHistoryDao.selectPartsWithMainSets(
+                userId, date.minusDays(AutogenRules.RECENT_MAIN_SET_DAYS), date));
     Mode mode;
     List<String> parts;
     boolean specified;
@@ -183,13 +192,14 @@ public class WorkoutGenerationService {
       parts = omakaseParts(partNames.keySet());
       specified = false;
     }
-    int setReduction = 0;
+    int setReduction = restDay ? AutogenRules.REST_DAY_SET_REDUCTION : 0;
     boolean allFatigued = false;
     if (!specified) {
-      List<String> rested = parts.stream().filter(p -> !isFatigued(fatigue, p)).toList();
+      List<String> rested =
+          parts.stream().filter(p -> !isFatigued(fatigue, recentParts, p)).toList();
       if (rested.isEmpty()) {
         allFatigued = true;
-        setReduction = AutogenRules.ALL_FATIGUED_SET_REDUCTION;
+        setReduction = Math.max(setReduction, AutogenRules.ALL_FATIGUED_SET_REDUCTION);
       } else {
         parts = rested;
       }
@@ -205,13 +215,16 @@ public class WorkoutGenerationService {
 
     List<PartRequest> requests = new ArrayList<>();
     for (String p : parts) {
-      requests.add(new PartRequest(p, specified, isFatigued(fatigue, p), factory.candidatesFor(p)));
+      requests.add(
+          new PartRequest(
+              p, specified, isFatigued(fatigue, recentParts, p), factory.candidatesFor(p)));
     }
     PlanResult plan =
         WorkoutPlanner.plan(
             new PlanInput(minutes, requests, intensity, reps, baseSets, setReduction));
 
-    ReasonContext ctx = new ReasonContext(mode, specified, allFatigued, programPct, partNames);
+    ReasonContext ctx =
+        new ReasonContext(mode, specified, allFatigued, restDay, programPct, partNames);
     List<GeneratedItem> items = new ArrayList<>();
     for (PlannedItem pi : plan.items()) {
       Candidate c = pi.candidate();
@@ -259,7 +272,10 @@ public class WorkoutGenerationService {
         minutes,
         (int) Math.ceil(plan.estimatedSeconds() / 60.0),
         items,
-        due);
+        due,
+        restDay
+            ? (date.equals(LocalDate.now()) ? REST_DAY_NOTICE : REST_DAY_NOTICE_OTHER_DAY)
+            : null);
   }
 
   /** おまかせの部位: 大きい部位→小さい部位→体幹の順。 */
@@ -267,8 +283,11 @@ public class WorkoutGenerationService {
     return partCodes.stream().sorted(Comparator.comparingInt(AutogenRules::partSizeRank)).toList();
   }
 
-  static boolean isFatigued(Map<String, Integer> fatiguePct, String partCode) {
-    return fatiguePct.getOrDefault(partCode, 0) > AutogenRules.HIGH_FATIGUE_THRESHOLD_PCT;
+  /** 高疲労: 疲労度がしきい値を超える、または前日・当日にその部位の本番セットがある（疲労度は「最近やった割合」のため、頻繁に行う部位では値が薄まる）。 */
+  static boolean isFatigued(
+      Map<String, Integer> fatiguePct, Set<String> recentMainSetParts, String partCode) {
+    return fatiguePct.getOrDefault(partCode, 0) > AutogenRules.HIGH_FATIGUE_THRESHOLD_PCT
+        || recentMainSetParts.contains(partCode);
   }
 
   // ===================== 理由の定型文（QA Q4-3） =====================
@@ -277,6 +296,7 @@ public class WorkoutGenerationService {
       Mode mode,
       boolean specified,
       boolean allFatigued,
+      boolean restDay,
       BigDecimal programPct,
       Map<String, String> partNames) {}
 
@@ -291,10 +311,10 @@ public class WorkoutGenerationService {
       base = part + "を指定。強度はプログラムの " + pct + "%で計算しています";
     } else if (ctx.specified()) {
       base = part + "を指定。" + (c.compound() ? "複合種目を先にしています" : "単関節種目は後にしています");
+    } else if (ctx.restDay()) {
+      base = "プログラムの休養日のため、セット数を1つ減らした軽めの構成にしています";
     } else if (ctx.allFatigued()) {
       base = "全部位に疲労が残っているため、セット数を1つ減らしています";
-    } else if (pct != null) {
-      base = "疲労の少ない部位から選び、強度はプログラムの " + pct + "%で計算しています";
     } else {
       base = "疲労の少ない部位から選んでいます";
     }

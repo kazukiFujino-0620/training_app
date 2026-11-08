@@ -345,7 +345,7 @@ export function programBannerText(
   if (program.partCode) {
     return `${day}はプログラム「${program.cycleName}」第${program.weekNumber}週・${program.partName}の日です${pct}。\n部位を選ばなければ、この予定どおりに組みます。`;
   }
-  return `${day}はプログラム「${program.cycleName}」第${program.weekNumber}週の休養日です${pct}。\n部位を選ばなければおまかせで組み、強度だけプログラムに合わせます。`;
+  return `${day}はプログラム「${program.cycleName}」第${program.weekNumber}週の休養日です。\n回復を優先する場合は休むことをおすすめします。部位を選ばなければ軽めに組みます。`;
 }
 
 /** C2. 除外の追加（種目を選ぶ → 理由を書いて除外する）。 */
