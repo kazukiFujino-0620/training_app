@@ -159,6 +159,27 @@ describe('ita5-1 機能1（仮連携）: AIトレーニング提案の登録画�
     expect(repsInputs[0].props.value).toBe('9'); // (8+10)/2
   });
 
+  it('機能見直し-1-#4: メニュー自動作成から渡された重量はそのまま、null（記録が無い種目）は空欄で開く', async () => {
+    const aiSuggestion = {
+      items: [
+        { itemName: 'ベンチプレス', weightMin: 23.75, weightMax: 23.75, repsMin: 10, repsMax: 10, sets: 3 },
+        { itemName: 'デッドリフト', weightMin: null, weightMax: null, repsMin: 8, repsMax: 8, sets: 2 },
+      ],
+    };
+
+    await render(
+      <AddExerciseScreen navigation={navigation} route={{ params: { aiSuggestion } } as any} />,
+    );
+
+    await waitFor(() => expect(screen.getByText('2種目を登録')).toBeTruthy());
+    const weightInputs = screen.getAllByPlaceholderText('重量');
+    const repsInputs = screen.getAllByPlaceholderText('回数');
+    expect(weightInputs).toHaveLength(5);
+    expect(weightInputs.slice(0, 3).map((i) => i.props.value)).toEqual(['23.75', '23.75', '23.75']);
+    expect(weightInputs.slice(3).map((i) => i.props.value)).toEqual(['', '']);
+    expect(repsInputs.map((i) => i.props.value)).toEqual(['10', '10', '10', '8', '8']);
+  });
+
 });
 
 describe('itバグ-10: AddExerciseScreen 登録前の並び替え', () => {

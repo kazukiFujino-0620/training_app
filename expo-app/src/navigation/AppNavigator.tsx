@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import LoginScreen from '../screens/LoginScreen';
 import MfaScreen from '../screens/MfaScreen';
-import type { RecommendedItem } from '../api/types';
+import type { AutogenResult, SuggestedItem } from '../api/types';
 
 // AppStack配下の画面は、未ログイン時にも起動のたびにJS評価コストが発生していた
 // （AppNavigator.tsxの静的importにより、ログイン前後を問わずモジュール本体が評価される）。
@@ -25,6 +25,9 @@ const ProfileScreen = React.lazy(() => import('../screens/ProfileScreen'));
 const ProgramCycleScreen = React.lazy(() => import('../screens/ProgramCycleScreen'));
 const PresetSelectionScreen = React.lazy(() => import('../screens/PresetSelectionScreen'));
 const CustomCycleBuilderScreen = React.lazy(() => import('../screens/CustomCycleBuilderScreen'));
+// 機能見直し-1-#4: メニュー自動作成
+const AutoWorkoutGenerationScreen = React.lazy(() => import('../screens/AutoWorkoutGenerationScreen'));
+const AutoWorkoutResultScreen = React.lazy(() => import('../screens/AutoWorkoutResultScreen'));
 
 // 画面モジュールの読み込み中に表示するフォールバック。
 // App.tsx起動時スプラッシュの配色（白背景 + 緑のActivityIndicator）に合わせている。
@@ -61,6 +64,8 @@ const ProfileScreenLazy = withSuspense(ProfileScreen);
 const ProgramCycleScreenLazy = withSuspense(ProgramCycleScreen);
 const PresetSelectionScreenLazy = withSuspense(PresetSelectionScreen);
 const CustomCycleBuilderScreenLazy = withSuspense(CustomCycleBuilderScreen);
+const AutoWorkoutGenerationScreenLazy = withSuspense(AutoWorkoutGenerationScreen);
+const AutoWorkoutResultScreenLazy = withSuspense(AutoWorkoutResultScreen);
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -74,7 +79,11 @@ export type AppStackParamList = {
   Exercise: { trainingId: number; menu: string; date?: string };
   // itバグ-21対応: 「今日のおすすめメニュー」（ルールベース）・AI提案（将来のita5-1本番連携）の
   // どちらから遷移してもitems配列の形状は共通のため、この最小限の形で受け取る。
-  AddExercise: { aiSuggestion?: { items: RecommendedItem[] }; date?: string } | undefined;
+  // 機能見直し-1-#4: メニュー自動作成からも同じ経路で渡す（重量の空欄を許すSuggestedItem）。
+  AddExercise: { aiSuggestion?: { items: SuggestedItem[] }; date?: string } | undefined;
+  /** 機能見直し-1-#4: メニュー自動作成。date未指定は今日 */
+  AutoWorkoutGeneration: { date?: string } | undefined;
+  AutoWorkoutResult: { result: AutogenResult; date?: string };
   Goal: {
     date: string;
     totalSets?: number;
@@ -183,6 +192,16 @@ function AppNavigator() {
         name="CustomCycleBuilder"
         component={CustomCycleBuilderScreenLazy}
         options={{ headerShown: false }}
+      />
+      <AppStack.Screen
+        name="AutoWorkoutGeneration"
+        component={AutoWorkoutGenerationScreenLazy}
+        options={{ title: 'メニュー自動作成', headerBackTitle: '戻る' }}
+      />
+      <AppStack.Screen
+        name="AutoWorkoutResult"
+        component={AutoWorkoutResultScreenLazy}
+        options={{ title: '組んだメニュー', headerBackTitle: '条件' }}
       />
     </AppStack.Navigator>
   );

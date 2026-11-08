@@ -75,8 +75,16 @@ public class RestIntervalCalculationService {
     if (estimatedOneRm <= 0) return RestPreferenceService.DEFAULT_REST_SECONDS;
 
     double ratio = weight / estimatedOneRm;
-    boolean isCompound = resolveIsCompound(itemName);
+    return systemRecommendedSeconds(resolveIsCompound(itemName), ratio);
+  }
 
+  /**
+   * 複合/単関節区分 × 推定1RMに対する割合からシステム推奨の休憩秒数を返す。メニュー自動作成（機能見直し-1-#4）の所要時間見積もりでも同じ値を使う。
+   *
+   * @param isCompound 複合種目か
+   * @param ratio 推定1RMに対するセット重量の割合（0.0〜1.0）
+   */
+  public static int systemRecommendedSeconds(boolean isCompound, double ratio) {
     if (isCompound) {
       if (ratio >= RATIO_THRESHOLD_HIGH) return COMPOUND_REST_SECONDS_HIGH;
       if (ratio >= RATIO_THRESHOLD_MID) return COMPOUND_REST_SECONDS_MID;
