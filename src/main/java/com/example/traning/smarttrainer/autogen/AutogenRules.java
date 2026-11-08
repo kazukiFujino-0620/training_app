@@ -66,9 +66,6 @@ public final class AutogenRules {
   /** おまかせで全部位が高疲労のとき、各種目から減らすセット数。 */
   public static final int ALL_FATIGUED_SET_REDUCTION = 1;
 
-  /** プログラムの休養日に部位指定なしで組むとき、各種目から減らすセット数（全部位高疲労時と同じ軽めの構成）。 */
-  public static final int REST_DAY_SET_REDUCTION = 1;
-
   // ── 強度と回数（Q4-8） ──
   public record IntensityReps(double intensity, int reps) {}
 

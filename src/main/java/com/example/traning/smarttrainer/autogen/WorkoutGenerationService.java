@@ -70,8 +70,6 @@ public class WorkoutGenerationService {
 
   static final String NO_RECORD_REASON = "記録が無いため重量は空欄です。目標回数をあと3〜4回はできる余裕を残して終えられる重量で始めてください";
   static final String FATIGUE_WARNING = "この部位は疲労が残っています。重量・セット数を調整してください";
-  static final String REST_DAY_NOTICE = "今日はプログラム上の休養日です。回復を優先する場合は休むことをおすすめします";
-  static final String REST_DAY_NOTICE_OTHER_DAY = "この日はプログラム上の休養日です。回復を優先する場合は休むことをおすすめします";
 
   private final PeriodizationService periodizationService;
   private final FatigueCalculator fatigueCalculator;
@@ -159,10 +157,8 @@ public class WorkoutGenerationService {
     int baseSets = strategies.get(goal).getSets();
 
     Optional<ProgramDay> program = resolveProgramDay(userId, date);
-    // プログラムの休養日に部位指定なし: 強度は目的別の生成値のまま、各種目−1セットの軽めの構成にする
-    boolean restDay =
-        desiredParts.isEmpty() && program.isPresent() && program.get().partCode() == null;
-    BigDecimal programPct = restDay ? null : program.map(ProgramDay::intensityPct).orElse(null);
+    // プログラムの休養日に部位指定なしの場合も、おまかせで通常どおり組み強度は今週のプログラムの%を使う（QA Q4-10）
+    BigDecimal programPct = program.map(ProgramDay::intensityPct).orElse(null);
     double intensity = programPct != null ? programPct.doubleValue() / 100.0 : goalIr.intensity();
     int reps =
         programPct != null
@@ -192,14 +188,14 @@ public class WorkoutGenerationService {
       parts = omakaseParts(partNames.keySet());
       specified = false;
     }
-    int setReduction = restDay ? AutogenRules.REST_DAY_SET_REDUCTION : 0;
+    int setReduction = 0;
     boolean allFatigued = false;
     if (!specified) {
       List<String> rested =
           parts.stream().filter(p -> !isFatigued(fatigue, recentParts, p)).toList();
       if (rested.isEmpty()) {
         allFatigued = true;
-        setReduction = Math.max(setReduction, AutogenRules.ALL_FATIGUED_SET_REDUCTION);
+        setReduction = AutogenRules.ALL_FATIGUED_SET_REDUCTION;
       } else {
         parts = rested;
       }
@@ -223,8 +219,7 @@ public class WorkoutGenerationService {
         WorkoutPlanner.plan(
             new PlanInput(minutes, requests, intensity, reps, baseSets, setReduction));
 
-    ReasonContext ctx =
-        new ReasonContext(mode, specified, allFatigued, restDay, programPct, partNames);
+    ReasonContext ctx = new ReasonContext(mode, specified, allFatigued, programPct, partNames);
     List<GeneratedItem> items = new ArrayList<>();
     for (PlannedItem pi : plan.items()) {
       Candidate c = pi.candidate();
@@ -272,10 +267,7 @@ public class WorkoutGenerationService {
         minutes,
         (int) Math.ceil(plan.estimatedSeconds() / 60.0),
         items,
-        due,
-        restDay
-            ? (date.equals(LocalDate.now()) ? REST_DAY_NOTICE : REST_DAY_NOTICE_OTHER_DAY)
-            : null);
+        due);
   }
 
   /** おまかせの部位: 大きい部位→小さい部位→体幹の順。 */
@@ -296,7 +288,6 @@ public class WorkoutGenerationService {
       Mode mode,
       boolean specified,
       boolean allFatigued,
-      boolean restDay,
       BigDecimal programPct,
       Map<String, String> partNames) {}
 
@@ -311,10 +302,10 @@ public class WorkoutGenerationService {
       base = part + "を指定。強度はプログラムの " + pct + "%で計算しています";
     } else if (ctx.specified()) {
       base = part + "を指定。" + (c.compound() ? "複合種目を先にしています" : "単関節種目は後にしています");
-    } else if (ctx.restDay()) {
-      base = "プログラムの休養日のため、セット数を1つ減らした軽めの構成にしています";
     } else if (ctx.allFatigued()) {
       base = "全部位に疲労が残っているため、セット数を1つ減らしています";
+    } else if (pct != null) {
+      base = "疲労の少ない部位から選び、強度はプログラムの " + pct + "%で計算しています";
     } else {
       base = "疲労の少ない部位から選んでいます";
     }

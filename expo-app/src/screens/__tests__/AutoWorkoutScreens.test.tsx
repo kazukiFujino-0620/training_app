@@ -67,7 +67,6 @@ const okResult: AutogenResult = {
     },
   ],
   itemsNeedingReconfirmation: [],
-  notice: null,
 };
 
 function makeNavigation() {
@@ -171,10 +170,10 @@ describe('AutoWorkoutGenerationScreen（条件入力）', () => {
       cycleName: '筋肥大4週', weekNumber: 2, totalWeeks: 4, targetIntensityPct: 70, partCode: 'LEG', partName: '脚',
     };
     expect(programBannerText(program, true)).toBe(
-      '今日はプログラム「筋肥大4週」第2週・脚の日です（目標強度 70%）。\n部位を選ばなければ、この予定どおりに組みます。',
+      '今日はプログラム「筋肥大4週」第2週・脚の日です\n目標強度 70%\n部位を選ばなければ、この予定どおりに組みます。',
     );
     expect(programBannerText({ ...program, partCode: null, partName: null }, false)).toBe(
-      'この日はプログラム「筋肥大4週」第2週の休養日です。\n回復を優先する場合は休むことをおすすめします。部位を選ばなければ軽めに組みます。',
+      'この日はプログラム「筋肥大4週」第2週の休養日です\n目標強度 70%\n部位を選ばなければおまかせで組み、強度だけプログラムに合わせます。',
     );
   });
 
@@ -314,18 +313,15 @@ describe('AutoWorkoutResultScreen（結果の確認・編集）', () => {
     expect(screen.getByText('プログラム 第2週・70%')).toBeTruthy();
   });
 
-  it('プログラムの休養日は結果の上に注意を出す', async () => {
+  it('プログラムの休養日におまかせで組んだ場合もプログラムの週と%を表示する', async () => {
     const result: AutogenResult = {
       ...okResult,
-      notice: '今日はプログラム上の休養日です。回復を優先する場合は休むことをおすすめします',
+      mode: 'ADHOC',
+      intensityPct: 80,
+      program: { cycleName: '筋肥大4週', weekNumber: 3, totalWeeks: 4, targetIntensityPct: 80, partCode: null, partName: null },
     };
     await render(<AutoWorkoutResultScreen navigation={makeNavigation()} route={{ params: { result } } as any} />);
-    expect(screen.getByText('今日はプログラム上の休養日です。回復を優先する場合は休むことをおすすめします')).toBeTruthy();
-  });
-
-  it('注意が無ければ出さない', async () => {
-    await render(<AutoWorkoutResultScreen navigation={makeNavigation()} route={{ params: { result: okResult } } as any} />);
-    expect(screen.queryByTestId('autogen-notice')).toBeNull();
+    expect(screen.getByText('プログラム 第3週・80%')).toBeTruthy();
   });
 
   it('条件に合う種目が無いときは見直しを案内する', async () => {

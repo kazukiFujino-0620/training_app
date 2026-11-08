@@ -16,9 +16,11 @@ export function excludedSinceLabel(dateStr: string): string {
   return `${m}月${d}日から除外中`;
 }
 
-/** 結果上部のラベル。プログラムの強度で組んだ場合は何週目・何%かを出す。 */
-export function modeLabel(result: Pick<AutogenResult, 'mode' | 'program' | 'intensityPct'>): string {
-  if (result.mode !== 'ADHOC' && result.program) {
+/**
+ * 結果上部のラベル。プログラムの強度で組んだ場合（プログラムどおり・部位指定・休養日のおまかせ）は何週目・何%かを出す。
+ */
+export function modeLabel(result: Pick<AutogenResult, 'program' | 'intensityPct'>): string {
+  if (result.program) {
     return `プログラム 第${result.program.weekNumber}週・${result.intensityPct}%`;
   }
   return 'おまかせ';

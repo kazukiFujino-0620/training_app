@@ -645,6 +645,4 @@ export interface AutogenResult {
   estimatedMinutes: number;
   items: AutogenItem[];
   itemsNeedingReconfirmation: AutogenExclusion[];
-  /** 結果の上に出す注意（プログラムの休養日など）。無ければ null */
-  notice: string | null;
 }

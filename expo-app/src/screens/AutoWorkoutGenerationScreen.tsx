@@ -340,12 +340,18 @@ export function programBannerText(
   program: NonNullable<AutogenForm['program']>,
   isToday: boolean,
 ): string {
+  // 文の途中で自然に改行されないよう、行を明示的に分ける
   const day = isToday ? '今日' : 'この日';
-  const pct = program.targetIntensityPct != null ? `（目標強度 ${program.targetIntensityPct}%）` : '';
-  if (program.partCode) {
-    return `${day}はプログラム「${program.cycleName}」第${program.weekNumber}週・${program.partName}の日です${pct}。\n部位を選ばなければ、この予定どおりに組みます。`;
-  }
-  return `${day}はプログラム「${program.cycleName}」第${program.weekNumber}週の休養日です。\n回復を優先する場合は休むことをおすすめします。部位を選ばなければ軽めに組みます。`;
+  const lines = program.partCode
+    ? [`${day}はプログラム「${program.cycleName}」第${program.weekNumber}週・${program.partName}の日です`]
+    : [`${day}はプログラム「${program.cycleName}」第${program.weekNumber}週の休養日です`];
+  if (program.targetIntensityPct != null) lines.push(`目標強度 ${program.targetIntensityPct}%`);
+  lines.push(
+    program.partCode
+      ? '部位を選ばなければ、この予定どおりに組みます。'
+      : '部位を選ばなければおまかせで組み、強度だけプログラムに合わせます。',
+  );
+  return lines.join('\n');
 }
 
 /** C2. 除外の追加（種目を選ぶ → 理由を書いて除外する）。 */

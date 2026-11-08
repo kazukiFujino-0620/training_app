@@ -265,7 +265,7 @@ class WorkoutGenerationServiceTest {
     }
 
     @Test
-    void プログラムの休養日で部位指定が無ければ注意を出し_目的別の強度で各種目1セット減らした軽めの構成にする() {
+    void プログラムの休養日で部位指定が無ければおまかせで通常どおり組み_強度は今週のプログラムの割合() {
       when(periodizationService.getTodayAssignment(eq(USER_ID), any()))
           .thenReturn(program(null, "80", List.of()));
       pr("LEG_C1", 100.0, 1);
@@ -274,23 +274,22 @@ class WorkoutGenerationServiceTest {
 
       assertThat(r.mode()).isEqualTo(Mode.ADHOC);
       assertThat(r.program().partCode()).isNull();
-      assertThat(r.notice()).isEqualTo(WorkoutGenerationService.REST_DAY_NOTICE);
-      // 強度はプログラムの80%ではなく増量の70%×10回
-      assertThat(r.intensityPct()).isEqualTo(70.0);
-      assertThat(r.items()).allMatch(i -> i.reps() == 10 && i.sets() == 3);
-      assertThat(r.items().get(0).weightKg()).isEqualTo(70.0);
-      assertThat(r.items().get(0).reason()).isEqualTo("プログラムの休養日のため、セット数を1つ減らした軽めの構成にしています");
+      assertThat(r.program().weekNumber()).isEqualTo(2);
+      assertThat(r.intensityPct()).isEqualTo(80.0);
+      // 80%での最大回数7.5回 − 2 = 5回、セットは減らさない
+      assertThat(r.items()).allMatch(i -> i.reps() == 5 && i.sets() == 4);
+      assertThat(r.items().get(0).weightKg()).isEqualTo(80.0);
+      assertThat(r.items().get(0).reason()).isEqualTo("疲労の少ない部位から選び、強度はプログラムの 80%で計算しています");
     }
 
     @Test
-    void プログラムの休養日でも部位を指定すれば通常どおり強度パーセントのみプログラム() {
+    void プログラムの休養日でも部位を指定すれば強度パーセントのみプログラム() {
       when(periodizationService.getTodayAssignment(eq(USER_ID), any()))
           .thenReturn(program(null, "80", List.of()));
 
       GenerationResult r = generate(60, List.of("CHEST"));
 
       assertThat(r.mode()).isEqualTo(Mode.USER_OVERRIDE);
-      assertThat(r.notice()).isNull();
       assertThat(r.intensityPct()).isEqualTo(80.0);
       assertThat(r.items()).allMatch(i -> i.sets() == 4);
     }
@@ -373,6 +372,28 @@ class WorkoutGenerationServiceTest {
       verify(autogenHistoryDao).selectPartsWithMainSets(eq(USER_ID), from.capture(), to.capture());
       assertThat(from.getValue()).isEqualTo(LocalDate.now().minusDays(1));
       assertThat(to.getValue()).isEqualTo(LocalDate.now());
+    }
+
+    @Test
+    void 前日と2日前に行い疲労度が約60パーセントの部位も_前日の本番セットで外す() {
+      // 2日前と前日に同量: (0.5 + 0.707) / 2 ≒ 60% で65%以下だが、前日の本番セットで高疲労
+      fatigue.put("CHEST", 60);
+      when(autogenHistoryDao.selectPartsWithMainSets(eq(USER_ID), any(), any()))
+          .thenReturn(List.of("CHEST"));
+
+      GenerationResult r = generate(90, null);
+
+      assertThat(partsOf(r)).doesNotContain("CHEST").contains("LEG", "BACK");
+    }
+
+    @Test
+    void 未来日は前日をその日の前日として本番セットを見る() {
+      LocalDate target = LocalDate.now().plusDays(3);
+      when(periodizationService.getActiveCycleDetail(USER_ID, target)).thenReturn(Optional.empty());
+
+      service.generate(USER_ID, new GenerateCommand(60, target, null, null, null));
+
+      verify(autogenHistoryDao).selectPartsWithMainSets(USER_ID, target.minusDays(1), target);
     }
 
     @Test

@@ -146,16 +146,11 @@ export default function AutoWorkoutResultScreen({ navigation, route }: Props) {
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <View style={styles.sum}>
             <Text style={styles.sumText}>{rows.length}種目・{totalSets(rows)}セット</Text>
-            <Text style={[styles.mode, result.mode !== 'ADHOC' && styles.modePg]}>{modeLabel(result)}</Text>
+            <Text style={[styles.mode, !!result.program && styles.modePg]}>{modeLabel(result)}</Text>
           </View>
           <Text style={styles.tot}>
             目安 約{result.estimatedMinutes}分（使える時間 {result.availableMinutes}分）
           </Text>
-          {result.notice ? (
-            <View style={styles.notice} testID="autogen-notice">
-              <Text style={styles.noticeText}>{result.notice}</Text>
-            </View>
-          ) : null}
           <View style={styles.warm}>
             <Text style={styles.warmText}>{WARMUP_NOTE}</Text>
           </View>
@@ -283,8 +278,6 @@ const styles = StyleSheet.create({
   modePg: { backgroundColor: '#eef2ff', color: '#4f46e5' },
   tot: { fontSize: 13, color: '#666', textAlign: 'right' },
   warm: { backgroundColor: '#fff8e1', borderRadius: 10, padding: 10 },
-  notice: { backgroundColor: '#eef2ff', borderRadius: 10, padding: 10 },
-  noticeText: { fontSize: 13, color: '#3730a3' },
   warmText: { fontSize: 13, color: '#6b5200' },
   it: { backgroundColor: '#fff', borderRadius: 12, padding: 12, gap: 7 },
   itH: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },

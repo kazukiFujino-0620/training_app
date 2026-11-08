@@ -21,13 +21,13 @@ describe('autoWorkoutShared', () => {
     expect(excludedSinceLabel('2026-03-01')).toBe('3月1日から除外中');
   });
 
-  it('modeLabel: プログラムの強度で組んだ場合は週と%、それ以外は「おまかせ」', () => {
+  it('modeLabel: プログラム実施中（休養日のおまかせ含む）は週と%、それ以外は「おまかせ」', () => {
     const program = {
       cycleName: '筋肥大4週', weekNumber: 2, totalWeeks: 4, targetIntensityPct: 70, partCode: 'LEG', partName: '脚',
     };
-    expect(modeLabel({ mode: 'CYCLE_COMPLEMENT', program, intensityPct: 70 })).toBe('プログラム 第2週・70%');
-    expect(modeLabel({ mode: 'USER_OVERRIDE', program, intensityPct: 75 })).toBe('プログラム 第2週・75%');
-    expect(modeLabel({ mode: 'ADHOC', program: null, intensityPct: 70 })).toBe('おまかせ');
+    expect(modeLabel({ program, intensityPct: 70 })).toBe('プログラム 第2週・70%');
+    expect(modeLabel({ program: { ...program, partCode: null, partName: null }, intensityPct: 75 })).toBe('プログラム 第2週・75%');
+    expect(modeLabel({ program: null, intensityPct: 70 })).toBe('おまかせ');
   });
 
   it('toSuggestion: 編集後の重量・回数・セットを1つの値で渡す。空欄の重量はnull、自重は0kg', () => {
