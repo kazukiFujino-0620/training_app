@@ -349,7 +349,7 @@ export function programBannerText(
   lines.push(
     program.partCode
       ? '部位を選ばなければ、この予定どおりに組みます。'
-      : '部位を選ばなければおまかせで組み、強度だけプログラムに合わせます。',
+      : '部位を選ばなければおまかせで組み、\n強度だけプログラムに合わせます。',
   );
   return lines.join('\n');
 }
