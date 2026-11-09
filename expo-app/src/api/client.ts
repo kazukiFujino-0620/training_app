@@ -106,6 +106,10 @@ import type {
   PeriodizationItemInput,
   RenewChoice,
   ProposalResponseChoice,
+  AutogenForm,
+  AutogenGenerateRequest,
+  AutogenResult,
+  AutogenExclusion,
 } from './types';
 
 export const authApi = {
@@ -194,6 +198,22 @@ export const restPreferenceApi = {
     client.put<RestPreference>(`/rest-preferences/${encodeURIComponent(itemName)}`, { restSeconds }),
   delete: (itemName: string) =>
     client.delete(`/rest-preferences/${encodeURIComponent(itemName)}`),
+};
+
+/** メニュー自動作成（機能見直し-1-#4）。生成結果は保存されず、反映は既存の種目追加画面で行う。 */
+export const workoutGenerationApi = {
+  form: (date?: string) =>
+    client.get<AutogenForm>('/workout-generation/form', { params: date ? { date } : undefined }),
+  generate: (req: AutogenGenerateRequest) =>
+    client.post<AutogenResult>('/workout-generation/generate', req),
+  addExclusion: (itemName: string, reason?: string) =>
+    client.post<AutogenExclusion>('/workout-generation/exclusions', { itemName, reason }),
+  removeExclusion: (itemName: string) =>
+    client.delete(`/workout-generation/exclusions/${encodeURIComponent(itemName)}`),
+  confirmExclusion: (itemName: string, keep: boolean) =>
+    client.put(`/workout-generation/exclusions/${encodeURIComponent(itemName)}/confirm`, null, {
+      params: { keep },
+    }),
 };
 
 export const noticeApi = {

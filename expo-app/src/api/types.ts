@@ -322,6 +322,15 @@ export interface RecommendedItem {
   sets: number;
 }
 
+/**
+ * 種目追加画面（aiSuggestion）に引き継ぐ提案1件。RecommendedItemと同じ形で、重量だけ null（空欄）を許す。
+ * 機能見直し-1-#4: メニュー自動作成で記録の無い種目の重量を空欄のまま渡すため。
+ */
+export type SuggestedItem = Omit<RecommendedItem, 'weightMin' | 'weightMax'> & {
+  weightMin: number | null;
+  weightMax: number | null;
+};
+
 export interface DailyRecommendation {
   partCode: string | null;
   partLabel: string | null;
@@ -545,3 +554,95 @@ export interface CustomCycleRequest {
 export type RenewChoice = 'REPEAT_SAME' | 'CHOOSE_NEW_PRESET';
 /** START_NOW / SCHEDULE / DECLINE */
 export type ProposalResponseChoice = 'START_NOW' | 'SCHEDULE' | 'DECLINE';
+
+// ── メニュー自動作成（機能見直し-1-#4） ─────────────────────────────────────
+
+export interface AutogenPartOption {
+  partCode: string;
+  partName: string;
+}
+
+export interface AutogenEquipment {
+  id: number;
+  name: string;
+  category: string;
+}
+
+export interface AutogenExclusion {
+  itemName: string;
+  partCode: string | null;
+  partName: string | null;
+  reason: string | null;
+  /** 除外を始めた日（yyyy-MM-dd） */
+  excludedSince: string | null;
+  nextConfirmationDueAt: string;
+  needsReconfirmation: boolean;
+}
+
+/** 対象日のプログラムの枠。partCode=null は休養日。 */
+export interface AutogenProgramDay {
+  cycleName: string;
+  weekNumber: number;
+  totalWeeks: number;
+  targetIntensityPct: number | null;
+  partCode: string | null;
+  partName: string | null;
+}
+
+export interface AutogenForm {
+  minAvailableMinutes: number;
+  parts: AutogenPartOption[];
+  equipment: AutogenEquipment[];
+  exclusions: AutogenExclusion[];
+  program: AutogenProgramDay | null;
+}
+
+export interface AutogenGenerateRequest {
+  availableMinutes: number;
+  date?: string;
+  desiredPartCodes?: string[];
+  availableEquipmentIds?: number[];
+  excludeItemNames?: string[];
+}
+
+export interface AutogenAlternative {
+  itemName: string;
+  partCode: string;
+  compound: boolean;
+  bodyweight: boolean;
+  reps: number;
+  weightKg: number | null;
+  restSeconds: number;
+  reason: string;
+}
+
+export interface AutogenItem {
+  itemName: string;
+  partCode: string;
+  partName: string;
+  compound: boolean;
+  bodyweight: boolean;
+  sets: number;
+  reps: number;
+  /** null = 空欄（記録が無い種目・自重種目） */
+  weightKg: number | null;
+  restSeconds: number;
+  reason: string;
+  warning: string | null;
+  alternatives: AutogenAlternative[];
+}
+
+/** ADHOC / CYCLE_COMPLEMENT（プログラムどおり）/ USER_OVERRIDE（部位指定・強度のみプログラム） */
+export type AutogenMode = 'ADHOC' | 'CYCLE_COMPLEMENT' | 'USER_OVERRIDE';
+
+export interface AutogenResult {
+  /** OK / NO_CANDIDATES / TOO_SHORT */
+  status: 'OK' | 'NO_CANDIDATES' | 'TOO_SHORT';
+  mode: AutogenMode;
+  program: AutogenProgramDay | null;
+  intensityPct: number;
+  availableMinutes: number;
+  estimatedMinutes: number;
+  items: AutogenItem[];
+  itemsNeedingReconfirmation: AutogenExclusion[];
+}

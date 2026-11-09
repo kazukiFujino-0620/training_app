@@ -10,7 +10,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import { masterApi, trainingApi } from '../api/client';
-import type { TrainingItemMaster, TrainingHistory, RecommendedItem } from '../api/types';
+import type { TrainingItemMaster, TrainingHistory, SuggestedItem } from '../api/types';
 import ItemSettingsModal from '../components/ItemSettingsModal';
 import FormGuideModal from '../components/FormGuideModal';
 
@@ -92,7 +92,7 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
-  async function applyAiSuggestion(suggestion: { items: RecommendedItem[] }) {
+  async function applyAiSuggestion(suggestion: { items: SuggestedItem[] }) {
     const matchedBlocks: TrainingBlock[] = [];
     const unmatchedNames: string[] = [];
 
@@ -102,13 +102,20 @@ export default function AddExerciseScreen({ navigation, route }: Props) {
         unmatchedNames.push(aiItem.itemName);
         return;
       }
-      const weight = Math.round(((aiItem.weightMin + aiItem.weightMax) / 2) * 2) / 2;
+      // 機能見直し-1-#4: メニュー自動作成からは重量を1つの値（編集後の値）で受け取るためそのまま使う。
+      // null は記録の無い種目で、空欄のまま開く（重量を入れないと登録されない）。
+      const weight =
+        aiItem.weightMin == null || aiItem.weightMax == null
+          ? ''
+          : aiItem.weightMin === aiItem.weightMax
+            ? String(aiItem.weightMin)
+            : String(Math.round(((aiItem.weightMin + aiItem.weightMax) / 2) * 2) / 2);
       const reps = Math.round((aiItem.repsMin + aiItem.repsMax) / 2);
       const setsCount = Math.max(1, aiItem.sets);
       matchedBlocks.push({
         item: master,
         sets: Array.from({ length: setsCount }, () => ({
-          weight: String(weight),
+          weight,
           reps: String(reps),
           setType: 'MAIN' as const,
         })),

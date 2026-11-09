@@ -638,6 +638,14 @@ export default function TrainingListScreen({ navigation }: Props) {
           {/* ita7-1 1-1: 過去日は編集・削除のみ対応のため、+追加・▶開始とも非表示にする */}
           {!isPast && (
             <View style={styles.footer}>
+              {/* 機能見直し-1-#4: メニュー自動作成の入口（今日・未来日のみ。過去日はフッターごと非表示） */}
+              <TouchableOpacity
+                style={styles.autogenButton}
+                onPress={() => navigation.navigate('AutoWorkoutGeneration', { date })}
+                testID="autogen-entry"
+              >
+                <Text style={styles.addButtonOutlineText}>メニューを自動で組む</Text>
+              </TouchableOpacity>
               {trainings.length > 0 && !isFuture && !isAllTrainingsCompleted ? (
                 // 当日・未完了あり：両ボタンを表示
                 <View style={styles.buttonRow}>
@@ -820,4 +828,8 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: '#4CAF50', borderRadius: 12, padding: 16, alignItems: 'center',
   },
   startButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  autogenButton: {
+    borderRadius: 12, padding: 14, alignItems: 'center', marginBottom: 10,
+    borderWidth: 1.5, borderColor: '#4CAF50', backgroundColor: '#fff',
+  },
 });

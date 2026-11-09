@@ -20,4 +20,15 @@ public class OneRmPredictionService {
     if (reps <= 1) return weight;
     return weight * (1.0 + reps / 30.0);
   }
+
+  /**
+   * Epley式の逆算で、推定1RMに対する割合 intensity の重量を挙げられる最大回数を返す（小数のまま）。
+   *
+   * @param intensity 推定1RMに対する割合（0より大きく1以下）
+   */
+  public double maxRepsAtIntensity(double intensity) {
+    if (intensity <= 0) return 0;
+    if (intensity >= 1.0) return 1.0;
+    return 30.0 * (1.0 / intensity - 1.0);
+  }
 }
