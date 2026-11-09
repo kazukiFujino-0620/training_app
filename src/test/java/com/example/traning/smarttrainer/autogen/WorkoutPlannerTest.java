@@ -126,6 +126,86 @@ class WorkoutPlannerTest {
     }
 
     @Test
+    void プログラムの当日の種目が複合2つなら_単関節より優先して両方使う() {
+      PartRequest leg =
+          new PartRequest(
+              "LEG",
+              true,
+              false,
+              List.of(
+                  comp("RDL", "LEG"),
+                  comp("LEGPRESS", "LEG"),
+                  comp("SQUAT", "LEG"),
+                  iso("LEGEXT", "LEG")),
+              2);
+      PlanResult r = plan(90, SETS, leg);
+      assertThat(names(r)).containsExactly("RDL", "LEGPRESS");
+      assertThat(r.items().get(0).alternatives())
+          .extracting(a -> a.candidate().itemName())
+          .startsWith("SQUAT");
+    }
+
+    @Test
+    void プログラムの当日の種目が重みより多ければ登録順で重みの数まで_残りは入れ替え候補の先頭() {
+      PartRequest leg =
+          new PartRequest(
+              "LEG",
+              true,
+              false,
+              List.of(
+                  comp("RDL", "LEG"),
+                  comp("LEGPRESS", "LEG"),
+                  iso("LEGCURL", "LEG"),
+                  iso("LEGEXT", "LEG")),
+              3);
+      PlanResult r = plan(90, SETS, leg);
+      assertThat(names(r)).containsExactly("RDL", "LEGPRESS");
+      assertThat(r.items())
+          .allSatisfy(
+              i ->
+                  assertThat(i.alternatives())
+                      .extracting(a -> a.candidate().itemName())
+                      .first()
+                      .isEqualTo("LEGCURL"));
+    }
+
+    @Test
+    void プログラムの当日の種目が1つなら2つ目は従来のルール() {
+      PartRequest leg =
+          new PartRequest(
+              "LEG",
+              true,
+              false,
+              List.of(comp("RDL", "LEG"), comp("LEGPRESS", "LEG"), iso("LEGEXT", "LEG")),
+              1);
+      assertThat(names(plan(90, SETS, leg))).containsExactly("RDL", "LEGEXT");
+
+      PartRequest isoFirst =
+          new PartRequest(
+              "LEG",
+              true,
+              false,
+              List.of(iso("LEGCURL", "LEG"), comp("RDL", "LEG"), iso("LEGEXT", "LEG")),
+              1);
+      // プログラム種目が単関節1つなら、残りの枠は複合を補う（並びは複合→単関節）
+      assertThat(names(plan(90, SETS, isoFirst))).containsExactly("RDL", "LEGCURL");
+    }
+
+    @Test
+    void プログラム種目でも時間が足りなければ従来の順番で削る() {
+      PartRequest leg =
+          new PartRequest(
+              "LEG",
+              true,
+              false,
+              List.of(comp("RDL", "LEG"), comp("LEGPRESS", "LEG"), iso("LEGEXT", "LEG")),
+              2);
+      // 15分: 単関節が無いので複合のセットを減らし、最後に部位内の2種目目を削る
+      PlanResult r = plan(15, SETS, leg);
+      assertThat(names(r)).containsExactly("RDL");
+    }
+
+    @Test
     void 複合が無い部位は単関節から選ぶ() {
       PartRequest onlyIso =
           new PartRequest("ARM", true, false, List.of(iso("A1", "ARM"), iso("A2", "ARM")));

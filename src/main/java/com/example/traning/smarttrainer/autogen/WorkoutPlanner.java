@@ -34,9 +34,20 @@ public final class WorkoutPlanner {
    *
    * @param specified ユーザーまたはプログラムが指定した部位か（指定の無い部位から先に削る）
    * @param fatigued 高疲労か（指定部位では注意文を出すのみ）
+   * @param programItemCount candidates の先頭からこの件数がプログラムの当日の種目（器具・除外の条件に合うもの、登録順）
    */
   public record PartRequest(
-      String partCode, boolean specified, boolean fatigued, List<Candidate> candidates) {}
+      String partCode,
+      boolean specified,
+      boolean fatigued,
+      List<Candidate> candidates,
+      int programItemCount) {
+
+    public PartRequest(
+        String partCode, boolean specified, boolean fatigued, List<Candidate> candidates) {
+      this(partCode, specified, fatigued, candidates, 0);
+    }
+  }
 
   /**
    * @param intensity 推定1RMに対する割合（0.0〜1.0）
@@ -222,14 +233,29 @@ public final class WorkoutPlanner {
 
   // ===================== 種目の選び方 =====================
 
-  /** 部位の重みの数だけ選ぶ。複合を1つ選び、2つ目は単関節（無ければ次の複合）。複合が無ければ単関節から。 */
+  /**
+   * 部位の重みの数だけ選ぶ。プログラムの当日の種目があれば登録順に重みの数まで最優先で使い（残りは入れ替え候補の先頭になる）、
+   * 足りない枠は従来のルール（複合が無ければ複合を1つ、次は単関節、無ければ次の複合）で埋める。
+   */
   static List<Candidate> pickItems(PartRequest req) {
     int count = AutogenRules.itemsForPart(req.partCode());
-    List<Candidate> compounds = req.candidates().stream().filter(Candidate::compound).toList();
-    List<Candidate> isolations = req.candidates().stream().filter(c -> !c.compound()).toList();
-    List<Candidate> picked = new ArrayList<>();
-    if (!compounds.isEmpty()) picked.add(compounds.get(0));
-    if (picked.size() < count && !isolations.isEmpty()) picked.add(isolations.get(0));
+    List<Candidate> picked =
+        new ArrayList<>(
+            req.candidates()
+                .subList(
+                    0, Math.min(Math.min(req.programItemCount(), count), req.candidates().size())));
+    if (picked.size() < count && picked.stream().noneMatch(Candidate::compound)) {
+      req.candidates().stream()
+          .filter(c -> c.compound() && !picked.contains(c))
+          .findFirst()
+          .ifPresent(picked::add);
+    }
+    if (picked.size() < count) {
+      req.candidates().stream()
+          .filter(c -> !c.compound() && !picked.contains(c))
+          .findFirst()
+          .ifPresent(picked::add);
+    }
     for (Candidate c : req.candidates()) {
       if (picked.size() >= count) break;
       if (!picked.contains(c)) picked.add(c);

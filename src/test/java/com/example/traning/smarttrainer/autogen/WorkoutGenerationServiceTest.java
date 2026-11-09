@@ -237,6 +237,28 @@ class WorkoutGenerationServiceTest {
     }
 
     @Test
+    void プログラムの当日の種目が複合2つなら両方使い_3つ目は入れ替え候補の先頭() {
+      when(periodizationService.getTodayAssignment(eq(USER_ID), any()))
+          .thenReturn(program("LEG", "70", List.of("LEG_C2", "LEG_C1", "LEG_I1")));
+
+      GenerationResult r = generate(90, null);
+
+      assertThat(names(r)).containsExactly("LEG_C2", "LEG_C1");
+      assertThat(r.items().get(0).alternatives().get(0).itemName()).isEqualTo("LEG_I1");
+    }
+
+    @Test
+    void プログラムの当日の種目が除外されていれば残りの種目と従来のルールで埋める() {
+      when(periodizationService.getTodayAssignment(eq(USER_ID), any()))
+          .thenReturn(program("LEG", "70", List.of("LEG_C2", "LEG_C1")));
+
+      GenerationResult r =
+          service.generate(USER_ID, new GenerateCommand(90, null, null, null, List.of("LEG_C1")));
+
+      assertThat(names(r)).containsExactly("LEG_C2", "LEG_I1");
+    }
+
+    @Test
     void 部位指定があれば部位はユーザー優先で強度パーセントのみプログラム() {
       when(periodizationService.getTodayAssignment(eq(USER_ID), any()))
           .thenReturn(program("LEG", "80", List.of("LEG_C1")));

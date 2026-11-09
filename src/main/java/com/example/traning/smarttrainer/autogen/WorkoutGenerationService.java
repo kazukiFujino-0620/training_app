@@ -211,9 +211,14 @@ public class WorkoutGenerationService {
 
     List<PartRequest> requests = new ArrayList<>();
     for (String p : parts) {
+      List<Candidate> candidates = factory.candidatesFor(p);
       requests.add(
           new PartRequest(
-              p, specified, isFatigued(fatigue, recentParts, p), factory.candidatesFor(p)));
+              p,
+              specified,
+              isFatigued(fatigue, recentParts, p),
+              candidates,
+              factory.programItemCount(candidates)));
     }
     PlanResult plan =
         WorkoutPlanner.plan(
@@ -394,6 +399,11 @@ public class WorkoutGenerationService {
                       i -> i.getDisplayOrder() != null ? i.getDisplayOrder() : Integer.MAX_VALUE))
           .map(this::toCandidate)
           .toList();
+    }
+
+    /** 候補の先頭に並んだプログラムの当日の種目の件数。 */
+    int programItemCount(List<Candidate> candidates) {
+      return (int) candidates.stream().filter(c -> programItems.contains(c.itemName())).count();
     }
 
     private int programRank(String itemName) {
