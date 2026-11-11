@@ -21,8 +21,6 @@ import com.example.traning.periodization.PeriodizationViews.DayView;
 import com.example.traning.periodization.PeriodizationViews.ItemView;
 import com.example.traning.periodization.PeriodizationViews.TodayAssignment;
 import com.example.traning.periodization.PeriodizationViews.WeekView;
-import com.example.traning.pr.PersonalRecord;
-import com.example.traning.pr.dao.PersonalRecordDao;
 import com.example.traning.restpreference.RestPreferenceService;
 import com.example.traning.smarttrainer.autogen.WorkoutGenerationViews.ExclusionView;
 import com.example.traning.smarttrainer.autogen.WorkoutGenerationViews.GenerateCommand;
@@ -72,14 +70,13 @@ class WorkoutGenerationServiceTest {
   @Mock private AutogenHistoryDao autogenHistoryDao;
   @Mock private TrainingMasterDao trainingMasterDao;
   @Mock private TrainingDao trainingDao;
-  @Mock private PersonalRecordDao personalRecordDao;
   @Mock private UserDao userDao;
   @Mock private RestPreferenceService restPreferenceService;
 
   private WorkoutGenerationService service;
   private final Map<String, Integer> fatigue = new HashMap<>();
   private final List<TrainingItemMaster> items = new ArrayList<>();
-  private final List<PersonalRecord> prs = new ArrayList<>();
+  private final List<RecentMainSet> recentSets = new ArrayList<>();
   private final List<UserExcludedItem> exclusions = new ArrayList<>();
   private final List<Equipment> equipment = new ArrayList<>();
   private final List<TrainingItemEquipment> links = new ArrayList<>();
@@ -97,7 +94,6 @@ class WorkoutGenerationServiceTest {
             autogenHistoryDao,
             trainingMasterDao,
             trainingDao,
-            personalRecordDao,
             userDao,
             restPreferenceService,
             List.of(new BulkingStrategy(), new CuttingStrategy(), new MaintenanceStrategy()));
@@ -117,11 +113,11 @@ class WorkoutGenerationServiceTest {
     when(trainingMasterDao.selectActiveItems()).thenReturn(items);
     when(fatigueCalculator.calculate(eq(USER_ID), any()))
         .thenReturn(new FatigueResult(fatigue, Map.of(), Map.of()));
-    when(personalRecordDao.selectByUserId(USER_ID)).thenReturn(prs);
+    when(autogenHistoryDao.selectRecentMainSets(eq(USER_ID), any(), anyInt()))
+        .thenReturn(recentSets);
     when(userExcludedItemDao.selectByUserId(USER_ID)).thenReturn(exclusions);
     when(equipmentDao.selectByOrganizationIds(any())).thenReturn(equipment);
     when(equipmentDao.selectAllItemEquipment()).thenReturn(links);
-    when(autogenHistoryDao.selectLastMainSetWeights(eq(USER_ID), any())).thenReturn(List.of());
     when(restPreferenceService.listByUserId(USER_ID)).thenReturn(List.of());
     when(trainingDao.selectByUserIdAndDateRange(anyInt(), any(), any())).thenReturn(List.of());
     when(periodizationService.getTodayAssignment(eq(USER_ID), any())).thenReturn(noProgram());
@@ -155,12 +151,18 @@ class WorkoutGenerationServiceTest {
     items.add(i);
   }
 
+  /** 1週間前に1セッションだけ記録がある（推定1RM＝このセットのEpley値、休止補正なし）。 */
   private void pr(String itemName, double weight, int reps) {
-    PersonalRecord p = new PersonalRecord();
-    p.setItemName(itemName);
-    p.setMaxWeight(weight);
-    p.setMaxReps(reps);
-    prs.add(p);
+    set(itemName, LocalDate.now().minusDays(7), weight, reps);
+  }
+
+  private void set(String itemName, LocalDate date, double weight, int reps) {
+    RecentMainSet r = new RecentMainSet();
+    r.setItemName(itemName);
+    r.setTrainingDate(date);
+    r.setWeight(weight);
+    r.setReps(reps);
+    recentSets.add(r);
   }
 
   private static TodayAssignment noProgram() {
@@ -519,11 +521,9 @@ class WorkoutGenerationServiceTest {
     }
 
     @Test
-    void 推定1RMが無く過去の本番セットがあれば直近の重量をそのまま入れる() {
-      LastMainSetWeight w = new LastMainSetWeight();
-      w.setItemName("CHEST_C1");
-      w.setWeight(42.5);
-      when(autogenHistoryDao.selectLastMainSetWeights(eq(USER_ID), any())).thenReturn(List.of(w));
+    void 回数12回以下の記録が無ければ直近の本番セットの重量をそのまま入れる() {
+      set("CHEST_C1", LocalDate.now().minusDays(3), 42.5, 15);
+      set("CHEST_C1", LocalDate.now().minusDays(3), 40.0, 20);
 
       GenerationResult r = generate(60, List.of("CHEST"));
 
@@ -560,6 +560,102 @@ class WorkoutGenerationServiceTest {
       l.setItemName(itemName);
       l.setEquipmentId(equipmentId);
       links.add(l);
+    }
+  }
+
+  @Nested
+  class 直近の記録からの重量_Q4_12 {
+
+    @Test
+    void 実データ相当_スクワットは直近3回の平均から82_5kgで10回() {
+      LocalDate today = LocalDate.now();
+      // 10/03 120×5（推定140）、10/11 85×8（推定107.7）、10/17 80×10（推定106.7）→ 平均118.1 × 70% = 82.7 → 82.5
+      set("LEG_C1", today.minusDays(14), 120.0, 5);
+      set("LEG_C1", today.minusDays(6), 85.0, 8);
+      set("LEG_C1", today.minusDays(6), 60.0, 12);
+      set("LEG_C1", today, 80.0, 10);
+      set("LEG_C1", today, 80.0, 10);
+
+      GenerationResult r = generate(60, List.of("LEG"));
+
+      GeneratedItem squat = r.items().get(0);
+      assertThat(squat.itemName()).isEqualTo("LEG_C1");
+      assertThat(squat.weightKg()).isEqualTo(82.5);
+      assertThat(squat.reps()).isEqualTo(10);
+      assertThat(squat.reason()).doesNotContain(WorkoutGenerationService.LONG_BREAK_REASON);
+    }
+
+    @Test
+    void 生涯ベストは使わず_久しぶりの種目は理由欄で知らせる() {
+      set("CHEST_C1", LocalDate.now().minusDays(40), 100.0, 1);
+
+      GenerationResult r = generate(60, List.of("CHEST"));
+
+      // 100 × 70% × 0.9 = 63 → 62.5
+      assertThat(r.items().get(0).weightKg()).isEqualTo(62.5);
+      assertThat(r.items().get(0).reason()).isEqualTo("胸を指定。複合種目を先にしています。久しぶりの種目のため軽めにしています");
+    }
+  }
+
+  @Nested
+  class おまかせの部位の優先度_Q4_13 {
+
+    private void lastTrained(String part, Integer daysAgo) {
+      PartLastTrained p = new PartLastTrained();
+      p.setPartCode(part);
+      p.setLastDate(LocalDate.now().minusDays(daysAgo));
+      lastDates.add(p);
+    }
+
+    private final List<PartLastTrained> lastDates = new ArrayList<>();
+
+    @BeforeEach
+    void stub() {
+      when(autogenHistoryDao.selectLastTrainedDateByPart(eq(USER_ID), any())).thenReturn(lastDates);
+    }
+
+    @Test
+    void 最後にやってからの日数が長い順で_未実施が最優先_同日数は大きい部位() {
+      // ARM は未実施
+      assertThat(
+              WorkoutGenerationService.omakaseParts(
+                  new java.util.LinkedHashSet<>(List.of("CHEST", "BACK", "LEG", "SHOULDER", "ARM")),
+                  Map.of(
+                      "LEG", LocalDate.now().minusDays(2),
+                      "BACK", LocalDate.now().minusDays(3),
+                      "CHEST", LocalDate.now().minusDays(9),
+                      "SHOULDER", LocalDate.now().minusDays(9)),
+                  LocalDate.now()))
+          .containsExactly("ARM", "CHEST", "SHOULDER", "BACK", "LEG");
+    }
+
+    @Test
+    void 時間不足では最近やった部位から外し_表示は大きい部位から() {
+      lastTrained("LEG", 2);
+      lastTrained("BACK", 3);
+      lastTrained("CHEST", 9);
+      lastTrained("SHOULDER", 9);
+
+      // 25分: 優先度 ARM > CHEST > SHOULDER > BACK > LEG。最近やった脚・背中から外れる
+      GenerationResult r = generate(25, null);
+
+      assertThat(partsOf(r)).doesNotContain("LEG", "BACK");
+      assertThat(partsOf(r)).contains("ARM");
+      // 表示順は大きい部位→小さい部位（複合→単関節）
+      List<String> compoundParts =
+          r.items().stream().filter(GeneratedItem::compound).map(GeneratedItem::partCode).toList();
+      assertThat(compoundParts)
+          .isSortedAccordingTo(java.util.Comparator.comparingInt(AutogenRules::partSizeRank));
+    }
+
+    @Test
+    void 高疲労の部位を外してから優先度を付ける() {
+      fatigue.put("ARM", 90);
+      lastTrained("LEG", 20);
+
+      GenerationResult r = generate(90, null);
+
+      assertThat(partsOf(r)).doesNotContain("ARM");
     }
   }
 

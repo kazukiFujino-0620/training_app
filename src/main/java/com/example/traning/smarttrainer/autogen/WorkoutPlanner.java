@@ -18,7 +18,15 @@ public final class WorkoutPlanner {
 
   private WorkoutPlanner() {}
 
-  /** 生成候補の種目。候補の並び＝その部位での選びやすさの順（サービス側で決める）。 */
+  /**
+   * 生成候補の種目。候補の並び＝その部位での選びやすさの順（サービス側で決める）。
+   *
+   * @param oneRm 直近の記録からの推定1RM（{@link StrengthEstimator}）。無ければnull
+   * @param lastMainWeight 推定1RMが無いときに使う直近の本番セットの重量
+   * @param daysSinceLast 最後にこの種目をやってからの日数（休止補正）。記録が無ければnull
+   * @param lastSessionMaxWeight 直近セッションの最大作業重量（上限キャップ）
+   * @param lastSessionReps 直近セッションで最大重量を挙げたセットの回数（キャップを適用するかの判定）
+   */
   public record Candidate(
       String itemName,
       String partCode,
@@ -27,7 +35,34 @@ public final class WorkoutPlanner {
       double weightIncrementKg,
       Double oneRm,
       Double lastMainWeight,
-      Integer restOverrideSeconds) {}
+      Integer restOverrideSeconds,
+      Integer daysSinceLast,
+      Double lastSessionMaxWeight,
+      Integer lastSessionReps) {
+
+    public Candidate(
+        String itemName,
+        String partCode,
+        boolean compound,
+        boolean bodyweight,
+        double weightIncrementKg,
+        Double oneRm,
+        Double lastMainWeight,
+        Integer restOverrideSeconds) {
+      this(
+          itemName,
+          partCode,
+          compound,
+          bodyweight,
+          weightIncrementKg,
+          oneRm,
+          lastMainWeight,
+          restOverrideSeconds,
+          null,
+          null,
+          null);
+    }
+  }
 
   /**
    * 対象部位。リストの並び＝優先度（先頭が高い）。
@@ -70,7 +105,15 @@ public final class WorkoutPlanner {
     NONE
   }
 
-  public record WeightSuggestion(Double weightKg, WeightSource source) {}
+  /**
+   * @param longBreak 休止補正で軽くした（理由欄に「久しぶりの種目のため軽めにしています」を出す）
+   */
+  public record WeightSuggestion(Double weightKg, WeightSource source, boolean longBreak) {
+
+    public WeightSuggestion(Double weightKg, WeightSource source) {
+      this(weightKg, source, false);
+    }
+  }
 
   public record Alternative(Candidate candidate, WeightSuggestion weight, int restSeconds) {}
 
@@ -165,7 +208,7 @@ public final class WorkoutPlanner {
                 i,
                 setsPerItem,
                 restSeconds(c, in.intensity()),
-                suggestWeight(c, in.intensity())));
+                suggestWeight(c, in.intensity(), in.reps())));
       }
       if (!pp.items.isEmpty()) parts.add(pp);
     }
@@ -225,7 +268,9 @@ public final class WorkoutPlanner {
               .map(
                   c ->
                       new Alternative(
-                          c, suggestWeight(c, in.intensity()), restSeconds(c, in.intensity())))
+                          c,
+                          suggestWeight(c, in.intensity(), in.reps()),
+                          restSeconds(c, in.intensity())))
               .toList();
     }
     return new PlanResult(Status.OK, items, estimated);
@@ -263,7 +308,10 @@ public final class WorkoutPlanner {
     return picked;
   }
 
-  /** 並び: 体幹は最後、複合→単関節、部位の優先度順（指定があれば指定順、無ければ大きい部位→小さい部位）。 */
+  /**
+   * 並び: 体幹は最後、複合→単関節、指定した部位は指定順、指定の無い部位（おまかせ）は大きい部位→小さい部位。
+   * おまかせの部位の優先度（最後にやってからの日数順）は削る順番にだけ使い、表示順には使わない（QA Q4-13）。
+   */
   private static List<PlannedItem> ordered(List<PartPlan> parts) {
     List<PlannedItem> all = new ArrayList<>();
     for (PartPlan pp : parts) all.addAll(pp.items);
@@ -271,7 +319,11 @@ public final class WorkoutPlanner {
         Comparator.comparingInt(
                 (PlannedItem i) -> AutogenRules.CORE_PARTS.contains(i.candidate.partCode()) ? 1 : 0)
             .thenComparingInt(i -> i.candidate.compound() ? 0 : 1)
-            .thenComparingInt(i -> i.partPriority));
+            .thenComparingInt(
+                i ->
+                    i.part.specified()
+                        ? i.partPriority
+                        : AutogenRules.partSizeRank(i.candidate.partCode())));
     return all;
   }
 
@@ -375,18 +427,61 @@ public final class WorkoutPlanner {
     return RestIntervalCalculationService.systemRecommendedSeconds(c.compound(), intensity);
   }
 
-  /** 重量の案。推定1RM×強度を器具の刻みに切り捨て。推定1RMが無く過去の本番セットがあれば直近の重量をそのまま。どちらも無ければ空欄。自重種目は回数のみ。 */
+  /** 上限キャップの判定を省いた重量の案（回数を問わずキャップを適用する）。 */
   public static WeightSuggestion suggestWeight(Candidate c, double intensity) {
+    return suggestWeight(c, intensity, Integer.MAX_VALUE);
+  }
+
+  /**
+   * 重量の案（QA Q4-12）。
+   *
+   * <ol>
+   *   <li>推定1RM（直近の記録から）×強度。無ければ直近の本番セットの重量。どちらも無ければ空欄。自重種目は回数のみ
+   *   <li>休止補正: 最後にやってから4週以上なら×0.9、8週超なら×0.8
+   *   <li>器具の刻みに切り捨て（補正の無い直近の重量はそのまま）
+   *   <li>上限キャップ: 直近セッションの最大作業重量＋1刻みまで。目標回数が直近セッションの回数より少ない場合は適用しない
+   * </ol>
+   */
+  public static WeightSuggestion suggestWeight(Candidate c, double intensity, int targetReps) {
     if (c.bodyweight()) return new WeightSuggestion(null, WeightSource.BODYWEIGHT);
+    double factor = breakFactor(c.daysSinceLast());
+    boolean longBreak = factor < 1.0;
+    double inc =
+        c.weightIncrementKg() > 0
+            ? c.weightIncrementKg()
+            : AutogenRules.DEFAULT_WEIGHT_INCREMENT_KG;
+    double weight;
+    WeightSource source;
     if (c.oneRm() != null && c.oneRm() > 0) {
-      return new WeightSuggestion(
-          floorToIncrement(c.oneRm() * intensity, c.weightIncrementKg()),
-          WeightSource.ESTIMATED_1RM);
+      weight = floorToIncrement(c.oneRm() * intensity * factor, inc);
+      source = WeightSource.ESTIMATED_1RM;
+    } else if (c.lastMainWeight() != null && c.lastMainWeight() > 0) {
+      weight = longBreak ? floorToIncrement(c.lastMainWeight() * factor, inc) : c.lastMainWeight();
+      source = WeightSource.LAST_MAIN_SET;
+    } else {
+      return new WeightSuggestion(null, WeightSource.NONE);
     }
-    if (c.lastMainWeight() != null && c.lastMainWeight() > 0) {
-      return new WeightSuggestion(c.lastMainWeight(), WeightSource.LAST_MAIN_SET);
+    boolean capApplies =
+        c.lastSessionMaxWeight() != null
+            && c.lastSessionMaxWeight() > 0
+            && !(c.lastSessionReps() != null && targetReps < c.lastSessionReps());
+    if (capApplies) {
+      double cap =
+          BigDecimal.valueOf(c.lastSessionMaxWeight())
+              .add(BigDecimal.valueOf(inc))
+              .setScale(2, RoundingMode.HALF_UP)
+              .doubleValue();
+      weight = Math.min(weight, cap);
     }
-    return new WeightSuggestion(null, WeightSource.NONE);
+    return new WeightSuggestion(weight, source, longBreak);
+  }
+
+  /** 休止補正の係数。最後にやってからの日数が不明（記録なし）なら補正しない。 */
+  static double breakFactor(Integer daysSinceLast) {
+    if (daysSinceLast == null) return 1.0;
+    if (daysSinceLast > AutogenRules.LONG_BREAK_DAYS) return AutogenRules.LONG_BREAK_FACTOR;
+    if (daysSinceLast >= AutogenRules.BREAK_DAYS) return AutogenRules.BREAK_FACTOR;
+    return 1.0;
   }
 
   /** 刻みに切り捨てる。刻み未満になる場合は刻み1つ分。 */
