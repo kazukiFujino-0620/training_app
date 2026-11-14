@@ -463,6 +463,101 @@ class WorkoutPlannerTest {
   }
 
   @Nested
+  class 休止補正と上限キャップ_Q4_12 {
+
+    private Candidate withHistory(
+        Double oneRm, Double last, Integer days, Double lastMax, Integer lastReps) {
+      return new Candidate(
+          "A", "LEG", true, false, 2.5, oneRm, last, null, days, lastMax, lastReps);
+    }
+
+    @Test
+    void 休止の境界_27日は補正なし_28日と56日は0_9倍_57日は0_8倍() {
+      assertThat(WorkoutPlanner.breakFactor(27)).isEqualTo(1.0);
+      assertThat(WorkoutPlanner.breakFactor(28)).isEqualTo(0.9);
+      assertThat(WorkoutPlanner.breakFactor(56)).isEqualTo(0.9);
+      assertThat(WorkoutPlanner.breakFactor(57)).isEqualTo(0.8);
+      assertThat(WorkoutPlanner.breakFactor(null)).isEqualTo(1.0);
+    }
+
+    @Test
+    void 休止補正は推定1RMの重量に掛けて刻みに切り捨て_軽めにした印を付ける() {
+      // 100 × 0.7 × 0.9 = 63 → 62.5
+      WeightSuggestion w =
+          WorkoutPlanner.suggestWeight(withHistory(100.0, 100.0, 28, null, null), 0.70, 10);
+      assertThat(w).isEqualTo(new WeightSuggestion(62.5, WeightSource.ESTIMATED_1RM, true));
+      // 100 × 0.7 × 0.8 = 56 → 55
+      assertThat(
+              WorkoutPlanner.suggestWeight(withHistory(100.0, 100.0, 57, null, null), 0.70, 10)
+                  .weightKg())
+          .isEqualTo(55.0);
+      WeightSuggestion fresh =
+          WorkoutPlanner.suggestWeight(withHistory(100.0, 100.0, 27, null, null), 0.70, 10);
+      assertThat(fresh).isEqualTo(new WeightSuggestion(70.0, WeightSource.ESTIMATED_1RM, false));
+    }
+
+    @Test
+    void 推定1RMが無く直近の重量を使う場合も休止補正をかける() {
+      WeightSuggestion w =
+          WorkoutPlanner.suggestWeight(withHistory(null, 41.0, 60, null, null), 0.70, 10);
+      // 41 × 0.8 = 32.8 → 32.5
+      assertThat(w).isEqualTo(new WeightSuggestion(32.5, WeightSource.LAST_MAIN_SET, true));
+      assertThat(
+              WorkoutPlanner.suggestWeight(withHistory(null, 41.0, 3, null, null), 0.70, 10)
+                  .weightKg())
+          .isEqualTo(41.0);
+    }
+
+    @Test
+    void 提案は直近セッションの最大作業重量に1刻み足した重さまで() {
+      // 推定1RM 140 × 70% = 98 → 97.5 だが、直近 80kg×10回 → 上限 82.5
+      WeightSuggestion w =
+          WorkoutPlanner.suggestWeight(withHistory(140.0, 80.0, 3, 80.0, 10), 0.70, 10);
+      assertThat(w.weightKg()).isEqualTo(82.5);
+      // 刻みはダンベル2kg
+      Candidate db = new Candidate("D", "CHEST", true, false, 2.0, 50.0, 30.0, null, 3, 30.0, 10);
+      assertThat(WorkoutPlanner.suggestWeight(db, 0.70, 10).weightKg()).isEqualTo(32.0);
+    }
+
+    @Test
+    void 目標回数が直近セッションの回数より少ない場合はキャップを適用しない() {
+      // プログラムの高強度週: 目標5回、直近は10回 → キャップなしで 140 × 0.8 = 112 → 110
+      WeightSuggestion w =
+          WorkoutPlanner.suggestWeight(withHistory(140.0, 80.0, 3, 80.0, 10), 0.80, 5);
+      assertThat(w.weightKg()).isEqualTo(110.0);
+      // 目標回数が同じならキャップ適用
+      assertThat(
+              WorkoutPlanner.suggestWeight(withHistory(140.0, 80.0, 3, 80.0, 10), 0.80, 10)
+                  .weightKg())
+          .isEqualTo(82.5);
+    }
+
+    @Test
+    void キャップより軽い提案はそのまま() {
+      assertThat(
+              WorkoutPlanner.suggestWeight(withHistory(100.0, 80.0, 3, 80.0, 10), 0.70, 10)
+                  .weightKg())
+          .isEqualTo(70.0);
+    }
+  }
+
+  @Nested
+  class おまかせの優先度と表示順_Q4_13 {
+
+    @Test
+    void 指定の無い部位は優先度の順で削り_表示は大きい部位から() {
+      // 優先度: 腕 > 胸 > 脚（脚が最近やった部位）。15分では脚・胸を外して腕だけ残る
+      PlanResult r = plan(15, SETS, part("ARM", false), part("CHEST", false), part("LEG", false));
+      assertThat(names(r)).containsExactly("ARM_C1");
+
+      // 時間が足りれば表示は 脚 → 胸 → 腕（複合）→ 単関節
+      PlanResult wide =
+          plan(90, SETS, part("ARM", false), part("CHEST", false), part("LEG", false));
+      assertThat(names(wide)).containsExactly("LEG_C1", "CHEST_C1", "ARM_C1", "LEG_I1", "CHEST_I1");
+    }
+  }
+
+  @Nested
   class プログラムの強度での回数 {
 
     @Test

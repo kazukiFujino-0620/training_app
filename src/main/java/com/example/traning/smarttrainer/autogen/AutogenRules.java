@@ -78,6 +78,23 @@ public final class AutogenRules {
   /** プログラムの強度%を使うとき、その%での最大回数から引く回数。 */
   public static final int PROGRAM_REPS_MARGIN = 2;
 
+  // ── 推定1RM（QA Q4-12） ──
+  /** 推定1RMに使う直近のセッション数。 */
+  public static final int ONE_RM_SESSIONS = 3;
+
+  /** 推定1RMに使うセットの回数の上限（Epley式は回数が多いと誤差が大きいため、これを超える回数のセットは使わない）。 */
+  public static final int ONE_RM_MAX_REPS = 12;
+
+  /** 最後にやってからこの日数以上なら休止補正（4週）。 */
+  public static final int BREAK_DAYS = 28;
+
+  public static final double BREAK_FACTOR = 0.9;
+
+  /** 最後にやってからこの日数を超えたら強い休止補正（8週）。 */
+  public static final int LONG_BREAK_DAYS = 56;
+
+  public static final double LONG_BREAK_FACTOR = 0.8;
+
   // ── 重量 ──
   /** 器具の刻みが分からない種目の刻み(kg)。 */
   public static final double DEFAULT_WEIGHT_INCREMENT_KG = 2.5;

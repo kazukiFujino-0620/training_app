@@ -11,9 +11,16 @@ import org.seasar.doma.boot.ConfigAutowireable;
 @ConfigAutowireable
 public interface AutogenHistoryDao {
 
-  /** 種目ごとに、date以前で直近の日の完了済み本番セットのうち最も重い重量。 */
+  /**
+   * 種目ごとに、date以前で直近のセッション（日付）sessions件分の完了済み本番セット（重量0より大きいもの）。 推定1RM・休止補正・上限キャップの元（QA
+   * Q4-12）。生涯ベスト（personal_records）は使わない。
+   */
   @Select
-  List<LastMainSetWeight> selectLastMainSetWeights(Long userId, LocalDate date);
+  List<RecentMainSet> selectRecentMainSets(Long userId, LocalDate date, int sessions);
+
+  /** 部位ごとに、date以前で完了済みのセットがある最後の日（疲労計算と同じ記録。QA Q4-13のおまかせの優先度）。 */
+  @Select
+  List<PartLastTrained> selectLastTrainedDateByPart(Long userId, LocalDate date);
 
   /** 期間内に完了済みの本番セットがある部位（高疲労の判定に使う）。 */
   @Select

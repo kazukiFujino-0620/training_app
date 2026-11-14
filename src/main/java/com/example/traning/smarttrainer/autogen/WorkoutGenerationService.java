@@ -11,8 +11,6 @@ import com.example.traning.periodization.PeriodizationViews.DayView;
 import com.example.traning.periodization.PeriodizationViews.ItemView;
 import com.example.traning.periodization.PeriodizationViews.TodayAssignment;
 import com.example.traning.periodization.PeriodizationViews.WeekView;
-import com.example.traning.pr.PersonalRecord;
-import com.example.traning.pr.dao.PersonalRecordDao;
 import com.example.traning.restpreference.RestPreferenceService;
 import com.example.traning.restpreference.UserItemRestPreference;
 import com.example.traning.smarttrainer.autogen.WorkoutGenerationViews.EquipmentView;
@@ -69,6 +67,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class WorkoutGenerationService {
 
   static final String NO_RECORD_REASON = "記録が無いため重量は空欄です。目標回数をあと3〜4回はできる余裕を残して終えられる重量で始めてください";
+  static final String LONG_BREAK_REASON = "久しぶりの種目のため軽めにしています";
   static final String FATIGUE_WARNING = "この部位は疲労が残っています。重量・セット数を調整してください";
 
   private final PeriodizationService periodizationService;
@@ -79,7 +78,6 @@ public class WorkoutGenerationService {
   private final AutogenHistoryDao autogenHistoryDao;
   private final TrainingMasterDao trainingMasterDao;
   private final TrainingDao trainingDao;
-  private final PersonalRecordDao personalRecordDao;
   private final UserDao userDao;
   private final RestPreferenceService restPreferenceService;
   private final Map<GoalMode, RecommendationStrategy> strategies;
@@ -93,7 +91,6 @@ public class WorkoutGenerationService {
       AutogenHistoryDao autogenHistoryDao,
       TrainingMasterDao trainingMasterDao,
       TrainingDao trainingDao,
-      PersonalRecordDao personalRecordDao,
       UserDao userDao,
       RestPreferenceService restPreferenceService,
       List<RecommendationStrategy> strategyList) {
@@ -105,7 +102,6 @@ public class WorkoutGenerationService {
     this.autogenHistoryDao = autogenHistoryDao;
     this.trainingMasterDao = trainingMasterDao;
     this.trainingDao = trainingDao;
-    this.personalRecordDao = personalRecordDao;
     this.userDao = userDao;
     this.restPreferenceService = restPreferenceService;
     this.strategies = new EnumMap<>(GoalMode.class);
@@ -185,7 +181,7 @@ public class WorkoutGenerationService {
       specified = true;
     } else {
       mode = Mode.ADHOC;
-      parts = omakaseParts(partNames.keySet());
+      parts = omakaseParts(partNames.keySet(), lastTrainedDates(userId, date), date);
       specified = false;
     }
     int setReduction = 0;
@@ -275,9 +271,31 @@ public class WorkoutGenerationService {
         due);
   }
 
-  /** おまかせの部位: 大きい部位→小さい部位→体幹の順。 */
-  static List<String> omakaseParts(Set<String> partCodes) {
-    return partCodes.stream().sorted(Comparator.comparingInt(AutogenRules::partSizeRank)).toList();
+  /**
+   * おまかせの部位の優先度（QA Q4-13）: 最後にやってからの日数が長い順（やったことの無い部位が最優先）、同じ日数なら大きい部位。
+   * この並びが枠を埋める順・時間不足で外す順（後ろから）になる。表示順は {@link WorkoutPlanner} 側で大→小に並べ直す。
+   */
+  static List<String> omakaseParts(
+      Set<String> partCodes, Map<String, LocalDate> lastTrained, LocalDate date) {
+    return partCodes.stream()
+        .sorted(
+            Comparator.comparingLong(
+                    (String p) -> {
+                      LocalDate last = lastTrained.get(p);
+                      return last == null ? Long.MIN_VALUE : -ChronoUnit.DAYS.between(last, date);
+                    })
+                .thenComparingInt(AutogenRules::partSizeRank))
+        .toList();
+  }
+
+  private Map<String, LocalDate> lastTrainedDates(Long userId, LocalDate date) {
+    Map<String, LocalDate> map = new HashMap<>();
+    for (PartLastTrained p : autogenHistoryDao.selectLastTrainedDateByPart(userId, date)) {
+      if (p.getPartCode() != null && p.getLastDate() != null) {
+        map.put(p.getPartCode(), p.getLastDate());
+      }
+    }
+    return map;
   }
 
   /** 高疲労: 疲労度がしきい値を超える、または前日・当日にその部位の本番セットがある（疲労度は「最近やった割合」のため、頻繁に行う部位では値が薄まる）。 */
@@ -314,6 +332,9 @@ public class WorkoutGenerationService {
     } else {
       base = "疲労の少ない部位から選んでいます";
     }
+    if (weight.longBreak()) {
+      base = base + "。" + LONG_BREAK_REASON;
+    }
     if (weight.source() == WeightSource.LAST_MAIN_SET) {
       return base + "。推定1RMが無いため前回の重量を入れています";
     }
@@ -335,8 +356,7 @@ public class WorkoutGenerationService {
     private final Map<String, List<Equipment>> linksByItem;
     private final Set<Long> availableEquipment;
     private final Set<String> excluded;
-    private final Map<String, Double> oneRms = new HashMap<>();
-    private final Map<String, Double> lastWeights = new HashMap<>();
+    private final Map<String, StrengthEstimator.Strength> strengths = new HashMap<>();
     private final Map<String, Integer> restOverrides = new HashMap<>();
     private final Map<String, Long> recentCounts = new HashMap<>();
     private final List<String> programItems;
@@ -366,16 +386,18 @@ public class WorkoutGenerationService {
             .computeIfAbsent(link.getItemName(), k -> new ArrayList<>())
             .add(e != null ? e : unavailableEquipment(link.getEquipmentId()));
       }
-      for (PersonalRecord pr : personalRecordDao.selectByUserId(userId)) {
-        if (pr.getMaxWeight() != null && pr.getMaxReps() != null && pr.getMaxWeight() > 0) {
-          oneRms.put(
-              pr.getItemName(),
-              oneRmPredictionService.estimateOneRm(pr.getMaxWeight(), pr.getMaxReps()));
-        }
+      // 推定1RMは直近の記録から（生涯ベストは使わない。QA Q4-12）
+      Map<String, List<StrengthEstimator.SessionSet>> setsByItem = new HashMap<>();
+      for (RecentMainSet r :
+          autogenHistoryDao.selectRecentMainSets(userId, date, AutogenRules.ONE_RM_SESSIONS)) {
+        if (r.getItemName() == null || r.getWeight() == null || r.getReps() == null) continue;
+        setsByItem
+            .computeIfAbsent(r.getItemName(), k -> new ArrayList<>())
+            .add(new StrengthEstimator.SessionSet(r.getTrainingDate(), r.getWeight(), r.getReps()));
       }
-      for (LastMainSetWeight w : autogenHistoryDao.selectLastMainSetWeights(userId, date)) {
-        lastWeights.put(w.getItemName(), w.getWeight());
-      }
+      setsByItem.forEach(
+          (item, sets) ->
+              strengths.put(item, StrengthEstimator.estimate(sets, date, oneRmPredictionService)));
       for (UserItemRestPreference p : restPreferenceService.listByUserId(userId)) {
         restOverrides.put(p.getItemName(), p.getRestSeconds());
       }
@@ -419,6 +441,8 @@ public class WorkoutGenerationService {
     }
 
     private Candidate toCandidate(TrainingItemMaster i) {
+      StrengthEstimator.Strength strength =
+          strengths.getOrDefault(i.getItemName(), StrengthEstimator.Strength.NONE);
       List<Equipment> links = linksByItem.getOrDefault(i.getItemName(), List.of());
       boolean bodyweight =
           !links.isEmpty()
@@ -437,9 +461,12 @@ public class WorkoutGenerationService {
           !Boolean.FALSE.equals(i.getIsCompound()),
           bodyweight,
           increment,
-          oneRms.get(i.getItemName()),
-          lastWeights.get(i.getItemName()),
-          restOverrides.get(i.getItemName()));
+          strength.oneRm(),
+          strength.lastMainWeight(),
+          restOverrides.get(i.getItemName()),
+          strength.daysSinceLast(),
+          strength.lastSessionMaxWeight(),
+          strength.lastSessionReps());
     }
   }
 
