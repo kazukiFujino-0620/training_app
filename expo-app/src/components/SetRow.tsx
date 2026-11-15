@@ -191,9 +191,7 @@ export default function SetRow({
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             >
               {rirLocal != null ? (
-                <Text style={styles.rirText} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>
-                {formatRirLabel(rirLocal)}
-              </Text>
+                <Text style={styles.rirText}>{formatRirLabel(rirLocal)}</Text>
               ) : (
                 <Text style={styles.rirTextEmpty}>あと?回</Text>
               )}
@@ -286,10 +284,9 @@ const styles = StyleSheet.create({
   checkDone: { backgroundColor: '#4CAF50', borderColor: '#4CAF50' },
   checkText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   deleteBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  // 重量・回数の入力欄（「82.5」等）が狭くならないよう最小限の幅にし、長い表記（あと0回（限界））は2行に折り返す
-  rirSlot: { width: 44, alignItems: 'center' },
-  rirText: { fontSize: 11, color: '#2E7D32', fontWeight: '700', textAlign: 'center' },
-  rirTextEmpty: { fontSize: 11, color: '#bbb' },
+  rirSlot: { width: 60, alignItems: 'center' },
+  rirText: { fontSize: 12, color: '#2E7D32', fontWeight: '700' },
+  rirTextEmpty: { fontSize: 12, color: '#bbb' },
   rirPicker: {
     paddingVertical: 8, paddingHorizontal: 8, backgroundColor: '#F1F8E9',
     borderRadius: 8, marginVertical: 4,
