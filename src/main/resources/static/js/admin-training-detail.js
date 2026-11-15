@@ -131,6 +131,14 @@ function loadTrainingDetails(dateString) {
         });
 }
 
+// RIR（余力）の表示文言。未入力（null/undefined）は空文字
+function formatRir(rir) {
+    if (rir === null || rir === undefined) return '';
+    if (rir === 0) return 'あと0回（限界）';
+    if (rir >= 5) return 'あと5回以上';
+    return `あと${rir}回`;
+}
+
 // Display training details
 function displayTrainingDetails(trainings, dateString) {
     const detailsContainer = document.getElementById('training-details');
@@ -173,6 +181,8 @@ function displayTrainingDetails(trainings, dateString) {
                 const weight = detail.weight || 0;
                 const reps = detail.reps || 0;
                 const restTime = detail.restTime || 0;
+                // 機能見直し-1-#18: RIR（余力）。会員が本番セットで記録した場合のみ表示（5は「5回以上」）
+                const rirLabel = formatRir(detail.rir);
                 
                 html += `
                     <div class="flex items-center justify-between py-2 border-b border-border last:border-b-0">
@@ -181,6 +191,7 @@ function displayTrainingDetails(trainings, dateString) {
                             <span class="text-sm">${weight} kg</span>
                             <span class="text-sm">${reps} 回</span>
                             <span class="text-sm">${restTime} 秒</span>
+                            ${rirLabel ? `<span class="text-sm text-muted">${rirLabel}</span>` : ''}
                         </div>
                     </div>
                 `;

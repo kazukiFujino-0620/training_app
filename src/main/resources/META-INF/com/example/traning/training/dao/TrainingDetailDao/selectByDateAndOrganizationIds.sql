@@ -12,6 +12,7 @@ SELECT
   td.distance_km,
   td.avg_heart_rate_bpm,
   td.calories_kcal,
+  td.rir,
   t.menu
 FROM
   training_details td

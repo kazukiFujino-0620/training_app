@@ -80,6 +80,12 @@ public class TrainingDetail {
   @Column(name = "calories_kcal")
   private Double caloriesKcal;
 
+  /**
+   * RIR（余力。そのセットの後あと何回できたか。機能見直し-1-#18）。0〜5で、5は「5回以上」。本番セット（MAIN）のみ任意入力し、未入力はnull。
+   */
+  @Column(name = "rir")
+  private Integer rir;
+
   @org.seasar.doma.Transient
   @ManyToOne
   @JoinColumn(name = "training_id", insertable = false, updatable = false)

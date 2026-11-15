@@ -46,6 +46,8 @@ export interface TrainingDetail {
   avgHeartRateBpm: number | null;
   /** 有酸素運動（ita2-1）の消費カロリー（kcal）。マシンの表示値を手入力。筋トレ種目ではnull */
   caloriesKcal: number | null;
+  /** 機能見直し-1-#18: RIR（余力。あと何回できたか）。0〜5で5は「5回以上」。本番セットのみ任意入力、未入力はnull */
+  rir?: number | null;
 }
 
 export interface Training {
