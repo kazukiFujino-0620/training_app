@@ -1,6 +1,7 @@
-// 接続先は expo-app/.env.development（開発時: Metro）と .env.production（リリースビルド時）で切り替える。
+// 開発時（Metro）の接続先は expo-app/.env.development で決まる。リリースビルドではビルド時に
+// `export EXPO_PUBLIC_API_URL=<本番URL>` で渡す（シェルの値が .env* ファイルより優先される）。
 // 開発時に別の接続先（実機確認用の LAN IP・ngrok 等）を使う場合は .env.development.local に書く
-// （.env.local はリリースビルドでも .env.production より優先されるため使わない）。
+// （.env.local はリリースビルドにも読み込まれるため使わない）。
 // 開発時のバンドルでは .env* ファイルの値がシェルの環境変数より優先されるため、
 // `EXPO_PUBLIC_API_URL=... npx expo start` のようにシェルで渡しても切り替わらない（itバグ-33）。
 export const API_BASE_URL =

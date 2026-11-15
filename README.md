@@ -143,30 +143,36 @@ echo JWT=${APP_JWT_SECRET:+set} REMEMBER_ME=${APP_SECURITY_REMEMBER_ME_KEY:+set}
 
 ## モバイルアプリの接続先
 
-モバイルアプリ（`expo-app/`）の接続先 `EXPO_PUBLIC_API_URL` は、`expo-app/` 直下の `.env*` ファイルで切り替える。
+モバイルアプリ（`expo-app/`）の接続先は `EXPO_PUBLIC_API_URL` で決まる。開発時とリリースビルドで渡し方が違う。
 
-| 用途 | 読み込まれるファイル（右ほど優先） | 既定の接続先 |
+| 用途 | 接続先の決まり方（右ほど優先） | 既定の接続先 |
 | --- | --- | --- |
-| 開発（`npx expo start`、Debug ビルド） | `.env` → `.env.development` → `.env.local` → `.env.development.local` | `http://localhost:8080/api/mobile`（`.env.development`） |
-| リリース（Xcode の Release ビルド） | `.env` → `.env.production` → `.env.local` → `.env.production.local` → シェルの環境変数 | `https://training-app-test.mydns.jp/api/mobile`（`.env.production`） |
+| 開発（`npx expo start`、Debug ビルド） | シェルの環境変数 → `.env` → `.env.development` → `.env.local` → `.env.development.local` | `http://localhost:8080/api/mobile`（`.env.development`、Git 管理） |
+| リリース（Xcode の Release ビルド） | `.env` → `.env.production` → `.env.local` → `.env.production.local` → シェルの環境変数 | なし。ビルド時に `export` で渡す |
 
 - **開発時はシェルの環境変数で接続先を変えられない**。`EXPO_PUBLIC_API_URL=... npx expo start` としても、開発時のバンドルでは `.env*` ファイルの値が優先される（Expo SDK 54 の仕様。itバグ-33）。実機確認用の LAN IP や ngrok、検証用のポートにつなぐときは `.env.development.local`（Git 管理外）に書き、終わったら消す
-- `.env.local` は使わない。リリースビルドでも `.env.production` より優先されるため、消し忘れるとリリースビルドの接続先が変わる
+- `.env.local` は使わない。リリースビルドにも読み込まれるため、消し忘れると export し忘れたときにその接続先が埋め込まれる
 - 開発ビルドが本番ドメインにつながっている場合は、起動時に「[接続先注意]」の警告が出る
 - 以前の手順で作った `expo-app/.env`（本番URL入り）が残っていても、開発時は `.env.development` が優先されるため本番にはつながらない
+- `.env.production` はルートの `.gitignore` で除外しており、コミットしない
 
-### リリースビルドの接続先を確かめる
+### リリースビルドの手順と接続先の確認
 
-Release ビルド（`xcodebuild -configuration Release`）は `.env.production` から本番URLを埋め込む。従来どおりビルド前に `export EXPO_PUBLIC_API_URL=https://training-app-test.mydns.jp/api/mobile` しておくと、`.env.local` などが残っていてもシェルの値が最優先になる。
+1. ビルド前に本番URLを export する（シェルの値が `.env*` ファイルより優先される）
 
-ビルド後、実機にインストールする前に、埋め込まれた接続先を確認する。
+   ```bash
+   export EXPO_PUBLIC_API_URL=https://training-app-test.mydns.jp/api/mobile
+   ```
 
-```bash
-expo-app/scripts/check-release-api-url.sh <DerivedData>/Build/Products/Release-iphoneos/app.app
-# OK: 接続先は本番URLです（https://training-app-test.mydns.jp/api/mobile）
-```
+2. `xcodebuild -workspace expo-app/ios/app.xcworkspace -scheme app -configuration Release ...` でビルドする
+3. 実機にインストールする前に、埋め込まれた接続先を確認する。`NG` が出たらインストールしない
 
-本番URLが含まれていない、またはローカル・LAN・ngrok の接続先が含まれている場合は `NG` を表示して終了コード 1 を返す。
+   ```bash
+   expo-app/scripts/check-release-api-url.sh <DerivedData>/Build/Products/Release-iphoneos/app.app
+   # OK: 接続先は本番URLです（https://training-app-test.mydns.jp/api/mobile）
+   ```
+
+   本番URLが含まれていない（export し忘れ等）、またはローカル・LAN・ngrok の接続先が含まれている場合は `NG` を表示して終了コード 1 を返す。
 
 ---
 
