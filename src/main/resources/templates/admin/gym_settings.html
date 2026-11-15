@@ -40,7 +40,7 @@
             </div>
 
             <!-- システム管理者のみ: ジムを選ぶ -->
-            <form th:if="${gyms.size() > 1}" th:action="@{/admin/gym-settings}" method="get" class="mb-4 flex gap-3 items-end flex-wrap">
+            <form th:if="${gyms.size() > 1}" th:action="@{/admin/gym-settings}" method="get" class="flex gap-3 items-end flex-wrap" style="margin-bottom:1rem;">
                 <div>
                     <label for="gymId" class="text-sm text-secondary">ジム</label>
                     <select id="gymId" name="gymId" class="form-control">
@@ -79,7 +79,7 @@
                                 割り当ての変更は記録に残ります。
                             </div>
                         </fieldset>
-                        <button type="submit" class="btn btn-primary mt-4">保存する</button>
+                        <button type="submit" class="btn btn-primary" style="margin-top:1rem;">保存する</button>
                     </form>
                 </div>
             </div>

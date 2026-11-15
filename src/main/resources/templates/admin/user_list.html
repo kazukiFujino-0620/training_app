@@ -22,7 +22,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         /* 機能見直し-1-#15（仮画面A）役割の選び直し */
-        .role-review-banner { background: var(--bg-tertiary); border-left: 4px solid var(--warning-color); border-radius: 6px; padding: 0.6rem 0.9rem; font-size: 0.85rem; color: var(--text-primary); line-height: 1.7; }
+        .role-review-banner { margin-bottom: 1rem; background: var(--bg-tertiary); border-left: 4px solid var(--warning-color); border-radius: 6px; padding: 0.6rem 0.9rem; font-size: 0.85rem; color: var(--text-primary); line-height: 1.7; }
         .role-review-mark { font-size: 0.78rem; color: var(--warning-color); font-weight: 600; }
         .role-review-form { display: inline-flex; gap: 6px; align-items: center; margin: 0 6px 6px 0; }
         .role-review-select { width: auto; min-width: 8.5rem; border-color: var(--warning-color); }
@@ -51,7 +51,7 @@
             <div th:if="${errorMessage}" class="alert alert-danger mb-4" th:text="${errorMessage}"></div>
 
             <!-- 機能見直し-1-#15（仮画面A）: 役割の確認が必要なスタッフの案内（ジム管理者・システム管理者のみ） -->
-            <div th:if="${canReviewRoles and roleReviewCount > 0}" class="role-review-banner mb-4">
+            <div th:if="${canReviewRoles and roleReviewCount > 0}" class="role-review-banner">
                 <strong th:text="'役割の確認が必要なスタッフが' + ${roleReviewCount} + '人います。'">役割の確認が必要なスタッフが3人います。</strong>
                 トレーナー登録で作られた店舗管理者と区別できないため、今の店舗管理者全員を対象にしています。<br>
                 トレーナーか店舗管理者かを選んでください。<span class="nowrap">選ぶまでは今の権限のままです。</span>
