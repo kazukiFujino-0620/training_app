@@ -33,9 +33,13 @@
                 <div class="flex items-center gap-4">
                     <div>
                         <h1 class="text-3xl font-bold text-primary" th:text="${user.userName} + 'さんのトレーニング詳細'">ユーザーのトレーニング詳細</h1>
+                        <!-- 機能見直し-1-#15（仮画面E）: トレーナーから見た担当外の会員は記録の閲覧のみ -->
+                        <p th:if="${recordsOnly}" class="mt-2">
+                            <span style="font-size:0.78rem;background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border-color);border-radius:4px;padding:0.1rem 0.5rem;white-space:nowrap;">担当外・記録の閲覧のみ</span>
+                        </p>
                         <p class="text-muted mt-2">トレーニング履歴と進捗管理</p>
-                        <!-- ユーザープロフィール情報 -->
-                        <div class="flex flex-wrap gap-2 mt-2" th:if="${targetUser != null}">
+                        <!-- ユーザープロフィール情報（担当外の会員には出さない: 記録以外の情報のため） -->
+                        <div class="flex flex-wrap gap-2 mt-2" th:if="${targetUser != null and !recordsOnly}">
                             <span class="badge" th:if="${targetUser.weightKg != null}"
                                   th:text="'体重: ' + ${targetUser.weightKg} + 'kg'" style="background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:12px;padding:0.2rem 0.6rem;font-size:0.78rem;color:var(--text-secondary);"></span>
                             <span class="badge" th:if="${targetUser.heightCm != null}"

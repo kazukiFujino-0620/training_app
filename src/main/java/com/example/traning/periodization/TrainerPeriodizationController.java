@@ -23,12 +23,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
- * トレーナーが担当トレーニーに期分けプログラムの「案」を送る画面（モックアップ版11の07、詳細設計書3-5節）。 ORG_ADMIN/STORE_ADMIN専用（既存の
- * /trainer/advice と同じ）。
+ * トレーナーが担当トレーニーに期分けプログラムの「案」を送る画面（モックアップ版11の07、詳細設計書3-5節）。 ORG_ADMIN/STORE_ADMIN/TRAINER（既存の
+ * /trainer/advice と同じ）。担当トレーニーかどうかはProgramCycleProposalServiceで判定する（機能見直し-1-#15）。
  */
 @Controller
 @RequestMapping("/trainer/periodization")
-@PreAuthorize("hasAnyRole('ORG_ADMIN', 'STORE_ADMIN')")
+@PreAuthorize("hasAnyRole('ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
 @RequiredArgsConstructor
 public class TrainerPeriodizationController {
 

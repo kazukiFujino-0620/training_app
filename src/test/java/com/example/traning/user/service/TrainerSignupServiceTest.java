@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.example.traning.dao.UserDao;
 import com.example.traning.organization.InviteCode;
+import com.example.traning.organization.InviteCodePurpose;
 import com.example.traning.organization.InviteCodeService;
 import com.example.traning.user.Role;
 import com.example.traning.user.User;
@@ -54,12 +55,12 @@ class TrainerSignupServiceTest {
   }
 
   @Test
-  void register_招待コードの組織でROLE_STORE_ADMINとして登録される() {
+  void register_トレーナー用の招待コードの組織でROLE_TRAINERとして登録される() {
     TrainerSignupForm form = validForm();
     when(userDao.selectSoftDeletedByEmail(form.getEmail())).thenReturn(Optional.empty());
     InviteCode code = new InviteCode();
     code.setOrganizationId(7L);
-    when(inviteCodeService.redeem("ABCDEFGHIJ")).thenReturn(code);
+    when(inviteCodeService.redeem("ABCDEFGHIJ", InviteCodePurpose.TRAINER)).thenReturn(code);
     when(passwordEncoder.encode("Password1!")).thenReturn("encoded-password");
 
     service.register(form);
@@ -67,7 +68,8 @@ class TrainerSignupServiceTest {
     ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
     verify(userDao).insert(captor.capture());
     User saved = captor.getValue();
-    assertThat(saved.getRole()).isEqualTo(Role.STORE_ADMIN.value());
+    assertThat(saved.getRole()).isEqualTo(Role.TRAINER.value());
+    assertThat(saved.getRole()).isNotEqualTo(Role.STORE_ADMIN.value());
     assertThat(saved.getOrganizationId()).isEqualTo(7L);
     assertThat(saved.getPassword()).isEqualTo("encoded-password");
     assertThat(saved.getEmail()).isEqualTo("trainer1@example.com");
@@ -79,7 +81,7 @@ class TrainerSignupServiceTest {
     form.setPassword_confirm("different");
 
     assertThatThrownBy(() -> service.register(form)).isInstanceOf(IllegalArgumentException.class);
-    verify(inviteCodeService, never()).redeem(any());
+    verify(inviteCodeService, never()).redeem(any(), any());
     verify(userDao, never()).insert(any(User.class));
   }
 
@@ -87,7 +89,7 @@ class TrainerSignupServiceTest {
   void register_招待コードが無効なら例外でユーザーは作成されない() {
     TrainerSignupForm form = validForm();
     when(userDao.selectSoftDeletedByEmail(form.getEmail())).thenReturn(Optional.empty());
-    when(inviteCodeService.redeem("ABCDEFGHIJ"))
+    when(inviteCodeService.redeem("ABCDEFGHIJ", InviteCodePurpose.TRAINER))
         .thenThrow(new IllegalArgumentException("この招待コードは失効しています"));
 
     assertThatThrownBy(() -> service.register(form)).isInstanceOf(IllegalArgumentException.class);
@@ -102,7 +104,35 @@ class TrainerSignupServiceTest {
     assertThatThrownBy(() -> service.register(form))
         .isInstanceOf(AccountRestoreRequiredException.class);
     verify(accountRestoreService).initiateRestore(form.getEmail());
-    verify(inviteCodeService, never()).redeem(any());
+    verify(inviteCodeService, never()).redeem(any(), any());
     verify(userDao, never()).insert(any(User.class));
+  }
+
+  @Test
+  void register_会員用のコードは仮画面Cの文言で拒否されユーザーは作成されない() {
+    TrainerSignupForm form = validForm();
+    when(userDao.selectSoftDeletedByEmail(form.getEmail())).thenReturn(Optional.empty());
+    when(inviteCodeService.redeem("ABCDEFGHIJ", InviteCodePurpose.TRAINER))
+        .thenThrow(
+            new IllegalArgumentException(InviteCodeService.TRAINER_PURPOSE_MISMATCH_MESSAGE));
+
+    assertThatThrownBy(() -> service.register(form))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(InviteCodeService.TRAINER_PURPOSE_MISMATCH_MESSAGE);
+    verify(userDao, never()).insert(any(User.class));
+  }
+
+  @Test
+  void register_招待コードの前後空白は無視してトレーナー用として引き換える() {
+    TrainerSignupForm form = validForm();
+    form.setInviteCode("  ABCDEFGHIJ ");
+    when(userDao.selectSoftDeletedByEmail(form.getEmail())).thenReturn(Optional.empty());
+    InviteCode code = new InviteCode();
+    code.setOrganizationId(7L);
+    when(inviteCodeService.redeem("ABCDEFGHIJ", InviteCodePurpose.TRAINER)).thenReturn(code);
+
+    service.register(form);
+
+    verify(inviteCodeService).redeem("ABCDEFGHIJ", InviteCodePurpose.TRAINER);
   }
 }

@@ -77,4 +77,8 @@ public interface UserDao {
 
   @Update(sqlFile = true)
   int updateAiAdviceConsent(Integer userId, boolean aiAdviceConsent);
+
+  /** 機能見直し-1-#15: 役割の確認が必要かどうか（移行対象の印）を更新する。 */
+  @Update(sqlFile = true)
+  int updateRoleReviewRequired(Integer userId, boolean roleReviewRequired);
 }

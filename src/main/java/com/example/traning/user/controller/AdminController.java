@@ -6,6 +6,8 @@ import com.example.traning.body.BodyMeasurementService;
 import com.example.traning.common.WebErrorCode;
 import com.example.traning.export.DataExportService;
 import com.example.traning.mfa.MfaService;
+import com.example.traning.organization.MemberAccessLevel;
+import com.example.traning.organization.MemberAccessPolicy;
 import com.example.traning.organization.Organization;
 import com.example.traning.organization.OrganizationDao;
 import com.example.traning.organization.OrganizationScopeResolver;
@@ -77,6 +79,11 @@ public class AdminController {
   private final OrganizationScopeResolver organizationScopeResolver;
   private final OrganizationDao organizationDao;
   private final UserStoreAccessDao userStoreAccessDao;
+  private final MemberAccessPolicy memberAccessPolicy;
+
+  /** 機能見直し-1-#15: 会員の記録の閲覧画面・APIはトレーナーも使う（担当外は閲覧のみ。判定は{@link MemberAccessPolicy}）。 */
+  private static final String RECORD_VIEW_ROLES =
+      "hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')";
 
   public AdminController(
       UserService userService,
@@ -88,7 +95,8 @@ public class AdminController {
       BodyMeasurementService bodyMeasurementService,
       OrganizationScopeResolver organizationScopeResolver,
       OrganizationDao organizationDao,
-      UserStoreAccessDao userStoreAccessDao) {
+      UserStoreAccessDao userStoreAccessDao,
+      MemberAccessPolicy memberAccessPolicy) {
     this.userService = userService;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
@@ -99,6 +107,7 @@ public class AdminController {
     this.organizationScopeResolver = organizationScopeResolver;
     this.organizationDao = organizationDao;
     this.userStoreAccessDao = userStoreAccessDao;
+    this.memberAccessPolicy = memberAccessPolicy;
   }
 
   /** ユーザー編集画面でのロール選択肢（value・表示ラベル）。 */
@@ -129,8 +138,68 @@ public class AdminController {
   /** ユーザー一覧画面を表示する。ROLE_ADMIN以外は自身がアクセス可能な組織のユーザーのみに絞り込む。 */
   @GetMapping("/users")
   public String listUsers(Model model) {
-    model.addAttribute("userList", filterByAccessibleOrganizations(userService.findAll()));
+    List<User> users = filterByAccessibleOrganizations(userService.findAll());
+    model.addAttribute("userList", users);
+    // 機能見直し-1-#15（仮画面A）: 役割の確認が必要なスタッフの選び直しは、ジム管理者・システム管理者のみ
+    Role adminRole = Role.fromValue(getCurrentAdminUser().getRole());
+    boolean canReviewRoles = adminRole == Role.ADMIN || adminRole == Role.ORG_ADMIN;
+    model.addAttribute("canReviewRoles", canReviewRoles);
+    model.addAttribute(
+        "roleReviewCount",
+        canReviewRoles
+            ? users.stream().filter(u -> Boolean.TRUE.equals(u.getRoleReviewRequired())).count()
+            : 0L);
+    model.addAttribute("roleReviewOptions", roleReviewOptions());
+    model.addAttribute("organizationNames", organizationNames());
     return "admin/user_list";
+  }
+
+  /** 役割の選び直しで選べる役割（仮画面A: 会員・トレーナー・店舗管理者）。 */
+  private static List<RoleOption> roleReviewOptions() {
+    return List.of(
+        new RoleOption(Role.TRAINER.value(), "トレーナー"),
+        new RoleOption(Role.STORE_ADMIN.value(), "店舗管理者"),
+        new RoleOption(Role.USER.value(), "会員"));
+  }
+
+  private Map<Long, String> organizationNames() {
+    Map<Long, String> names = new HashMap<>();
+    for (Organization org : organizationDao.selectAll()) {
+      names.put(org.getId(), org.getName());
+    }
+    return names;
+  }
+
+  /**
+   * 役割の確認が必要なスタッフの役割を選び直す（機能見直し-1-#15 仮画面A）。ジム管理者（自分のジムの範囲）・システム管理者のみ。
+   * 選べるのは会員・トレーナー・店舗管理者。保存すると確認済みになる。
+   */
+  @AuditLog(action = "ADMIN_ROLE_REVIEW", targetTable = "users")
+  @Transactional
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN')")
+  @PostMapping("/user/{id}/role-review")
+  public String reviewRole(
+      @PathVariable("id") Long id,
+      @RequestParam("role") String role,
+      org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+    User target = userService.getUserById(id.intValue());
+    assertAccessible(target);
+    Role newRole = Role.fromValue(role);
+    boolean selectable = roleReviewOptions().stream().anyMatch(o -> o.value().equals(role));
+    if (!Boolean.TRUE.equals(target.getRoleReviewRequired()) || newRole == null || !selectable) {
+      redirectAttributes.addFlashAttribute("errorMessage", "この役割には変更できません。");
+      redirectAttributes.addFlashAttribute("errorCode", WebErrorCode.INVALID_STATE);
+      return "redirect:/admin/users";
+    }
+    userService.updateUserInfo(
+        target.toBuilder().role(newRole.value()).updatedDatetime(LocalDateTime.now()).build());
+    if (newRole != Role.STORE_ADMIN) {
+      // 兼任店舗は店舗管理者だけの仕組み
+      userStoreAccessDao.deleteByUserId(id);
+    }
+    userService.updateRoleReviewRequired(target.getUserId(), false);
+    redirectAttributes.addFlashAttribute("successMessage", target.getUserName() + "さんの役割を保存しました。");
+    return "redirect:/admin/users";
   }
 
   /**
@@ -187,6 +256,7 @@ public class AdminController {
     if (adminRole == Role.ADMIN) {
       return List.of(
           new RoleOption(Role.USER.value(), "一般ユーザー（USER）"),
+          new RoleOption(Role.TRAINER.value(), "トレーナー（TRAINER）"),
           new RoleOption(Role.STORE_ADMIN.value(), "店舗管理者（STORE_ADMIN）"),
           new RoleOption(Role.ORG_ADMIN.value(), "組織管理者（ORG_ADMIN）"),
           new RoleOption(Role.ADMIN.value(), "システム管理者（ADMIN）"));
@@ -194,6 +264,7 @@ public class AdminController {
     if (adminRole == Role.ORG_ADMIN) {
       return List.of(
           new RoleOption(Role.USER.value(), "一般ユーザー（USER）"),
+          new RoleOption(Role.TRAINER.value(), "トレーナー（TRAINER）"),
           new RoleOption(Role.STORE_ADMIN.value(), "店舗管理者（STORE_ADMIN）"));
     }
     return List.of();
@@ -274,6 +345,11 @@ public class AdminController {
             .updatedDatetime(LocalDateTime.now())
             .build();
     userService.updateUserInfo(updatedUser);
+    // 機能見直し-1-#15: ジム管理者・システム管理者が役割の欄を含む編集画面で保存した場合は、役割を確認済みとする
+    if (Boolean.TRUE.equals(existing.getRoleReviewRequired())
+        && (adminRole == Role.ADMIN || adminRole == Role.ORG_ADMIN)) {
+      userService.updateRoleReviewRequired(existing.getUserId(), false);
+    }
 
     replaceStoreAssignments(form, currentAdmin, adminRole, newOrganizationId);
 
@@ -287,7 +363,7 @@ public class AdminController {
     }
     if (adminRole == Role.ORG_ADMIN) {
       Role target = Role.fromValue(newRole);
-      return target == Role.USER || target == Role.STORE_ADMIN;
+      return target == Role.USER || target == Role.TRAINER || target == Role.STORE_ADMIN;
     }
     return false;
   }
@@ -319,6 +395,7 @@ public class AdminController {
   }
 
   @GetMapping("/all-users-training")
+  @PreAuthorize(RECORD_VIEW_ROLES)
   public String showAllUsersTrainingList(
       @RequestParam(name = "userName", required = false) String userName, Model model) {
 
@@ -329,7 +406,27 @@ public class AdminController {
       users = userService.findAll();
     }
 
-    model.addAttribute("userList", filterByAccessibleOrganizations(users));
+    User viewer = getCurrentAdminUser();
+    if (Role.fromValue(viewer.getRole()) == Role.TRAINER) {
+      // トレーナー: 担当会員と、自分の店舗の会員（担当外は記録の閲覧のみ）。他の店舗の会員・スタッフは一覧にも出さない（Q15-1）
+      java.util.Set<Long> accessible =
+          organizationScopeResolver.resolveAccessibleOrganizationIds(viewer);
+      List<User> visible =
+          users.stream()
+              .filter(u -> memberAccessPolicy.isVisibleToTrainer(viewer, u, accessible))
+              .collect(Collectors.toList());
+      model.addAttribute("userList", visible);
+      model.addAttribute(
+          "assignedUserIds",
+          visible.stream()
+              .filter(u -> MemberAccessPolicy.isAssignedTo(u, viewer))
+              .map(User::getUserId)
+              .collect(Collectors.toSet()));
+      model.addAttribute("isTrainerView", true);
+    } else {
+      model.addAttribute("userList", filterByAccessibleOrganizations(users));
+      model.addAttribute("isTrainerView", false);
+    }
     model.addAttribute("userName", userName);
     return "admin/all_users_training_list";
   }
@@ -340,6 +437,7 @@ public class AdminController {
    * <p>★ getUserById でユーザー存在を確認し、 存在しない ID を指定された場合は RuntimeException で処理を中断する。
    */
   @GetMapping("/user/training-detail/{id}")
+  @PreAuthorize(RECORD_VIEW_ROLES)
   public String showUserTrainingDetail(
       @PathVariable("id") Integer id,
       @RequestParam(name = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -350,8 +448,11 @@ public class AdminController {
 
     // ★ ユーザー存在確認（存在しなければ RuntimeException をスロー）
     User user = userService.getUserById(id);
-    assertAccessible(user);
+    User viewer = getCurrentAdminUser();
+    MemberAccessLevel accessLevel = memberAccessPolicy.requireRecordsView(viewer, user);
     model.addAttribute("user", user);
+    // 機能見直し-1-#15（仮画面E）: トレーナーから見た担当外の会員は記録の閲覧のみ。プロフィール・アドバイスの導線は出さない
+    model.addAttribute("recordsOnly", accessLevel == MemberAccessLevel.RECORDS_ONLY);
 
     LocalDate targetMonth =
         (date != null) ? date.withDayOfMonth(1) : LocalDate.now().withDayOfMonth(1);
@@ -386,10 +487,14 @@ public class AdminController {
     // 管理者画面はカレンダー+グラフ画面のため、カロリーは当月の平均的な値を出さずにユーザー情報のみ渡す
     model.addAttribute("targetUser", user);
 
-    // ita4-4 (A) 追加対応: ORG_ADMIN/STORE_ADMINのみ、このユーザー・日付宛のアドバイス送信導線を表示する
-    Role viewerRole = Role.fromValue(getCurrentAdminUser().getRole());
+    // ita4-4 (A) 追加対応: ORG_ADMIN/STORE_ADMINのみ、このユーザー・日付宛のアドバイス送信導線を表示する。
+    // 機能見直し-1-#15: トレーナーは担当会員のみ（送信時もTrainerAdviceServiceで再判定する）
+    Role viewerRole = Role.fromValue(viewer.getRole());
     model.addAttribute(
-        "canSendAdvice", viewerRole == Role.ORG_ADMIN || viewerRole == Role.STORE_ADMIN);
+        "canSendAdvice",
+        viewerRole == Role.ORG_ADMIN
+            || viewerRole == Role.STORE_ADMIN
+            || (viewerRole == Role.TRAINER && accessLevel.canCoach()));
 
     return "admin/user_training_detail";
   }
@@ -401,6 +506,7 @@ public class AdminController {
    * を渡されても意図しないデータ操作が起きないようにする。
    */
   @GetMapping("/training-details")
+  @PreAuthorize(RECORD_VIEW_ROLES)
   @ResponseBody
   public ResponseEntity<List<Training>> getTrainingDetails(
       @RequestParam("userId") Integer userId,
@@ -408,8 +514,8 @@ public class AdminController {
 
     log.info("API: トレーニング詳細取得 - ユーザーID: {}, 日付: {}", userId, date);
 
-    // ★ ユーザー存在確認
-    assertAccessible(userService.getUserById(userId)); // 存在しなければ RuntimeException → 404 推奨
+    // ★ ユーザー存在確認＋閲覧権限（トレーナーは担当会員・自分の店舗の会員のみ）
+    memberAccessPolicy.requireRecordsView(getCurrentAdminUser(), userService.getUserById(userId));
 
     try {
       List<Training> trainings = trainingDao.selectByUserIdAndDate(userId, date);
@@ -439,6 +545,7 @@ public class AdminController {
    * <p>★ @PreAuthorize はクラスレベルで適用済み。 ユーザー存在確認を追加し、IDOR の影響範囲を縮小。
    */
   @GetMapping("/chart-data")
+  @PreAuthorize(RECORD_VIEW_ROLES)
   @ResponseBody
   public ResponseEntity<Map<String, Object>> getChartData(
       @RequestParam("userId") Integer userId,
@@ -447,8 +554,8 @@ public class AdminController {
 
     log.info("API: グラフデータ取得 - ユーザーID: {}, 開始日: {}, 終了日: {}", userId, startDate, endDate);
 
-    // ★ ユーザー存在確認
-    assertAccessible(userService.getUserById(userId));
+    // ★ ユーザー存在確認＋閲覧権限（記録を集計したグラフのため、担当外の会員も閲覧のみの範囲に含める）
+    memberAccessPolicy.requireRecordsView(getCurrentAdminUser(), userService.getUserById(userId));
 
     try {
       LocalDate end = (endDate != null) ? LocalDate.parse(endDate) : LocalDate.now();

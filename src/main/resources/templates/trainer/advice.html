@@ -107,9 +107,17 @@
     </div>
 
     <div class="advice-manage-card">
-      <h2 style="margin:0 0 4px;font-size:1rem;color:var(--text-primary);">担当トレーナー管理</h2>
-      <p style="color:var(--text-muted);font-size:0.8rem;margin:0 0 12px;">トレーニーごとの担当トレーナーを変更できます（初回送信者が自動的に担当になります）</p>
-      <div th:if="${#lists.isEmpty(assignmentTrainees)}" class="advice-empty">担当範囲内にトレーニーがいません</div>
+      <th:block th:if="${canManageAssignments}">
+        <h2 style="margin:0 0 4px;font-size:1rem;color:var(--text-primary);">担当トレーナー管理</h2>
+        <p style="color:var(--text-muted);font-size:0.8rem;margin:0 0 12px;">トレーニーごとの担当トレーナーを変更できます（初回送信者が自動的に担当になります）</p>
+        <div th:if="${#lists.isEmpty(assignmentTrainees)}" class="advice-empty">担当範囲内にトレーニーがいません</div>
+      </th:block>
+      <!-- 機能見直し-1-#15: トレーナーは担当会員の一覧のみ（担当の割り当て・変更は管理者が行う） -->
+      <th:block th:unless="${canManageAssignments}">
+        <h2 style="margin:0 0 4px;font-size:1rem;color:var(--text-primary);">担当の会員</h2>
+        <p style="color:var(--text-muted);font-size:0.8rem;margin:0 0 12px;">担当の割り当て・変更は、店舗管理者・ジム管理者が行います。</p>
+        <div th:if="${#lists.isEmpty(assignmentTrainees)}" class="advice-empty">担当の会員はまだいません</div>
+      </th:block>
       <div th:each="trainee : ${assignmentTrainees}" class="assignment-row">
         <div>
           <div class="assignment-trainee" th:text="${trainee.userName + '（' + trainee.email + '）'}"></div>
@@ -132,7 +140,7 @@
                style="margin-top:6px;display:inline-block;">期分けプログラムの案を送る</a>
           </th:block>
         </div>
-        <form th:action="@{/trainer/advice/assignments/{id}(id=${trainee.userId})}" method="post">
+        <form th:if="${canManageAssignments}" th:action="@{/trainer/advice/assignments/{id}(id=${trainee.userId})}" method="post">
           <select name="newTrainerId" class="form-control">
             <option value="">未割当に戻す</option>
             <option th:each="candidate : ${eligibleTrainers}"

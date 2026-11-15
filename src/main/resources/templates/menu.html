@@ -903,6 +903,25 @@
           </div>
         </div>
 
+        <!-- 機能見直し-1-#15: トレーナー向けメニュー（担当会員の指導と、同じ店舗の会員の記録の閲覧） -->
+        <div sec:authorize="hasRole('TRAINER')" class="mt-8">
+          <div class="card">
+            <div class="card-header">
+              <strong class="font-bold">トレーナーメニュー</strong>
+            </div>
+            <div class="card-body">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <a th:href="@{/admin/all-users-training}" class="btn btn-outline w-full">
+                  会員のトレーニング確認
+                </a>
+                <a th:href="@{/trainer/advice}" class="btn btn-outline w-full">
+                  トレーナーアドバイス
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Admin Section -->
         <div sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')" class="mt-8">
           <div class="card">
@@ -1039,6 +1058,26 @@
                     <path d="M3 9l9 5 9-5" />
                   </svg>
                   招待コード管理
+                </a>
+                <!-- 機能見直し-1-#15: ジムの設定（管理者が健康に関わる情報を見られるか）。ジム管理者・システム管理者のみ -->
+                <a
+                  th:href="@{/admin/gym-settings}"
+                  sec:authorize="hasAnyRole('ADMIN', 'ORG_ADMIN')"
+                  class="btn btn-outline w-full"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="inline mr-2"
+                  >
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" />
+                  </svg>
+                  ジムの設定
                 </a>
                 <a
                   th:href="@{/trainer/advice}"

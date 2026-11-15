@@ -13,6 +13,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 機能見直し-1-#15（仮画面B）招待コードの用途 */
+        .invite-purpose { flex-basis: 100%; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0; }
+        .invite-purpose legend { padding: 0 4px; }
+        .invite-purpose-option { display: inline-flex; gap: 4px; align-items: center; margin-right: 1.25rem; white-space: nowrap; }
+        .invite-purpose-warn { font-size: 0.8rem; color: var(--text-secondary); background: var(--bg-tertiary); border-left: 3px solid var(--warning-color); border-radius: 4px; padding: 0.4rem 0.6rem; margin-top: 0.4rem; line-height: 1.7; }
+        .nowrap { white-space: nowrap; }
+    </style>
 </head>
 <body class="bg-secondary">
     <header th:replace="~{common :: headerFragment}"></header>
@@ -22,8 +30,8 @@
             <div class="mb-6">
                 <h1 class="text-3xl font-bold text-primary">招待コード管理</h1>
                 <p class="text-muted mt-2">
-                    新規登録時に組織へ割り当てるための招待コードを発行・管理します。
-                    現在は<a th:href="@{/signup/trainer}">トレーナー登録（/signup/trainer）</a>で利用できます。
+                    新規登録時に組織へ割り当てるための招待コードを発行・管理します。<br>
+                    会員用は会員の新規登録（/signup）で、トレーナー用は<a th:href="@{/signup/trainer}">トレーナー登録（/signup/trainer）</a>で使います。
                 </p>
             </div>
 
@@ -36,6 +44,22 @@
                 </div>
                 <div class="card-body">
                     <form th:action="@{/admin/invite-codes}" method="post" class="flex gap-3 flex-wrap items-end">
+                        <!-- 機能見直し-1-#15・itバグ-44（仮画面B）: 用途 -->
+                        <fieldset class="invite-purpose">
+                            <legend class="text-sm text-secondary">用途</legend>
+                            <label class="invite-purpose-option">
+                                <input type="radio" name="purpose" value="MEMBER" checked>
+                                会員用<span class="text-muted">（会員の新規登録で使う）</span>
+                            </label>
+                            <label class="invite-purpose-option">
+                                <input type="radio" name="purpose" value="TRAINER">
+                                トレーナー用<span class="text-muted">（トレーナー登録で使う）</span>
+                            </label>
+                            <div class="invite-purpose-warn">
+                                トレーナー用のコードは、トレーナー本人にだけ渡してください。<br>
+                                有効期限と使用回数の上限を設定することをおすすめします。
+                            </div>
+                        </fieldset>
                         <div>
                             <label class="text-sm text-secondary">割り当て先組織</label>
                             <select name="organizationId" required class="form-control">
@@ -66,6 +90,7 @@
                             <thead>
                                 <tr>
                                     <th class="px-4 py-3 text-left">コード</th>
+                                    <th class="px-4 py-3 text-left">用途</th>
                                     <th class="px-4 py-3 text-left">割り当て先</th>
                                     <th class="px-4 py-3 text-left">期限</th>
                                     <th class="px-4 py-3 text-left">使用状況</th>
@@ -76,6 +101,7 @@
                             <tbody>
                                 <tr th:each="c : ${codes}">
                                     <td><code th:text="${c.code}">CODE</code></td>
+                                    <td class="nowrap" th:text="${c.purpose == 'TRAINER' ? 'トレーナー用' : '会員用'}">会員用</td>
                                     <td th:text="${organizationNames.get(c.organizationId)} ?: ('id:' + ${c.organizationId})">組織名</td>
                                     <td th:text="${c.expiresAt != null ? #temporals.format(c.expiresAt, 'yyyy/MM/dd') : '無期限'}">-</td>
                                     <td th:text="${c.usedCount} + ' / ' + (${c.maxUses != null} ? ${c.maxUses} : '∞')">0 / ∞</td>

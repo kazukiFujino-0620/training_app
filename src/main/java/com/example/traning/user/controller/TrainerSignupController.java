@@ -17,7 +17,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 
-/** トレーナー用新規登録ルート（ita4-3）。一般ユーザー向け{@code /signup}とは別ルートで、招待コードによりROLE_STORE_ADMINとして登録する。 */
+/**
+ * トレーナー用新規登録ルート（ita4-3）。一般ユーザー向け{@code
+ * /signup}とは別ルートで、トレーナー用の招待コードによりROLE_TRAINERとして登録する（機能見直し-1-#15）。
+ */
 @Controller
 @Slf4j
 public class TrainerSignupController {

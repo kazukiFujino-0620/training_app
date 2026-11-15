@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import com.example.traning.body.BodyMeasurementService;
 import com.example.traning.export.DataExportService;
 import com.example.traning.mfa.MfaService;
+import com.example.traning.organization.MemberAccessPolicy;
 import com.example.traning.organization.Organization;
 import com.example.traning.organization.OrganizationDao;
 import com.example.traning.organization.OrganizationScopeResolver;
@@ -63,7 +64,8 @@ class AdminControllerGeneralUserFilterTest {
             bodyMeasurementService,
             organizationScopeResolver,
             organizationDao,
-            userStoreAccessDao);
+            userStoreAccessDao,
+            new MemberAccessPolicy(organizationScopeResolver));
 
     User admin = new User();
     admin.setUserId(1);

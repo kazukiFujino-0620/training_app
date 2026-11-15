@@ -2,6 +2,7 @@ package com.example.traning.user.service;
 
 import com.example.traning.dao.UserDao;
 import com.example.traning.organization.InviteCode;
+import com.example.traning.organization.InviteCodePurpose;
 import com.example.traning.organization.InviteCodeService;
 import com.example.traning.organization.Organization;
 import com.example.traning.smarttrainer.recommendation.GoalMode;
@@ -84,7 +85,8 @@ public class SignupServiceTransaction {
     // 一般ユーザー向けデフォルト組織へ割り当てる。無効なコードはIllegalArgumentExceptionで拒否。
     Long organizationId = Organization.DEFAULT_STORE_ORGANIZATION_ID;
     if (signupForm.getInviteCode() != null && !signupForm.getInviteCode().isBlank()) {
-      InviteCode inviteCode = inviteCodeService.redeem(signupForm.getInviteCode().trim());
+      InviteCode inviteCode =
+          inviteCodeService.redeem(signupForm.getInviteCode().trim(), InviteCodePurpose.MEMBER);
       organizationId = inviteCode.getOrganizationId();
     }
     user.setOrganizationId(organizationId);

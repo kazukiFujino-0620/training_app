@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.example.traning.dao.UserDao;
 import com.example.traning.organization.InviteCode;
+import com.example.traning.organization.InviteCodePurpose;
 import com.example.traning.organization.InviteCodeService;
 import com.example.traning.organization.Organization;
 import com.example.traning.user.User;
@@ -61,7 +62,7 @@ class SignupServiceTransactionTest {
     verify(userDao).insert(captor.capture());
     assertThat(captor.getValue().getOrganizationId())
         .isEqualTo(Organization.DEFAULT_STORE_ORGANIZATION_ID);
-    verify(inviteCodeService, never()).redeem(any());
+    verify(inviteCodeService, never()).redeem(any(), any());
   }
 
   @Test
@@ -71,7 +72,7 @@ class SignupServiceTransactionTest {
     when(userDao.selectSoftDeletedByEmail(form.getEmail())).thenReturn(Optional.empty());
     InviteCode code = new InviteCode();
     code.setOrganizationId(5L);
-    when(inviteCodeService.redeem("ABCDEFGHIJ")).thenReturn(code);
+    when(inviteCodeService.redeem("ABCDEFGHIJ", InviteCodePurpose.MEMBER)).thenReturn(code);
 
     transaction.execute(form);
 
@@ -85,7 +86,7 @@ class SignupServiceTransactionTest {
     SignupForm form = validForm();
     form.setInviteCode("INVALID001");
     when(userDao.selectSoftDeletedByEmail(form.getEmail())).thenReturn(Optional.empty());
-    when(inviteCodeService.redeem("INVALID001"))
+    when(inviteCodeService.redeem("INVALID001", InviteCodePurpose.MEMBER))
         .thenThrow(new IllegalArgumentException("招待コードが見つかりません"));
 
     assertThatThrownBy(() -> transaction.execute(form))
@@ -100,11 +101,11 @@ class SignupServiceTransactionTest {
     when(userDao.selectSoftDeletedByEmail(form.getEmail())).thenReturn(Optional.empty());
     InviteCode code = new InviteCode();
     code.setOrganizationId(9L);
-    when(inviteCodeService.redeem("ABCDEFGHIJ")).thenReturn(code);
+    when(inviteCodeService.redeem("ABCDEFGHIJ", InviteCodePurpose.MEMBER)).thenReturn(code);
 
     transaction.execute(form);
 
-    verify(inviteCodeService).redeem("ABCDEFGHIJ");
+    verify(inviteCodeService).redeem("ABCDEFGHIJ", InviteCodePurpose.MEMBER);
   }
 
   @Test
@@ -115,7 +116,39 @@ class SignupServiceTransactionTest {
 
     assertThatThrownBy(() -> transaction.execute(form))
         .isInstanceOf(AccountRestoreRequiredException.class);
-    verify(inviteCodeService, never()).redeem(any());
+    verify(inviteCodeService, never()).redeem(any(), any());
     verify(userDao, never()).insert(any(User.class));
+  }
+
+  @Test
+  void execute_トレーナー用のコードは会員の新規登録に使えずユーザーが作成されない() {
+    SignupForm form = validForm();
+    form.setInviteCode("TRAINERCOD");
+    when(userDao.selectSoftDeletedByEmail(form.getEmail())).thenReturn(Optional.empty());
+    when(inviteCodeService.redeem("TRAINERCOD", InviteCodePurpose.MEMBER))
+        .thenThrow(new IllegalArgumentException(InviteCodeService.MEMBER_PURPOSE_MISMATCH_MESSAGE));
+
+    assertThatThrownBy(() -> transaction.execute(form))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(InviteCodeService.MEMBER_PURPOSE_MISMATCH_MESSAGE);
+    verify(userDao, never()).insert(any(User.class));
+  }
+
+  @Test
+  void execute_会員の新規登録は常にROLE_USERで会員用として引き換える() {
+    SignupForm form = validForm();
+    form.setInviteCode("ABCDEFGHIJ");
+    when(userDao.selectSoftDeletedByEmail(form.getEmail())).thenReturn(Optional.empty());
+    InviteCode code = new InviteCode();
+    code.setOrganizationId(5L);
+    when(inviteCodeService.redeem("ABCDEFGHIJ", InviteCodePurpose.MEMBER)).thenReturn(code);
+
+    transaction.execute(form);
+
+    ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+    verify(userDao).insert(captor.capture());
+    assertThat(captor.getValue().getRole()).isEqualTo("ROLE_USER");
+    verify(inviteCodeService, never())
+        .redeem(any(), org.mockito.ArgumentMatchers.eq(InviteCodePurpose.TRAINER));
   }
 }

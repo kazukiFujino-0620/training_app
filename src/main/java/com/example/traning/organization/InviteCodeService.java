@@ -15,7 +15,10 @@ import org.springframework.web.server.ResponseStatusException;
 /**
  * 招待コードの発行・一覧・失効を、操作者の権限に応じて制御するサービス（ita1-1 未実施分）。
  *
- * <p>発行できるのはROLE_ADMIN（全組織向け）・ROLE_ORG_ADMIN（自組織向けのみ）。ROLE_STORE_ADMINはこの画面自体にアクセスできない。
+ * <p>発行できるのはROLE_ADMIN（全組織向け）・ROLE_ORG_ADMIN（自組織向けのみ）。ROLE_STORE_ADMIN・ROLE_TRAINERはこの画面自体にアクセスできない。
+ *
+ * <p>機能見直し-1-#15・itバグ-44: コードは用途（{@link InviteCodePurpose}）を持ち、会員の新規登録は会員用のみ、トレーナー登録は
+ * トレーナー用のみ受け付ける。
  */
 @Service
 public class InviteCodeService {
@@ -47,16 +50,24 @@ public class InviteCodeService {
 
   @Transactional
   public InviteCode issue(
-      Long organizationId, LocalDateTime expiresAt, Integer maxUses, User currentAdmin) {
+      Long organizationId,
+      InviteCodePurpose purpose,
+      LocalDateTime expiresAt,
+      Integer maxUses,
+      User currentAdmin) {
     Role role = Role.fromValue(currentAdmin.getRole());
     if (role != Role.ADMIN && role != Role.ORG_ADMIN) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "招待コードの発行権限がありません");
+    }
+    if (purpose == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "招待コードの用途を選んでください");
     }
     if (!organizationScopeResolver.canAccessOrganization(currentAdmin, organizationId)) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "自組織向けにのみ発行できます");
     }
     InviteCode inviteCode = new InviteCode();
     inviteCode.setCode(generateCode());
+    inviteCode.setPurpose(purpose.name());
     inviteCode.setOrganizationId(organizationId);
     inviteCode.setExpiresAt(expiresAt);
     inviteCode.setMaxUses(maxUses);
@@ -80,18 +91,33 @@ public class InviteCodeService {
     inviteCodeDao.update(target);
   }
 
+  /** 会員の新規登録（/signup）に用途違いのコードを入れた場合の文言（機能見直し-1-#15）。 */
+  public static final String MEMBER_PURPOSE_MISMATCH_MESSAGE =
+      "このコードは会員の新規登録には使えません。ジムから受け取った「会員用」の招待コードを入力してください。";
+
+  /** トレーナー登録（/signup/trainer）に用途違いのコードを入れた場合の文言（仮画面C）。 */
+  public static final String TRAINER_PURPOSE_MISMATCH_MESSAGE =
+      "このコードはトレーナー登録には使えません。ジムの管理者から「トレーナー用」の招待コードを受け取ってください。";
+
   /**
-   * 招待コードを引き換える（ita4-3: トレーナー登録での使用を想定）。有効性検証（失効・期限・使用回数上限）を行った上で
-   * used_countをインクリメントし、割り当て先organization_idを含む最新状態を返す。
+   * 招待コードを引き換える。用途（{@code expectedPurpose}）が一致すること、有効性（失効・期限・使用回数上限）を検証した上で
+   * used_countをインクリメントし、割り当て先organization_idを含む最新状態を返す。用途が違う場合は使用回数を増やさない。
    *
-   * @throws IllegalArgumentException コードが存在しない、または失効・期限切れ・使用回数上限に達している場合
+   * @throws IllegalArgumentException コードが存在しない、用途が違う、または失効・期限切れ・使用回数上限に達している場合
    */
   @Transactional
-  public InviteCode redeem(String code) {
+  public InviteCode redeem(String code, InviteCodePurpose expectedPurpose) {
     InviteCode inviteCode =
         inviteCodeDao
             .selectByCode(code)
             .orElseThrow(() -> new IllegalArgumentException("招待コードが見つかりません"));
+    // 用途が読めない値（想定外）は会員用・トレーナー用のどちらにも使わせない
+    if (InviteCodePurpose.fromName(inviteCode.getPurpose()) != expectedPurpose) {
+      throw new IllegalArgumentException(
+          expectedPurpose == InviteCodePurpose.TRAINER
+              ? TRAINER_PURPOSE_MISMATCH_MESSAGE
+              : MEMBER_PURPOSE_MISMATCH_MESSAGE);
+    }
     if (inviteCode.getRevokedAt() != null) {
       throw new IllegalArgumentException("この招待コードは失効しています");
     }

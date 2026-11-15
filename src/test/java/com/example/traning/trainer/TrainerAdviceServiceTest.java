@@ -340,4 +340,102 @@ class TrainerAdviceServiceTest {
     assertThatThrownBy(() -> service.delete(trainer, 999L))
         .isInstanceOf(ResponseStatusException.class);
   }
+
+  // ── 機能見直し-1-#15: トレーナー（ROLE_TRAINER） ─────────────────────────
+
+  @Test
+  void listTrainees_TRAINERは自分が担当の会員だけで未割り当てや他の担当や同じ店舗の会員は含まない() {
+    User trainer = user(1, "ROLE_TRAINER", 10L);
+    User mine = user(2, "ROLE_USER", 10L, 1L);
+    User mineOtherStore = user(3, "ROLE_USER", 20L, 1L);
+    User unassigned = user(4, "ROLE_USER", 10L, null);
+    User others = user(5, "ROLE_USER", 10L, 99L);
+    User staffAssignedToMe = user(6, "ROLE_STORE_ADMIN", 10L, 1L);
+    when(userService.findAll())
+        .thenReturn(List.of(mine, mineOtherStore, unassigned, others, staffAssignedToMe));
+
+    assertThat(service.listTrainees(trainer)).containsExactly(mine, mineOtherStore);
+  }
+
+  @Test
+  void send_TRAINERは未割り当ての会員に送れず自動で担当にもならない() {
+    User trainer = user(1, "ROLE_TRAINER", 10L);
+    User unassigned = user(2, "ROLE_USER", 10L, null);
+    when(userService.findAll()).thenReturn(List.of(unassigned));
+
+    assertThatThrownBy(() -> service.send(trainer, 2L, "こんにちは", LocalDate.of(2026, 11, 15)))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(profileService, never()).updateAssignedTrainer(any(), any());
+    verify(trainerAdviceDao, never()).insert(any(TrainerAdvice.class));
+  }
+
+  @Test
+  void send_TRAINERは同じ店舗の担当外の会員に送れない() {
+    User trainer = user(1, "ROLE_TRAINER", 10L);
+    User others = user(2, "ROLE_USER", 10L, 99L);
+    when(userService.findAll()).thenReturn(List.of(others));
+
+    assertThatThrownBy(() -> service.send(trainer, 2L, "こんにちは", LocalDate.of(2026, 11, 15)))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(trainerAdviceDao, never()).insert(any(TrainerAdvice.class));
+  }
+
+  @Test
+  void send_TRAINERは担当会員に送れて担当は変わらない() {
+    User trainer = user(1, "ROLE_TRAINER", 10L);
+    User mine = user(2, "ROLE_USER", 10L, 1L);
+    when(userService.findAll()).thenReturn(List.of(mine));
+
+    service.send(trainer, 2L, "いいペースです", LocalDate.of(2026, 11, 15));
+
+    verify(trainerAdviceDao).insert(any(TrainerAdvice.class));
+    verify(profileService, never()).updateAssignedTrainer(any(), any());
+  }
+
+  @Test
+  void reassignTrainer_TRAINERは担当を変更できない() {
+    User trainer = user(1, "ROLE_TRAINER", 10L);
+
+    assertThatThrownBy(() -> service.reassignTrainer(trainer, 2L, 1L))
+        .isInstanceOf(ResponseStatusException.class);
+    assertThatThrownBy(() -> service.reassignTrainer(trainer, 2L, null))
+        .isInstanceOf(ResponseStatusException.class);
+    verify(profileService, never()).updateAssignedTrainer(any(), any());
+  }
+
+  @Test
+  void listTraineesForAssignmentManagementとlistEligibleTrainers_TRAINERには空() {
+    User trainer = user(1, "ROLE_TRAINER", 10L);
+
+    assertThat(service.listTraineesForAssignmentManagement(trainer)).isEmpty();
+    assertThat(service.listEligibleTrainers(trainer)).isEmpty();
+    assertThat(service.canManageAssignments(trainer)).isFalse();
+  }
+
+  @Test
+  void listEligibleTrainers_管理者からはスコープ内のTRAINERも割り当て先に選べる() {
+    User storeAdmin = user(1, "ROLE_STORE_ADMIN", 10L);
+    User trainerInScope = user(2, "ROLE_TRAINER", 10L);
+    User trainerOutOfScope = user(3, "ROLE_TRAINER", 20L);
+    User member = user(4, "ROLE_USER", 10L);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(storeAdmin))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll()).thenReturn(List.of(trainerInScope, trainerOutOfScope, member));
+
+    assertThat(service.listEligibleTrainers(storeAdmin)).containsExactly(trainerInScope);
+  }
+
+  @Test
+  void reassignTrainer_店舗管理者は会員をTRAINERに割り当てられる() {
+    User storeAdmin = user(1, "ROLE_STORE_ADMIN", 10L);
+    User member = user(2, "ROLE_USER", 10L);
+    User trainer = user(3, "ROLE_TRAINER", 10L);
+    when(organizationScopeResolver.resolveAccessibleOrganizationIds(storeAdmin))
+        .thenReturn(Set.of(10L));
+    when(userService.findAll()).thenReturn(List.of(member, trainer));
+
+    service.reassignTrainer(storeAdmin, 2L, 3L);
+
+    verify(profileService).updateAssignedTrainer(2, 3L);
+  }
 }

@@ -1,5 +1,6 @@
 package com.example.traning.trainer;
 
+import com.example.traning.organization.MemberAccessPolicy;
 import com.example.traning.organization.OrganizationScopeResolver;
 import com.example.traning.user.Role;
 import com.example.traning.user.User;
@@ -42,8 +43,17 @@ public class TrainerAdviceService {
    *
    * <p>ita4結合試験バグ6対応: 1トレーニーにつき担当トレーナーは1人のみとし、他のトレーナーからは 一覧・送信ともに見えなくする（{@link #send}
    * で最初の送信時に自動的に割り当てられる）。
+   *
+   * <p>機能見直し-1-#15: トレーナー（ROLE_TRAINER）は自分が担当の会員だけ。担当外の会員へのアドバイスはできず、担当の割り当ては
+   * 管理者だけが行うため、未割り当ての会員も含めない（最初の送信での自動割り当てもしない）。
    */
   public List<User> listTrainees(User trainer) {
+    if (Role.fromValue(trainer.getRole()) == Role.TRAINER) {
+      return userService.findAll().stream()
+          .filter(u -> Role.USER.value().equals(u.getRole()))
+          .filter(u -> MemberAccessPolicy.isAssignedTo(u, trainer))
+          .collect(Collectors.toList());
+    }
     Set<Long> accessible = organizationScopeResolver.resolveAccessibleOrganizationIds(trainer);
     return userService.findAll().stream()
         .filter(u -> Role.USER.value().equals(u.getRole()))
@@ -65,6 +75,9 @@ public class TrainerAdviceService {
    * #listTrainees} とは異なり、他のトレーナーが 担当のトレーニーも含める。
    */
   public List<User> listTraineesForAssignmentManagement(User trainer) {
+    if (!canManageAssignments(trainer)) {
+      return List.of();
+    }
     Set<Long> accessible = organizationScopeResolver.resolveAccessibleOrganizationIds(trainer);
     return userService.findAll().stream()
         .filter(u -> Role.USER.value().equals(u.getRole()))
@@ -72,14 +85,26 @@ public class TrainerAdviceService {
         .collect(Collectors.toList());
   }
 
-  /** トレーナーと同じ担当範囲内で、担当トレーナーの変更先として選択可能なトレーナー（ORG_ADMIN/STORE_ADMIN）一覧を返す。 */
+  /** 担当トレーナーの割り当て・変更ができるか（機能見直し-1-#15: 店舗管理者・ジム管理者のみ。トレーナーは不可）。 */
+  public boolean canManageAssignments(User actor) {
+    Role role = Role.fromValue(actor.getRole());
+    return role == Role.ORG_ADMIN || role == Role.STORE_ADMIN;
+  }
+
+  /**
+   * 操作者と同じ担当範囲内で、担当トレーナーの変更先として選択可能なスタッフ（TRAINER/ORG_ADMIN/STORE_ADMIN）一覧を返す。 トレーナーには変更の権限が無いため空。
+   */
   public List<User> listEligibleTrainers(User trainer) {
+    if (!canManageAssignments(trainer)) {
+      return List.of();
+    }
     Set<Long> accessible = organizationScopeResolver.resolveAccessibleOrganizationIds(trainer);
     return userService.findAll().stream()
         .filter(
-            u ->
-                Role.ORG_ADMIN.value().equals(u.getRole())
-                    || Role.STORE_ADMIN.value().equals(u.getRole()))
+            u -> {
+              Role role = Role.fromValue(u.getRole());
+              return role != null && role.canBeAssignedTrainer();
+            })
         .filter(u -> accessible == null || accessible.contains(u.getOrganizationId()))
         .collect(Collectors.toList());
   }
@@ -92,6 +117,9 @@ public class TrainerAdviceService {
    */
   @Transactional
   public void reassignTrainer(User actingTrainer, Long traineeId, Long newTrainerId) {
+    if (!canManageAssignments(actingTrainer)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "担当トレーナーを変更する権限がありません");
+    }
     boolean isValidTrainee =
         listTraineesForAssignmentManagement(actingTrainer).stream()
             .anyMatch(u -> u.getUserId().longValue() == traineeId);

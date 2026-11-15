@@ -24,7 +24,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 /**
  * 招待コードの発行・一覧・失効画面（ita1-1 未実施分）。
  *
- * <p>発行できるのはROLE_ADMIN（全組織向け）・ROLE_ORG_ADMIN（自組織向けのみ）。 ROLE_STORE_ADMINはこの画面自体にアクセスできない。
+ * <p>発行できるのはROLE_ADMIN（全組織向け）・ROLE_ORG_ADMIN（自組織向けのみ）。
+ * ROLE_STORE_ADMIN・ROLE_TRAINERはこの画面自体にアクセスできない。 用途（会員用／トレーナー用）は機能見直し-1-#15で追加。
  */
 @Controller
 @RequestMapping("/admin/invite-codes")
@@ -67,6 +68,7 @@ public class AdminInviteCodeController {
     List<Organization> organizations = assignableOrganizations(currentAdmin);
     model.addAttribute("codes", inviteCodeService.listForAdmin(currentAdmin));
     model.addAttribute("organizations", organizations);
+    model.addAttribute("purposes", InviteCodePurpose.values());
     model.addAttribute(
         "organizationNames",
         organizations.stream()
@@ -78,6 +80,7 @@ public class AdminInviteCodeController {
   @PostMapping
   public String issue(
       @RequestParam Long organizationId,
+      @RequestParam(defaultValue = "MEMBER") String purpose,
       @RequestParam(required = false) String expiresAt,
       @RequestParam(required = false) Integer maxUses,
       RedirectAttributes redirectAttributes) {
@@ -85,7 +88,12 @@ public class AdminInviteCodeController {
         (expiresAt != null && !expiresAt.isBlank())
             ? LocalDate.parse(expiresAt).atTime(23, 59, 59)
             : null;
-    inviteCodeService.issue(organizationId, expiry, maxUses, getCurrentAdminUser());
+    inviteCodeService.issue(
+        organizationId,
+        InviteCodePurpose.fromName(purpose),
+        expiry,
+        maxUses,
+        getCurrentAdminUser());
     redirectAttributes.addFlashAttribute("successMessage", "招待コードを発行しました。");
     return "redirect:/admin/invite-codes";
   }

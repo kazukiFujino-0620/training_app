@@ -2,6 +2,7 @@ package com.example.traning.user.service;
 
 import com.example.traning.dao.UserDao;
 import com.example.traning.organization.InviteCode;
+import com.example.traning.organization.InviteCodePurpose;
 import com.example.traning.organization.InviteCodeService;
 import com.example.traning.smarttrainer.recommendation.GoalMode;
 import com.example.traning.user.Role;
@@ -14,8 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * トレーナー用新規登録（ita4-3）。一般ユーザー向け{@link SignupServiceTransaction}とは別ルートで、招待コードにより 所属組織（自店舗）を決定し、{@link
- * Role#STORE_ADMIN}として登録する。
+ * トレーナー用新規登録（ita4-3）。一般ユーザー向け{@link SignupServiceTransaction}とは別ルートで、トレーナー用の招待コードにより
+ * 所属組織（自店舗）を決定し、{@link Role#TRAINER}として登録する（機能見直し-1-#15・itバグ-44。以前は店舗管理者で登録していた）。
  */
 @Service
 @Slf4j
@@ -61,13 +62,14 @@ public class TrainerSignupService {
 
     // 招待コードの検証・使用回数インクリメントを先に行う。ここで例外が出れば
     // ユーザー登録自体もロールバックされる（@Transactionalによりこのメソッド全体が1トランザクション）。
-    InviteCode inviteCode = inviteCodeService.redeem(form.getInviteCode());
+    InviteCode inviteCode =
+        inviteCodeService.redeem(form.getInviteCode().trim(), InviteCodePurpose.TRAINER);
 
     User user = new User();
     user.setEmail(form.getEmail());
     user.setPassword(passwordEncoder.encode(form.getPassword()));
     user.setUserName(form.getUsername());
-    user.setRole(Role.STORE_ADMIN.value());
+    user.setRole(Role.TRAINER.value());
     user.setEnabled(true);
     user.setCreateDatetime(LocalDateTime.now());
     user.setUpdatedDatetime(LocalDateTime.now());
