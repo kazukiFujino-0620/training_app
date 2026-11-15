@@ -213,7 +213,7 @@ export default function ExerciseScreen({ navigation, route }: Props) {
             <Text style={[styles.colLabel, { flex: 1 }]}>重量</Text>
             <Text style={[styles.colLabel, { flex: 1 }]}>回数</Text>
             {/* 機能見直し-1-#18: SetRowのRIR（余力）表示枠と同じ幅 */}
-            <Text style={[styles.colLabel, { width: 60 }]}> </Text>
+            <Text style={[styles.colLabel, { width: 44 }]}> </Text>
             <Text style={[styles.colLabel, { width: 40 }]}>完了</Text>
           </View>
 
