@@ -11,6 +11,7 @@ import com.example.traning.mobile.dto.SetUpdateResponse;
 import com.example.traning.mobile.dto.TrainingCalorieResponse;
 import com.example.traning.mobile.dto.TrainingHistoryResponse;
 import com.example.traning.mobile.dto.UpdateSetRequest;
+import com.example.traning.mobile.dto.UpdateSetRirRequest;
 import com.example.traning.mobile.dto.UpdateTrainingMemoRequest;
 import com.example.traning.mobile.dto.UpdateTrainingRequest;
 import com.example.traning.periodization.StagnationDetectionService;
@@ -327,6 +328,33 @@ public class MobileTrainingController {
         req.getIsCompleted() != null ? req.getIsCompleted() : detail.getIsCompleted();
     return ResponseEntity.ok(
         new SetUpdateResponse(id, completed, isPR, prMessage, recommendedIntervalSeconds));
+  }
+
+  /**
+   * セットのRIR（余力）を記録・変更する（機能見直し-1-#18）。rir=null で未入力に戻す。
+   *
+   * <p>本番セット（MAIN）のみ対象。ウォームアップ・ドロップセットへの指定は400を返す。
+   */
+  @PutMapping("/sets/{id}/rir")
+  @Transactional
+  @AuditLog(action = "MOBILE_SET_RIR_UPDATE", targetTable = "training_details")
+  public ResponseEntity<TrainingDetail> updateSetRir(
+      @AuthenticationPrincipal Long userId,
+      @PathVariable Long id,
+      @Valid @RequestBody UpdateSetRirRequest req) {
+
+    TrainingDetail detail = trainingDetailDao.selectById(id);
+    if (detail == null) return ResponseEntity.notFound().build();
+    if (!isOwnedByUser(detail, userId)) return ResponseEntity.status(403).build();
+
+    if (SetType.fromValueOrMain(detail.getSetType()) != SetType.MAIN) {
+      throw new IllegalArgumentException("RIRは本番セットにのみ記録できます");
+    }
+
+    detail.setRir(req.getRir());
+    detail.setUpdatedDatetime(LocalDateTime.now());
+    trainingDetailDao.update(detail);
+    return ResponseEntity.ok(detail);
   }
 
   /**
