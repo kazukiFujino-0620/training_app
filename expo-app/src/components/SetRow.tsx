@@ -26,7 +26,9 @@ export function formatRirOption(rir: number): string {
   return rir >= 5 ? '5以上' : String(rir);
 }
 
+/** 完了済みセットの表示。Web（会員の記録・管理者の詳細）と同じ表記にそろえる */
 export function formatRirLabel(rir: number): string {
+  if (rir === 0) return 'あと0回（限界）';
   return rir >= 5 ? 'あと5回以上' : `あと${rir}回`;
 }
 
@@ -218,7 +220,11 @@ export default function SetRow({
       {/* 機能見直し-1-#18: あと何回できたかの選択欄（任意）。完了でうすく表示される行の外に置く */}
       {rirPicker && completedLocal && isMainSet && (
         <View style={styles.rirPicker}>
-          <Text style={styles.rirPickerTitle}>あと何回できましたか？（任意）</Text>
+          <Text style={styles.rirPickerTitle}>
+            {rirPicker === 'afterComplete'
+              ? 'あと何回できましたか？（任意）'
+              : `${detail.setNumber}セット目: あと何回できましたか？`}
+          </Text>
           <View style={styles.rirOptions}>
             {RIR_OPTIONS.map((v) => (
               <TouchableOpacity
