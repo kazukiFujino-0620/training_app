@@ -32,6 +32,11 @@ public class UserService {
     return result;
   }
 
+  /** 機能見直し-1-#15: 役割の確認が必要かどうか（移行対象の印）を更新する。 */
+  public void updateRoleReviewRequired(Integer userId, boolean roleReviewRequired) {
+    userDao.updateRoleReviewRequired(userId, roleReviewRequired);
+  }
+
   public User getUserByEmail(String email) {
     return userDao
         .selectByEmail(email)

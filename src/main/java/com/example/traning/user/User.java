@@ -89,4 +89,11 @@ public class User {
   /** AI機能（トレーニング提案・疲労度分析・トレーナーアドバイス下書き）利用への同意。 */
   @Column(name = "ai_advice_consent")
   public Boolean aiAdviceConsent;
+
+  /**
+   * 役割の確認が必要なスタッフ（機能見直し-1-#15の移行対象）。ジム管理者が選び直すと false になる。 INSERT・通常のUPDATEでは送らず
+   * （DBのDEFAULTに任せる）、{@code UserDao#updateRoleReviewRequired}でのみ変更する。
+   */
+  @Column(name = "role_review_required", insertable = false, updatable = false)
+  public Boolean roleReviewRequired;
 }

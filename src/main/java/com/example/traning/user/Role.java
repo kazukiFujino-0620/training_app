@@ -9,7 +9,17 @@ public enum Role {
   USER,
   ADMIN,
   ORG_ADMIN,
-  STORE_ADMIN;
+  STORE_ADMIN,
+  /**
+   * トレーナー（機能見直し-1-#15）。担当会員（{@code users.assigned_trainer_id}が自分）には指導機能、
+   * 同じ店舗の担当外の会員にはトレーニング記録の閲覧のみ。管理操作は不可。
+   */
+  TRAINER;
+
+  /** 会員の担当トレーナーになれる役割（担当の割り当て先・アドバイスの送信者）。 */
+  public boolean canBeAssignedTrainer() {
+    return this == TRAINER || this == STORE_ADMIN || this == ORG_ADMIN;
+  }
 
   /** DB列・Spring Securityの{@code GrantedAuthority}に格納する形式（例: {@code "ROLE_ADMIN"}）。 */
   public String value() {

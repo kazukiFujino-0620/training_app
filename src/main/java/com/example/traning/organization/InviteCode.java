@@ -21,6 +21,9 @@ public class InviteCode {
 
   private String code;
 
+  /** {@link InviteCodePurpose} の name()。既存のコードは MEMBER（V46）。 */
+  private String purpose = InviteCodePurpose.MEMBER.name();
+
   @Column(name = "organization_id")
   private Long organizationId;
 

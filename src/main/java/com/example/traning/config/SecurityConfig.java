@@ -43,6 +43,16 @@ public class SecurityConfig {
   private static final String SW_PATH = "/sw.js";
   private static final String MANIFEST_PATH = "/manifest.json";
   private static final String ADMIN_PATH = "/admin/**";
+  // 機能見直し-1-#15: /admin/** のうちトレーナーも使う会員の記録の閲覧画面・API。担当／担当外（閲覧のみ）／範囲外の判定は
+  // 各コントローラーで MemberAccessPolicy により行う。これ以外の /admin/** （管理操作）にトレーナーは到達できない。
+  private static final String[] RECORD_VIEW_PATHS = {
+    "/admin/all-users-training",
+    "/admin/user/training-detail/*",
+    "/admin/training-details",
+    "/admin/chart-data",
+    "/admin/api/training-details",
+    "/admin/api/training-volume/*"
+  };
   private static final String USER_PATH = "/user/**";
   // Swagger UI はローカル開発専用。本番では springdoc.swagger-ui.enabled=false で無効化する。
   private static final String SWAGGER_UI_PATH = "/swagger-ui/**";
@@ -169,6 +179,8 @@ public class SecurityConfig {
                         LINE_WEBHOOK_PATH,
                         MOBILE_OAUTH_PATH)
                     .permitAll()
+                    .requestMatchers(RECORD_VIEW_PATHS)
+                    .hasAnyRole("ADMIN", "ORG_ADMIN", "STORE_ADMIN", "TRAINER")
                     .requestMatchers(ADMIN_PATH)
                     // ita1-1 マルチテナント化 フェーズ3: ORG_ADMIN/STORE_ADMIN も /admin/** に到達可能とする。
                     // 実際のデータアクセス範囲は OrganizationScopeResolver +
@@ -177,7 +189,7 @@ public class SecurityConfig {
                     .requestMatchers(USER_PATH)
                     // ORG_ADMIN/STORE_ADMINも自分自身のプロフィール・通知設定（LINE連携含む）を
                     // 利用できる必要があるため許可する（ita4-1結合試験で発見）。
-                    .hasAnyRole("USER", "ADMIN", "ORG_ADMIN", "STORE_ADMIN")
+                    .hasAnyRole("USER", "ADMIN", "ORG_ADMIN", "STORE_ADMIN", "TRAINER")
                     .requestMatchers("/auth/mfa", "/auth/mfa/verify")
                     .authenticated()
                     .anyRequest()

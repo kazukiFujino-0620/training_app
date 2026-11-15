@@ -45,7 +45,7 @@ class InviteCodeServiceTest {
     User admin = userWithRole("ROLE_ADMIN", 2L);
     when(organizationScopeResolver.canAccessOrganization(admin, 999L)).thenReturn(true);
 
-    InviteCode result = service.issue(999L, null, null, admin);
+    InviteCode result = service.issue(999L, InviteCodePurpose.MEMBER, null, null, admin);
 
     assertThat(result.getOrganizationId()).isEqualTo(999L);
     assertThat(result.getCode()).hasSize(10);
@@ -57,7 +57,7 @@ class InviteCodeServiceTest {
     User orgAdmin = userWithRole("ROLE_ORG_ADMIN", 1L);
     when(organizationScopeResolver.canAccessOrganization(orgAdmin, 1L)).thenReturn(true);
 
-    service.issue(1L, null, 10, orgAdmin);
+    service.issue(1L, InviteCodePurpose.MEMBER, null, 10, orgAdmin);
 
     verify(inviteCodeDao).insert(any(InviteCode.class));
   }
@@ -67,7 +67,7 @@ class InviteCodeServiceTest {
     User orgAdmin = userWithRole("ROLE_ORG_ADMIN", 1L);
     when(organizationScopeResolver.canAccessOrganization(orgAdmin, 999L)).thenReturn(false);
 
-    assertThatThrownBy(() -> service.issue(999L, null, null, orgAdmin))
+    assertThatThrownBy(() -> service.issue(999L, InviteCodePurpose.MEMBER, null, null, orgAdmin))
         .isInstanceOf(ResponseStatusException.class);
     verify(inviteCodeDao, never()).insert(any(InviteCode.class));
   }
@@ -76,7 +76,7 @@ class InviteCodeServiceTest {
   void issue_STORE_ADMINは発行できない() {
     User storeAdmin = userWithRole("ROLE_STORE_ADMIN", 2L);
 
-    assertThatThrownBy(() -> service.issue(2L, null, null, storeAdmin))
+    assertThatThrownBy(() -> service.issue(2L, InviteCodePurpose.MEMBER, null, null, storeAdmin))
         .isInstanceOf(ResponseStatusException.class);
     verify(inviteCodeDao, never()).insert(any(InviteCode.class));
   }
@@ -147,7 +147,7 @@ class InviteCodeServiceTest {
     InviteCode code = validCode();
     when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
 
-    InviteCode result = service.redeem("ABCDEFGHIJ");
+    InviteCode result = service.redeem("ABCDEFGHIJ", InviteCodePurpose.MEMBER);
 
     assertThat(result.getOrganizationId()).isEqualTo(5L);
     assertThat(result.getUsedCount()).isEqualTo(1);
@@ -158,7 +158,7 @@ class InviteCodeServiceTest {
   void redeem_存在しないコードは例外() {
     when(inviteCodeDao.selectByCode("NOTFOUND")).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service.redeem("NOTFOUND"))
+    assertThatThrownBy(() -> service.redeem("NOTFOUND", InviteCodePurpose.MEMBER))
         .isInstanceOf(IllegalArgumentException.class);
     verify(inviteCodeDao, never()).update(any(InviteCode.class));
   }
@@ -169,7 +169,7 @@ class InviteCodeServiceTest {
     code.setRevokedAt(LocalDateTime.now());
     when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
 
-    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ"))
+    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ", InviteCodePurpose.MEMBER))
         .isInstanceOf(IllegalArgumentException.class);
     verify(inviteCodeDao, never()).update(any(InviteCode.class));
   }
@@ -180,7 +180,7 @@ class InviteCodeServiceTest {
     code.setExpiresAt(LocalDateTime.now().minusDays(1));
     when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
 
-    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ"))
+    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ", InviteCodePurpose.MEMBER))
         .isInstanceOf(IllegalArgumentException.class);
     verify(inviteCodeDao, never()).update(any(InviteCode.class));
   }
@@ -192,7 +192,7 @@ class InviteCodeServiceTest {
     code.setUsedCount(1);
     when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
 
-    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ"))
+    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ", InviteCodePurpose.MEMBER))
         .isInstanceOf(IllegalArgumentException.class);
     verify(inviteCodeDao, never()).update(any(InviteCode.class));
   }
@@ -204,9 +204,123 @@ class InviteCodeServiceTest {
     code.setUsedCount(1);
     when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
 
-    InviteCode result = service.redeem("ABCDEFGHIJ");
+    InviteCode result = service.redeem("ABCDEFGHIJ", InviteCodePurpose.MEMBER);
 
     assertThat(result.getUsedCount()).isEqualTo(2);
     verify(inviteCodeDao).update(code);
+  }
+
+  // ── 用途（機能見直し-1-#15・itバグ-44） ──────────────────────────────────
+
+  @Test
+  void issue_用途を指定して保存される() {
+    User orgAdmin = userWithRole("ROLE_ORG_ADMIN", 1L);
+    when(organizationScopeResolver.canAccessOrganization(orgAdmin, 3L)).thenReturn(true);
+
+    InviteCode result = service.issue(3L, InviteCodePurpose.TRAINER, null, 1, orgAdmin);
+
+    assertThat(result.getPurpose()).isEqualTo("TRAINER");
+    verify(inviteCodeDao).insert(result);
+  }
+
+  @Test
+  void issue_用途が無い場合は発行しない() {
+    User orgAdmin = userWithRole("ROLE_ORG_ADMIN", 1L);
+
+    assertThatThrownBy(() -> service.issue(1L, null, null, null, orgAdmin))
+        .isInstanceOf(ResponseStatusException.class);
+    verify(inviteCodeDao, never()).insert(any(InviteCode.class));
+  }
+
+  @Test
+  void issue_TRAINERはトレーナー用も会員用も発行できない() {
+    User trainer = userWithRole("ROLE_TRAINER", 2L);
+
+    assertThatThrownBy(() -> service.issue(2L, InviteCodePurpose.TRAINER, null, null, trainer))
+        .isInstanceOf(ResponseStatusException.class);
+    assertThatThrownBy(() -> service.issue(2L, InviteCodePurpose.MEMBER, null, null, trainer))
+        .isInstanceOf(ResponseStatusException.class);
+    verify(inviteCodeDao, never()).insert(any(InviteCode.class));
+  }
+
+  @Test
+  void issue_STORE_ADMINはトレーナー用を発行できない() {
+    User storeAdmin = userWithRole("ROLE_STORE_ADMIN", 2L);
+
+    assertThatThrownBy(() -> service.issue(2L, InviteCodePurpose.TRAINER, null, null, storeAdmin))
+        .isInstanceOf(ResponseStatusException.class);
+    verify(inviteCodeDao, never()).insert(any(InviteCode.class));
+  }
+
+  @Test
+  void listForAdmin_TRAINERは一覧を取得できない() {
+    assertThatThrownBy(() -> service.listForAdmin(userWithRole("ROLE_TRAINER", 2L)))
+        .isInstanceOf(ResponseStatusException.class);
+  }
+
+  @Test
+  void 新しいInviteCodeの用途の初期値は会員用() {
+    assertThat(new InviteCode().getPurpose()).isEqualTo("MEMBER");
+  }
+
+  @Test
+  void redeem_会員用のコードをトレーナー登録に使うと仮画面Cの文言で拒否し使用回数を増やさない() {
+    InviteCode code = validCode(); // 用途は会員用（既存のコードと同じ）
+    when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
+
+    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ", InviteCodePurpose.TRAINER))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("このコードはトレーナー登録には使えません。ジムの管理者から「トレーナー用」の招待コードを受け取ってください。");
+    assertThat(code.getUsedCount()).isZero();
+    verify(inviteCodeDao, never()).update(any(InviteCode.class));
+  }
+
+  @Test
+  void redeem_トレーナー用のコードを会員の新規登録に使うと拒否し使用回数を増やさない() {
+    InviteCode code = validCode();
+    code.setPurpose("TRAINER");
+    when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
+
+    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ", InviteCodePurpose.MEMBER))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(InviteCodeService.MEMBER_PURPOSE_MISMATCH_MESSAGE);
+    verify(inviteCodeDao, never()).update(any(InviteCode.class));
+  }
+
+  @Test
+  void redeem_トレーナー用のコードはトレーナー登録で引き換えできる() {
+    InviteCode code = validCode();
+    code.setPurpose("TRAINER");
+    when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
+
+    InviteCode result = service.redeem("ABCDEFGHIJ", InviteCodePurpose.TRAINER);
+
+    assertThat(result.getUsedCount()).isEqualTo(1);
+    verify(inviteCodeDao).update(code);
+  }
+
+  @Test
+  void redeem_用途が読めない値のコードはどちらの登録にも使えない() {
+    InviteCode code = validCode();
+    code.setPurpose("STORE_ADMIN");
+    when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
+
+    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ", InviteCodePurpose.MEMBER))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ", InviteCodePurpose.TRAINER))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(inviteCodeDao, never()).update(any(InviteCode.class));
+  }
+
+  @Test
+  void redeem_用途違いは失効済みより先に判定しても使用回数は増えない() {
+    InviteCode code = validCode();
+    code.setRevokedAt(LocalDateTime.now());
+    when(inviteCodeDao.selectByCode("ABCDEFGHIJ")).thenReturn(Optional.of(code));
+
+    assertThatThrownBy(() -> service.redeem("ABCDEFGHIJ", InviteCodePurpose.TRAINER))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(InviteCodeService.TRAINER_PURPOSE_MISMATCH_MESSAGE);
+    verify(inviteCodeDao, never()).update(any(InviteCode.class));
   }
 }

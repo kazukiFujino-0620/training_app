@@ -1,8 +1,10 @@
 package com.example.traning.training.controller.api;
 
+import com.example.traning.organization.MemberAccessPolicy;
 import com.example.traning.organization.OrganizationScopeResolver;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.service.TrainingService;
+import com.example.traning.user.Role;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
 import java.util.List;
@@ -28,14 +30,17 @@ public class TrainingApiController {
   private final TrainingService trainingService;
   private final UserService userService;
   private final OrganizationScopeResolver organizationScopeResolver;
+  private final MemberAccessPolicy memberAccessPolicy;
 
   public TrainingApiController(
       TrainingService trainingService,
       UserService userService,
-      OrganizationScopeResolver organizationScopeResolver) {
+      OrganizationScopeResolver organizationScopeResolver,
+      MemberAccessPolicy memberAccessPolicy) {
     this.trainingService = trainingService;
     this.userService = userService;
     this.organizationScopeResolver = organizationScopeResolver;
+    this.memberAccessPolicy = memberAccessPolicy;
   }
 
   /**
@@ -45,22 +50,28 @@ public class TrainingApiController {
    *
    * <p>ita1-1 フェーズ3: userId 指定時はアクセス可能組織かどうかを検証（IDOR対策）。 userId 未指定時（全ユーザー当日データ）は ROLE_ADMIN
    * 以外はアクセス可能な組織でサーバー側絞り込みを行う。
+   *
+   * <p>機能見直し-1-#15: トレーナーは userId 指定時のみ（担当会員・自分の店舗の会員の記録の閲覧）。userId 未指定（全員分）は スタッフの記録も含むため管理者のみ。
    */
   @GetMapping("/admin/api/training-details")
-  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
   public List<TrainingDetail> getDetails(
       @RequestParam String date, @RequestParam(required = false) Long userId) {
 
     log.info("管理者: トレーニング詳細取得 userId={}, date={}", userId, date);
 
+    User viewer = getCurrentAdminUser();
     if (userId != null) {
       User targetUser = userService.getUserById(userId.intValue());
-      assertAccessible(targetUser);
+      memberAccessPolicy.requireRecordsView(viewer, targetUser);
       return trainingService.findByUserIdAndDate(userId, date);
+    }
+    if (Role.fromValue(viewer.getRole()) == Role.TRAINER) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "会員を指定してください");
     }
 
     Set<Long> accessibleOrganizationIds =
-        organizationScopeResolver.resolveAccessibleOrganizationIds(getCurrentAdminUser());
+        organizationScopeResolver.resolveAccessibleOrganizationIds(viewer);
     return trainingService.findByDate(date, accessibleOrganizationIds);
   }
 
@@ -72,14 +83,14 @@ public class TrainingApiController {
    */
   @GetMapping("/admin/api/training-volume/{userId}")
   @ResponseBody
-  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
   public Map<String, Object> getTrainingVolume(
       @PathVariable Long userId, @RequestParam String startDate, @RequestParam String endDate) {
 
     log.info("管理者: ボリュームデータ取得 userId={}, {} ~ {}", userId, startDate, endDate);
 
     User targetUser = userService.getUserById(userId.intValue());
-    assertAccessible(targetUser);
+    memberAccessPolicy.requireRecordsView(getCurrentAdminUser(), targetUser);
 
     return trainingService.makeChartDataCustom(userId, startDate, endDate);
   }
@@ -90,13 +101,5 @@ public class TrainingApiController {
     Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     String email = (principal instanceof UserDetails ud) ? ud.getUsername() : "";
     return userService.getUserByEmail(email);
-  }
-
-  private void assertAccessible(User targetUser) {
-    User currentAdmin = getCurrentAdminUser();
-    if (!organizationScopeResolver.canAccessOrganization(
-        currentAdmin, targetUser.getOrganizationId())) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "対象のユーザーにアクセスする権限がありません");
-    }
   }
 }

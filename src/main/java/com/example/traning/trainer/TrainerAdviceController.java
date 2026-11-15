@@ -7,6 +7,7 @@ import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
 import java.security.Principal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -24,10 +25,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-/** トレーナーアドバイス送信画面（ita4-4 (A)）。ORG_ADMIN/STORE_ADMIN専用。 */
+/**
+ * トレーナーアドバイス送信画面（ita4-4 (A)）。ORG_ADMIN/STORE_ADMIN/TRAINER。
+ *
+ * <p>機能見直し-1-#15: トレーナーは担当会員にだけ送信でき、担当トレーナーの変更はできない（{@link TrainerAdviceService}で判定）。
+ */
 @Controller
 @RequestMapping("/trainer/advice")
-@PreAuthorize("hasAnyRole('ORG_ADMIN', 'STORE_ADMIN')")
+@PreAuthorize("hasAnyRole('ORG_ADMIN', 'STORE_ADMIN', 'TRAINER')")
 public class TrainerAdviceController {
 
   private final TrainerAdviceService trainerAdviceService;
@@ -68,14 +73,20 @@ public class TrainerAdviceController {
     model.addAttribute("sentAdvices", trainerAdviceService.listSentByTrainer(trainer));
     model.addAttribute("selectedTargetUserId", targetUserId);
     model.addAttribute("selectedDate", date != null ? date : LocalDate.now());
-    model.addAttribute(
-        "assignmentTrainees", trainerAdviceService.listTraineesForAssignmentManagement(trainer));
+    // 機能見直し-1-#15: トレーナーは担当会員の一覧のみ（担当の変更欄は出さない）
+    boolean canManageAssignments = trainerAdviceService.canManageAssignments(trainer);
+    List<User> assignmentTrainees =
+        canManageAssignments
+            ? trainerAdviceService.listTraineesForAssignmentManagement(trainer)
+            : trainerAdviceService.listTrainees(trainer);
+    model.addAttribute("canManageAssignments", canManageAssignments);
+    model.addAttribute("assignmentTrainees", assignmentTrainees);
     model.addAttribute("eligibleTrainers", trainerAdviceService.listEligibleTrainers(trainer));
     model.addAttribute("trainerNames", allTrainerNamesById());
     // 機能見直し-1-#3（モックアップ版11の07）: 期分けの状況と、直近に送った案の状態
     model.addAttribute("latestProposals", proposalService.getLatestSentByTrainee(trainer));
     Map<Long, String> activeCycleNames = new java.util.HashMap<>();
-    for (User trainee : trainerAdviceService.listTraineesForAssignmentManagement(trainer)) {
+    for (User trainee : assignmentTrainees) {
       long traineeId = trainee.getUserId().longValue();
       periodizationService
           .getActiveCycleDetail(traineeId, LocalDate.now())
@@ -89,14 +100,16 @@ public class TrainerAdviceController {
   private Map<Long, String> allTrainerNamesById() {
     return userService.findAll().stream()
         .filter(
-            u ->
-                Role.ORG_ADMIN.value().equals(u.getRole())
-                    || Role.STORE_ADMIN.value().equals(u.getRole()))
+            u -> {
+              Role role = Role.fromValue(u.getRole());
+              return role != null && role.canBeAssignedTrainer();
+            })
         .collect(Collectors.toMap(u -> u.getUserId().longValue(), User::getUserName));
   }
 
   /** 担当トレーナーの変更（ita4結合試験バグ6追加対応）。{@code newTrainerId}が空の場合は未割り当てに戻す。 */
   @AuditLog(action = "TRAINER_REASSIGN", targetTable = "users")
+  @PreAuthorize("hasAnyRole('ORG_ADMIN', 'STORE_ADMIN')")
   @PostMapping("/assignments/{traineeId}")
   public String reassign(
       @PathVariable Long traineeId,

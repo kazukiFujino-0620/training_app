@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ジムの設定 - トレーニング管理システム</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 機能見直し-1-#15（仮画面D）管理者が健康に関わる情報を見られるか */
+        .gym-setting-item { border: 1px solid var(--border-color); border-radius: 6px; padding: 0.75rem 1rem; }
+        .gym-setting-question { font-size: 0.9rem; color: var(--text-primary); line-height: 1.7; margin: 0 0 0.5rem; }
+        .gym-setting-option { display: inline-flex; gap: 6px; align-items: center; margin: 0 1.5rem 0.25rem 0; white-space: nowrap; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+        .gym-setting-note { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.4rem; line-height: 1.7; }
+    </style>
+</head>
+<body class="bg-secondary">
+    <header th:replace="~{common :: headerFragment}"></header>
+
+    <main class="main-content">
+        <div class="content-wrapper">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-primary">ジムの設定</h1>
+                <p class="text-muted mt-2">ジム全体に適用される設定です。<br>変更できるのはジム管理者だけです。</p>
+            </div>
+
+            <div th:if="${successMessage}" class="alert alert-success mb-4" th:text="${successMessage}"></div>
+            <div th:if="${errorMessage}" class="alert alert-danger mb-4" th:text="${errorMessage}"></div>
+
+            <div th:if="${selectedGym == null}" class="card">
+                <div class="card-body">設定できるジムがありません。</div>
+            </div>
+
+            <!-- システム管理者のみ: ジムを選ぶ -->
+            <form th:if="${gyms.size() > 1}" th:action="@{/admin/gym-settings}" method="get" class="mb-4 flex gap-3 items-end flex-wrap">
+                <div>
+                    <label for="gymId" class="text-sm text-secondary">ジム</label>
+                    <select id="gymId" name="gymId" class="form-control">
+                        <option th:each="g : ${gyms}" th:value="${g.id}" th:text="${g.name}"
+                                th:selected="${selectedGym != null and g.id == selectedGym.id}"></option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-outline">表示</button>
+            </form>
+
+            <div th:if="${selectedGym != null}" class="card">
+                <div class="card-header">
+                    <h2 class="text-xl font-semibold" th:text="${selectedGym.name}">ジム名</h2>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/admin/gym-settings}" method="post">
+                        <input type="hidden" name="gymId" th:value="${selectedGym.id}">
+                        <fieldset class="gym-setting-item">
+                            <legend class="sr-only">健康に関わる情報の閲覧</legend>
+                            <p class="gym-setting-question">
+                                店舗管理者・ジム管理者が、会員の健康に関わる情報<br>
+                                （痛みの報告、睡眠・心拍、フォーム動画、問診、けがの記録）を見られるか
+                            </p>
+                            <label class="gym-setting-option">
+                                <input type="radio" name="staffHealthInfoVisible" value="false"
+                                       th:checked="${setting.staffHealthInfoVisible != true}">
+                                見られない（担当トレーナーだけ）
+                            </label>
+                            <label class="gym-setting-option">
+                                <input type="radio" name="staffHealthInfoVisible" value="true"
+                                       th:checked="${setting.staffHealthInfoVisible == true}">
+                                見られる（閲覧は監査ログに記録）
+                            </label>
+                            <div class="gym-setting-note">
+                                見られない設定でも、管理者は自分を担当トレーナーに割り当てれば見られます。<br>
+                                割り当ての変更は記録に残ります。
+                            </div>
+                        </fieldset>
+                        <button type="submit" class="btn btn-primary mt-4">保存する</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="~{common :: footerFragment}"></footer>
+    <script th:src="@{/js/theme.js}"></script>
+</body>
+</html>

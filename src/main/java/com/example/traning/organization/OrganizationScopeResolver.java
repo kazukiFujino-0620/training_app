@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
  *   <li>ROLE_ADMIN: {@code null}（フィルタ不要＝全組織アクセス可）
  *   <li>ROLE_ORG_ADMIN: 自組織自身 + 自組織（GYM）配下の全店舗
  *   <li>ROLE_STORE_ADMIN: 自店舗自身 + {@code user_store_access} に登録された兼任店舗
+ *   <li>ROLE_TRAINER: 自店舗のみ（兼任店舗は店舗管理者の仕組みのため使わない。機能見直し-1-#15 Q15-1）。 担当会員かどうか・閲覧のみかの判定は {@link
+ *       MemberAccessPolicy} で行う
  *   <li>ROLE_USER: 自分の所属組織のみ
  * </ul>
  *
@@ -71,7 +73,7 @@ public class OrganizationScopeResolver {
       return ids;
     }
 
-    // ROLE_USER（および未知ロール）は自分の所属組織のみアクセス可能とする（最小権限）。
+    // ROLE_TRAINER・ROLE_USER（および未知ロール）は自分の所属組織のみアクセス可能とする（最小権限）。
     return Set.of(ownOrganizationId);
   }
 
