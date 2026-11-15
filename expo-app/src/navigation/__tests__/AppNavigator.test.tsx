@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import RootNavigator from '../AppNavigator';
 
 // itバグ-25: AppStack配下の画面をReact.lazy化した際に、
@@ -22,7 +22,17 @@ jest.mock('../../api/client', () => ({
     getTodayTrainingSuggestion: jest.fn().mockResolvedValue({ data: null }),
   },
   statsApi: {
-    getTraining: jest.fn().mockResolvedValue({ data: {} }),
+    // 実際の /stats/training は weekParts を常に配列で返すため、MobileTrainingStatsResponse の形に揃える
+    getTraining: jest.fn().mockResolvedValue({
+      data: {
+        monthlyCount: 0,
+        volumeChangeText: '前週データなし',
+        volumeChangePositive: true,
+        weekParts: [],
+        todayPartLabel: null,
+        trainingDates: [],
+      },
+    }),
   },
   authApi: {
     login: jest.fn(),
@@ -63,7 +73,11 @@ describe('RootNavigator: itバグ-25 画面の遅延ロード', () => {
       { timeout: 5000 },
     );
     // 遅延ロードしたTrainingListScreen本体（react-native-calendarsを使う画面）が
-    // エラーなく最後まで描画されていることを確認する
-    expect(screen.getByText('今日のトレーニングはありません')).toBeTruthy();
+    // エラーなく最後まで描画されていることを確認する。
+    // ita7-2でカレンダー／トレーニングの2タブ構成になり初期表示はカレンダータブのため、
+    // カレンダータブの表示を確認してからトレーニングタブに切り替えて空状態の文言を確認する
+    expect(screen.getByText('今日に戻る')).toBeTruthy();
+    fireEvent.press(screen.getByText('トレーニング'));
+    expect(await screen.findByText('今日のトレーニングはありません')).toBeTruthy();
   });
 });

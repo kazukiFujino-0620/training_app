@@ -48,7 +48,7 @@ class WelcomeTemplateRenderTest {
   void 招待コード未指定でもエラーなくレンダリングされる() {
     String html = render("");
 
-    assertThat(html).contains("LIFTLOG");
+    assertThat(html).contains("Upcurv");
     assertThat(html).contains("招待コードをお持ちの方");
     assertThat(html).contains("招待コードをお持ちでない方はこちら");
     assertThat(html).contains("href=\"/signup\"");
