@@ -141,6 +141,35 @@ echo JWT=${APP_JWT_SECRET:+set} REMEMBER_ME=${APP_SECURITY_REMEMBER_ME_KEY:+set}
 
 ---
 
+## モバイルアプリの接続先
+
+モバイルアプリ（`expo-app/`）の接続先 `EXPO_PUBLIC_API_URL` は、`expo-app/` 直下の `.env*` ファイルで切り替える。
+
+| 用途 | 読み込まれるファイル（右ほど優先） | 既定の接続先 |
+| --- | --- | --- |
+| 開発（`npx expo start`、Debug ビルド） | `.env` → `.env.development` → `.env.local` → `.env.development.local` | `http://localhost:8080/api/mobile`（`.env.development`） |
+| リリース（Xcode の Release ビルド） | `.env` → `.env.production` → `.env.local` → `.env.production.local` → シェルの環境変数 | `https://training-app-test.mydns.jp/api/mobile`（`.env.production`） |
+
+- **開発時はシェルの環境変数で接続先を変えられない**。`EXPO_PUBLIC_API_URL=... npx expo start` としても、開発時のバンドルでは `.env*` ファイルの値が優先される（Expo SDK 54 の仕様。itバグ-33）。実機確認用の LAN IP や ngrok、検証用のポートにつなぐときは `.env.development.local`（Git 管理外）に書き、終わったら消す
+- `.env.local` は使わない。リリースビルドでも `.env.production` より優先されるため、消し忘れるとリリースビルドの接続先が変わる
+- 開発ビルドが本番ドメインにつながっている場合は、起動時に「[接続先注意]」の警告が出る
+- 以前の手順で作った `expo-app/.env`（本番URL入り）が残っていても、開発時は `.env.development` が優先されるため本番にはつながらない
+
+### リリースビルドの接続先を確かめる
+
+Release ビルド（`xcodebuild -configuration Release`）は `.env.production` から本番URLを埋め込む。従来どおりビルド前に `export EXPO_PUBLIC_API_URL=https://training-app-test.mydns.jp/api/mobile` しておくと、`.env.local` などが残っていてもシェルの値が最優先になる。
+
+ビルド後、実機にインストールする前に、埋め込まれた接続先を確認する。
+
+```bash
+expo-app/scripts/check-release-api-url.sh <DerivedData>/Build/Products/Release-iphoneos/app.app
+# OK: 接続先は本番URLです（https://training-app-test.mydns.jp/api/mobile）
+```
+
+本番URLが含まれていない、またはローカル・LAN・ngrok の接続先が含まれている場合は `NG` を表示して終了コード 1 を返す。
+
+---
+
 ## 主な機能
 
 | 機能             | 概要                                               |
