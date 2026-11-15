@@ -12,7 +12,8 @@ SELECT
     training_details.duration_min,
     training_details.distance_km,
     training_details.avg_heart_rate_bpm,
-    training_details.calories_kcal
+    training_details.calories_kcal,
+    training_details.rir
 FROM
     training_details
 WHERE

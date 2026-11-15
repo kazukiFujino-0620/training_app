@@ -136,6 +136,9 @@ export const trainingApi = {
     client.delete(`/training/${id}`),
   updateSet: (id: number, req: SetUpdateRequest) =>
     client.patch<SetUpdateResponse>(`/training/sets/${id}`, req),
+  /** 機能見直し-1-#18: RIR（余力）の記録・変更。null で未入力に戻す。本番セット以外は400 */
+  updateSetRir: (id: number, rir: number | null) =>
+    client.put<TrainingDetail>(`/training/sets/${id}/rir`, { rir }),
   updateMemo: (id: number, memo: string) =>
     client.patch(`/training/${id}/memo`, { memo }),
   /** ita7-1 1-1: トレーニング本体（種目名・部位・日付）の更新（過去分編集対応） */

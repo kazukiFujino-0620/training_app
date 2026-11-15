@@ -420,6 +420,13 @@
                             <span th:text="${detail.weight} + ' kg'">0 kg</span>
                             <span>×</span>
                             <span th:text="${detail.reps} + '回'">0回</span>
+                            <!-- 機能見直し-1-#18: RIR（余力）。本番セットで記録した場合のみ表示（5は「5回以上」） -->
+                            <span
+                              th:if="${detail.rir != null}"
+                              class="text-muted"
+                              th:text="${detail.rir == 5 ? 'あと5回以上' : 'あと' + detail.rir + '回'}"
+                              >あと2回</span
+                            >
 
                             <span
                               th:if="${detail.isCompleted}"
