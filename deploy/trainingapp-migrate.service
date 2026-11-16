@@ -5,11 +5,19 @@ Description=TraningApp DB migration (Flyway, one-shot, run before service restar
 # 稼働中の旧JARと一時的に共存しても安全なため。Conflicts=を設定すると、このユニット開始時に
 # trainingapp.serviceが自動停止され、マイグレーションがハングした場合に本番が無停止で
 # 止まったままになるリスクがある（2026-08-10に実際に発生・502エラー）。
+# trainingapp.serviceの停止・再開は、ユニット依存ではなくデプロイスクリプト
+# （.github/workflows/deploy.yml）側で明示的に行う。スクリプトはマイグレーション失敗時も
+# 必ずtrainingapp.serviceの起動を試みたうえでジョブを失敗させるため、上記の「止まったまま」
+# にはならない（itバグ-46: 起動ループ中のアプリとCPUを奪い合いマイグレーションが
+# タイムアウトしたため、マイグレーション中はアプリを停止する方針に変更）。
 
 [Service]
 Type=oneshot
 # タイムアウトを明示（デフォルトは無制限のため、DB接続不可時に永久ハングするのを防ぐ）
-TimeoutStartSec=60
+# e2-microではJVM起動だけで約30秒かかり、60秒ではCPU競合時にマイグレーション途中で
+# SIGTERM（status=143）により強制終了された（itバグ-46, 2026-11-16）。
+# DB接続不可はFlywayMigrateCli側のconnectTimeout（15秒）で検知できるため、ここは余裕を持たせる。
+TimeoutStartSec=300
 # EnvironmentFileにSPRING_DATASOURCE_URL/USERNAME/PASSWORDが含まれている前提
 # （本番のtrainingapp.envには既存のDB接続情報が入っている）
 EnvironmentFile=/opt/trainingapp/trainingapp.env

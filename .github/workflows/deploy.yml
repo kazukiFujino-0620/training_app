@@ -9,6 +9,15 @@ on:
 permissions:
   contents: read
 
+# デプロイの並列実行を禁止する（itバグ-46: PRの連続マージで3本のデプロイが同時に走り、
+# マイグレーションとアプリ再起動が競合して本番が長時間502になった）。
+# 実行中のデプロイは中断せず、後続は完了を待って順番に実行する
+# （GitHubの仕様上、待機中は最新の1本のみ保持され、それより古い待機分はキャンセルされる。
+# 最新のmasterには先行コミットの変更も含まれるため問題ない）。
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -54,31 +63,92 @@ jobs:
           target: "/opt/trainingapp/"
           strip_components: 1
 
-      # 5. 新JARへの差し替え + systemdユニットの更新 + DBマイグレーション適用（サービス再起動より前に実施）
+      # 5. アプリ停止 + 新JARへの差し替え + systemdユニットの更新 + DBマイグレーション適用
+      # マイグレーション中はアプリを停止する（itバグ-46: 未マイグレーションのスキーマに対して
+      # 起動ループ中のアプリとCPUを奪い合い、マイグレーションがタイムアウトで強制終了された）。
+      # そのため各デプロイでマイグレーション〜再起動完了までの間（通常1〜2分程度）は停止する。
+      # 失敗時は旧JARに戻してアプリの起動を試みたうえで、必ずジョブを失敗させる
+      # （itバグ-45: 以前は `set -e` がなく、末尾の `status ... || true` の終了コード0で
+      # マイグレーション失敗が成功扱いになっていた）。
       - name: Apply DB migration (Flyway)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_SSH_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
-          command_timeout: 3m
+          # マイグレーションのTimeoutStartSec(300秒) + アプリ停止・ロールバック時間を見込む
+          command_timeout: 10m
           script: |
-            cp /opt/trainingapp/TraningApp-*.jar /opt/trainingapp/trainingapp.jar
-            sudo cp /opt/trainingapp/trainingapp-migrate.service /etc/systemd/system/trainingapp-migrate.service
+            set -eu
+            APP_DIR=/opt/trainingapp
+            MIGRATED=0
+
+            # 途中のどこで失敗しても（マイグレーション失敗・cp失敗等）、アプリを停止したまま
+            # 放置しないよう、旧JARに戻して起動を試みてから非ゼロで終了する。
+            on_exit() {
+              rc=$?
+              if [ "$MIGRATED" -eq 1 ]; then
+                exit "$rc"
+              fi
+              echo "::error::DBマイグレーション（またはその準備）に失敗しました。旧JARでアプリの起動を試みます。"
+              sudo journalctl -u trainingapp-migrate.service -n 80 --no-pager || true
+              if [ -f "$APP_DIR/trainingapp.jar.prev" ]; then
+                cp "$APP_DIR/trainingapp.jar.prev" "$APP_DIR/trainingapp.jar" || true
+              fi
+              sudo systemctl set-environment SPRING_PROFILES_ACTIVE=gcp || true
+              sudo systemctl start trainingapp || echo "::error::trainingappの起動にも失敗しました。"
+              exit 1
+            }
+            trap on_exit EXIT
+
+            # ロールバック用に現行JARを退避
+            if [ -f "$APP_DIR/trainingapp.jar" ]; then
+              cp "$APP_DIR/trainingapp.jar" "$APP_DIR/trainingapp.jar.prev"
+            fi
+            sudo cp "$APP_DIR/trainingapp-migrate.service" /etc/systemd/system/trainingapp-migrate.service
             sudo systemctl daemon-reload
+
+            # 起動ループ中のアプリがCPUを奪わないよう、マイグレーション前に停止する
+            sudo systemctl stop trainingapp
+            cp "$APP_DIR"/TraningApp-*.jar "$APP_DIR/trainingapp.jar"
+
+            # 失敗時は set -e により on_exit へ遷移する
             sudo systemctl start trainingapp-migrate.service
+            MIGRATED=1
             # Type=oneshotは正常完了後 inactive(dead) になり、`systemctl status`はこの状態に
             # 対して非ゼロを返す仕様のため、ここは表示目的のみとしステップの成否には影響させない
             # （成否の判定は直前の `systemctl start` の終了コードで行う）。
             sudo systemctl status trainingapp-migrate.service --no-pager || true
 
-      # 6. サーバー上のアプリを再起動
+      # 6. サーバー上のアプリを起動し、ヘルスチェックが通るまで待つ
+      # 起動しない場合はジョブを失敗させる（以前はrestartの終了コードのみで判定しており、
+      # 起動後にクラッシュループしていても成功扱いになっていた）。
       - name: Restart Application Service
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_SSH_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
+          # ヘルスチェックの最大待機(300秒) + 再起動時間を見込む
+          command_timeout: 10m
           script: |
+            set -eu
             sudo systemctl set-environment SPRING_PROFILES_ACTIVE=gcp
             sudo systemctl restart trainingapp
+
+            # ログイン画面は未認証でも200を返すため、起動完了の判定に使う（ポートはSpring Bootデフォルトの8080）
+            HEALTH_URL=http://127.0.0.1:8080/login
+            DEADLINE=$(( $(date +%s) + 300 ))
+            while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+              code=$(curl -s -o /dev/null -m 5 -w '%{http_code}' "$HEALTH_URL" || true)
+              if [ "$code" = "200" ]; then
+                echo "ヘルスチェックOK: $HEALTH_URL"
+                exit 0
+              fi
+              sleep 5
+            done
+
+            echo "::error::アプリが300秒以内に起動しませんでした（最終ステータス: ${code:-none}）。"
+            sudo systemctl status trainingapp --no-pager || true
+            sudo journalctl -u trainingapp -n 80 --no-pager || true
+            exit 1
