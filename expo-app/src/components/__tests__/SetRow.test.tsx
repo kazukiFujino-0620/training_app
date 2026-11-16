@@ -68,6 +68,14 @@ describe('SetRow: RIR（余力）', () => {
     expect(screen.getByText('あと5回以上')).toBeTruthy();
   });
 
+  it('余力の表示は語の途中で折り返さないよう1行で出す（案A: セットの行の下に表示）', async () => {
+    await render(
+      <SetRow detail={{ ...baseDetail, completed: true, rir: 0 }} onUpdated={jest.fn()} />,
+    );
+
+    expect(screen.getByText('あと0回（限界）').props.numberOfLines).toBe(1);
+  });
+
   it('スキップすると何も保存せずに閉じ、未入力の表示になる', async () => {
     await render(<SetRow detail={baseDetail} onUpdated={jest.fn()} />);
 

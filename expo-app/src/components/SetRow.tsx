@@ -143,7 +143,7 @@ export default function SetRow({
   }
 
   return (
-    <View>
+    <View style={styles.container}>
       <View style={[styles.row, completedLocal && styles.rowDone]}>
         {/* セット番号 + タイプバッジ */}
         <View style={styles.setInfo}>
@@ -181,24 +181,6 @@ export default function SetRow({
           <Text style={styles.unit}>回</Text>
         </View>
 
-        {/* 機能見直し-1-#18: RIR（余力）。完了済みの本番セットのみ表示し、押すと選び直せる。
-            列の位置がそろうよう、表示しない行でも同じ幅の枠を確保する */}
-        <View style={styles.rirSlot}>
-          {completedLocal && isMainSet && (
-            <TouchableOpacity
-              onPress={() => setRirPicker(rirPicker ? null : 'edit')}
-              accessibilityLabel="余力を記録"
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-            >
-              {rirLocal != null ? (
-                <Text style={styles.rirText}>{formatRirLabel(rirLocal)}</Text>
-              ) : (
-                <Text style={styles.rirTextEmpty}>あと?回</Text>
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
-
         {/* 完了チェック */}
         <TouchableOpacity
           style={[styles.check, completedLocal && styles.checkDone]}
@@ -216,6 +198,25 @@ export default function SetRow({
           </TouchableOpacity>
         )}
       </View>
+
+      {/* 機能見直し-1-#18: RIR（余力）。完了済みの本番セットだけ、行の下に小さく1行で表示し、押すと選び直せる
+          （USER承認の仮画面 req18-layout 案A）。重量・回数の欄の幅を狭めないよう行の外に置き、
+          うすく表示される完了済みの行の影響も受けない。文言は折り返さない（numberOfLines=1） */}
+      {completedLocal && isMainSet && (
+        <View style={styles.rirLine}>
+          <TouchableOpacity
+            onPress={() => setRirPicker(rirPicker ? null : 'edit')}
+            accessibilityLabel="余力を記録"
+            hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+          >
+            {rirLocal != null ? (
+              <Text style={styles.rirText} numberOfLines={1}>{formatRirLabel(rirLocal)}</Text>
+            ) : (
+              <Text style={[styles.rirText, styles.rirTextEmpty]} numberOfLines={1}>あと?回</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* 機能見直し-1-#18: あと何回できたかの選択欄（任意）。完了でうすく表示される行の外に置く */}
       {rirPicker && completedLocal && isMainSet && (
@@ -254,13 +255,13 @@ export default function SetRow({
 }
 
 const styles = StyleSheet.create({
+  // 区切り線は行の下のRIR表示・選択欄まで含めた外側に引く（#18 案A）
+  container: { borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
     gap: 8,
   },
   rowDone: { opacity: 0.5 },
@@ -284,9 +285,13 @@ const styles = StyleSheet.create({
   checkDone: { backgroundColor: '#4CAF50', borderColor: '#4CAF50' },
   checkText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   deleteBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  rirSlot: { width: 60, alignItems: 'center' },
-  rirText: { fontSize: 12, color: '#2E7D32', fontWeight: '700' },
-  rirTextEmpty: { fontSize: 12, color: '#bbb' },
+  // セット番号の列（setInfo 48 + gap 8 + 左右余白4）の右、重量の欄の下にそろえる
+  rirLine: { flexDirection: 'row', paddingLeft: 60, marginTop: -4, paddingBottom: 8 },
+  rirText: {
+    fontSize: 11, color: '#2E7D32', fontWeight: '700',
+    textDecorationLine: 'underline', textDecorationStyle: 'dashed', textDecorationColor: '#2E7D32',
+  },
+  rirTextEmpty: { color: '#aaa', fontWeight: '400', textDecorationColor: '#bbb' },
   rirPicker: {
     paddingVertical: 8, paddingHorizontal: 8, backgroundColor: '#F1F8E9',
     borderRadius: 8, marginVertical: 4,
