@@ -408,35 +408,35 @@
 
                         <!-- 筋トレ種目: セットごとの重量×回数を表示 -->
                         <div class="space-y-1" th:if="${item.partCode != 'CARDIO'}">
-                          <div
-                            th:each="detail : ${item.details}"
-                            class="flex items-center gap-3 text-sm"
-                          >
-                            <span
-                              class="font-medium"
-                              th:text="${detail.setNumber} + 'セット目:'"
-                              >1セット目:</span
-                            >
-                            <span th:text="${detail.weight} + ' kg'">0 kg</span>
-                            <span>×</span>
-                            <span th:text="${detail.reps} + '回'">0回</span>
-                            <!-- 機能見直し-1-#18: RIR（余力）。本番セットで記録した場合のみ表示（0は「（限界）」付き、5は「5回以上」。管理者の詳細画面・モバイルと同じ表記） -->
-                            <span
-                              th:if="${detail.rir != null}"
-                              class="text-muted"
-                              th:text="${detail.rir == 0 ? 'あと0回（限界）' : (detail.rir == 5 ? 'あと5回以上' : 'あと' + detail.rir + '回')}"
-                              >あと2回</span
-                            >
+                          <div th:each="detail : ${item.details}">
+                            <div class="flex items-center gap-3 text-sm">
+                              <span
+                                class="font-medium"
+                                th:text="${detail.setNumber} + 'セット目:'"
+                                >1セット目:</span
+                              >
+                              <span th:text="${detail.weight} + ' kg'">0 kg</span>
+                              <span>×</span>
+                              <span th:text="${detail.reps} + '回'">0回</span>
 
-                            <span
-                              th:if="${detail.isCompleted}"
-                              class="text-success font-bold ml-2"
-                              >✓</span
-                            >
-                            <span
-                              th:if="${!detail.isCompleted}"
-                              class="text-muted ml-2"
-                              >○</span
+                              <span
+                                th:if="${detail.isCompleted}"
+                                class="text-success font-bold ml-2"
+                                >✓</span
+                              >
+                              <span
+                                th:if="${!detail.isCompleted}"
+                                class="text-muted ml-2"
+                                >○</span
+                              >
+                            </div>
+                            <!-- 機能見直し-1-#18: RIR（余力）。本番セットで記録した場合のみ表示（0は「（限界）」付き、5は「5回以上」。管理者の詳細画面・モバイルと同じ表記）。
+                                 セットの行に並べると狭い幅で行全体が折り返すため、モバイルの案Aと同じく行の下に1行で出す（18-14） -->
+                            <div
+                              th:if="${detail.rir != null}"
+                              class="set-rir text-muted"
+                              th:text="${detail.rir == 0 ? 'あと0回（限界）' : (detail.rir == 5 ? 'あと5回以上' : 'あと' + detail.rir + '回')}"
+                              >あと2回</div
                             >
                           </div>
                         </div>

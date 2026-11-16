@@ -300,6 +300,13 @@ body {
   justify-content: flex-start;
 }
 
+/* 機能見直し-1-#18（18-14）: セット行の下に出すRIR。語の途中で折り返さない */
+.summary-section .set-rir {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
 .summary-section .text-lg {
   font-size: 1.125rem;
   letter-spacing: 0.025em;
