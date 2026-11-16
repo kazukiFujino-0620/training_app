@@ -28,12 +28,13 @@ class InviteCodeServiceTest {
 
   @Mock private InviteCodeDao inviteCodeDao;
   @Mock private OrganizationScopeResolver organizationScopeResolver;
+  @Mock private OrganizationDao organizationDao;
 
   private InviteCodeService service;
 
   @BeforeEach
   void setUp() {
-    service = new InviteCodeService(inviteCodeDao, organizationScopeResolver);
+    service = new InviteCodeService(inviteCodeDao, organizationScopeResolver, organizationDao);
   }
 
   private User userWithRole(String role, Long organizationId) {
@@ -216,6 +217,7 @@ class InviteCodeServiceTest {
   void issue_用途を指定して保存される() {
     User orgAdmin = userWithRole("ROLE_ORG_ADMIN", 1L);
     when(organizationScopeResolver.canAccessOrganization(orgAdmin, 3L)).thenReturn(true);
+    when(organizationDao.selectById(3L)).thenReturn(Optional.of(org(3L, "STORE")));
 
     InviteCode result = service.issue(3L, InviteCodePurpose.TRAINER, null, 1, orgAdmin);
 
@@ -322,5 +324,95 @@ class InviteCodeServiceTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage(InviteCodeService.TRAINER_PURPOSE_MISMATCH_MESSAGE);
     verify(inviteCodeDao, never()).update(any(InviteCode.class));
+  }
+
+  // ── トレーナー用は店舗宛てだけ（itバグ-49） ──────────────────────────────────
+
+  private static Organization org(Long id, String type) {
+    Organization organization = new Organization();
+    organization.setId(id);
+    organization.setType(type);
+    return organization;
+  }
+
+  @Test
+  void issue_ADMINはトレーナー用を店舗宛てに発行できる() {
+    User admin = userWithRole("ROLE_ADMIN", 2L);
+    when(organizationScopeResolver.canAccessOrganization(admin, 3L)).thenReturn(true);
+    when(organizationDao.selectById(3L)).thenReturn(Optional.of(org(3L, "STORE")));
+
+    InviteCode result = service.issue(3L, InviteCodePurpose.TRAINER, null, null, admin);
+
+    assertThat(result.getOrganizationId()).isEqualTo(3L);
+    verify(inviteCodeDao).insert(result);
+  }
+
+  @Test
+  void issue_ADMINはトレーナー用を組織宛てには発行できない() {
+    User admin = userWithRole("ROLE_ADMIN", 2L);
+    when(organizationScopeResolver.canAccessOrganization(admin, 1L)).thenReturn(true);
+    when(organizationDao.selectById(1L)).thenReturn(Optional.of(org(1L, "GYM")));
+
+    assertThatThrownBy(() -> service.issue(1L, InviteCodePurpose.TRAINER, null, null, admin))
+        .isInstanceOf(InviteCodeIssueRejectedException.class)
+        .hasMessage("トレーナー用の招待コードは、店舗を選んで発行してください。");
+    verify(inviteCodeDao, never()).insert(any(InviteCode.class));
+  }
+
+  @Test
+  void issue_ORG_ADMINはトレーナー用を自組織の店舗宛てに発行できる() {
+    User orgAdmin = userWithRole("ROLE_ORG_ADMIN", 1L);
+    when(organizationScopeResolver.canAccessOrganization(orgAdmin, 3L)).thenReturn(true);
+    when(organizationDao.selectById(3L)).thenReturn(Optional.of(org(3L, "STORE")));
+
+    service.issue(3L, InviteCodePurpose.TRAINER, null, 1, orgAdmin);
+
+    verify(inviteCodeDao).insert(any(InviteCode.class));
+  }
+
+  @Test
+  void issue_ORG_ADMINはトレーナー用を自組織のジム宛てには発行できない() {
+    User orgAdmin = userWithRole("ROLE_ORG_ADMIN", 1L);
+    when(organizationScopeResolver.canAccessOrganization(orgAdmin, 1L)).thenReturn(true);
+    when(organizationDao.selectById(1L)).thenReturn(Optional.of(org(1L, "GYM")));
+
+    assertThatThrownBy(() -> service.issue(1L, InviteCodePurpose.TRAINER, null, 1, orgAdmin))
+        .isInstanceOf(InviteCodeIssueRejectedException.class)
+        .hasMessage(InviteCodeService.TRAINER_REQUIRES_STORE_MESSAGE);
+    verify(inviteCodeDao, never()).insert(any(InviteCode.class));
+  }
+
+  @Test
+  void issue_トレーナー用は存在しない組織宛てには発行できない() {
+    User admin = userWithRole("ROLE_ADMIN", 2L);
+    when(organizationScopeResolver.canAccessOrganization(admin, 999L)).thenReturn(true);
+    when(organizationDao.selectById(999L)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.issue(999L, InviteCodePurpose.TRAINER, null, null, admin))
+        .isInstanceOf(InviteCodeIssueRejectedException.class);
+    verify(inviteCodeDao, never()).insert(any(InviteCode.class));
+  }
+
+  @Test
+  void issue_ORG_ADMINは他組織の店舗宛てにはトレーナー用でも従来どおり権限エラー() {
+    User orgAdmin = userWithRole("ROLE_ORG_ADMIN", 1L);
+    when(organizationScopeResolver.canAccessOrganization(orgAdmin, 99L)).thenReturn(false);
+
+    assertThatThrownBy(() -> service.issue(99L, InviteCodePurpose.TRAINER, null, null, orgAdmin))
+        .isInstanceOf(ResponseStatusException.class);
+    verify(inviteCodeDao, never()).insert(any(InviteCode.class));
+  }
+
+  @Test
+  void issue_会員用は組織宛てにも店舗宛てにも従来どおり発行できる() {
+    User orgAdmin = userWithRole("ROLE_ORG_ADMIN", 1L);
+    when(organizationScopeResolver.canAccessOrganization(orgAdmin, 1L)).thenReturn(true);
+    when(organizationScopeResolver.canAccessOrganization(orgAdmin, 3L)).thenReturn(true);
+
+    service.issue(1L, InviteCodePurpose.MEMBER, null, null, orgAdmin);
+    service.issue(3L, InviteCodePurpose.MEMBER, null, null, orgAdmin);
+
+    verify(inviteCodeDao, org.mockito.Mockito.times(2)).insert(any(InviteCode.class));
+    verify(organizationDao, never()).selectById(any());
   }
 }

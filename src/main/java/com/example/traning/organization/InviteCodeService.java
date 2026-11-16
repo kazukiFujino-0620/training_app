@@ -19,6 +19,8 @@ import org.springframework.web.server.ResponseStatusException;
  *
  * <p>機能見直し-1-#15・itバグ-44: コードは用途（{@link InviteCodePurpose}）を持ち、会員の新規登録は会員用のみ、トレーナー登録は
  * トレーナー用のみ受け付ける。
+ *
+ * <p>itバグ-49: トレーナー用のコードは店舗（{@link OrganizationType#STORE}）宛てにしか発行できない。トレーナーは選んだ店舗の会員を担当するため。
  */
 @Service
 public class InviteCodeService {
@@ -28,12 +30,19 @@ public class InviteCodeService {
 
   private final InviteCodeDao inviteCodeDao;
   private final OrganizationScopeResolver organizationScopeResolver;
+  private final OrganizationDao organizationDao;
 
   public InviteCodeService(
-      InviteCodeDao inviteCodeDao, OrganizationScopeResolver organizationScopeResolver) {
+      InviteCodeDao inviteCodeDao,
+      OrganizationScopeResolver organizationScopeResolver,
+      OrganizationDao organizationDao) {
     this.inviteCodeDao = inviteCodeDao;
     this.organizationScopeResolver = organizationScopeResolver;
+    this.organizationDao = organizationDao;
   }
+
+  /** トレーナー用のコードを店舗以外（組織＝ジム等）宛てに発行しようとした場合の文言（itバグ-49）。 */
+  public static final String TRAINER_REQUIRES_STORE_MESSAGE = "トレーナー用の招待コードは、店舗を選んで発行してください。";
 
   public List<InviteCode> listForAdmin(User currentAdmin) {
     Role role = Role.fromValue(currentAdmin.getRole());
@@ -48,6 +57,10 @@ public class InviteCodeService {
     throw new ResponseStatusException(HttpStatus.FORBIDDEN, "この画面へのアクセス権限がありません");
   }
 
+  /**
+   * @throws ResponseStatusException 発行権限が無い・用途未指定・アクセスできない組織の場合
+   * @throws InviteCodeIssueRejectedException トレーナー用を店舗以外宛てに発行しようとした場合（itバグ-49）。コードは作らない
+   */
   @Transactional
   public InviteCode issue(
       Long organizationId,
@@ -64,6 +77,9 @@ public class InviteCodeService {
     }
     if (!organizationScopeResolver.canAccessOrganization(currentAdmin, organizationId)) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "自組織向けにのみ発行できます");
+    }
+    if (purpose == InviteCodePurpose.TRAINER && !isStore(organizationId)) {
+      throw new InviteCodeIssueRejectedException(TRAINER_REQUIRES_STORE_MESSAGE);
     }
     InviteCode inviteCode = new InviteCode();
     inviteCode.setCode(generateCode());
@@ -131,6 +147,13 @@ public class InviteCodeService {
     inviteCode.setUsedCount(inviteCode.getUsedCount() + 1);
     inviteCodeDao.update(inviteCode);
     return inviteCode;
+  }
+
+  private boolean isStore(Long organizationId) {
+    return organizationDao
+        .selectById(organizationId)
+        .map(org -> OrganizationType.STORE.name().equals(org.getType()))
+        .orElse(false);
   }
 
   /** 紛らわしい文字（0/O、1/I等）を避けた10桁のコードを生成する。 */
