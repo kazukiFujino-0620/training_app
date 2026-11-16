@@ -21,7 +21,7 @@
 			<lombok.version>1.18.46</lombok.version>
 			<!-- Maven プラグインの再現性確保のためバージョン固定 -->
 			<maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
-			<maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
+			<maven-surefire-plugin.version>3.6.1</maven-surefire-plugin.version>
 			<owasp-dependency-check.version>10.0.4</owasp-dependency-check.version>
 			<cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
 			<spotless.version>2.46.1</spotless.version>
