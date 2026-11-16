@@ -68,6 +68,14 @@ describe('SetRow: RIR（余力）', () => {
     expect(screen.getByText('あと5回以上')).toBeTruthy();
   });
 
+  it('余力の表示は語の途中で折り返さないよう1行で出す（案A: セットの行の下に表示）', async () => {
+    await render(
+      <SetRow detail={{ ...baseDetail, completed: true, rir: 0 }} onUpdated={jest.fn()} />,
+    );
+
+    expect(screen.getByText('あと0回（限界）').props.numberOfLines).toBe(1);
+  });
+
   it('スキップすると何も保存せずに閉じ、未入力の表示になる', async () => {
     await render(<SetRow detail={baseDetail} onUpdated={jest.fn()} />);
 
@@ -102,7 +110,9 @@ describe('SetRow: RIR（余力）', () => {
     );
 
     await fireEvent.press(screen.getByText('あと3回'));
-    expect(screen.getByText(PICKER_TITLE)).toBeTruthy();
+    // あとから開いたときは何セット目かを見出しに出す（承認済み仮画面 req18-edit-mockup）
+    expect(screen.getByText('1セット目: あと何回できましたか？')).toBeTruthy();
+    expect(screen.queryByText(PICKER_TITLE)).toBeNull();
     // 選び直しのときは「スキップ」ではなく「記録しない」
     expect(screen.queryByText('スキップ')).toBeNull();
 
@@ -119,7 +129,7 @@ describe('SetRow: RIR（余力）', () => {
     await fireEvent.press(screen.getByText('0'));
 
     await waitFor(() => expect(trainingApi.updateSetRir).toHaveBeenCalledWith(1, 0));
-    expect(screen.getByText('あと0回')).toBeTruthy();
+    expect(screen.getByText('あと0回（限界）')).toBeTruthy();
   });
 
   it('「記録しない」で未入力に戻す', async () => {
