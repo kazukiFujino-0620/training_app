@@ -7,6 +7,7 @@ import com.example.traning.user.User;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,15 +21,24 @@ public class UserService {
 
   private final UserDao userDao;
   private final TrainingDao trainingDao;
+  private final UserSessionInvalidator userSessionInvalidator;
 
   public List<User> findAll() {
     log.info("全ユーザー情報の取得を開始します。");
     return userDao.selectAll();
   }
 
+  /**
+   * ユーザー情報を更新する。役割が変わった場合は、そのユーザーのログイン状態（Webセッション・モバイルのトークン）を無効にし、 次の操作でログインし直してもらう（itバグ-48:
+   * 変更前の権限のまま使い続けられないようにする）。
+   */
   @Transactional
   public boolean updateUserInfo(User user) {
+    User before = userDao.selectById(user.getUserId());
     boolean result = userDao.update(user).getCount() > 0;
+    if (result && before != null && !Objects.equals(before.getRole(), user.getRole())) {
+      userSessionInvalidator.invalidateAll(before);
+    }
     return result;
   }
 

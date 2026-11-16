@@ -15,6 +15,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -118,7 +120,8 @@ public class SecurityConfig {
       PasswordEncoder passwordEncoder,
       RateLimitFilter rateLimitFilter,
       CustomAuthenticationSuccessHandler mfaSuccessHandler,
-      MfaPendingFilter mfaPendingFilter)
+      MfaPendingFilter mfaPendingFilter,
+      SessionRegistry sessionRegistry)
       throws Exception {
 
     // Spring Security 6.3+: 引数無しコンストラクタ + setUserDetailsService(...) は非推奨。
@@ -141,7 +144,21 @@ public class SecurityConfig {
                     .sessionFixation()
                     .changeSessionId()
                     // 同一ユーザーのセッションを1つに制限
-                    .maximumSessions(1))
+                    .maximumSessions(1)
+                    // itバグ-48: 役割の変更時に対象ユーザーのセッションを期限切れにするため、Bean として共有する
+                    .sessionRegistry(sessionRegistry)
+                    // 期限切れのセッションはログアウト処理（Remember-meクッキーの削除を含む）の後、
+                    // 未認証時と同じ応答にする（AJAX → 401、ブラウザ → /login リダイレクト）
+                    .expiredSessionStrategy(
+                        event -> {
+                          HttpServletResponse response = event.getResponse();
+                          if ("XMLHttpRequest"
+                              .equals(event.getRequest().getHeader("X-Requested-With"))) {
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                          } else {
+                            response.sendRedirect(LOGIN_PATH);
+                          }
+                        }))
 
         // ── 未認証時の応答（AJAX → 401、ブラウザ → /login リダイレクト） ──
         .exceptionHandling(
@@ -343,6 +360,12 @@ public class SecurityConfig {
     FilterRegistrationBean<MfaPendingFilter> reg = new FilterRegistrationBean<>(filter);
     reg.setEnabled(false);
     return reg;
+  }
+
+  /** ログイン中のセッションの一覧。セッション上限（maximumSessions）と、役割の変更時のセッション無効化 （UserSessionInvalidator）で共有する。 */
+  @Bean
+  public static SessionRegistry sessionRegistry() {
+    return new SessionRegistryImpl();
   }
 
   /** セッション上限（maximumSessions）を機能させるために必要 */
