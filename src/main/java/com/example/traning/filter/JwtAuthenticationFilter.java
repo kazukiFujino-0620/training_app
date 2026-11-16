@@ -1,6 +1,8 @@
 package com.example.traning.filter;
 
+import com.example.traning.dao.UserDao;
 import com.example.traning.mobile.service.JwtService;
+import com.example.traning.user.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -9,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,9 +22,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private final JwtService jwtService;
+  private final UserDao userDao;
 
-  public JwtAuthenticationFilter(JwtService jwtService) {
+  public JwtAuthenticationFilter(JwtService jwtService, UserDao userDao) {
     this.jwtService = jwtService;
+    this.userDao = userDao;
   }
 
   @Override
@@ -40,6 +45,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       Claims claims = jwtService.parseAccessToken(token);
       Long userId = Long.parseLong(claims.getSubject());
       String role = claims.get("role", String.class);
+
+      // itバグ-48: 役割の変更前に発行されたトークン（DBの役割と一致しないもの）は使えなくする。
+      // 401 を受けたアプリはリフレッシュを試みるが、役割の変更時にリフレッシュトークンも削除しているためログイン画面に戻る。
+      User user = userDao.selectById(userId.intValue());
+      if (user == null || !Objects.equals(user.getRole(), role)) {
+        sendUnauthorized(response, "Invalid or expired token");
+        return;
+      }
 
       List<SimpleGrantedAuthority> authorities =
           List.of(new SimpleGrantedAuthority("ROLE_" + role));

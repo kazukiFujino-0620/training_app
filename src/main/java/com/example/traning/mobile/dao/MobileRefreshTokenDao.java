@@ -33,7 +33,7 @@ public interface MobileRefreshTokenDao {
   @Delete(sqlFile = true)
   int deleteExpiredTokens(LocalDateTime now);
 
-  /** ユーザーの全デバイス分のリフレッシュトークンを削除する（退会承認時に使用）。 */
+  /** ユーザーの全デバイス分のリフレッシュトークンを削除する（退会承認時・役割の変更時に使用）。 */
   @Delete(sqlFile = true)
   int deleteByUserId(Long userId);
 
