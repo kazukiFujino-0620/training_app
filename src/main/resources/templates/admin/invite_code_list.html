@@ -20,6 +20,9 @@
         .invite-purpose-option { display: inline-flex; gap: 4px; align-items: center; margin-right: 1.25rem; white-space: nowrap; }
         .invite-purpose-warn { font-size: 0.8rem; color: var(--text-secondary); background: var(--bg-tertiary); border-left: 3px solid var(--warning-color); border-radius: 4px; padding: 0.4rem 0.6rem; margin-top: 0.4rem; line-height: 1.7; }
         .nowrap { white-space: nowrap; }
+        /* itバグ-49: トレーナー用を選んだときだけ出す説明。横並びのときは入力欄の行の下（割り当て先の真下）、縦並びのときは割り当て先の直後に出す */
+        .invite-org-help { flex-basis: 100%; order: 1; font-size: 0.8rem; color: var(--text-secondary); margin: -0.5rem 0 0; }
+        @media (max-width: 600px) { .invite-org-help { order: 0; } }
     </style>
 </head>
 <body class="bg-secondary">
@@ -62,11 +65,14 @@
                         </fieldset>
                         <div>
                             <label class="text-sm text-secondary">割り当て先組織</label>
-                            <select name="organizationId" required class="form-control">
+                            <select id="invite-organization" name="organizationId" required class="form-control">
                                 <option th:each="org : ${organizations}" th:value="${org.id}"
+                                        th:attr="data-org-type=${org.type}"
                                         th:text="${org.name} + (${org.type == 'STORE'} ? '（店舗）' : '（組織）')"></option>
                             </select>
                         </div>
+                        <!-- itバグ-49: トレーナー用は店舗宛てだけ（切り替えは/js/invite-code-form.js）。入力欄の幅を変えないよう別の行に出す -->
+                        <p id="invite-organization-help" class="invite-org-help" hidden><span class="nowrap">トレーナー用は店舗だけを選べます。</span><span class="nowrap">トレーナーは選んだ店舗の会員を担当します。</span></p>
                         <div>
                             <label class="text-sm text-secondary">有効期限（任意）</label>
                             <input type="date" name="expiresAt" class="form-control">
@@ -128,5 +134,6 @@
 
     <footer th:replace="~{common :: footerFragment}"></footer>
     <script th:src="@{/js/theme.js}"></script>
+    <script th:src="@{/js/invite-code-form.js}"></script>
 </body>
 </html>

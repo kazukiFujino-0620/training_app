@@ -3,6 +3,7 @@ package com.example.traning.organization;
 import com.example.traning.audit.AuditLog;
 import com.example.traning.user.User;
 import com.example.traning.user.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -14,12 +15,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.servlet.support.RequestContextUtils;
 
 /**
  * 招待コードの発行・一覧・失効画面（ita1-1 未実施分）。
@@ -95,6 +98,17 @@ public class AdminInviteCodeController {
         maxUses,
         getCurrentAdminUser());
     redirectAttributes.addFlashAttribute("successMessage", "招待コードを発行しました。");
+    return "redirect:/admin/invite-codes";
+  }
+
+  /**
+   * itバグ-49: トレーナー用を店舗以外宛てに送られた場合（画面を経由しない操作など）。コードは発行せず、一覧画面のエラー表示に出す。
+   * 例外のまま発行メソッドを抜けるため、発行の監査ログも残らない。
+   */
+  @ExceptionHandler(InviteCodeIssueRejectedException.class)
+  public String handleIssueRejected(
+      InviteCodeIssueRejectedException e, HttpServletRequest request) {
+    RequestContextUtils.getOutputFlashMap(request).put("errorMessage", e.getMessage());
     return "redirect:/admin/invite-codes";
   }
 
