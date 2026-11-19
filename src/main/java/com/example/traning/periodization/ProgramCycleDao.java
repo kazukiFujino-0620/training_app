@@ -19,6 +19,10 @@ public interface ProgramCycleDao {
   @Select
   Optional<ProgramCycle> selectActiveByUserId(Long userId);
 
+  /** 複数の会員のACTIVEなサイクル（機能見直し-1-#12 担当会員の一覧）。同じ会員に複数ある場合はidの大きいほうを使う。 */
+  @Select
+  List<ProgramCycle> selectActiveByUserIds(List<Long> userIds);
+
   @Select
   Optional<ProgramCycle> selectById(Long id);
 
@@ -32,6 +36,10 @@ public interface ProgramCycleDao {
 
   @Select
   List<ProgramCycleWeek> selectWeeksByCycleId(Long cycleId);
+
+  /** 複数のサイクルの週（機能見直し-1-#12 担当会員の一覧のデロード週の判定）。 */
+  @Select
+  List<ProgramCycleWeek> selectWeeksByCycleIds(List<Long> cycleIds);
 
   @Select
   List<ProgramCycleDayTemplate> selectDayTemplatesByCycleId(Long cycleId);

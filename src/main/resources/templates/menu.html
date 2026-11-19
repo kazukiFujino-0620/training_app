@@ -130,6 +130,12 @@
         margin-bottom: 0.4rem;
         letter-spacing: 0.03em;
       }
+      /* 機能見直し-1-#12: 「担当会員の一覧」ボタンの「フォロー推奨 N人」 */
+      .follow-count-badge {
+        display: inline-block; background: #fef3c7; color: #92400e; border-radius: 999px;
+        font-size: 0.72rem; font-weight: 700; padding: 0 7px; margin-left: 6px; white-space: nowrap;
+      }
+      [data-theme="dark"] .follow-count-badge { background: #78350f; color: #fde68a; }
     </style>
   </head>
   <body class="bg-secondary">
@@ -918,6 +924,11 @@
             </div>
             <div class="card-body">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 機能見直し-1-#12: 担当会員の一覧。人数は自分の担当でフォロー推奨が付いている人数（0人のときは出さない） -->
+                <a th:href="@{/trainer/members}" class="btn btn-outline w-full">
+                  担当会員の一覧<span th:if="${followRecommendedCount > 0}" class="follow-count-badge"
+                    th:text="|フォロー推奨 ${followRecommendedCount}人|">フォロー推奨 3人</span>
+                </a>
                 <a th:href="@{/admin/all-users-training}" class="btn btn-outline w-full">
                   会員のトレーニング確認
                 </a>
@@ -953,6 +964,24 @@
             </div>
             <div class="card-body">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 機能見直し-1-#12: 担当会員の一覧（自分の担当・店舗全体）。人数は自分の担当でフォロー推奨が付いている人数 -->
+                <a th:href="@{/trainer/members}" class="btn btn-outline w-full">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="inline mr-2"
+                  >
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  担当会員の一覧<span th:if="${followRecommendedCount > 0}" class="follow-count-badge"
+                    th:text="|フォロー推奨 ${followRecommendedCount}人|">フォロー推奨 3人</span>
+                </a>
                 <a
                   th:href="@{/admin/all-users-training}"
                   class="btn btn-outline w-full"

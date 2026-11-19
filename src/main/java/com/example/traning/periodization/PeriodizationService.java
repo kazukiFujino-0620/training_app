@@ -94,6 +94,39 @@ public class PeriodizationService {
   }
 
   /**
+   * 今日がデロード週にあたる会員（機能見直し-1-#12 担当会員の一覧。デロード週の会員はフォロー推奨を判定しない）。 {@link
+   * #getTodayAssignment}と同じく、ACTIVEなサイクル（会員ごとにidの大きいもの）の今日の週番号の週で判定する。
+   * 期間を過ぎたサイクルの完了処理はここでは行わない（会員が画面を開いたときに行う）。
+   */
+  @Transactional(readOnly = true)
+  public Set<Long> findMembersInDeloadWeek(java.util.Collection<Long> userIds, LocalDate today) {
+    if (userIds.isEmpty()) return Set.of();
+    Map<Long, ProgramCycle> activeByUser = new HashMap<>();
+    for (ProgramCycle c : programCycleDao.selectActiveByUserIds(List.copyOf(userIds))) {
+      activeByUser.merge(c.getUserId(), c, (a, b) -> a.getId() > b.getId() ? a : b);
+    }
+    Map<Long, Integer> weekNumberByCycle = new HashMap<>();
+    Map<Long, Long> userByCycle = new HashMap<>();
+    for (ProgramCycle c : activeByUser.values()) {
+      if (c.getStartDate().isAfter(today)) continue;
+      int weekNumber = weekNumberOf(c, today);
+      if (weekNumber > c.getTotalWeeks()) continue;
+      weekNumberByCycle.put(c.getId(), weekNumber);
+      userByCycle.put(c.getId(), c.getUserId());
+    }
+    if (weekNumberByCycle.isEmpty()) return Set.of();
+    Set<Long> result = new java.util.HashSet<>();
+    for (ProgramCycleWeek w :
+        programCycleDao.selectWeeksByCycleIds(List.copyOf(weekNumberByCycle.keySet()))) {
+      if (Boolean.TRUE.equals(w.getDeload())
+          && w.getWeekNumber().equals(weekNumberByCycle.get(w.getCycleId()))) {
+        result.add(userByCycle.get(w.getCycleId()));
+      }
+    }
+    return result;
+  }
+
+  /**
    * 当日の割当（設計書3-1節）。 total_weeksを超えていたらサイクルをCOMPLETEDにし、次サイクルは自動作成せず cycleCompleted=trueを返す（QA
    * Q3-7）。
    */

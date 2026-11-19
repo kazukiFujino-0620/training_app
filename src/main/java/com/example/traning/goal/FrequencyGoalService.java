@@ -6,12 +6,17 @@ import com.example.traning.periodization.ProgramCycle;
 import com.example.traning.periodization.ProgramCycleDao;
 import com.example.traning.periodization.ProgramCycleDayTemplate;
 import com.example.traning.training.dao.TrainingDao;
+import com.example.traning.training.dao.UserTrainingDate;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +42,12 @@ public class FrequencyGoalService {
   public static final int MIN_TARGET = 1;
   public static final int MAX_TARGET = 7;
 
+  /** 達成率の計算で見る確定目標の行数（目標なしの週・設定した週を飛ばすため多めに取る）。 */
+  static final int WEEK_TARGET_LOOKBACK = 60;
+
+  /** 担当会員の一覧（機能見直し-1-#12）で返す、直近の終わった週の数。 */
+  public static final int LAST_COMPLETED_WEEKS = 2;
+
   private final FrequencyGoalDao frequencyGoalDao;
   private final TrainingDao trainingDao;
   private final ProgramCycleDao programCycleDao;
@@ -54,27 +65,126 @@ public class FrequencyGoalService {
 
     // 今週1行＋評価対象の過去週。目標なしの週・設定した週を飛ばすため多めに取る
     List<UserFrequencyWeekTarget> rows =
-        frequencyGoalDao.selectWeekTargetsUntil(userId, thisMonday, 60);
+        frequencyGoalDao.selectWeekTargetsUntil(userId, thisMonday, WEEK_TARGET_LOOKBACK);
+    if (!hasThisWeekTarget(rows, thisMonday)) {
+      return summarize(rows, Set.of(), today, manualTarget, programActive);
+    }
+    LocalDate from = trainedDatesFrom(rows, thisMonday);
+    Set<LocalDate> trainedDates =
+        new HashSet<>(
+            trainingDao.selectDistinctTrainingDatesByUserIdAndDateRange(userId, from, today));
+    return summarize(rows, trainedDates, today, manualTarget, programActive);
+  }
+
+  private static boolean hasThisWeekTarget(
+      List<UserFrequencyWeekTarget> rows, LocalDate thisMonday) {
+    return rows.stream()
+        .anyMatch(
+            r ->
+                r.getWeekStartDate().equals(thisMonday)
+                    && !WeekTargetSource.NONE.name().equals(r.getSource()));
+  }
+
+  /**
+   * スタッフ向けの担当会員の一覧（機能見直し-1-#12）用に、複数の会員の表示データと直近の終わった週の結果をまとめて求める。 {@link
+   * #getSummary}と同じ計算で、会員ごとのSQLは未確定の週がある会員の確定処理だけにする。
+   *
+   * @return 会員IDごとの状況（全員分。目標が無い会員は{@code summary.goalSet()=false}）
+   */
+  @Transactional
+  public Map<Long, MemberGoalStatus> getStatusesForMembers(
+      Collection<Long> memberIds, LocalDate today) {
+    if (memberIds.isEmpty()) return Map.of();
+    List<Long> ids = memberIds.stream().distinct().sorted().toList();
+    LocalDate thisMonday = weekStartOf(today);
+    LocalDate windowFrom = thisMonday.minusWeeks(WEEK_TARGET_LOOKBACK - 1L);
+
+    Map<Long, Integer> manualTargets = new HashMap<>();
+    for (UserFrequencyGoal g : frequencyGoalDao.selectGoalsByUserIds(ids)) {
+      manualTargets.put(g.getUserId(), g.getWeeklyTargetCount());
+    }
+    Set<Long> programActive = new HashSet<>();
+    for (ProgramCycle c : programCycleDao.selectActiveByUserIds(ids)) {
+      if (!c.getStartDate().isAfter(today) && withinCycle(c, today)) {
+        programActive.add(c.getUserId());
+      }
+    }
+    Map<Long, List<UserFrequencyWeekTarget>> rowsByUser =
+        groupByUser(
+            frequencyGoalDao.selectWeekTargetsByUserIdsBetween(ids, windowFrom, thisMonday));
+
+    // 今週分まで確定していない会員だけ、getSummaryと同じ確定処理を行う（ID順にロックしてデッドロックを避ける）
+    List<Long> stale = new ArrayList<>();
+    for (Long id : ids) {
+      List<UserFrequencyWeekTarget> rows = rowsByUser.getOrDefault(id, List.of());
+      boolean tracked = !rows.isEmpty();
+      boolean current = tracked && !rows.get(0).getWeekStartDate().isBefore(thisMonday);
+      if (!current && (tracked || manualTargets.containsKey(id) || programActive.contains(id))) {
+        stale.add(id);
+      }
+    }
+    for (Long id : stale) {
+      frequencyGoalDao.lockUserForWeekTargets(id);
+      ensureWeekTargets(id, today, frequencyGoalDao.selectGoalByUserId(id));
+    }
+    if (!stale.isEmpty()) {
+      rowsByUser.putAll(
+          groupByUser(
+              frequencyGoalDao.selectWeekTargetsByUserIdsBetween(stale, windowFrom, thisMonday)));
+    }
+
+    LocalDate from = thisMonday.minusWeeks(LAST_COMPLETED_WEEKS);
+    for (List<UserFrequencyWeekTarget> rows : rowsByUser.values()) {
+      LocalDate f = trainedDatesFrom(rows, thisMonday);
+      if (f.isBefore(from)) from = f;
+    }
+    Map<Long, Set<LocalDate>> datesByUser = new HashMap<>();
+    for (UserTrainingDate d :
+        trainingDao.selectDistinctTrainingDatesByUserIdsAndDateRange(ids, from, today)) {
+      datesByUser.computeIfAbsent(d.getUserId(), k -> new HashSet<>()).add(d.getTrainingDate());
+    }
+
+    Map<Long, MemberGoalStatus> result = new HashMap<>();
+    for (Long id : ids) {
+      List<UserFrequencyWeekTarget> rows = rowsByUser.getOrDefault(id, List.of());
+      Set<LocalDate> dates = datesByUser.getOrDefault(id, Set.of());
+      FrequencyGoalSummary summary =
+          summarize(rows, dates, today, manualTargets.get(id), programActive.contains(id));
+      List<WeekResult> lastWeeks = new ArrayList<>();
+      for (int i = LAST_COMPLETED_WEEKS; i >= 1; i--) {
+        LocalDate weekStart = thisMonday.minusWeeks(i);
+        rows.stream()
+            .filter(r -> r.getWeekStartDate().equals(weekStart))
+            .findFirst()
+            .ifPresent(
+                r ->
+                    lastWeeks.add(
+                        new WeekResult(
+                            weekStart,
+                            r.getTargetCount() == null ? 0 : r.getTargetCount(),
+                            countDays(dates, weekStart, weekStart.plusDays(6)),
+                            Boolean.TRUE.equals(r.getEvaluated()))));
+      }
+      result.put(id, new MemberGoalStatus(summary, lastWeeks));
+    }
+    return result;
+  }
+
+  /** 確定目標の行（新しい週から順）と実施日から表示データを作る。getSummaryと担当会員の一覧で共通。 */
+  static FrequencyGoalSummary summarize(
+      List<UserFrequencyWeekTarget> rows,
+      Set<LocalDate> trainedDates,
+      LocalDate today,
+      Integer manualTarget,
+      boolean programActive) {
+    LocalDate thisMonday = weekStartOf(today);
     UserFrequencyWeekTarget thisWeek =
         rows.stream().filter(r -> r.getWeekStartDate().equals(thisMonday)).findFirst().orElse(null);
     if (thisWeek == null || (WeekTargetSource.NONE.name().equals(thisWeek.getSource()))) {
       return new FrequencyGoalSummary(false, null, 0, false, 0, 0, manualTarget, programActive);
     }
 
-    List<UserFrequencyWeekTarget> evaluated =
-        rows.stream()
-            .filter(r -> r.getWeekStartDate().isBefore(thisMonday))
-            .filter(r -> Boolean.TRUE.equals(r.getEvaluated()))
-            .filter(r -> r.getTargetCount() != null && r.getTargetCount() > 0)
-            .limit(FrequencyGoalSummary.EVALUATION_WEEKS)
-            .toList();
-
-    LocalDate from =
-        evaluated.isEmpty() ? thisMonday : evaluated.get(evaluated.size() - 1).getWeekStartDate();
-    Set<LocalDate> trainedDates =
-        new HashSet<>(
-            trainingDao.selectDistinctTrainingDatesByUserIdAndDateRange(userId, from, today));
-
+    List<UserFrequencyWeekTarget> evaluated = evaluatedWeeks(rows, thisMonday);
     int achieved = 0;
     for (UserFrequencyWeekTarget w : evaluated) {
       if (isAchieved(trainedDates, w.getWeekStartDate(), w.getTargetCount())) achieved++;
@@ -91,6 +201,40 @@ public class FrequencyGoalService {
         achieved,
         manualTarget,
         programActive);
+  }
+
+  /** 達成率の計算に使う終わった週（新しい週から最大{@link FrequencyGoalSummary#EVALUATION_WEEKS}週）。 */
+  private static List<UserFrequencyWeekTarget> evaluatedWeeks(
+      List<UserFrequencyWeekTarget> rows, LocalDate thisMonday) {
+    return rows.stream()
+        .filter(r -> r.getWeekStartDate().isBefore(thisMonday))
+        .filter(r -> Boolean.TRUE.equals(r.getEvaluated()))
+        .filter(r -> r.getTargetCount() != null && r.getTargetCount() > 0)
+        .limit(FrequencyGoalSummary.EVALUATION_WEEKS)
+        .toList();
+  }
+
+  /** 達成率の計算に実施日が必要な最初の日。 */
+  private static LocalDate trainedDatesFrom(
+      List<UserFrequencyWeekTarget> rows, LocalDate thisMonday) {
+    List<UserFrequencyWeekTarget> evaluated = evaluatedWeeks(rows, thisMonday);
+    return evaluated.isEmpty()
+        ? thisMonday
+        : evaluated.get(evaluated.size() - 1).getWeekStartDate();
+  }
+
+  private static Map<Long, List<UserFrequencyWeekTarget>> groupByUser(
+      List<UserFrequencyWeekTarget> rows) {
+    Map<Long, List<UserFrequencyWeekTarget>> map = new HashMap<>();
+    for (UserFrequencyWeekTarget r : rows) {
+      map.computeIfAbsent(r.getUserId(), k -> new ArrayList<>()).add(r);
+    }
+    // 新しい週から順（selectWeekTargetsUntilと同じ並び）
+    map.values()
+        .forEach(
+            l ->
+                l.sort(Comparator.comparing(UserFrequencyWeekTarget::getWeekStartDate).reversed()));
+    return map;
   }
 
   /**
@@ -276,6 +420,23 @@ public class FrequencyGoalService {
   public static LocalDate weekStartOf(LocalDate date) {
     return date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
   }
+
+  /**
+   * 担当会員の一覧（機能見直し-1-#12）用の会員ごとの状況。
+   *
+   * @param lastCompletedWeeks 直近の終わった週（古い週から順。確定目標の行が無い週は含まない）
+   */
+  public record MemberGoalStatus(
+      FrequencyGoalSummary summary, List<WeekResult> lastCompletedWeeks) {}
+
+  /**
+   * 終わった週1週分の結果。
+   *
+   * @param target その週の確定目標（0は目標なし）
+   * @param doneDays 実施日数
+   * @param evaluated 達成率の計算に含める週か（目標を設定した週はfalse）
+   */
+  public record WeekResult(LocalDate weekStart, int target, int doneDays, boolean evaluated) {}
 
   record WeekTarget(int count, WeekTargetSource source, Long programCycleId) {}
 

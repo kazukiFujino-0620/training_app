@@ -121,6 +121,40 @@ class PeriodizationServiceTest {
         .insertDayTemplate(any(ProgramCycleDayTemplate.class));
   }
 
+  // ===================== 担当会員の一覧のデロード週（機能見直し-1-#12） =====================
+
+  @Test
+  void デロード週の会員は今日の週番号の週がデロードの会員だけ() {
+    ProgramCycle deloadNow = memberCycle(1L, 11L, START, 4); // 4週目がデロード。今日は4週目
+    ProgramCycle notYet = memberCycle(2L, 12L, START.plusWeeks(1), 4); // 今日は3週目
+    ProgramCycle ended = memberCycle(3L, 13L, START.minusWeeks(4), 4); // 期間を過ぎた
+    when(programCycleDao.selectActiveByUserIds(any()))
+        .thenReturn(List.of(deloadNow, notYet, ended));
+    when(programCycleDao.selectWeeksByCycleIds(any()))
+        .thenReturn(List.of(week(1L, 4, true), week(2L, 3, false), week(2L, 4, true)));
+
+    LocalDate today = START.plusWeeks(3).plusDays(2);
+    assertThat(service.findMembersInDeloadWeek(List.of(11L, 12L, 13L), today)).containsExactly(11L);
+  }
+
+  private static ProgramCycle memberCycle(Long id, Long userId, LocalDate start, int weeks) {
+    ProgramCycle c = new ProgramCycle();
+    c.setId(id);
+    c.setUserId(userId);
+    c.setStartDate(start);
+    c.setTotalWeeks(weeks);
+    c.setStatus("ACTIVE");
+    return c;
+  }
+
+  private static ProgramCycleWeek week(Long cycleId, int number, boolean deload) {
+    ProgramCycleWeek w = new ProgramCycleWeek();
+    w.setCycleId(cycleId);
+    w.setWeekNumber(number);
+    w.setDeload(deload);
+    return w;
+  }
+
   @Test
   void adoptPreset_既存ACTIVEを退避しプリセット構成と基準1RMをコピーする() {
     when(presetProgramDao.selectById(7L)).thenReturn(Optional.of(preset(0L)));

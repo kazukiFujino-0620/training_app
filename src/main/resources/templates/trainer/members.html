@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ja"
+      xmlns:th="http://www.thymeleaf.org"
+      th:with="theme=${session.theme ?: 'light'}"
+      th:attr="data-theme=${theme}">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>担当会員の一覧 - トレーニング管理システム</title>
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <link rel="stylesheet" th:href="@{/css/main.css}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    /* 機能見直し-1-#12 担当会員の一覧（USER承認済みの仮画面どおり） */
+    .members-page { max-width: 1080px; margin: 0 auto; padding: 24px 16px; }
+    .members-sub { color: var(--text-muted); font-size: 0.8rem; margin: 4px 0 16px; }
+    .members-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 12px; }
+    .members-bar .bar-label { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
+    .pill-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pill-tabs a {
+      font-size: 0.78rem; padding: 2px 11px; border-radius: 999px; border: 1px solid var(--border-color);
+      color: var(--text-secondary); background: var(--bg-card); white-space: nowrap; text-decoration: none;
+    }
+    .pill-tabs a.on { background: var(--text-primary); color: var(--bg-card); border-color: var(--text-primary); }
+    .scope-form { display: flex; align-items: center; gap: 6px; margin: 0; }
+    .scope-form select { font-size: 0.8rem; padding: 2px 8px; border-radius: 6px; max-width: 100%; }
+    .members-table-wrap { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); }
+    table.members-table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 0.82rem; }
+    table.members-table th, table.members-table td {
+      padding: 8px 10px; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: top; color: var(--text-primary);
+    }
+    table.members-table tr:last-child td { border-bottom: none; }
+    table.members-table th { background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.75rem; white-space: nowrap; }
+    .member-name { color: var(--primary-color); font-weight: 700; text-decoration: none; }
+    .nw { white-space: nowrap; }
+    .flag { display: inline-block; background: #fef3c7; color: #92400e; border-radius: 4px; font-size: 0.72rem; font-weight: 700; padding: 0 6px; }
+    .why { display: block; font-size: 0.72rem; color: #92400e; }
+    .done { display: block; font-size: 0.72rem; color: var(--text-muted); }
+    .muted { color: var(--text-muted); }
+    .unassigned { color: #b45309; }
+    .deload-badge { display: inline-block; background: #e0e7ff; color: #3730a3; border-radius: 4px; font-size: 0.7rem; font-weight: 700; padding: 0 5px; margin-left: 4px; }
+    .ack-form { margin: 3px 0 0; }
+    .ack-form button {
+      font-size: 0.75rem; border-radius: 6px; padding: 1px 9px; border: 1px solid var(--primary-color);
+      color: var(--primary-color); background: var(--bg-card); white-space: nowrap; cursor: pointer;
+    }
+    .members-empty { text-align: center; color: var(--text-muted); padding: 32px 16px; font-size: 0.88rem; }
+    [data-theme="dark"] .flag { background: #78350f; color: #fde68a; }
+    [data-theme="dark"] .why { color: #fcd34d; }
+    [data-theme="dark"] .unassigned { color: #fbbf24; }
+    [data-theme="dark"] .deload-badge { background: #312e81; color: #c7d2fe; }
+  </style>
+</head>
+<body class="bg-secondary">
+  <header th:replace="~{common :: headerFragment}"></header>
+
+  <main class="members-page">
+    <h1 style="color:var(--text-primary);font-size:1.5rem;font-weight:700;margin:0;">担当会員の一覧</h1>
+    <p class="members-sub">フォロー推奨の印と理由はスタッフにだけ表示され、会員には見えません。印の条件は暫定値です。</p>
+
+    <div th:if="${successMessage}" class="alert alert-success mb-4" th:text="${successMessage}"></div>
+    <div th:replace="~{common :: errorMessageFragment}"></div>
+
+    <div class="members-bar">
+      <div class="pill-tabs" th:if="${view.tabs().size() > 1}">
+        <a th:each="t : ${view.tabs()}"
+           th:href="${view.url(t, view.sort())}"
+           th:classappend="${t == view.tab()} ? 'on'"
+           th:text="${t.name() == 'MINE'} ? '自分の担当' : '店舗全体'">自分の担当</a>
+      </div>
+      <form th:if="${view.storeTab()}" class="scope-form" th:action="@{/trainer/members}" method="get">
+        <input type="hidden" name="tab" value="store"/>
+        <input type="hidden" name="sort" th:value="${#strings.toLowerCase(view.sort().name())}"/>
+        <select name="scope" class="form-control" aria-label="店舗" data-auto-submit>
+          <option th:each="o : ${view.scopeOptions()}"
+                  th:value="${o.value()}"
+                  th:text="${o.label()}"
+                  th:selected="${o.value() == view.selectedScope()}">渋谷店</option>
+        </select>
+        <button type="submit" class="btn btn-sm btn-outline" data-scope-submit>表示</button>
+      </form>
+      <span class="bar-label">並べ替え</span>
+      <div class="pill-tabs">
+        <a th:each="s : ${view.sorts()}"
+           th:href="${view.url(view.tab(), s)}"
+           th:classappend="${s == view.sort()} ? 'on'"
+           th:text="${s.label()}">フォロー推奨が先</a>
+      </div>
+    </div>
+
+    <div class="members-table-wrap">
+      <table class="members-table" th:unless="${#lists.isEmpty(view.rows())}">
+        <thead>
+          <tr>
+            <th>会員</th>
+            <th th:if="${view.storeTab()}">担当</th>
+            <th>週の目標と達成率</th>
+            <th th:unless="${view.storeTab()}">今週</th>
+            <th>最後のトレーニング</th>
+            <th>フォロー推奨</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="r : ${view.rows()}">
+            <td>
+              <a class="member-name nw"
+                 th:href="@{/admin/user/training-detail/{id}(id=${r.memberId()})}"
+                 th:text="${r.name()}">佐藤 花子</a>
+            </td>
+            <td th:if="${view.storeTab()}">
+              <span th:if="${r.trainerName() != null}" class="nw" th:text="${r.trainerName()}">山本 健</span>
+              <span th:if="${r.trainerName() == null}" class="unassigned">未割当</span>
+            </td>
+            <td>
+              <th:block th:if="${r.resultLabel() == null}">目標なし</th:block>
+              <th:block th:if="${r.resultLabel() != null}">
+                <span class="nw" th:text="${r.goalLabel()}">週3回</span><span th:if="${r.deloadWeek()}" class="deload-badge">デロード週</span><th:block
+                  th:if="${!r.goalOnTwoLines()}">／<span class="nw"
+                  th:text="${view.storeTab()} ? ${r.resultShortLabel()} : ${r.resultLabel()}">直近4週 1/4（25%）</span></th:block><th:block
+                  th:if="${r.goalOnTwoLines()}"><br/><span class="nw"
+                  th:text="${view.storeTab()} ? ${r.resultShortLabel()} : ${r.resultLabel()}">直近4週 3/4（75%）</span></th:block>
+              </th:block>
+            </td>
+            <td th:unless="${view.storeTab()}" class="nw" th:text="${r.thisWeekLabel()}">0/3回</td>
+            <td class="nw">
+              <th:block th:if="${r.lastTrainingDate() == null}">まだ記録がありません</th:block>
+              <th:block th:if="${r.lastTrainingDate() != null}">
+                <span th:text="${#temporals.format(r.lastTrainingDate(), 'MM/dd')}">11/01</span><span
+                  th:text="${r.daysSinceLastTraining() == 0} ? '（今日）' : '（' + ${r.daysSinceLastTraining()} + '日前）'">（18日前）</span>
+              </th:block>
+            </td>
+            <td>
+              <th:block th:switch="${r.follow().state().name()}">
+                <th:block th:case="'FLAGGED'">
+                  <span class="flag">フォロー推奨</span>
+                  <span th:each="reason : ${r.follow().reasons()}" class="why" th:text="${reason}">最後の記録から18日</span>
+                  <span th:if="${r.follow().acknowledgementLabel() != null}" class="done"
+                        th:text="${r.follow().acknowledgementLabel()}">前回: 対応済み 11/15 山本</span>
+                  <form th:if="${r.canAcknowledge()}" class="ack-form" method="post"
+                        th:action="@{/trainer/members/{id}/acknowledge(id=${r.memberId()})}">
+                    <input type="hidden" name="tab" th:value="${#strings.toLowerCase(view.tab().name())}"/>
+                    <input type="hidden" name="scope" th:if="${view.selectedScope() != null}" th:value="${view.selectedScope()}"/>
+                    <input type="hidden" name="sort" th:value="${#strings.toLowerCase(view.sort().name())}"/>
+                    <button type="submit">対応済みにする</button>
+                  </form>
+                </th:block>
+                <span th:case="'ACKNOWLEDGED'" class="done" th:text="${r.follow().acknowledgementLabel()}">対応済み（11/15 山本）</span>
+                <span th:case="'NOT_EVALUATED_DELOAD'" class="muted">—（デロード週のため判定しない）</span>
+                <span th:case="*" class="muted">—</span>
+              </th:block>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div th:if="${#lists.isEmpty(view.rows())}" class="members-empty"
+           th:text="${view.storeTab()} ? 'この店舗の会員はいません' : '担当の会員はいません'">担当の会員はいません</div>
+    </div>
+  </main>
+
+  <footer th:replace="~{common :: footerFragment}"></footer>
+  <script th:src="@{/js/trainer-members.js}"></script>
+</body>
+</html>

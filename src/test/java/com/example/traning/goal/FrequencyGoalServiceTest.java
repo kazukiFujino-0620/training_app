@@ -7,14 +7,18 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 
+import com.example.traning.goal.FrequencyGoalService.MemberGoalStatus;
+import com.example.traning.goal.FrequencyGoalService.WeekResult;
 import com.example.traning.periodization.ProgramCycle;
 import com.example.traning.periodization.ProgramCycleDao;
 import com.example.traning.periodization.ProgramCycleDayTemplate;
 import com.example.traning.training.dao.TrainingDao;
+import com.example.traning.training.dao.UserTrainingDate;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +59,29 @@ class FrequencyGoalServiceTest {
                   .distinct()
                   .toList();
             });
+    lenient()
+        .when(trainingDao.selectDistinctTrainingDatesByUserIdsAndDateRange(any(), any(), any()))
+        .thenAnswer(
+            inv -> {
+              List<Long> ids = inv.getArgument(0);
+              LocalDate from = inv.getArgument(1);
+              LocalDate to = inv.getArgument(2);
+              if (!ids.contains(USER)) return List.of();
+              return trainedDates.stream()
+                  .filter(d -> !d.isBefore(from) && !d.isAfter(to))
+                  .distinct()
+                  .map(
+                      d -> {
+                        UserTrainingDate u = new UserTrainingDate();
+                        u.setUserId(USER);
+                        u.setTrainingDate(d);
+                        return u;
+                      })
+                  .toList();
+            });
+    lenient()
+        .when(programCycleDao.selectActiveByUserIds(any()))
+        .thenAnswer(inv -> cycles.stream().filter(c -> "ACTIVE".equals(c.getStatus())).toList());
     lenient()
         .when(programCycleDao.selectActiveByUserId(USER))
         .thenAnswer(inv -> cycles.stream().filter(c -> "ACTIVE".equals(c.getStatus())).findFirst());
@@ -394,6 +421,50 @@ class FrequencyGoalServiceTest {
     assertThat(dao.week(W1.plusWeeks(1)).getSource()).isEqualTo("NONE");
   }
 
+  // ===================== 担当会員の一覧（機能見直し-1-#12） =====================
+
+  @Test
+  void 一覧用のまとめた計算は会員本人のカードと同じ結果になり直近2週の実施日数も返す() {
+    service.updateGoal(USER, 3, W1.plusDays(4));
+    trainDays(W1.plusWeeks(1), 0, 2, 4); // 達成
+    trainDays(W1.plusWeeks(2), 0); // 1日
+    trainDays(W1.plusWeeks(3)); // 0日
+    LocalDate today = W1.plusWeeks(4).plusDays(1);
+    trainDays(W1.plusWeeks(4), 0);
+
+    Map<Long, MemberGoalStatus> bulk = service.getStatusesForMembers(List.of(USER), today);
+    FrequencyGoalSummary single = service.getSummary(USER, today);
+
+    MemberGoalStatus status = bulk.get(USER);
+    assertThat(status.summary()).isEqualTo(single);
+    assertThat(status.lastCompletedWeeks())
+        .containsExactly(
+            new WeekResult(W1.plusWeeks(2), 3, 1, true),
+            new WeekResult(W1.plusWeeks(3), 3, 0, true));
+  }
+
+  @Test
+  void 一覧用のまとめた計算でも未確定の週はその場で確定する() {
+    service.updateGoal(USER, 2, W1.plusDays(1));
+    LocalDate today = W1.plusWeeks(2).plusDays(3); // W1+1週・W1+2週がまだ確定していない
+
+    Map<Long, MemberGoalStatus> bulk = service.getStatusesForMembers(List.of(USER), today);
+
+    assertThat(dao.week(W1.plusWeeks(1)).getTargetCount()).isEqualTo(2);
+    assertThat(dao.week(W1.plusWeeks(2)).getTargetCount()).isEqualTo(2);
+    assertThat(bulk.get(USER).summary().goalSet()).isTrue();
+    assertThat(bulk.get(USER).summary().evaluatedWeeks()).isEqualTo(1);
+  }
+
+  @Test
+  void 目標もプログラムも無い会員は一覧用の計算でもロックせず目標なしで返す() {
+    Map<Long, MemberGoalStatus> bulk = service.getStatusesForMembers(List.of(USER), W1.plusDays(2));
+
+    assertThat(bulk.get(USER).summary().goalSet()).isFalse();
+    assertThat(bulk.get(USER).lastCompletedWeeks()).isEmpty();
+    assertThat(dao.calls).doesNotContain("lock");
+  }
+
   // ===================== helpers =====================
 
   private void trainDays(LocalDate monday, int... offsets) {
@@ -472,6 +543,25 @@ class FrequencyGoalServiceTest {
           .filter(w -> !w.getWeekStartDate().isAfter(weekStartDate))
           .sorted(Comparator.comparing(UserFrequencyWeekTarget::getWeekStartDate).reversed())
           .limit(limit)
+          .toList();
+    }
+
+    @Override
+    public List<UserFrequencyGoal> selectGoalsByUserIds(List<Long> userIds) {
+      return goal != null && userIds.contains(goal.getUserId()) ? List.of(goal) : List.of();
+    }
+
+    @Override
+    public List<UserFrequencyWeekTarget> selectWeekTargetsByUserIdsBetween(
+        List<Long> userIds, LocalDate fromWeekStart, LocalDate toWeekStart) {
+      calls.add("selectBulk");
+      return weeks.stream()
+          .filter(w -> userIds.contains(w.getUserId()))
+          .filter(
+              w ->
+                  !w.getWeekStartDate().isBefore(fromWeekStart)
+                      && !w.getWeekStartDate().isAfter(toWeekStart))
+          .sorted(Comparator.comparing(UserFrequencyWeekTarget::getWeekStartDate).reversed())
           .toList();
     }
 

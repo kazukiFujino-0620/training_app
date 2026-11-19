@@ -34,6 +34,7 @@ class ScreenIdTest {
             ScreenId.TRAINER_PERIODIZATION,
             "/trainer/advice",
             "トレーナーアドバイスに戻る"),
+        arguments("/trainer/members", ScreenId.TRAINER_MEMBERS, "/menu", "メニューに戻る"),
         arguments("/user/withdrawal", ScreenId.USER_WITHDRAWAL, "/menu", "メニューに戻る"),
         arguments("/user/mfa", ScreenId.USER_MFA, "/menu", "メニューに戻る"),
         arguments("/user/mfa/setup", ScreenId.USER_MFA_SETUP, "/user/mfa", "2段階認証に戻る"),
