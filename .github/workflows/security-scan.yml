@@ -87,7 +87,7 @@ jobs:
 
       - name: Upload HTML report artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dependency-check-report
           path: target/dependency-check-report.html
@@ -139,7 +139,7 @@ jobs:
         run: mvn -B cyclonedx:makeAggregateBom -DskipTests
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: target/bom.json
