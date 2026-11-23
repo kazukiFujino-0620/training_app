@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -19,6 +20,7 @@ import com.example.traning.organization.Organization;
 import com.example.traning.organization.OrganizationDao;
 import com.example.traning.organization.OrganizationScopeResolver;
 import com.example.traning.organization.UserStoreAccessDao;
+import com.example.traning.smarttrainer.recommendation.PartLoadService;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.service.CalorieCalculator;
@@ -27,6 +29,7 @@ import com.example.traning.user.form.UserAdminUpdateForm;
 import com.example.traning.user.service.UserService;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,6 +65,7 @@ class AdminControllerTrainerAccessTest {
   @Mock private OrganizationDao organizationDao;
   @Mock private UserStoreAccessDao userStoreAccessDao;
   @Mock private UserDetails userDetails;
+  @Mock private PartLoadService partLoadService;
 
   private AdminController controller;
 
@@ -92,7 +96,8 @@ class AdminControllerTrainerAccessTest {
             resolver,
             organizationDao,
             userStoreAccessDao,
-            new MemberAccessPolicy(resolver));
+            new MemberAccessPolicy(resolver),
+            partLoadService);
     Organization s10 = new Organization();
     s10.setId(STORE_10);
     Organization s20 = new Organization();
@@ -228,6 +233,59 @@ class AdminControllerTrainerAccessTest {
 
     assertThat(model.getAttribute("recordsOnly")).isEqualTo(false);
     assertThat(model.getAttribute("canSendAdvice")).isEqualTo(true);
+  }
+
+  // ── 部位別の直近負荷（機能見直し-1-#19） ─────────────────────────────
+
+  private static final List<Map<String, Object>> PART_LOAD_ROWS =
+      List.of(Map.of("partCode", "LEG", "partName", "脚", "volume", 7450L, "sets", 12, "pct", 80));
+
+  @Test
+  void 部位別の直近負荷_担当トレーナーには出る() {
+    loginAs(trainer);
+    when(partLoadService.loadRows(eq(100L), any())).thenReturn(PART_LOAD_ROWS);
+    Model model = new ExtendedModelMap();
+
+    controller.showUserTrainingDetail(100, null, model);
+
+    assertThat(model.getAttribute("partLoadRows")).isEqualTo(PART_LOAD_ROWS);
+  }
+
+  @Test
+  void 部位別の直近負荷_担当外のトレーナーには計算もせずモデルにも入れない() {
+    loginAs(trainer);
+    Model model = new ExtendedModelMap();
+
+    controller.showUserTrainingDetail(101, null, model);
+
+    assertThat(model.containsAttribute("partLoadRows")).isFalse();
+    verify(partLoadService, never()).loadRows(anyLong(), any());
+  }
+
+  @Test
+  void 部位別の直近負荷_店舗管理者ジム管理者システム管理者は担当に関係なく担当範囲の会員で出る() {
+    when(partLoadService.loadRows(eq(101L), any())).thenReturn(PART_LOAD_ROWS);
+    for (User viewer :
+        List.of(
+            user(2, "ROLE_STORE_ADMIN", STORE_10, null),
+            user(3, "ROLE_ORG_ADMIN", GYM_1, null),
+            user(4, "ROLE_ADMIN", 0L, null))) {
+      loginAs(viewer);
+      Model model = new ExtendedModelMap();
+
+      controller.showUserTrainingDetail(101, null, model);
+
+      assertThat(model.getAttribute("partLoadRows")).as(viewer.getRole()).isEqualTo(PART_LOAD_ROWS);
+    }
+  }
+
+  @Test
+  void 部位別の直近負荷_範囲外の会員は画面ごと403で計算しない() {
+    loginAs(user(2, "ROLE_STORE_ADMIN", STORE_10, null));
+
+    assertThatThrownBy(() -> controller.showUserTrainingDetail(102, null, new ExtendedModelMap()))
+        .isInstanceOf(ResponseStatusException.class);
+    verify(partLoadService, never()).loadRows(anyLong(), any());
   }
 
   // ── 役割の選び直し（移行対象） ────────────────────────────────────

@@ -14,6 +14,7 @@ import com.example.traning.organization.OrganizationScopeResolver;
 import com.example.traning.organization.OrganizationType;
 import com.example.traning.organization.UserStoreAccess;
 import com.example.traning.organization.UserStoreAccessDao;
+import com.example.traning.smarttrainer.recommendation.PartLoadService;
 import com.example.traning.training.Training;
 import com.example.traning.training.TrainingDetail;
 import com.example.traning.training.dao.TrainingDao;
@@ -80,6 +81,7 @@ public class AdminController {
   private final OrganizationDao organizationDao;
   private final UserStoreAccessDao userStoreAccessDao;
   private final MemberAccessPolicy memberAccessPolicy;
+  private final PartLoadService partLoadService;
 
   /** 機能見直し-1-#15: 会員の記録の閲覧画面・APIはトレーナーも使う（担当外は閲覧のみ。判定は{@link MemberAccessPolicy}）。 */
   private static final String RECORD_VIEW_ROLES =
@@ -96,7 +98,8 @@ public class AdminController {
       OrganizationScopeResolver organizationScopeResolver,
       OrganizationDao organizationDao,
       UserStoreAccessDao userStoreAccessDao,
-      MemberAccessPolicy memberAccessPolicy) {
+      MemberAccessPolicy memberAccessPolicy,
+      PartLoadService partLoadService) {
     this.userService = userService;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
@@ -108,6 +111,7 @@ public class AdminController {
     this.organizationDao = organizationDao;
     this.userStoreAccessDao = userStoreAccessDao;
     this.memberAccessPolicy = memberAccessPolicy;
+    this.partLoadService = partLoadService;
   }
 
   /** ユーザー編集画面でのロール選択肢（value・表示ラベル）。 */
@@ -453,6 +457,11 @@ public class AdminController {
     model.addAttribute("user", user);
     // 機能見直し-1-#15（仮画面E）: トレーナーから見た担当外の会員は記録の閲覧のみ。プロフィール・アドバイスの導線は出さない
     model.addAttribute("recordsOnly", accessLevel == MemberAccessLevel.RECORDS_ONLY);
+    // 機能見直し-1-#19: 部位別の直近負荷（記録からの推定・参考、過去7日間）。担当トレーナーと、担当範囲の会員を見る管理者だけに出す。
+    // 担当外のトレーナー（記録の閲覧のみ）には計算もせず、モデルにも入れない（画面で隠すだけにしない）
+    if (accessLevel.canCoach()) {
+      model.addAttribute("partLoadRows", partLoadService.loadRows(id.longValue(), LocalDate.now()));
+    }
 
     LocalDate targetMonth =
         (date != null) ? date.withDayOfMonth(1) : LocalDate.now().withDayOfMonth(1);

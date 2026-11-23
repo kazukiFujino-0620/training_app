@@ -17,6 +17,7 @@
     
     <!-- CSS -->
     <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="stylesheet" th:href="@{/css/muscle-map.css}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -148,6 +149,57 @@
                 </div>
             </div>
             
+            <!--/* 機能見直し-1-#19: 部位別の直近負荷（担当トレーナー・管理者のみ。担当外のトレーナーにはサーバー側でデータを渡さない）。
+                 会員本人のトップと同じ人体図・同じ計算。AIコメント・おすすめ・警告・睡眠・心拍は出さない */-->
+            <div id="part-load-card" class="card mt-6" th:if="${partLoadRows != null}" data-muscle-map>
+                <div class="card-header">
+                    <div class="part-load-title">
+                        <h2 class="text-xl font-semibold">部位別の直近負荷</h2>
+                        <span class="part-load-pill">記録からの推定・参考</span>
+                        <span class="part-load-pill">過去7日間</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="part-load-split">
+                        <div class="part-load-map">
+                            <div class="part-load-map-labels">
+                                <span>正 面</span>
+                                <span>背 面</span>
+                            </div>
+                            <svg th:replace="~{fragments/muscle-map :: muscleMapSvg('240px')}"></svg>
+                            <div class="part-load-legend">
+                                <span><i style="background:#b0bec5;"></i>記録なし</span>
+                                <span><i style="background:#90caf9;"></i>低</span>
+                                <span><i style="background:#1e88e5;"></i>中</span>
+                                <span><i style="background:#1565c0;"></i>高</span>
+                            </div>
+                        </div>
+                        <div class="part-load-table-wrap">
+                            <table class="part-load-table">
+                                <thead>
+                                    <tr>
+                                        <th>部位</th>
+                                        <th class="r">ボリューム</th>
+                                        <th class="r">セット数</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="row : ${partLoadRows}">
+                                        <td>
+                                            <span class="fatigue-dot" th:attr="data-part=${row.partCode},data-pct=${row.pct}"></span>
+                                            <span th:text="${row.partName}">部位</span>
+                                        </td>
+                                        <td class="r" th:text="${#numbers.formatInteger(row.volume, 1, 'COMMA')} + ' kg'">0 kg</td>
+                                        <td class="r" th:text="${row.sets} + ' set'">0 set</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <p class="part-load-note">会員が記録したトレーニングの重量・回数・日付から計算した推定です（直近ほど大きく数える）。疲労の状態やけがの判断には使えません。睡眠・心拍などの体調は含みません。</p>
+                </div>
+            </div>
+
             <!-- Weight Progression Chart -->
             <div class="card mt-6">
                 <div class="card-header">
@@ -204,5 +256,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script th:src="@{/js/chart.js}"></script>
     <script th:src="@{/js/admin-training-detail.js}"></script>
+    <script th:if="${partLoadRows != null}" th:src="@{/js/muscle-map.js}"></script>
 </body>
 </html>
