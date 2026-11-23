@@ -8,20 +8,23 @@ import { Calendar, DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/AppNavigator';
 import TrainingCard from '../components/TrainingCard';
 import ProgressBar from '../components/ProgressBar';
-import { trainingApi, noticeApi, recommendationApi, statsApi, periodizationApi, healthApi, frequencyGoalApi } from '../api/client';
+import { trainingApi, noticeApi, recommendationApi, statsApi, periodizationApi, healthApi, frequencyGoalApi, goalProposalApi } from '../api/client';
 import { clearTokens, getUserName } from '../auth/tokenStore';
 import type {
-  Training, DailyRecommendation, MobileTrainingStatsResponse, HealthSummaryResponse, MobileFrequencyGoalResponse,
+  Training, DailyRecommendation, MobileTrainingStatsResponse, HealthSummaryResponse, MobileFrequencyGoalResponse, PendingGoalProposal,
 } from '../api/types';
 import HealthReferenceCard from '../components/HealthReferenceCard';
 import FrequencyGoalCard from '../components/FrequencyGoalCard';
 import FrequencyGoalSheet from '../components/FrequencyGoalSheet';
+import GoalProposalCard from '../components/GoalProposalCard';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'TrainingList'>;
+  route?: RouteProp<AppStackParamList, 'TrainingList'>;
 };
 
 type TabKey = 'calendar' | 'training';
@@ -93,7 +96,7 @@ function formatDateLabel(dateStr: string): string {
   });
 }
 
-export default function TrainingListScreen({ navigation }: Props) {
+export default function TrainingListScreen({ navigation, route }: Props) {
   const [date, setDate] = useState(todayDateString());
   // ita7-2: 「カレンダー」「トレーニング」の2タブ構成。アプリ起動時はまず月間の実施状況を
   // 把握できるよう「カレンダー」を初期表示にする（2026-09-10変更）
@@ -120,6 +123,9 @@ export default function TrainingListScreen({ navigation }: Props) {
   // 機能見直し-1-#7: 統計欄の「週の目標」カードと設定シート
   const [frequencyGoal, setFrequencyGoal] = useState<MobileFrequencyGoalResponse | null>(null);
   const [frequencySheetOpen, setFrequencySheetOpen] = useState(false);
+  // 機能見直し-1-#20: トレーナーからの目標の提案（返事待ち）
+  const [pendingGoalProposal, setPendingGoalProposal] = useState<PendingGoalProposal | null>(null);
+  const [respondingGoal, setRespondingGoal] = useState(false);
 
   // itバグ-18: ログインユーザー名をヘッダーに表示する
   useEffect(() => {
@@ -156,6 +162,13 @@ export default function TrainingListScreen({ navigation }: Props) {
         setPendingProposal(proposals.pending[0] ?? null);
       } catch {
         setPendingProposal(null);
+      }
+
+      try {
+        const { data: goalProposal } = await goalProposalApi.pending();
+        setPendingGoalProposal(goalProposal.proposal ?? null);
+      } catch {
+        setPendingGoalProposal(null);
       }
 
       // itバグ-21対応: 今日のおすすめメニュー（ルールベース推奨）。当日以外では表示しない
@@ -216,6 +229,35 @@ export default function TrainingListScreen({ navigation }: Props) {
     }
   }, []);
   useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
+
+  // 機能見直し-1-#20: プロフィールの「変更する」から来たら、カレンダータブの週の目標の設定シートを開く
+  const openFrequencyGoal = route?.params?.openFrequencyGoal;
+  useEffect(() => {
+    if (!openFrequencyGoal) return;
+    setActiveTab('calendar');
+    setFrequencySheetOpen(true);
+    navigation.setParams({ openFrequencyGoal: undefined });
+  }, [openFrequencyGoal, navigation]);
+
+  // 機能見直し-1-#20: 目標の提案への返事（この目標にする／今回は見送る）
+  const respondGoalProposal = useCallback(async (accept: boolean) => {
+    if (!pendingGoalProposal) return;
+    setRespondingGoal(true);
+    try {
+      await goalProposalApi.respond(pendingGoalProposal.id, accept ? 'ACCEPT' : 'DECLINE');
+      setPendingGoalProposal(null);
+      if (accept) {
+        Alert.alert('目標を決めました', '今週は目標を設定した週として、達成率には含めません。');
+      }
+      loadStats();
+      load();
+    } catch (e: any) {
+      Alert.alert('エラー', e?.response?.data?.error ?? '送信できませんでした');
+      load();
+    } finally {
+      setRespondingGoal(false);
+    }
+  }, [pendingGoalProposal, load, loadStats]);
 
   const saveFrequencyGoal = useCallback(async (weeklyTargetCount: number) => {
     try {
@@ -541,6 +583,16 @@ export default function TrainingListScreen({ navigation }: Props) {
               </View>
               <Text style={styles.noticeBannerArrow}>確認する →</Text>
             </TouchableOpacity>
+          )}
+
+          {/* 機能見直し-1-#20: トレーナーからの目標の提案（期分けの案と同じ場所） */}
+          {pendingGoalProposal && (
+            <GoalProposalCard
+              proposal={pendingGoalProposal}
+              responding={respondingGoal}
+              onAccept={() => respondGoalProposal(true)}
+              onDecline={() => respondGoalProposal(false)}
+            />
           )}
 
           {/* itバグ-21対応: 今日のおすすめメニュー（ルールベース推奨、当日のみ） */}

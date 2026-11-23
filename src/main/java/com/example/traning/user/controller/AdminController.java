@@ -5,6 +5,7 @@ import com.example.traning.body.BodyMeasurement;
 import com.example.traning.body.BodyMeasurementService;
 import com.example.traning.common.WebErrorCode;
 import com.example.traning.export.DataExportService;
+import com.example.traning.goal.GoalProposalService;
 import com.example.traning.mfa.MfaService;
 import com.example.traning.organization.MemberAccessLevel;
 import com.example.traning.organization.MemberAccessPolicy;
@@ -82,6 +83,7 @@ public class AdminController {
   private final UserStoreAccessDao userStoreAccessDao;
   private final MemberAccessPolicy memberAccessPolicy;
   private final PartLoadService partLoadService;
+  private final GoalProposalService goalProposalService;
 
   /** 機能見直し-1-#15: 会員の記録の閲覧画面・APIはトレーナーも使う（担当外は閲覧のみ。判定は{@link MemberAccessPolicy}）。 */
   private static final String RECORD_VIEW_ROLES =
@@ -99,7 +101,8 @@ public class AdminController {
       OrganizationDao organizationDao,
       UserStoreAccessDao userStoreAccessDao,
       MemberAccessPolicy memberAccessPolicy,
-      PartLoadService partLoadService) {
+      PartLoadService partLoadService,
+      GoalProposalService goalProposalService) {
     this.userService = userService;
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
@@ -112,6 +115,7 @@ public class AdminController {
     this.userStoreAccessDao = userStoreAccessDao;
     this.memberAccessPolicy = memberAccessPolicy;
     this.partLoadService = partLoadService;
+    this.goalProposalService = goalProposalService;
   }
 
   /** ユーザー編集画面でのロール選択肢（value・表示ラベル）。 */
@@ -461,6 +465,10 @@ public class AdminController {
     // 担当外のトレーナー（記録の閲覧のみ）には計算もせず、モデルにも入れない（画面で隠すだけにしない）
     if (accessLevel.canCoach()) {
       model.addAttribute("partLoadRows", partLoadService.loadRows(id.longValue(), LocalDate.now()));
+    }
+    // 機能見直し-1-#20: 目標の提案と履歴。担当トレーナーと、担当範囲の管理者だけ（担当外のトレーナーにはデータを渡さない）
+    if (goalProposalService.canPropose(viewer, user)) {
+      model.addAttribute("goalView", goalProposalService.staffView(viewer, user, LocalDate.now()));
     }
 
     LocalDate targetMonth =

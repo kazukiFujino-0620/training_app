@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class FrequencyGoalApiController {
 
   private final FrequencyGoalService frequencyGoalService;
+  private final GoalProposalService goalProposalService;
   private final TrainingService trainingService;
 
   @Data
@@ -89,7 +90,9 @@ public class FrequencyGoalApiController {
     }
     Long userId = trainingService.getUserIdByEmail(principal.getName());
     LocalDate today = LocalDate.now();
-    frequencyGoalService.updateGoal(userId, form.getWeeklyTargetCount(), today);
+    // 機能見直し-1-#20: 値が変わったら「会員が変更」を記録する（担当トレーナーと決めた目標の表示も外れる）
+    goalProposalService.updateWeeklyTargetByMember(
+        userId, form.getWeeklyTargetCount(), today, java.time.LocalDateTime.now());
     return ResponseEntity.ok(
         FrequencyGoalWebResponse.from(frequencyGoalService.getSummary(userId, today)));
   }

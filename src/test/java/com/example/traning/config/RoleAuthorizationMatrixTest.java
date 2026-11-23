@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.traning.audit.AuditLogController;
 import com.example.traning.follow.MemberFollowController;
+import com.example.traning.goal.GoalProposalController;
 import com.example.traning.notice.NoticeController;
 import com.example.traning.organization.AdminGymSettingController;
 import com.example.traning.organization.AdminInviteCodeController;
@@ -165,7 +166,8 @@ class RoleAuthorizationMatrixTest {
         Arguments.of(TrainerPeriodizationController.class, "index"),
         Arguments.of(TrainerPeriodizationController.class, "send"),
         Arguments.of(MemberFollowController.class, "index"),
-        Arguments.of(MemberFollowController.class, "acknowledge"));
+        Arguments.of(MemberFollowController.class, "acknowledge"),
+        Arguments.of(GoalProposalController.class, "propose"));
   }
 
   @org.junit.jupiter.api.Test
@@ -222,5 +224,16 @@ class RoleAuthorizationMatrixTest {
       }
       assertThat(granted(MemberFollowController.class, method, "USER")).as(method).isFalse();
     }
+  }
+
+  // ── 機能見直し-1-#20 目標の提案 ───────────────────────
+
+  @org.junit.jupiter.api.Test
+  void 目標の提案はスタッフ全員が送れ会員は送れない_返事はログイン中なら誰でも受け付け本人宛てかはサービスで判定() {
+    for (String role : List.of("TRAINER", "STORE_ADMIN", "ORG_ADMIN", "ADMIN")) {
+      assertThat(granted(GoalProposalController.class, "propose", role)).as(role).isTrue();
+    }
+    assertThat(granted(GoalProposalController.class, "propose", "USER")).isFalse();
+    assertThat(granted(GoalProposalController.class, "respond", "USER")).isTrue();
   }
 }

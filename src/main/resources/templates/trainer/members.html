@@ -33,7 +33,7 @@
     .scope-form { display: flex; align-items: center; gap: 6px; margin: 0; }
     .scope-form select { font-size: 0.8rem; padding: 2px 8px; border-radius: 6px; max-width: 100%; }
     .members-table-wrap { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); }
-    table.members-table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 0.82rem; }
+    table.members-table { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 0.82rem; }
     table.members-table th, table.members-table td {
       padding: 8px 10px; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: top; color: var(--text-primary);
     }
@@ -52,10 +52,18 @@
       font-size: 0.75rem; border-radius: 6px; padding: 1px 9px; border: 1px solid var(--primary-color);
       color: var(--primary-color); background: var(--bg-card); white-space: nowrap; cursor: pointer;
     }
+    .review-flag { display: inline-block; background: #e0e7ff; color: #3730a3; border-radius: 4px; font-size: 0.72rem; font-weight: 700; padding: 0 6px; }
+    .review-when { display: block; font-size: 0.72rem; color: #3730a3; white-space: nowrap; }
+    .propose-link {
+      display: inline-block; margin-top: 3px; font-size: 0.75rem; border-radius: 6px; padding: 1px 9px; border: 1px solid var(--primary-color);
+      color: var(--primary-color); background: var(--bg-card); white-space: nowrap; text-decoration: none;
+    }
     .members-empty { text-align: center; color: var(--text-muted); padding: 32px 16px; font-size: 0.88rem; }
     [data-theme="dark"] .flag { background: #78350f; color: #fde68a; }
     [data-theme="dark"] .why { color: #fcd34d; }
     [data-theme="dark"] .unassigned { color: #fbbf24; }
+    [data-theme="dark"] .review-flag { background: #312e81; color: #c7d2fe; }
+    [data-theme="dark"] .review-when { color: #c7d2fe; }
     [data-theme="dark"] .deload-badge { background: #312e81; color: #c7d2fe; }
   </style>
 </head>
@@ -106,6 +114,7 @@
             <th th:unless="${view.storeTab()}">今週</th>
             <th>最後のトレーニング</th>
             <th>フォロー推奨</th>
+            <th>目標の見直し</th>
           </tr>
         </thead>
         <tbody>
@@ -156,6 +165,19 @@
                 <span th:case="'NOT_EVALUATED_DELOAD'" class="muted">—（デロード週のため判定しない）</span>
                 <span th:case="*" class="muted">—</span>
               </th:block>
+            </td>
+            <!--/* 機能見直し-1-#20: 見直し日の当日から、新しい提案を送るまで青い印（見送られても消さない） */-->
+            <td>
+              <th:block th:if="${r.reviewDue()}">
+                <span class="review-flag">見直し日</span>
+                <span class="review-when"
+                      th:text="${r.reviewDateLabel()}">12/22（今日）</span>
+              </th:block>
+              <span th:if="${!r.reviewDue() and r.nextReviewDate() != null}" class="nw"
+                    th:text="${r.reviewDateLabel()}">1/19</span>
+              <span th:if="${r.nextReviewDate() == null}" class="muted">未設定</span>
+              <a th:if="${r.reviewDue() and r.canPropose()}" class="propose-link"
+                 th:href="@{/admin/user/training-detail/{id}(id=${r.memberId()})} + '#goal-card'">目標を提案する</a>
             </td>
           </tr>
         </tbody>

@@ -110,6 +110,9 @@ import type {
   AutogenGenerateRequest,
   AutogenResult,
   AutogenExclusion,
+  PendingGoalProposalResponse,
+  GoalAgreementResponse,
+  GoalProposalResponseChoice,
 } from './types';
 
 export const authApi = {
@@ -268,6 +271,14 @@ export const frequencyGoalApi = {
   /** 1〜7回。来週の評価から反映され、保存後の表示データが返る */
   update: (weeklyTargetCount: number) =>
     client.put<MobileFrequencyGoalResponse>('/frequency-goal', { weeklyTargetCount }),
+};
+
+/** 機能見直し-1-#20: トレーナーからの目標の提案（トップのカード）と「担当トレーナーと決めた目標」の表示 */
+export const goalProposalApi = {
+  pending: () => client.get<PendingGoalProposalResponse>('/goal-proposals/pending'),
+  agreement: () => client.get<GoalAgreementResponse>('/goal-proposals/agreement'),
+  respond: (id: number, response: GoalProposalResponseChoice) =>
+    client.post(`/goal-proposals/${id}/respond`, { response }),
 };
 
 export const withdrawalApi = {

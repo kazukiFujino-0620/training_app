@@ -53,6 +53,9 @@
     if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
   });
 
+  // 機能見直し-1-#20: プロフィールの「変更する」（/menu#frequency-goal-card）から来たら設定ダイアログを開く
+  if (window.location.hash === '#frequency-goal-card') open();
+
   if (!save) return; // プログラム実施中（表示のみ）
 
   minus.addEventListener('click', function () {

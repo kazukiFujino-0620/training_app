@@ -1,12 +1,15 @@
 package com.example.traning.user.controller;
 
 import com.example.traning.audit.AuditLog;
+import com.example.traning.goal.FrequencyGoalService;
+import com.example.traning.goal.GoalProposalService;
 import com.example.traning.smarttrainer.recommendation.GoalMode;
 import com.example.traning.user.User;
 import com.example.traning.user.form.ProfileForm;
 import com.example.traning.user.service.ProfileService;
 import com.example.traning.user.service.UserService;
 import java.security.Principal;
+import java.time.LocalDateTime;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -24,10 +27,18 @@ public class ProfileController {
 
   private final UserService userService;
   private final ProfileService profileService;
+  private final GoalProposalService goalProposalService;
+  private final FrequencyGoalService frequencyGoalService;
 
-  public ProfileController(UserService userService, ProfileService profileService) {
+  public ProfileController(
+      UserService userService,
+      ProfileService profileService,
+      GoalProposalService goalProposalService,
+      FrequencyGoalService frequencyGoalService) {
     this.userService = userService;
     this.profileService = profileService;
+    this.goalProposalService = goalProposalService;
+    this.frequencyGoalService = frequencyGoalService;
   }
 
   @GetMapping
@@ -43,7 +54,16 @@ public class ProfileController {
     model.addAttribute("loginUser", user);
     model.addAttribute("user", user);
     model.addAttribute("goalModes", GoalMode.values());
+    addGoalAttributes(model, user);
     return "user/profile";
+  }
+
+  /** 機能見直し-1-#20: 週の回数目標と「担当トレーナーと決めた目標」の表示（今の目標が承認した提案と同じ間だけ）。 */
+  private void addGoalAttributes(Model model, User user) {
+    Long userId = user.getUserId().longValue();
+    model.addAttribute(
+        "weeklyTargetCount", frequencyGoalService.findManualTarget(userId).orElse(null));
+    model.addAttribute("goalAgreement", goalProposalService.agreementFor(userId).orElse(null));
   }
 
   /** F3 Phase1: 目的モード（筋肥大/減量/維持）の切替。 */
@@ -54,7 +74,9 @@ public class ProfileController {
       Principal principal,
       RedirectAttributes redirectAttributes) {
     User user = userService.getUserByEmail(principal.getName());
-    profileService.updateGoalMode(user.getUserId(), GoalMode.fromString(goalMode).name());
+    // 機能見直し-1-#20: 値が変わったら「会員が変更」を記録する（担当トレーナーと決めた目標の表示も外れる）
+    goalProposalService.updateGoalModeByMember(
+        user.getUserId(), GoalMode.fromString(goalMode).name(), LocalDateTime.now());
     redirectAttributes.addFlashAttribute("successMessage", "目的モードを変更しました");
     return "redirect:/user/profile";
   }
@@ -87,6 +109,7 @@ public class ProfileController {
       model.addAttribute("loginUser", user);
       model.addAttribute("user", user);
       model.addAttribute("goalModes", GoalMode.values());
+      addGoalAttributes(model, user);
       return "user/profile";
     }
     profileService.updateProfile(principal.getName(), form);

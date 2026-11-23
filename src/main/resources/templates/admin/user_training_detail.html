@@ -21,6 +21,28 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 機能見直し-1-#20 目標の提案（USER承認済みの仮画面どおり） */
+        .goal-form { margin: 0; }
+        .goal-field { margin-bottom: 12px; font-size: 0.88rem; color: var(--text-primary); }
+        .goal-label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2px; }
+        .goal-select, .goal-date { display: inline-block; width: auto; min-width: 140px; }
+        .goal-comment { max-width: 420px; }
+        .goal-radios { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+        .goal-radios label { margin: 0; font-weight: normal; }
+        .goal-hint { font-size: 0.75rem; color: var(--text-muted); margin-left: 6px; }
+        .goal-warn { font-size: 0.78rem; color: #92400e; background: #fffbeb; border-radius: 6px; padding: 5px 8px; margin-top: 6px; max-width: 560px; }
+        .goal-pending { font-size: 0.8rem; color: #3730a3; background: #eef2ff; border-radius: 6px; padding: 6px 10px; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 2px 8px; }
+        .goal-history-title { font-size: 0.95rem; font-weight: 600; margin: 24px 0 8px; color: var(--text-primary); }
+        .goal-history-wrap { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; }
+        table.goal-history { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+        table.goal-history th, table.goal-history td { padding: 7px 10px; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: top; color: var(--text-primary); }
+        table.goal-history tr:last-child td { border-bottom: none; }
+        table.goal-history th { background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.75rem; white-space: nowrap; }
+        .nw { white-space: nowrap; }
+        [data-theme="dark"] .goal-warn { background: #451a03; color: #fde68a; }
+        [data-theme="dark"] .goal-pending { background: #1e1b4b; color: #c7d2fe; }
+    </style>
 </head>
 <body class="bg-secondary" th:data-user-id="${userId}" th:data-can-send-advice="${canSendAdvice}">
     <!-- Header -->
@@ -54,6 +76,73 @@
                 </div>
             </div>
             
+            <!--/* 機能見直し-1-#20: 目標の提案と履歴（担当トレーナーと、担当範囲の管理者だけ。担当外のトレーナーにはサーバー側でデータを渡さない）。
+                 体重・体型の目標の欄は持たない。提案中にもう一度送ると前の提案は取り下げになる */-->
+            <div id="goal-card" class="card mb-6" th:if="${goalView != null}">
+                <div class="card-header">
+                    <h2 class="text-xl font-semibold">目標の提案</h2>
+                </div>
+                <div class="card-body">
+                    <div th:if="${goalSuccessMessage}" class="alert alert-success mb-4" th:text="${goalSuccessMessage}"></div>
+                    <div th:if="${goalErrorMessage}" class="alert alert-danger mb-4" th:text="${goalErrorMessage}"></div>
+                    <form method="post" th:action="@{/trainer/members/{id}/goal-proposals(id=${userId})}" class="goal-form">
+                        <div class="goal-field">
+                            <span class="goal-label">今の目標</span>
+                            <span th:text="${goalView.currentLabel()}">週2回・維持（会員が設定）</span>
+                        </div>
+                        <div th:if="${goalView.pendingLabel() != null}" class="goal-pending">
+                            <span th:text="${goalView.pendingLabel()}">返事待ちの提案があります（11/24 山本）</span><span class="nw">もう一度送ると、前の提案は取り下げになります。</span>
+                        </div>
+                        <div class="goal-field">
+                            <label for="goal-weekly" class="goal-label">週の回数目標</label>
+                            <select id="goal-weekly" name="weeklyTargetCount" class="form-control goal-select">
+                                <option th:each="n : ${#numbers.sequence(1, 7)}" th:value="${n}" th:text="|週${n}回|"
+                                        th:selected="${n == goalView.defaultWeeklyTarget()}">週3回</option>
+                            </select>
+                            <div th:if="${goalView.programActive()}" class="goal-warn">期分けプログラムを実施中の週は、プログラムの予定日数が優先されます<br>（プログラムが終わってから、この目標を使います）</div>
+                        </div>
+                        <div class="goal-field">
+                            <span class="goal-label">トレーニング目的</span>
+                            <div class="goal-radios">
+                                <label class="nw"><input type="radio" name="goalMode" value="BULKING" th:checked="${goalView.defaultGoalMode() == 'BULKING'}"> 筋肥大</label>
+                                <label class="nw"><input type="radio" name="goalMode" value="CUTTING" th:checked="${goalView.defaultGoalMode() == 'CUTTING'}"> 減量</label>
+                                <label class="nw"><input type="radio" name="goalMode" value="MAINTENANCE" th:checked="${goalView.defaultGoalMode() == 'MAINTENANCE'}"> 維持</label>
+                            </div>
+                        </div>
+                        <div class="goal-field">
+                            <label for="goal-comment" class="goal-label">ひとこと（任意、50文字まで）</label>
+                            <input id="goal-comment" type="text" name="comment" maxlength="50" class="form-control goal-comment">
+                        </div>
+                        <div class="goal-field">
+                            <label for="goal-review" class="goal-label">次の見直し日</label>
+                            <input id="goal-review" type="date" name="nextReviewDate" class="form-control goal-date" required
+                                   th:value="${goalView.defaultReviewDate()}"
+                                   th:min="${goalView.minReviewDate()}"
+                                   th:max="${goalView.maxReviewDate()}">
+                            <span class="goal-hint nw">初期値は4週後</span>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">提案を送る</button>
+                    </form>
+
+                    <h3 class="goal-history-title">目標の履歴</h3>
+                    <div class="goal-history-wrap" th:unless="${#lists.isEmpty(goalView.history())}">
+                        <table class="goal-history">
+                            <thead>
+                                <tr><th>日付</th><th>内容</th><th>状態</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="h : ${goalView.history()}">
+                                    <td class="nw" th:text="${h.dateLabel()}">11/30</td>
+                                    <td th:text="${h.content()}">週の回数目標を週2回に変更</td>
+                                    <td class="nw" th:text="${h.statusLabel()}">会員が変更</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p th:if="${#lists.isEmpty(goalView.history())}" class="text-sm text-muted">まだ履歴はありません</p>
+                </div>
+            </div>
+
             <!-- Calendar and Details Section -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Calendar Section -->

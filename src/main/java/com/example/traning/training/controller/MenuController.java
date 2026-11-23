@@ -73,6 +73,7 @@ public class MenuController {
   private final com.example.traning.health.HealthReferenceService healthReferenceService;
   private final com.example.traning.goal.FrequencyGoalService frequencyGoalService;
   private final com.example.traning.follow.MemberFollowService memberFollowService;
+  private final com.example.traning.goal.GoalProposalService goalProposalService;
 
   public MenuController(
       TrainingDao trainingDao,
@@ -92,7 +93,8 @@ public class MenuController {
       com.example.traning.periodization.ProgramCycleProposalService proposalService,
       com.example.traning.health.HealthReferenceService healthReferenceService,
       com.example.traning.goal.FrequencyGoalService frequencyGoalService,
-      com.example.traning.follow.MemberFollowService memberFollowService) {
+      com.example.traning.follow.MemberFollowService memberFollowService,
+      com.example.traning.goal.GoalProposalService goalProposalService) {
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
@@ -111,6 +113,7 @@ public class MenuController {
     this.healthReferenceService = healthReferenceService;
     this.frequencyGoalService = frequencyGoalService;
     this.memberFollowService = memberFollowService;
+    this.goalProposalService = goalProposalService;
   }
 
   @GetMapping("/menu")
@@ -300,6 +303,10 @@ public class MenuController {
         "pendingProposal",
         proposalService.getTraineeProposals(userId).pending().stream().findFirst().orElse(null));
 
+    // 機能見直し-1-#20: トレーナーからの目標の提案（返事待ち）。期分けの案と同じ場所に出す
+    model.addAttribute(
+        "pendingGoalProposal", goalProposalService.pendingForMember(userId).orElse(null));
+
     // 機能見直し-1-#5: 筋肉疲労マップの下の「体調の参考情報」カード（睡眠・安静時心拍の最新値と直近4週間平均）
     model.addAttribute("healthReference", healthReferenceService.getReference(userId, today));
     model.addAttribute("healthReferenceToday", today);
@@ -313,6 +320,12 @@ public class MenuController {
         com.example.traning.follow.MemberFollowService.availableTabs(userEntity).isEmpty()
             ? 0
             : memberFollowService.countFlaggedAssigned(userEntity, today));
+    // 機能見直し-1-#20: 同じボタンの「見直し N人」（自分の担当で見直し日の印が付いている人数）
+    model.addAttribute(
+        "reviewDueCount",
+        com.example.traning.follow.MemberFollowService.availableTabs(userEntity).isEmpty()
+            ? 0
+            : memberFollowService.countReviewDueAssigned(userEntity, today));
 
     // itバグ-21対応（2026-09-11）: 「AIトレーニング提案」カードは「（モック）」文言のため廃止し、
     // 既存のルールベース推奨（dailyRecommendation、上記F3 Phase1参照）に一本化した。

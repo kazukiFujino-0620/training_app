@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.traning.dao.UserDao;
+import com.example.traning.goal.GoalProposalService;
 import com.example.traning.mobile.dto.MobileProfileResponse;
 import com.example.traning.mobile.dto.UpdateProfileRequest;
 import com.example.traning.user.User;
@@ -25,12 +26,13 @@ class MobileProfileControllerTest {
 
   @Mock private UserDao userDao;
   @Mock private ProfileService profileService;
+  @Mock private GoalProposalService goalProposalService;
 
   private MobileProfileController controller;
 
   @BeforeEach
   void setUp() {
-    controller = new MobileProfileController(userDao, profileService);
+    controller = new MobileProfileController(userDao, profileService, goalProposalService);
   }
 
   private User user() {
@@ -84,7 +86,12 @@ class MobileProfileControllerTest {
     ResponseEntity<Void> response = controller.updateGoalMode(5L, Map.of("goalMode", "CUTTING"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-    verify(profileService).updateGoalMode(5, "CUTTING");
+    // 機能見直し-1-#20: 値が変わったら「会員が変更」を記録する経路を通す
+    verify(goalProposalService)
+        .updateGoalModeByMember(
+            org.mockito.ArgumentMatchers.eq(5),
+            org.mockito.ArgumentMatchers.eq("CUTTING"),
+            org.mockito.ArgumentMatchers.any());
   }
 
   @Test

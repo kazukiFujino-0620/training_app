@@ -68,7 +68,8 @@ class AdminControllerGeneralUserFilterTest {
             organizationDao,
             userStoreAccessDao,
             new MemberAccessPolicy(organizationScopeResolver),
-            partLoadService);
+            partLoadService,
+            org.mockito.Mockito.mock(com.example.traning.goal.GoalProposalService.class));
 
     User admin = new User();
     admin.setUserId(1);

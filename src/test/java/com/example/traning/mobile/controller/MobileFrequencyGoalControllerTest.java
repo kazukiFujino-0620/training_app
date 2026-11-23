@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.example.traning.goal.FrequencyGoalService;
 import com.example.traning.goal.FrequencyGoalSummary;
+import com.example.traning.goal.GoalProposalService;
 import com.example.traning.mobile.dto.FrequencyGoalUpdateRequest;
 import com.example.traning.mobile.dto.MobileFrequencyGoalResponse;
 import jakarta.validation.Validation;
@@ -27,13 +28,14 @@ import org.springframework.http.ResponseEntity;
 class MobileFrequencyGoalControllerTest {
 
   @Mock private FrequencyGoalService frequencyGoalService;
+  @Mock private GoalProposalService goalProposalService;
 
   private MobileFrequencyGoalController controller;
   private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
   @BeforeEach
   void setUp() {
-    controller = new MobileFrequencyGoalController(frequencyGoalService);
+    controller = new MobileFrequencyGoalController(frequencyGoalService, goalProposalService);
   }
 
   @Test
@@ -75,8 +77,11 @@ class MobileFrequencyGoalControllerTest {
 
     ResponseEntity<MobileFrequencyGoalResponse> res = controller.update(5L, req);
 
-    InOrder order = inOrder(frequencyGoalService);
-    order.verify(frequencyGoalService).updateGoal(eq(5L), eq(4), any(LocalDate.class));
+    // 機能見直し-1-#20: 値が変わったら「会員が変更」を記録する経路を通す
+    InOrder order = inOrder(goalProposalService, frequencyGoalService);
+    order
+        .verify(goalProposalService)
+        .updateWeeklyTargetByMember(eq(5L), eq(4), any(LocalDate.class), any());
     order.verify(frequencyGoalService).getSummary(eq(5L), any(LocalDate.class));
     assertThat(res.getBody().manualTarget()).isEqualTo(4);
   }

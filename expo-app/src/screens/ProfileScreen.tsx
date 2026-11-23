@@ -8,8 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/AppNavigator';
-import { profileApi } from '../api/client';
-import type { GoalMode } from '../api/types';
+import { profileApi, frequencyGoalApi, goalProposalApi } from '../api/client';
+import type { GoalMode, GoalAgreementResponse } from '../api/types';
 
 type Props = {
   navigation: NativeStackNavigationProp<AppStackParamList, 'Profile'>;
@@ -41,6 +41,24 @@ export default function ProfileScreen({ navigation }: Props) {
   const [aiAdviceConsent, setAiAdviceConsent] = useState(false);
   const [togglingConsent, setTogglingConsent] = useState(false);
   const [savingGoalMode, setSavingGoalMode] = useState(false);
+  // 機能見直し-1-#20: 週の回数目標と「担当トレーナーと決めた目標」の表示
+  const [weeklyTarget, setWeeklyTarget] = useState<number | null>(null);
+  const [agreement, setAgreement] = useState<GoalAgreementResponse | null>(null);
+
+  const loadGoal = useCallback(async () => {
+    try {
+      const { data } = await frequencyGoalApi.get();
+      setWeeklyTarget(data.manualTarget);
+    } catch {
+      setWeeklyTarget(null);
+    }
+    try {
+      const { data } = await goalProposalApi.agreement();
+      setAgreement(data);
+    } catch {
+      setAgreement(null);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -59,7 +77,7 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { load(); loadGoal(); }, [load, loadGoal]));
 
   async function handleSaveBasicInfo() {
     if (heightCm && (Number(heightCm) < 100 || Number(heightCm) > 250)) {
@@ -94,6 +112,8 @@ export default function ProfileScreen({ navigation }: Props) {
     setSavingGoalMode(true);
     try {
       await profileApi.updateGoalMode(mode);
+      // 自分で変えると「担当トレーナーと決めた目標」の表示が外れる
+      loadGoal();
     } catch {
       setGoalMode(prev);
       Alert.alert('エラー', '目標モードの変更に失敗しました');
@@ -205,6 +225,26 @@ export default function ProfileScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
+        {/* 機能見直し-1-#20: 週の回数目標（変更はトップの設定シート） */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>週の回数目標</Text>
+          <Text style={styles.goalValue} testID="profile-weekly-target">
+            {weeklyTarget != null ? `週${weeklyTarget}回` : '未設定'}
+          </Text>
+          {agreement?.agreed && agreement.tagLabel ? (
+            <View style={styles.agreedTag} testID="agreed-goal-tag">
+              <Text style={styles.agreedTagText}>{agreement.tagLabel}</Text>
+            </View>
+          ) : null}
+          <TouchableOpacity
+            style={styles.changeButton}
+            onPress={() => navigation.navigate('TrainingList', { openFrequencyGoal: true })}
+            testID="profile-weekly-target-change"
+          >
+            <Text style={styles.changeButtonText}>変更する</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* 目標モード */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>目標モード</Text>
@@ -228,6 +268,14 @@ export default function ProfileScreen({ navigation }: Props) {
             ))}
           </View>
         </View>
+
+        {/* 機能見直し-1-#20: 担当トレーナーと決めた目標の次の見直し日（表示が付いている間だけ） */}
+        {agreement?.agreed && agreement.nextReviewLabel ? (
+          <View style={styles.section} testID="profile-next-review">
+            <Text style={styles.sectionTitle}>次の見直し日</Text>
+            <Text style={styles.goalValue}>{agreement.nextReviewLabel}</Text>
+          </View>
+        ) : null}
 
         {/* AI同意設定 */}
         <View style={styles.section}>
@@ -295,6 +343,17 @@ const styles = StyleSheet.create({
   segmentItemSelected: { backgroundColor: '#4CAF50' },
   segmentItemText: { fontSize: 13, fontWeight: '700', color: '#666' },
   segmentItemTextSelected: { color: '#fff' },
+  goalValue: { fontSize: 16, fontWeight: '700', color: '#222' },
+  agreedTag: {
+    alignSelf: 'flex-start', backgroundColor: '#e8f5e9', borderRadius: 4,
+    paddingHorizontal: 6, paddingVertical: 1, marginTop: 4,
+  },
+  agreedTagText: { fontSize: 11, color: '#2e7d32' },
+  changeButton: {
+    alignSelf: 'flex-start', marginTop: 10, borderWidth: 1.5, borderColor: '#4CAF50',
+    borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6,
+  },
+  changeButtonText: { fontSize: 13, fontWeight: '700', color: '#2e7d32' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   switchLabel: { fontSize: 14, fontWeight: '700', color: '#222' },
   switchSubLabel: { fontSize: 12, color: '#888', marginTop: 4, lineHeight: 17 },

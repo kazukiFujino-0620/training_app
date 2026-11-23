@@ -2,10 +2,12 @@ package com.example.traning.mobile.controller;
 
 import com.example.traning.audit.AuditLog;
 import com.example.traning.goal.FrequencyGoalService;
+import com.example.traning.goal.GoalProposalService;
 import com.example.traning.mobile.dto.FrequencyGoalUpdateRequest;
 import com.example.traning.mobile.dto.MobileFrequencyGoalResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,9 +27,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class MobileFrequencyGoalController {
 
   private final FrequencyGoalService frequencyGoalService;
+  private final GoalProposalService goalProposalService;
 
-  public MobileFrequencyGoalController(FrequencyGoalService frequencyGoalService) {
+  public MobileFrequencyGoalController(
+      FrequencyGoalService frequencyGoalService, GoalProposalService goalProposalService) {
     this.frequencyGoalService = frequencyGoalService;
+    this.goalProposalService = goalProposalService;
   }
 
   /** カードと設定シートの表示データ（達成率は終わった週のみで計算し、今週は進捗だけ）。 */
@@ -43,7 +48,9 @@ public class MobileFrequencyGoalController {
   public ResponseEntity<MobileFrequencyGoalResponse> update(
       @AuthenticationPrincipal Long userId, @Valid @RequestBody FrequencyGoalUpdateRequest req) {
     LocalDate today = LocalDate.now();
-    frequencyGoalService.updateGoal(userId, req.getWeeklyTargetCount(), today);
+    // 機能見直し-1-#20: 値が変わったら「会員が変更」を記録する（担当トレーナーと決めた目標の表示も外れる）
+    goalProposalService.updateWeeklyTargetByMember(
+        userId, req.getWeeklyTargetCount(), today, LocalDateTime.now());
     return ResponseEntity.ok(
         MobileFrequencyGoalResponse.from(frequencyGoalService.getSummary(userId, today)));
   }
