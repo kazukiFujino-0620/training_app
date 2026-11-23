@@ -24,6 +24,10 @@ public interface FrequencyGoalDao {
   @Select
   Optional<UserFrequencyGoal> selectGoalByUserId(Long userId);
 
+  /** 複数の会員の目標をまとめて取得する（機能見直し-1-#12 担当会員の一覧）。 */
+  @Select
+  List<UserFrequencyGoal> selectGoalsByUserIds(List<Long> userIds);
+
   @Insert
   int insertGoal(UserFrequencyGoal entity);
 
@@ -34,6 +38,11 @@ public interface FrequencyGoalDao {
   @Select
   List<UserFrequencyWeekTarget> selectWeekTargetsUntil(
       Long userId, LocalDate weekStartDate, int limit);
+
+  /** 複数の会員の、期間 [fromWeekStart, toWeekStart] の確定目標（機能見直し-1-#12 担当会員の一覧）。 */
+  @Select
+  List<UserFrequencyWeekTarget> selectWeekTargetsByUserIdsBetween(
+      List<Long> userIds, LocalDate fromWeekStart, LocalDate toWeekStart);
 
   @Select
   Optional<UserFrequencyWeekTarget> selectLatestWeekTarget(Long userId);

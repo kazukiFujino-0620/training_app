@@ -71,6 +71,7 @@ public class MenuController {
   private final com.example.traning.periodization.ProgramCycleProposalService proposalService;
   private final com.example.traning.health.HealthReferenceService healthReferenceService;
   private final com.example.traning.goal.FrequencyGoalService frequencyGoalService;
+  private final com.example.traning.follow.MemberFollowService memberFollowService;
 
   public MenuController(
       TrainingDao trainingDao,
@@ -89,7 +90,8 @@ public class MenuController {
       TrainingStatsService trainingStatsService,
       com.example.traning.periodization.ProgramCycleProposalService proposalService,
       com.example.traning.health.HealthReferenceService healthReferenceService,
-      com.example.traning.goal.FrequencyGoalService frequencyGoalService) {
+      com.example.traning.goal.FrequencyGoalService frequencyGoalService,
+      com.example.traning.follow.MemberFollowService memberFollowService) {
     this.trainingDao = trainingDao;
     this.trainingDetailDao = trainingDetailDao;
     this.trainingMasterDao = trainingMasterDao;
@@ -107,6 +109,7 @@ public class MenuController {
     this.proposalService = proposalService;
     this.healthReferenceService = healthReferenceService;
     this.frequencyGoalService = frequencyGoalService;
+    this.memberFollowService = memberFollowService;
   }
 
   @GetMapping("/menu")
@@ -322,6 +325,13 @@ public class MenuController {
 
     // 機能見直し-1-#7: 統計バー右端の「週の目標」カード（達成率は終わった週のみ。今週は進捗だけ）
     model.addAttribute("frequencyGoal", frequencyGoalService.getSummary(userId, today));
+
+    // 機能見直し-1-#12: トレーナー・管理者メニューの「担当会員の一覧」ボタンの「フォロー推奨 N人」（自分の担当のみ）
+    model.addAttribute(
+        "followRecommendedCount",
+        com.example.traning.follow.MemberFollowService.availableTabs(userEntity).isEmpty()
+            ? 0
+            : memberFollowService.countFlaggedAssigned(userEntity, today));
 
     // itバグ-21対応（2026-09-11）: 「AIトレーニング提案」カードは「（モック）」文言のため廃止し、
     // 既存のルールベース推奨（dailyRecommendation、上記F3 Phase1参照）に一本化した。

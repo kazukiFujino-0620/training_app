@@ -3,6 +3,7 @@ package com.example.traning.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.traning.audit.AuditLogController;
+import com.example.traning.follow.MemberFollowController;
 import com.example.traning.notice.NoticeController;
 import com.example.traning.organization.AdminGymSettingController;
 import com.example.traning.organization.AdminInviteCodeController;
@@ -162,7 +163,9 @@ class RoleAuthorizationMatrixTest {
         Arguments.of(TrainerAdviceController.class, "draft"),
         Arguments.of(TrainerAdviceController.class, "delete"),
         Arguments.of(TrainerPeriodizationController.class, "index"),
-        Arguments.of(TrainerPeriodizationController.class, "send"));
+        Arguments.of(TrainerPeriodizationController.class, "send"),
+        Arguments.of(MemberFollowController.class, "index"),
+        Arguments.of(MemberFollowController.class, "acknowledge"));
   }
 
   @org.junit.jupiter.api.Test
@@ -204,6 +207,20 @@ class RoleAuthorizationMatrixTest {
         assertThat(granted(c, method, "ORG_ADMIN")).as(c.getSimpleName() + "#" + method).isTrue();
         assertThat(granted(c, method, "ADMIN")).as(c.getSimpleName() + "#" + method).isTrue();
       }
+    }
+  }
+
+  // ── 機能見直し-1-#12 担当会員の一覧 ───────────────────────
+
+  @org.junit.jupiter.api.Test
+  void 担当会員の一覧はスタッフ全員が開け会員は開けない() {
+    for (String method : handlerMethods(MemberFollowController.class)) {
+      for (String role : List.of("TRAINER", "STORE_ADMIN", "ORG_ADMIN", "ADMIN")) {
+        assertThat(granted(MemberFollowController.class, method, role))
+            .as(method + " " + role)
+            .isTrue();
+      }
+      assertThat(granted(MemberFollowController.class, method, "USER")).as(method).isFalse();
     }
   }
 }

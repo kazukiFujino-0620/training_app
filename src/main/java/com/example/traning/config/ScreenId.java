@@ -42,6 +42,7 @@ public enum ScreenId {
   ADMIN_USER_TRAINING_DETAIL(
       "/admin/user/training-detail/", "トレーニング詳細", "/admin/all-users-training", "一覧に戻る"),
   TRAINER_ADVICE("/trainer/advice", "トレーナーアドバイス", "/menu", "メニューに戻る"),
+  TRAINER_MEMBERS("/trainer/members", "担当会員の一覧", "/menu", "メニューに戻る"),
   TRAINER_PERIODIZATION(
       "/trainer/periodization", "期分けプログラムの案を送る", "/trainer/advice", "トレーナーアドバイスに戻る"),
   TRAINER_PERIODIZATION_EDIT(

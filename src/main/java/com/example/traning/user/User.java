@@ -86,6 +86,13 @@ public class User {
   @Column(name = "assigned_trainer_id")
   public Long assignedTrainerId;
 
+  /**
+   * 担当トレーナーになった日時（機能見直し-1-#12）。未割り当て・V48より前の割り当てはnull。INSERT・通常のUPDATEでは送らず、 {@code
+   * UserDao#updateAssignedTrainer}でのみ変更する。
+   */
+  @Column(name = "assigned_trainer_at", insertable = false, updatable = false)
+  public LocalDateTime assignedTrainerAt;
+
   /** AI機能（トレーニング提案・疲労度分析・トレーナーアドバイス下書き）利用への同意。 */
   @Column(name = "ai_advice_consent")
   public Boolean aiAdviceConsent;
