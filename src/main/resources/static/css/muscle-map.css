@@ -1,0 +1,131 @@
+/* 部位別の人体図（templates/fragments/muscle-map.html）。会員本人のトップとスタッフ向けの会員詳細（機能見直し-1-#19）で共用する */
+/* ライトモード（デフォルト） */
+#muscle-map-svg .body-base {
+  fill: #cfd8dc;
+  stroke: #90a4ae;
+  stroke-width: 5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+#muscle-map-svg .mz {
+  fill: #e0ecf4;
+  stroke: #78909c;
+  stroke-width: 3;
+  stroke-linejoin: round;
+  transition: fill 0.4s ease;
+  cursor: default;
+}
+#muscle-map-svg text {
+  user-select: none;
+  pointer-events: none;
+}
+/* ダークモード */
+[data-theme="dark"] #muscle-map-svg .body-base {
+  fill: #b0bec5;
+  stroke: #78909c;
+}
+[data-theme="dark"] #muscle-map-svg .mz {
+  fill: #c4d0d6;
+  stroke: #455a64;
+}
+
+/* スタッフ向けの会員詳細の「部位別の直近負荷」カード（機能見直し-1-#19） */
+.part-load-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.part-load-pill {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  border-radius: 999px;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+.part-load-split {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 640px) {
+  .part-load-split {
+    grid-template-columns: 1fr;
+  }
+}
+.part-load-map {
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  padding: 10px 10px 6px;
+}
+.part-load-map-labels {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 1.5px;
+}
+.part-load-map #muscle-map-svg {
+  max-width: 100%;
+}
+.part-load-legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 0 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.part-load-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.part-load-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.part-load-table-wrap {
+  overflow-x: auto;
+}
+.part-load-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.part-load-table th,
+.part-load-table td {
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+  text-align: left;
+}
+.part-load-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+.part-load-table .r {
+  text-align: right;
+}
+.part-load-table .fatigue-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: #b0bec5;
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: -1px;
+}
+.part-load-note {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}

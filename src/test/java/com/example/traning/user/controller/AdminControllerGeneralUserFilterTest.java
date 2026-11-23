@@ -11,6 +11,7 @@ import com.example.traning.organization.Organization;
 import com.example.traning.organization.OrganizationDao;
 import com.example.traning.organization.OrganizationScopeResolver;
 import com.example.traning.organization.UserStoreAccessDao;
+import com.example.traning.smarttrainer.recommendation.PartLoadService;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.service.CalorieCalculator;
@@ -48,6 +49,7 @@ class AdminControllerGeneralUserFilterTest {
   @Mock private OrganizationDao organizationDao;
   @Mock private UserStoreAccessDao userStoreAccessDao;
   @Mock private UserDetails userDetails;
+  @Mock private PartLoadService partLoadService;
 
   private AdminController controller;
 
@@ -65,7 +67,8 @@ class AdminControllerGeneralUserFilterTest {
             organizationScopeResolver,
             organizationDao,
             userStoreAccessDao,
-            new MemberAccessPolicy(organizationScopeResolver));
+            new MemberAccessPolicy(organizationScopeResolver),
+            partLoadService);
 
     User admin = new User();
     admin.setUserId(1);

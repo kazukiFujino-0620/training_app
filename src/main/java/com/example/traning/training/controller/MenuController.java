@@ -9,6 +9,7 @@ import com.example.traning.smarttrainer.prediction.ChurnDetectionService;
 import com.example.traning.smarttrainer.prediction.OneRmPredictionService;
 import com.example.traning.smarttrainer.recommendation.DailyRecommendation;
 import com.example.traning.smarttrainer.recommendation.FatigueCalculator;
+import com.example.traning.smarttrainer.recommendation.PartLoadService;
 import com.example.traning.smarttrainer.recommendation.RecommendationService;
 import com.example.traning.smarttrainer.recommendation.RecommendedItem;
 import com.example.traning.trainer.TrainerAdvice;
@@ -235,27 +236,8 @@ public class MenuController {
     // （旧実装はここに独自のインライン計算を持っており、ita5-3のWARMUP除外がこの画面だけ
     // 反映されていなかったため、共通実装に統一した）。
     FatigueCalculator.FatigueResult fatigueResult = fatigueCalculator.calculate(userId, today);
-    Map<String, Long> volumeByPart = fatigueResult.volumeByPart();
-    Map<String, Integer> setsByPart = fatigueResult.setsByPart();
-    Map<String, Integer> fatiguePct = fatigueResult.fatiguePct();
-
-    Map<String, String> partNameMap =
-        partList.stream()
-            .collect(
-                Collectors.toMap(
-                    TrainingMaster::getPartCode, TrainingMaster::getPartName, (a, b) -> a));
-
-    // Thymeleaf のMap変数キーアクセス問題を避けるため、List<Map>で渡す
-    List<Map<String, Object>> fatigueRows = new ArrayList<>();
-    for (String p : FatigueCalculator.PART_ORDER) {
-      Map<String, Object> row = new java.util.LinkedHashMap<>();
-      row.put("partCode", p);
-      row.put("partName", partNameMap.getOrDefault(p, p));
-      row.put("volume", volumeByPart.getOrDefault(p, 0L));
-      row.put("sets", setsByPart.getOrDefault(p, 0));
-      row.put("pct", fatiguePct.getOrDefault(p, 0));
-      fatigueRows.add(row);
-    }
+    // 部位別の表の行は、スタッフ向けの会員詳細（機能見直し-1-#19）と共用のPartLoadServiceで作る
+    List<Map<String, Object>> fatigueRows = PartLoadService.toRows(fatigueResult, partList);
 
     // R1〜R3・今日の予定: 統計バー算出ロジックはita7-2でモバイル(MobileStatsController)と共用するため
     // TrainingStatsServiceへ切り出し済み。Web側の出力（モデル属性の型・値）は切り出し前と完全に同一。
@@ -283,7 +265,6 @@ public class MenuController {
     model.addAttribute("isDailyCompleted", totalCount > 0 && totalCount == completedCount);
     model.addAttribute("dayStatusList", dayStatusList);
     model.addAttribute("unreadAdviceDates", unreadAdviceDates);
-    model.addAttribute("fatiguePct", fatiguePct);
     model.addAttribute("fatigueRows", fatigueRows);
     model.addAttribute("monthlyCount", monthlyCount);
     model.addAttribute("weekParts", weekParts);
