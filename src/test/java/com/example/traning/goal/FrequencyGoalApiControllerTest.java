@@ -29,6 +29,7 @@ import org.springframework.validation.BindingResult;
 class FrequencyGoalApiControllerTest {
 
   @Mock private FrequencyGoalService frequencyGoalService;
+  @Mock private GoalProposalService goalProposalService;
   @Mock private TrainingService trainingService;
 
   private FrequencyGoalApiController controller;
@@ -36,7 +37,8 @@ class FrequencyGoalApiControllerTest {
 
   @BeforeEach
   void setUp() {
-    controller = new FrequencyGoalApiController(frequencyGoalService, trainingService);
+    controller =
+        new FrequencyGoalApiController(frequencyGoalService, goalProposalService, trainingService);
   }
 
   @Test
@@ -65,11 +67,12 @@ class FrequencyGoalApiControllerTest {
     ResponseEntity<?> res = controller.update(form, result, principal);
 
     assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    verify(frequencyGoalService, never()).updateGoal(anyLong(), anyInt(), any());
+    verify(goalProposalService, never())
+        .updateWeeklyTargetByMember(anyLong(), anyInt(), any(), any());
   }
 
   @Test
-  void update_ログインユーザー本人の目標を保存する() {
+  void update_ログインユーザー本人の目標を会員の変更として保存する() {
     when(trainingService.getUserIdByEmail("me@example.com")).thenReturn(5L);
     when(frequencyGoalService.getSummary(eq(5L), any(LocalDate.class)))
         .thenReturn(new FrequencyGoalSummary(true, 3, 0, false, 0, 0, 3, false));
@@ -80,6 +83,8 @@ class FrequencyGoalApiControllerTest {
         controller.update(form, new BeanPropertyBindingResult(form, "form"), principal);
 
     assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
-    verify(frequencyGoalService).updateGoal(eq(5L), eq(3), any(LocalDate.class));
+    // 機能見直し-1-#20: 値が変わったら「会員が変更」を記録する経路を通す
+    verify(goalProposalService)
+        .updateWeeklyTargetByMember(eq(5L), eq(3), any(LocalDate.class), any());
   }
 }

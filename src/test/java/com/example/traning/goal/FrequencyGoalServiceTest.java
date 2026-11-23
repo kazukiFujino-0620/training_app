@@ -465,6 +465,66 @@ class FrequencyGoalServiceTest {
     assertThat(dao.calls).doesNotContain("lock");
   }
 
+  // ===================== 機能見直し-1-#20 トレーナーと決めた目標の承認 =====================
+
+  @Test
+  void 承認した週は目標を設定した週として評価せず表示は新しい目標にする() {
+    service.updateGoal(USER, 2, W1);
+    trainDays(W1.plusWeeks(1), 0, 1);
+    service.getSummary(USER, W1.plusWeeks(1)); // 2週目を週2回で確定（評価する週）
+    assertThat(dao.week(W1.plusWeeks(1)).getEvaluated()).isTrue();
+
+    service.applyAgreedGoal(USER, 4, W1.plusWeeks(1).plusDays(2));
+
+    UserFrequencyWeekTarget thisWeek = dao.week(W1.plusWeeks(1));
+    assertThat(thisWeek.getEvaluated()).isFalse();
+    assertThat(thisWeek.getTargetCount()).isEqualTo(4);
+    assertThat(dao.goal.getWeeklyTargetCount()).isEqualTo(4);
+    // 前の週の確定目標は書き換えない
+    assertThat(dao.week(W1).getTargetCount()).isEqualTo(2);
+    FrequencyGoalSummary s = service.getSummary(USER, W1.plusWeeks(1).plusDays(2));
+    assertThat(s.thisWeekTarget()).isEqualTo(4);
+    assertThat(s.evaluatedWeeks()).isZero();
+    // 翌週からは新しい目標で評価する
+    service.getSummary(USER, W1.plusWeeks(2));
+    assertThat(dao.week(W1.plusWeeks(2)).getTargetCount()).isEqualTo(4);
+    assertThat(dao.week(W1.plusWeeks(2)).getEvaluated()).isTrue();
+  }
+
+  @Test
+  void 目標が無かった会員が承認した週は設定した週として確定する() {
+    service.applyAgreedGoal(USER, 3, W1.plusDays(3));
+
+    assertThat(dao.weeks).hasSize(1);
+    assertThat(dao.week(W1).getEvaluated()).isFalse();
+    assertThat(dao.week(W1).getTargetCount()).isEqualTo(3);
+    assertThat(dao.week(W1).getSource()).isEqualTo("MANUAL");
+  }
+
+  @Test
+  void プログラム実施中の週に承認してもその週はプログラムの予定日数のまま評価も変えない() {
+    service.updateGoal(USER, 2, W1);
+    ProgramCycle c = cycle(10L, W1.plusWeeks(1), 2);
+    for (int wk = 1; wk <= 2; wk++) {
+      day(c, wk, "MON", "CHEST");
+      day(c, wk, "WED", "BACK");
+      day(c, wk, "FRI", "LEG");
+    }
+    service.getSummary(USER, W1.plusWeeks(1));
+
+    service.applyAgreedGoal(USER, 5, W1.plusWeeks(1).plusDays(1));
+
+    UserFrequencyWeekTarget programWeek = dao.week(W1.plusWeeks(1));
+    assertThat(programWeek.getSource()).isEqualTo("PROGRAM");
+    assertThat(programWeek.getTargetCount()).isEqualTo(3);
+    assertThat(programWeek.getEvaluated()).isTrue();
+    assertThat(dao.goal.getWeeklyTargetCount()).isEqualTo(5);
+    // プログラムが終わった週から新しい目標を使う
+    service.getSummary(USER, W1.plusWeeks(3));
+    assertThat(dao.week(W1.plusWeeks(3)).getTargetCount()).isEqualTo(5);
+    assertThat(dao.week(W1.plusWeeks(3)).getSource()).isEqualTo("MANUAL");
+  }
+
   // ===================== helpers =====================
 
   private void trainDays(LocalDate monday, int... offsets) {
@@ -595,6 +655,21 @@ class FrequencyGoalServiceTest {
             && Boolean.FALSE.equals(w.getEvaluated())
             && "MANUAL".equals(w.getSource())) {
           w.setTargetCount(targetCount);
+          n++;
+        }
+      }
+      return n;
+    }
+
+    @Override
+    public int markWeekAsGoalSetWeek(Long userId, LocalDate weekStartDate, int targetCount) {
+      int n = 0;
+      for (UserFrequencyWeekTarget w : weeks) {
+        if (w.getWeekStartDate().equals(weekStartDate) && !"PROGRAM".equals(w.getSource())) {
+          w.setTargetCount(targetCount);
+          w.setSource("MANUAL");
+          w.setProgramCycleId(null);
+          w.setEvaluated(false);
           n++;
         }
       }

@@ -265,6 +265,23 @@ public class FrequencyGoalService {
     ensureWeekTargets(userId, today, frequencyGoalDao.selectGoalByUserId(userId));
   }
 
+  /**
+   * トレーナーと一緒に決めた目標を会員が承認したとき（機能見直し-1-#20）。保存は{@link #updateGoal}と同じで、
+   * 承認した週は#7の「目標を設定した週」と同じ扱い（評価に含めず、表示は新しい目標）にする。期分けプログラムの週は
+   * プログラムの予定日数を優先し、その週の目標・評価は変えない（新しい目標はプログラム対象外の週から使われる）。
+   */
+  @Transactional
+  public void applyAgreedGoal(Long userId, int weeklyTargetCount, LocalDate today) {
+    updateGoal(userId, weeklyTargetCount, today);
+    frequencyGoalDao.markWeekAsGoalSetWeek(userId, weekStartOf(today), weeklyTargetCount);
+  }
+
+  /** 現在の手入力の週の回数目標（未設定はempty）。 */
+  @Transactional(readOnly = true)
+  public Optional<Integer> findManualTarget(Long userId) {
+    return frequencyGoalDao.selectGoalByUserId(userId).map(UserFrequencyGoal::getWeeklyTargetCount);
+  }
+
   /** 期分けプログラムの開始・切替の直前に呼ぶ（PeriodizationService）。今週分までを現在の状態で確定させる。 */
   @Transactional
   public void freezeWeekTargets(Long userId, LocalDate today) {

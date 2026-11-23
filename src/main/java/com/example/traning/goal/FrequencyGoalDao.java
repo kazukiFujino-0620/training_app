@@ -53,4 +53,11 @@ public interface FrequencyGoalDao {
   /** 評価に含めない週（目標を設定した週）の目標値だけを置き換える。 */
   @Update(sqlFile = true)
   int updateUnevaluatedWeekTarget(Long userId, LocalDate weekStartDate, int targetCount);
+
+  /**
+   * トレーナーと決めた目標を承認した週（機能見直し-1-#20）を「目標を設定した週」（評価に含めない・表示は新しい目標）にする。
+   * 期分けプログラムの週（source=PROGRAM）はプログラム優先のため変えない。
+   */
+  @Update(sqlFile = true)
+  int markWeekAsGoalSetWeek(Long userId, LocalDate weekStartDate, int targetCount);
 }

@@ -6,6 +6,8 @@ import com.example.traning.follow.MemberFollowEvaluator.Result;
 import com.example.traning.goal.FrequencyGoalService;
 import com.example.traning.goal.FrequencyGoalService.MemberGoalStatus;
 import com.example.traning.goal.FrequencyGoalSummary;
+import com.example.traning.goal.GoalProposalService;
+import com.example.traning.goal.GoalProposalService.ReviewStatus;
 import com.example.traning.health.HealthInfoAccessPolicy;
 import com.example.traning.organization.MemberAccessLevel;
 import com.example.traning.organization.MemberAccessPolicy;
@@ -92,6 +94,10 @@ public class MemberFollowService {
    * @param thisWeekLabel 例: 「0/3回」。目標なしは「—」
    * @param daysSinceLastTraining 最後のトレーニングからの日数。記録が無ければnull
    * @param canAcknowledge 「対応済みにする」を押せるか
+   * @param nextReviewDate 目標の次の見直し日（機能見直し-1-#20。提案を受けたことが無ければnull＝未設定）
+   * @param reviewDateLabel 見直し日の表示。例: 「12/22（今日）」「12/20（2日前）」「1/19」。未設定はnull
+   * @param reviewDue 見直し日の青い印を出すか（見直し日の当日以降で、まだ新しい提案を送っていない）
+   * @param canPropose 「目標を提案する」を押せるか
    */
   public record MemberRow(
       Long memberId,
@@ -105,7 +111,11 @@ public class MemberFollowService {
       LocalDate lastTrainingDate,
       Long daysSinceLastTraining,
       Result follow,
-      boolean canAcknowledge) {
+      boolean canAcknowledge,
+      LocalDate nextReviewDate,
+      String reviewDateLabel,
+      boolean reviewDue,
+      boolean canPropose) {
 
     /** 期分けプログラムの週・デロード週は、目標と達成率を2行に分けて出す（仮画面どおり）。 */
     public boolean goalOnTwoLines() {
@@ -152,6 +162,7 @@ public class MemberFollowService {
   private final HealthInfoAccessPolicy healthInfoAccessPolicy;
   private final FrequencyGoalService frequencyGoalService;
   private final PeriodizationService periodizationService;
+  private final GoalProposalService goalProposalService;
 
   public MemberFollowService(
       MemberFollowDao memberFollowDao,
@@ -162,7 +173,8 @@ public class MemberFollowService {
       MemberAccessPolicy memberAccessPolicy,
       HealthInfoAccessPolicy healthInfoAccessPolicy,
       FrequencyGoalService frequencyGoalService,
-      PeriodizationService periodizationService) {
+      PeriodizationService periodizationService,
+      GoalProposalService goalProposalService) {
     this.memberFollowDao = memberFollowDao;
     this.userDao = userDao;
     this.trainingDao = trainingDao;
@@ -172,6 +184,7 @@ public class MemberFollowService {
     this.healthInfoAccessPolicy = healthInfoAccessPolicy;
     this.frequencyGoalService = frequencyGoalService;
     this.periodizationService = periodizationService;
+    this.goalProposalService = goalProposalService;
   }
 
   // ===================== 参照系 =====================
@@ -242,6 +255,21 @@ public class MemberFollowService {
     return (int)
         buildRows(viewer, members, today, LocalDateTime.now(), false).stream()
             .filter(r -> r.follow().flagged())
+            .count();
+  }
+
+  /** トップのボタンの「見直し N人」（機能見直し-1-#20）。自分の担当で見直し日の印が付いている人数。 */
+  @Transactional(readOnly = true)
+  public int countReviewDueAssigned(User viewer, LocalDate today) {
+    if (!availableTabs(viewer).contains(Tab.MINE)) return 0;
+    List<User> members = assignedMembers(viewer);
+    if (members.isEmpty()) return 0;
+    return (int)
+        goalProposalService
+            .reviewStatuses(members.stream().map(m -> m.getUserId().longValue()).toList(), today)
+            .values()
+            .stream()
+            .filter(ReviewStatus::due)
             .count();
   }
 
@@ -368,15 +396,7 @@ public class MemberFollowService {
 
   /** トレーナーは担当会員のみ。管理者は範囲内の会員（担当でなくてもよい）。 */
   boolean canAcknowledge(User viewer, User member) {
-    if (!Role.USER.value().equals(member.getRole())) return false;
-    Role role = Role.fromValue(viewer.getRole());
-    if (role == null) return false;
-    return switch (role) {
-      case TRAINER -> MemberAccessPolicy.isAssignedTo(member, viewer);
-      case ADMIN, ORG_ADMIN, STORE_ADMIN ->
-          memberAccessPolicy.resolve(viewer, member) == MemberAccessLevel.FULL;
-      default -> false;
-    };
+    return memberAccessPolicy.isResponsibleStaff(viewer, member);
   }
 
   // ===================== 行の組み立て =====================
@@ -413,6 +433,7 @@ public class MemberFollowService {
       acks.put(a.getMemberUserId(), a);
     }
     Map<Long, String> trainerNames = trainerNames(members);
+    Map<Long, ReviewStatus> reviews = goalProposalService.reviewStatuses(ids, today);
 
     List<MemberRow> rows = new ArrayList<>();
     for (User m : members) {
@@ -445,6 +466,7 @@ public class MemberFollowService {
       Result result = MemberFollowEvaluator.evaluate(facts, today);
       FrequencyGoalSummary summary = goal == null ? null : goal.summary();
       LocalDate last = lastTraining.get(id);
+      ReviewStatus review = reviews.get(id);
       rows.add(
           new MemberRow(
               id,
@@ -458,7 +480,11 @@ public class MemberFollowService {
               last,
               last == null ? null : ChronoUnit.DAYS.between(last, today),
               result,
-              result.flagged() && canAcknowledge(viewer, m)));
+              result.flagged() && canAcknowledge(viewer, m),
+              review == null ? null : review.nextReviewDate(),
+              review == null ? null : reviewDateLabel(review.nextReviewDate(), today),
+              review != null && review.due(),
+              goalProposalService.canPropose(viewer, m)));
     }
     return rows;
   }
@@ -513,6 +539,15 @@ public class MemberFollowService {
     return s.thisWeekDoneDays() + "/" + s.thisWeekTarget() + "回";
   }
 
+  /** 例: 「12/22（今日）」「12/20（2日前）」「1/19」。 */
+  static String reviewDateLabel(LocalDate date, LocalDate today) {
+    String md = date.getMonthValue() + "/" + date.getDayOfMonth();
+    long days = ChronoUnit.DAYS.between(date, today);
+    if (days == 0) return md + "（今日）";
+    if (days > 0) return md + "（" + days + "日前）";
+    return md;
+  }
+
   // ===================== 並べ替え =====================
 
   static List<MemberRow> sortRows(List<MemberRow> rows, Sort sort) {
@@ -523,7 +558,10 @@ public class MemberFollowService {
     Comparator<MemberRow> byLast =
         Comparator.comparing(
             MemberRow::lastTrainingDate, Comparator.nullsFirst(Comparator.naturalOrder()));
-    Comparator<MemberRow> flaggedFirst = Comparator.comparing(r -> !r.follow().flagged());
+    // 機能見直し-1-#20: フォロー推奨の次に見直し日の印（Q20-2 A）
+    Comparator<MemberRow> flaggedFirst =
+        Comparator.comparing((MemberRow r) -> !r.follow().flagged())
+            .thenComparing(r -> !r.reviewDue());
     Comparator<MemberRow> comparator =
         switch (sort) {
           case FLAG -> flaggedFirst.thenComparing(byLast).thenComparing(byName);

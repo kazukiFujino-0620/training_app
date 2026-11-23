@@ -87,6 +87,23 @@ public class MemberAccessPolicy {
             && accessibleOrganizationIds.contains(member.getOrganizationId()));
   }
 
+  /**
+   * 会員に対してスタッフとして対応できるか（#12の「対応済みにする」、#20の目標の提案）。トレーナーは担当会員のみ。
+   * 管理者（店舗・ジム・システム管理者）は範囲内の会員（担当でなくてもよい）。対象は会員（ROLE_USER）だけ。
+   */
+  public boolean isResponsibleStaff(User viewer, User member) {
+    if (viewer == null || member == null || !Role.USER.value().equals(member.getRole())) {
+      return false;
+    }
+    Role role = Role.fromValue(viewer.getRole());
+    if (role == null) return false;
+    return switch (role) {
+      case TRAINER -> isAssignedTo(member, viewer);
+      case ADMIN, ORG_ADMIN, STORE_ADMIN -> resolve(viewer, member) == MemberAccessLevel.FULL;
+      default -> false;
+    };
+  }
+
   /** 会員の担当トレーナーが{@code staff}か。 */
   public static boolean isAssignedTo(User member, User staff) {
     return member.getAssignedTrainerId() != null

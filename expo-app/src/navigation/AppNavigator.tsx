@@ -73,7 +73,8 @@ export type AuthStackParamList = {
 };
 
 export type AppStackParamList = {
-  TrainingList: undefined;
+  /** openFrequencyGoal: プロフィールの「変更する」から週の目標の設定シートを開く（機能見直し-1-#20） */
+  TrainingList: { openFrequencyGoal?: boolean } | undefined;
   TrainingStart: undefined;
   /** date未指定時は当日として扱う（後方互換） */
   Exercise: { trainingId: number; menu: string; date?: string };

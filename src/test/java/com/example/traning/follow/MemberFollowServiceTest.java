@@ -19,6 +19,9 @@ import com.example.traning.follow.MemberFollowService.ScopeOption;
 import com.example.traning.follow.MemberFollowService.Sort;
 import com.example.traning.follow.MemberFollowService.Tab;
 import com.example.traning.goal.FrequencyGoalService;
+import com.example.traning.goal.GoalProposal;
+import com.example.traning.goal.GoalProposalDao;
+import com.example.traning.goal.GoalProposalService;
 import com.example.traning.health.HealthInfoAccessPolicy;
 import com.example.traning.organization.GymSettingService;
 import com.example.traning.organization.MemberAccessPolicy;
@@ -31,6 +34,7 @@ import com.example.traning.smarttrainer.autogen.UserExcludedItem;
 import com.example.traning.training.dao.TrainingDao;
 import com.example.traning.training.dao.UserTrainingDate;
 import com.example.traning.user.User;
+import com.example.traning.user.service.ProfileService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -82,11 +86,14 @@ class MemberFollowServiceTest {
   @Mock private AuditLogService auditLogService;
   @Mock private FrequencyGoalService frequencyGoalService;
   @Mock private PeriodizationService periodizationService;
+  @Mock private GoalProposalDao goalProposalDao;
+  @Mock private ProfileService profileService;
 
   private MemberFollowService service;
   private final List<User> members = new ArrayList<>();
   private final Map<Long, LocalDate> lastTraining = new HashMap<>();
   private final List<UserExcludedItem> exclusions = new ArrayList<>();
+  private final List<GoalProposal> latestProposals = new ArrayList<>();
 
   @BeforeEach
   void setUp() {
@@ -159,6 +166,13 @@ class MemberFollowServiceTest {
                     .toList());
     lenient().when(frequencyGoalService.getStatusesForMembers(any(), any())).thenReturn(Map.of());
     lenient().when(periodizationService.findMembersInDeloadWeek(any(), any())).thenReturn(Set.of());
+    lenient()
+        .when(goalProposalDao.selectLatestProposalsByMemberIds(any()))
+        .thenAnswer(
+            inv ->
+                latestProposals.stream()
+                    .filter(p -> ((List<Long>) inv.getArgument(0)).contains(p.getMemberUserId()))
+                    .toList());
 
     OrganizationScopeResolver resolver =
         new OrganizationScopeResolver(organizationDao, userStoreAccessDao);
@@ -172,7 +186,13 @@ class MemberFollowServiceTest {
             new MemberAccessPolicy(resolver),
             new HealthInfoAccessPolicy(resolver, gymSettingService, auditLogService),
             frequencyGoalService,
-            periodizationService);
+            periodizationService,
+            new GoalProposalService(
+                goalProposalDao,
+                userDao,
+                new MemberAccessPolicy(resolver),
+                frequencyGoalService,
+                profileService));
   }
 
   // ===================== 自分の担当 =====================
@@ -426,6 +446,85 @@ class MemberFollowServiceTest {
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode())
         .isEqualTo(HttpStatus.FORBIDDEN);
+  }
+
+  private void latestProposal(long memberId, LocalDate nextReviewDate, String status) {
+    GoalProposal p = new GoalProposal();
+    p.setId((long) (latestProposals.size() + 1));
+    p.setMemberUserId(memberId);
+    p.setNextReviewDate(nextReviewDate);
+    p.setStatus(status);
+    latestProposals.add(p);
+  }
+
+  // ===================== 機能見直し-1-#20 目標の見直し =====================
+
+  @Test
+  void 見直し日の当日以降は青い印を出し見送られても消さず先の日付と未設定は印なし() {
+    member(1, STORE_11, TRAINER, "佐藤 花子");
+    member(2, STORE_11, TRAINER, "田中 一郎");
+    member(3, STORE_11, TRAINER, "鈴木 次郎");
+    member(4, STORE_11, TRAINER, "中島 七海");
+    latestProposal(1, TODAY, "ACCEPTED");
+    latestProposal(2, TODAY.plusDays(30), "PENDING");
+    latestProposal(4, TODAY.minusDays(2), "DECLINED");
+    for (long id = 1; id <= 4; id++) lastTraining.put(id, TODAY.minusDays(1));
+
+    Map<Long, MemberRow> rows = new HashMap<>();
+    service
+        .list(TRAINER, null, null, Sort.NAME, TODAY)
+        .rows()
+        .forEach(r -> rows.put(r.memberId(), r));
+
+    assertThat(rows.get(1L).reviewDue()).isTrue();
+    assertThat(rows.get(1L).reviewDateLabel()).isEqualTo("11/19（今日）");
+    assertThat(rows.get(1L).canPropose()).isTrue();
+    assertThat(rows.get(2L).reviewDue()).isFalse();
+    assertThat(rows.get(2L).reviewDateLabel()).isEqualTo("12/19");
+    assertThat(rows.get(3L).reviewDue()).isFalse();
+    assertThat(rows.get(3L).nextReviewDate()).isNull();
+    assertThat(rows.get(4L).reviewDue()).isTrue();
+    assertThat(rows.get(4L).reviewDateLabel()).isEqualTo("11/17（2日前）");
+  }
+
+  @Test
+  void フォロー推奨が先の並びは印のある会員の次に見直し日の会員を出す() {
+    member(1, STORE_11, TRAINER, "あ 見直し");
+    member(2, STORE_11, TRAINER, "い 印あり");
+    member(3, STORE_11, TRAINER, "う その他");
+    lastTraining.put(1L, TODAY.minusDays(1));
+    lastTraining.put(2L, TODAY.minusDays(20));
+    lastTraining.put(3L, TODAY.minusDays(5));
+    latestProposal(1, TODAY.minusDays(1), "ACCEPTED");
+
+    ListView view = service.list(TRAINER, null, null, null, TODAY);
+
+    assertThat(view.rows()).extracting(MemberRow::memberId).containsExactly(2L, 1L, 3L);
+  }
+
+  @Test
+  void トップの見直しの人数は自分の担当で見直し日の印が付いている人数() {
+    member(1, STORE_11, TRAINER, "佐藤 花子");
+    member(2, STORE_11, TRAINER, "鈴木 次郎");
+    member(3, STORE_11, OTHER_TRAINER, "田中 一郎");
+    latestProposal(1, TODAY, "DECLINED");
+    latestProposal(2, TODAY.plusDays(1), "PENDING");
+    latestProposal(3, TODAY.minusDays(3), "ACCEPTED");
+
+    assertThat(service.countReviewDueAssigned(TRAINER, TODAY)).isEqualTo(1);
+    assertThat(service.countReviewDueAssigned(OTHER_TRAINER, TODAY)).isEqualTo(1);
+    assertThat(service.countReviewDueAssigned(ADMIN, TODAY)).isZero();
+  }
+
+  @Test
+  void 店舗全体では範囲内の管理者は担当でなくても目標を提案できる() {
+    member(1, STORE_11, TRAINER, "佐藤 花子");
+    member(2, STORE_11, null, "中島 七海");
+    latestProposal(1, TODAY, "ACCEPTED");
+
+    ListView view = service.list(STORE_ADMIN, Tab.STORE, null, Sort.NAME, TODAY);
+
+    assertThat(view.rows()).allMatch(MemberRow::canPropose);
   }
 
   private User member(int id, long orgId, User trainer, String name) {

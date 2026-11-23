@@ -109,6 +109,25 @@
         font-size: 0.72rem; font-weight: 700; padding: 0 7px; margin-left: 6px; white-space: nowrap;
       }
       [data-theme="dark"] .follow-count-badge { background: #78350f; color: #fde68a; }
+      /* 機能見直し-1-#20: 同じボタンの「見直し N人」（見直し日の青い印） */
+      .review-count-badge {
+        display: inline-block; background: #e0e7ff; color: #3730a3; border-radius: 999px;
+        font-size: 0.72rem; font-weight: 700; padding: 0 7px; margin-left: 4px; white-space: nowrap;
+      }
+      [data-theme="dark"] .review-count-badge { background: #312e81; color: #c7d2fe; }
+      /* 機能見直し-1-#20: トレーナーからの目標の提案 */
+      .goal-proposal-card {
+        background: var(--bg-card); border: 1.5px solid #4CAF50; border-radius: 10px; padding: 12px 16px;
+      }
+      .goal-proposal-card .gp-title { font-weight: 700; color: var(--text-primary); font-size: 0.92rem; }
+      .goal-proposal-card dl { margin: 6px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 2px 14px; font-size: 0.85rem; }
+      .goal-proposal-card dt { color: var(--text-muted); font-size: 0.78rem; }
+      .goal-proposal-card dd { margin: 0; color: var(--text-primary); }
+      .goal-proposal-card .gp-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      .goal-proposal-card .gp-actions form { margin: 0; }
+      .gp-btn { font-size: 0.82rem; font-weight: 700; border-radius: 6px; padding: 4px 14px; border: 1.5px solid #4CAF50; cursor: pointer; white-space: nowrap; }
+      .gp-btn.accept { background: #4CAF50; color: #fff; }
+      .gp-btn.decline { background: var(--bg-card); color: var(--text-secondary); border-color: var(--border-color); }
     </style>
   </head>
   <body class="bg-secondary">
@@ -147,6 +166,38 @@
           <span style="color:var(--text-muted);font-size:0.82rem;" th:text="${pendingProposal.name()}"></span>
           <span style="margin-left:auto;color:var(--text-muted);font-size:0.82rem;">確認する →</span>
         </a>
+
+        <!-- 機能見直し-1-#20: トレーナーからの目標の提案（返事待ちのときだけ。期分けの案と同じ場所） -->
+        <div th:if="${pendingGoalProposal != null}" th:with="gp=${pendingGoalProposal}"
+             class="goal-proposal-card mb-6" data-testid="goal-proposal-card">
+          <div class="gp-title" th:text="${gp.title()}">山本トレーナーから目標の提案があります</div>
+          <dl>
+            <dt>週の回数目標</dt>
+            <dd>
+              <th:block th:if="${gp.weeklyChanged()}"><span th:text="${gp.currentWeeklyLabel()}">週2回</span> → </th:block><b th:text="${gp.proposedWeeklyLabel()}">週3回</b>
+            </dd>
+            <dt>トレーニング目的</dt>
+            <dd>
+              <th:block th:if="${gp.goalModeChanged()}"><span th:text="${gp.currentGoalModeLabel()}">維持</span> → </th:block><b th:text="${gp.proposedGoalModeLabel()}">筋肥大</b>
+            </dd>
+            <th:block th:if="${gp.comment() != null}">
+              <dt>ひとこと</dt>
+              <dd th:text="${gp.comment()}">まずは週3回を4週続けましょう</dd>
+            </th:block>
+            <dt>次の見直し日</dt>
+            <dd th:text="${gp.nextReviewLabel()}">12/22</dd>
+          </dl>
+          <div class="gp-actions">
+            <form method="post" th:action="@{/user/goal-proposals/{id}/respond(id=${gp.id()})}">
+              <input type="hidden" name="response" value="ACCEPT"/>
+              <button type="submit" class="gp-btn accept">この目標にする</button>
+            </form>
+            <form method="post" th:action="@{/user/goal-proposals/{id}/respond(id=${gp.id()})}">
+              <input type="hidden" name="response" value="DECLINE"/>
+              <button type="submit" class="gp-btn decline">今回は見送る</button>
+            </form>
+          </div>
+        </div>
 
         <!-- Page Header -->
         <div class="mb-6">
@@ -793,7 +844,8 @@
                 <!-- 機能見直し-1-#12: 担当会員の一覧。人数は自分の担当でフォロー推奨が付いている人数（0人のときは出さない） -->
                 <a th:href="@{/trainer/members}" class="btn btn-outline w-full">
                   担当会員の一覧<span th:if="${followRecommendedCount > 0}" class="follow-count-badge"
-                    th:text="|フォロー推奨 ${followRecommendedCount}人|">フォロー推奨 3人</span>
+                    th:text="|フォロー推奨 ${followRecommendedCount}人|">フォロー推奨 3人</span><span th:if="${reviewDueCount > 0}" class="review-count-badge"
+                    th:text="|見直し ${reviewDueCount}人|">見直し 1人</span>
                 </a>
                 <a th:href="@{/admin/all-users-training}" class="btn btn-outline w-full">
                   会員のトレーニング確認
@@ -846,7 +898,8 @@
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
                   担当会員の一覧<span th:if="${followRecommendedCount > 0}" class="follow-count-badge"
-                    th:text="|フォロー推奨 ${followRecommendedCount}人|">フォロー推奨 3人</span>
+                    th:text="|フォロー推奨 ${followRecommendedCount}人|">フォロー推奨 3人</span><span th:if="${reviewDueCount > 0}" class="review-count-badge"
+                    th:text="|見直し ${reviewDueCount}人|">見直し 1人</span>
                 </a>
                 <a
                   th:href="@{/admin/all-users-training}"

@@ -437,6 +437,42 @@ export interface MobileFrequencyGoalResponse {
   programSheetLabel: string | null;
 }
 
+// ── 目標をトレーナーと一緒に決める（機能見直し-1-#20） ──────────────────────
+
+/** トレーナーからの返事待ちの目標の提案 */
+export interface PendingGoalProposal {
+  id: number;
+  /** 例: "山本 健トレーナーから目標の提案があります" */
+  title: string;
+  proposerName: string | null;
+  /** 今の週の回数目標（例: "週2回"、未設定は "未設定"） */
+  currentWeeklyLabel: string;
+  proposedWeeklyLabel: string;
+  weeklyChanged: boolean;
+  currentGoalModeLabel: string;
+  proposedGoalModeLabel: string;
+  goalModeChanged: boolean;
+  comment: string | null;
+  nextReviewDate: string;
+  /** 例: "12/22" */
+  nextReviewLabel: string;
+}
+
+export interface PendingGoalProposalResponse {
+  proposal: PendingGoalProposal | null;
+}
+
+/** 「担当トレーナーと決めた目標」の表示（今の目標が承認した提案と同じ間だけagreed=true） */
+export interface GoalAgreementResponse {
+  agreed: boolean;
+  /** 例: "担当トレーナーと決めた目標（11/24 山本 健）" */
+  tagLabel: string | null;
+  /** 例: "12/22" */
+  nextReviewLabel: string | null;
+}
+
+export type GoalProposalResponseChoice = 'ACCEPT' | 'DECLINE';
+
 // ── 期分けプログラム（機能見直し-1-#3） ──────────────────────────────────────
 
 export interface PeriodizationPreset {

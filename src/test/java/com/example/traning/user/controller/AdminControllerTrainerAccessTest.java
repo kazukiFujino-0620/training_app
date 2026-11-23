@@ -13,7 +13,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.traning.body.BodyMeasurementService;
+import com.example.traning.dao.UserDao;
 import com.example.traning.export.DataExportService;
+import com.example.traning.goal.FrequencyGoalService;
+import com.example.traning.goal.FrequencyGoalSummary;
+import com.example.traning.goal.GoalProposalDao;
+import com.example.traning.goal.GoalProposalService;
 import com.example.traning.mfa.MfaService;
 import com.example.traning.organization.MemberAccessPolicy;
 import com.example.traning.organization.Organization;
@@ -26,6 +31,7 @@ import com.example.traning.training.dao.TrainingDetailDao;
 import com.example.traning.training.service.CalorieCalculator;
 import com.example.traning.user.User;
 import com.example.traning.user.form.UserAdminUpdateForm;
+import com.example.traning.user.service.ProfileService;
 import com.example.traning.user.service.UserService;
 import java.time.LocalDate;
 import java.util.List;
@@ -65,7 +71,11 @@ class AdminControllerTrainerAccessTest {
   @Mock private OrganizationDao organizationDao;
   @Mock private UserStoreAccessDao userStoreAccessDao;
   @Mock private UserDetails userDetails;
+  @Mock private UserDao userDao;
   @Mock private PartLoadService partLoadService;
+  @Mock private GoalProposalDao goalProposalDao;
+  @Mock private FrequencyGoalService frequencyGoalService;
+  @Mock private ProfileService profileService;
 
   private AdminController controller;
 
@@ -97,7 +107,13 @@ class AdminControllerTrainerAccessTest {
             organizationDao,
             userStoreAccessDao,
             new MemberAccessPolicy(resolver),
-            partLoadService);
+            partLoadService,
+            new GoalProposalService(
+                goalProposalDao,
+                userDao,
+                new MemberAccessPolicy(resolver),
+                frequencyGoalService,
+                profileService));
     Organization s10 = new Organization();
     s10.setId(STORE_10);
     Organization s20 = new Organization();
@@ -108,6 +124,9 @@ class AdminControllerTrainerAccessTest {
     lenient()
         .when(userStoreAccessDao.selectStoreOrganizationIdsByUserId(anyLong()))
         .thenReturn(List.of());
+    lenient()
+        .when(frequencyGoalService.getSummary(anyLong(), any()))
+        .thenReturn(new FrequencyGoalSummary(false, null, 0, false, 0, 0, null, false));
     for (User u : List.of(mine, sameStoreOther, otherStore, staffSameStore, mineInOtherStore)) {
       lenient().when(userService.getUserById(u.getUserId())).thenReturn(u);
     }
@@ -412,5 +431,51 @@ class AdminControllerTrainerAccessTest {
     controller.listUsers(storeModel);
     assertThat(storeModel.getAttribute("roleReviewCount")).isEqualTo(0L);
     assertThat(storeModel.getAttribute("canReviewRoles")).isEqualTo(false);
+  }
+
+  // ── 目標の提案と履歴（機能見直し-1-#20） ─────────────────────────────
+
+  @Test
+  void 目標の提案_担当トレーナーには提案の欄と履歴を出す() {
+    loginAs(trainer);
+    when(goalProposalDao.selectProposalsByMember(100L)).thenReturn(List.of());
+    when(goalProposalDao.selectChangesByMember(100L)).thenReturn(List.of());
+    when(frequencyGoalService.findManualTarget(100L)).thenReturn(java.util.Optional.of(2));
+    when(frequencyGoalService.getSummary(eq(100L), any()))
+        .thenReturn(new FrequencyGoalSummary(true, 2, 0, false, 0, 0, 2, false));
+    Model model = new ExtendedModelMap();
+
+    controller.showUserTrainingDetail(100, null, model);
+
+    GoalProposalService.StaffGoalView view =
+        (GoalProposalService.StaffGoalView) model.getAttribute("goalView");
+    assertThat(view).isNotNull();
+    assertThat(view.currentLabel()).isEqualTo("週2回・維持（会員が設定）");
+  }
+
+  @Test
+  void 目標の提案_担当外のトレーナーには提案の欄も履歴もモデルに入れない() {
+    loginAs(trainer);
+    Model model = new ExtendedModelMap();
+
+    controller.showUserTrainingDetail(101, null, model);
+
+    assertThat(model.getAttribute("goalView")).isNull();
+    verify(goalProposalDao, never()).selectProposalsByMember(anyLong());
+  }
+
+  @Test
+  void 目標の提案_店舗管理者は担当でなくても範囲内の会員に出す() {
+    loginAs(user(2, "ROLE_STORE_ADMIN", STORE_10, null));
+    when(goalProposalDao.selectProposalsByMember(101L)).thenReturn(List.of());
+    when(goalProposalDao.selectChangesByMember(101L)).thenReturn(List.of());
+    when(frequencyGoalService.findManualTarget(101L)).thenReturn(java.util.Optional.empty());
+    when(frequencyGoalService.getSummary(eq(101L), any()))
+        .thenReturn(new FrequencyGoalSummary(false, null, 0, false, 0, 0, null, false));
+    Model model = new ExtendedModelMap();
+
+    controller.showUserTrainingDetail(101, null, model);
+
+    assertThat(model.getAttribute("goalView")).isNotNull();
   }
 }

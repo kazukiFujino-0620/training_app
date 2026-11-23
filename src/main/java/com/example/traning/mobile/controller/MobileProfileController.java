@@ -2,6 +2,7 @@ package com.example.traning.mobile.controller;
 
 import com.example.traning.audit.AuditLog;
 import com.example.traning.dao.UserDao;
+import com.example.traning.goal.GoalProposalService;
 import com.example.traning.mobile.dto.MobileProfileResponse;
 import com.example.traning.mobile.dto.UpdateProfileRequest;
 import com.example.traning.smarttrainer.recommendation.GoalMode;
@@ -9,6 +10,7 @@ import com.example.traning.user.User;
 import com.example.traning.user.form.ProfileForm;
 import com.example.traning.user.service.ProfileService;
 import jakarta.validation.Valid;
+import java.time.LocalDateTime;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -35,10 +37,13 @@ public class MobileProfileController {
 
   private final UserDao userDao;
   private final ProfileService profileService;
+  private final GoalProposalService goalProposalService;
 
-  public MobileProfileController(UserDao userDao, ProfileService profileService) {
+  public MobileProfileController(
+      UserDao userDao, ProfileService profileService, GoalProposalService goalProposalService) {
     this.userDao = userDao;
     this.profileService = profileService;
+    this.goalProposalService = goalProposalService;
   }
 
   @GetMapping
@@ -63,8 +68,9 @@ public class MobileProfileController {
   @AuditLog(action = "MOBILE_PROFILE_GOAL_MODE_UPDATE", targetTable = "users")
   public ResponseEntity<Void> updateGoalMode(
       @AuthenticationPrincipal Long userId, @RequestBody Map<String, String> body) {
-    profileService.updateGoalMode(
-        userId.intValue(), GoalMode.fromString(body.get("goalMode")).name());
+    // 機能見直し-1-#20: 値が変わったら「会員が変更」を記録する（担当トレーナーと決めた目標の表示も外れる）
+    goalProposalService.updateGoalModeByMember(
+        userId.intValue(), GoalMode.fromString(body.get("goalMode")).name(), LocalDateTime.now());
     return ResponseEntity.noContent().build();
   }
 
